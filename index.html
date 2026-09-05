@@ -307,6 +307,21 @@
   .landing-nav-actions .btn.secondary{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.3);color:#fff;}
   .landing-nav-actions .btn.secondary:hover{background:rgba(255,255,255,0.18);}
 
+  /* ---------------- Install (desktop app) button + platform menu ---------------- */
+  .landing-install-wrap{position:relative;display:inline-block;}
+  .landing-install-menu{position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 36px rgba(15,30,20,0.28);padding:10px;width:230px;z-index:60;}
+  .landing-install-wrap.nav .landing-install-menu{right:0;left:auto;}
+  .landing-install-wrap.hero .landing-install-menu{left:0;right:auto;}
+  .landing-install-menu[hidden]{display:none;}
+  .landing-install-menu-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);padding:4px 8px 8px;}
+  .landing-install-option{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:9px 8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .landing-install-option:hover{background:var(--surface-strong);}
+  .landing-install-option .install-emoji{font-size:16px;width:20px;text-align:center;}
+  .landing-install-option[disabled]{opacity:.45;cursor:default;}
+  .landing-install-option[disabled]:hover{background:none;}
+  .landing-install-option-note{font-size:10px;font-weight:600;color:var(--accent1);margin-left:auto;}
+  .landing-install-menu-note{margin-top:6px;padding:8px 8px 2px;border-top:1px solid var(--border);font-size:10.5px;color:var(--ink-soft);line-height:1.5;}
+
   .landing-hero{position:relative;overflow:hidden;background:radial-gradient(ellipse 900px 500px at 15% -10%,#2E7D32 0%,transparent 60%),linear-gradient(160deg,#0F2A17 0%,#123B1C 45%,#1B5E20 100%);padding-bottom:60px;}
   .landing-hero-glow{position:absolute;right:-120px;top:-120px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(242,169,0,0.35) 0%,transparent 70%);pointer-events:none;}
   .landing-hero-inner{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:28px 28px 0;display:grid;grid-template-columns:1.05fr 0.95fr;gap:40px;align-items:center;}
@@ -6431,6 +6446,89 @@ function svgLedgerHero(){
     </g>
   </svg>`;
 }
+/* ---------------- Desktop app download (landing page "Install" button) ----------------
+   Fill in the three URLs below once the desktop builds are hosted somewhere public (a
+   GitHub Release is the simplest option — free, no size limit that matters here, stable
+   direct-download links; Firebase Storage/Hosting works too). Leave a URL as '' until it's
+   ready — the button then shows that platform as "Coming soon" instead of a dead link. */
+const DESKTOP_APP_DOWNLOADS = {
+  win:   { url: '', label: 'Windows', filename: 'TheReckoningBooks-Setup.exe' },
+  mac:   { url: '', label: 'macOS',   filename: 'TheReckoningBooks.dmg' },
+  linux: { url: '', label: 'Linux (AppImage)', filename: 'TheReckoningBooks.AppImage' },
+};
+
+// Best-effort OS sniff from the browser — good enough to default the button to the right
+// platform and to steer mobile visitors away from a desktop download entirely. Never trusted
+// for anything security-sensitive, only for which link a click should follow.
+function detectDesktopPlatform(){
+  const ua = navigator.userAgent || '';
+  const plat = navigator.platform || '';
+  if(/Android|iPhone|iPad|iPod/i.test(ua)) return 'mobile';
+  if(/Mac/i.test(plat) || /Macintosh/i.test(ua)) return 'mac';
+  if(/Win/i.test(plat) || /Windows/i.test(ua)) return 'win';
+  if(/Linux/i.test(plat) || /Linux/i.test(ua)) return 'linux';
+  return 'unknown';
+}
+
+function triggerDesktopDownload(os){
+  const entry = DESKTOP_APP_DOWNLOADS[os];
+  if(!entry || !entry.url){
+    toast(entry ? `The ${entry.label} download is being prepared — check back soon.` : 'Download not available for that platform yet.');
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = entry.url;
+  a.download = entry.filename || '';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function installMenuHtml(detected){
+  const order = ['win','mac','linux'];
+  const emoji = { win:'🪟', mac:'🍎', linux:'🐧' };
+  return `
+    <div class="landing-install-menu-title">Download for your computer</div>
+    ${order.map(os=>{
+      const entry = DESKTOP_APP_DOWNLOADS[os];
+      const ready = !!entry.url;
+      return `<button class="landing-install-option" type="button" data-install-os="${os}" ${ready?'':'disabled'}>
+        <span class="install-emoji">${emoji[os]}</span><span>${escapeHtml(entry.label)}</span>
+        ${os===detected?'<span class="landing-install-option-note">Recommended</span>':(ready?'':'<span class="landing-install-option-note">Soon</span>')}
+      </button>`;
+    }).join('')}
+    <div class="landing-install-menu-note">Free download · runs alongside your existing account, no separate sign-up.</div>
+  `;
+}
+
+function wireInstallButton(wrapId, btnId, menuId){
+  const wrap = document.getElementById(wrapId);
+  const btn = document.getElementById(btnId);
+  const menu = document.getElementById(menuId);
+  if(!wrap || !btn || !menu) return;
+  const detected = detectDesktopPlatform();
+  const closeMenu = ()=>{ menu.hidden = true; };
+  const openMenu = ()=>{ menu.hidden = false; };
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(detected==='win' || detected==='mac' || detected==='linux'){
+      triggerDesktopDownload(detected);
+      openMenu(); // still reveal alternatives, in case the sniff guessed wrong
+    } else {
+      openMenu();
+    }
+  });
+  menu.querySelectorAll('[data-install-os]').forEach(optBtn=>{
+    optBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      triggerDesktopDownload(optBtn.getAttribute('data-install-os'));
+      closeMenu();
+    });
+  });
+  document.addEventListener('click', (e)=>{ if(!wrap.contains(e.target)) closeMenu(); });
+}
+
 function landingFeatureIcon(name){
   const icons = {
     vouchers: '<path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M9 13l2 2 4-4"/>',
@@ -6467,6 +6565,10 @@ function renderLanding(){
             <button class="btn secondary small" id="landingTryDemoBtn" type="button">Try Demo</button>
             <button class="btn secondary small" id="landingLoginBtn" type="button">Log In</button>
             <button class="btn small" id="landingSignupBtn" type="button">Create Account</button>
+            <div class="landing-install-wrap nav" id="landingInstallWrapNav">
+              <button class="btn secondary small" id="landingInstallBtnNav" type="button">⭳ Install The Reckoning Books</button>
+              <div class="landing-install-menu" id="landingInstallMenuNav" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
+            </div>
           </div>
         </div>
         <div class="landing-hero-inner">
@@ -6478,6 +6580,10 @@ function renderLanding(){
               <button class="btn" id="landingHeroSignupBtn" type="button">Create Your Free Account →</button>
               <button class="btn secondary" id="landingHeroTryDemoBtn" type="button">Try Demo →</button>
               <button class="btn secondary" id="landingHeroLoginBtn" type="button">Log In</button>
+              <div class="landing-install-wrap hero" id="landingInstallWrapHero">
+                <button class="btn secondary" id="landingInstallBtnHero" type="button">⭳ Install Desktop App</button>
+                <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
+              </div>
             </div>
             <div class="landing-hero-note">Free to start · No credit card · Or explore the Sk Enterprises demo company first, no sign-up needed</div>
           </div>
@@ -6547,6 +6653,8 @@ function renderLanding(){
   document.getElementById('landingCtaBtn')?.addEventListener('click', ()=>goToLogin('signup'));
   document.getElementById('landingTryDemoBtn')?.addEventListener('click', demoLogin);
   document.getElementById('landingHeroTryDemoBtn')?.addEventListener('click', demoLogin);
+  wireInstallButton('landingInstallWrapNav', 'landingInstallBtnNav', 'landingInstallMenuNav');
+  wireInstallButton('landingInstallWrapHero', 'landingInstallBtnHero', 'landingInstallMenuHero');
 }
 
 /* ---------------- Login — welcome screen shown before Company Info ---------------- */
