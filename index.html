@@ -6452,9 +6452,9 @@ function svgLedgerHero(){
    direct-download links; Firebase Storage/Hosting works too). Leave a URL as '' until it's
    ready — the button then shows that platform as "Coming soon" instead of a dead link. */
 const DESKTOP_APP_DOWNLOADS = {
-  win:   { url: '', label: 'Windows', filename: 'TheReckoningBooks-Setup.exe' },
+  win:   { url: 'https://github.com/Santhoshm-Lab/The-Reckoning-Books-by-SKm/releases/download/v2.0.0/The.Reckoning.Books.2.0.0.exe', label: 'Windows', filename: 'TheReckoningBooks-Setup-2.0.0.exe' },
   mac:   { url: '', label: 'macOS',   filename: 'TheReckoningBooks.dmg' },
-  linux: { url: '', label: 'Linux (AppImage)', filename: 'TheReckoningBooks.AppImage' },
+  linux: { url: 'https://github.com/Santhoshm-Lab/The-Reckoning-Books-by-SKm/releases/download/v2.0.0/The.Reckoning.Books-2.0.0.AppImage', label: 'Linux (AppImage)', filename: 'TheReckoningBooks-2.0.0.AppImage' },
 };
 
 // Best-effort OS sniff from the browser — good enough to default the button to the right
@@ -6495,7 +6495,7 @@ function installMenuHtml(detected){
       const ready = !!entry.url;
       return `<button class="landing-install-option" type="button" data-install-os="${os}" ${ready?'':'disabled'}>
         <span class="install-emoji">${emoji[os]}</span><span>${escapeHtml(entry.label)}</span>
-        ${os===detected?'<span class="landing-install-option-note">Recommended</span>':(ready?'':'<span class="landing-install-option-note">Soon</span>')}
+        ${!ready?'<span class="landing-install-option-note">Soon</span>':(os===detected?'<span class="landing-install-option-note">Recommended</span>':'')}
       </button>`;
     }).join('')}
     <div class="landing-install-menu-note">Free download · runs alongside your existing account, no separate sign-up.</div>
