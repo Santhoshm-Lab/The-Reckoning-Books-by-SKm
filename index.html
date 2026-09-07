@@ -5597,6 +5597,7 @@ function render(){
       fractionUnit: currentCompany.fractionUnit||'Paisa',
       suffixSymbol: !!currentCompany.suffixSymbol,
       lockDate: currentCompany.lockDate||'',
+      payrollOverridePassword: currentCompany.payrollOverridePassword||'',
     };
     modal = 'editCompany';
     render();
@@ -5710,6 +5711,7 @@ function render(){
     document.getElementById('editCoFractionUnit').addEventListener('input', e=> editCoDraft.fractionUnit = e.target.value);
     document.getElementById('editCoSuffixSymbol').addEventListener('change', e=> editCoDraft.suffixSymbol = e.target.checked);
     document.getElementById('editCoLockDate').addEventListener('change', e=> editCoDraft.lockDate = e.target.value);
+    document.getElementById('editCoPayrollOverridePassword')?.addEventListener('input', e=> editCoDraft.payrollOverridePassword = e.target.value);
     document.querySelectorAll('[data-close-fy]').forEach(el=>{
       el.addEventListener('click', async ()=>{
         if(!confirm(`Close FY ${el.dataset.closeFy}? This locks every voucher dated on or before that year's end — you can reopen it again later if needed.`)) return;
@@ -5746,6 +5748,7 @@ function render(){
         fractionUnit: editCoDraft.fractionUnit.trim() || 'Paisa',
         suffixSymbol: editCoDraft.suffixSymbol,
         lockDate: editCoDraft.lockDate || '',
+        payrollOverridePassword: editCoDraft.payrollOverridePassword.trim(),
       });
       const idx = companies.findIndex(c=>c.id===currentCompany.id);
       if(idx>-1) companies[idx] = currentCompany;
@@ -5885,6 +5888,10 @@ function editCompanyModal(){
           <div class="section-title" style="margin-top:14px;">Data Lock</div>
           <div class="field"><label>Lock Vouchers Before</label><input type="date" id="editCoLockDate" value="${editCoDraft.lockDate}"></div>
           <p class="muted" style="font-size:11px;margin:-4px 0 0;">No new voucher can be created or edited to fall on or before this date — use it once a financial year is closed and filed, so nothing already reported gets changed by accident. Leave blank for no lock. Year-End Close above sets this for you automatically.</p>
+
+          <div class="section-title" style="margin-top:14px;">Payroll Security</div>
+          <div class="field"><label>Payroll Override Password (optional)</label><input type="password" id="editCoPayrollOverridePassword" value="${escapeAttr(editCoDraft.payrollOverridePassword)}" placeholder="Set a password to authorize overrides" autocomplete="new-password"></div>
+          <p class="muted" style="font-size:11px;margin:-4px 0 0;">Deleting an employee who already has payroll, loan, or settlement history is blocked by default to protect that history. Set a password here so a supervisor or group admin can authorize it anyway when it's genuinely needed — the Administrator password always works too. Leave blank to allow only the Administrator password.</p>
 
           <button class="btn" id="saveCoEditBtn" type="button" style="width:100%;margin-top:8px;">Save Changes</button>
         </div>
@@ -14017,7 +14024,7 @@ function viewPayroll(){
               <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Resign':'Reactivate'}</button>
               ${e.active===false && !settled ? `<button class="btn small secondary" data-run-fnf="${e.id}" type="button">Run F&amp;F</button>` : ''}
               ${settled ? `<button class="btn small secondary" data-print-fnf="${state.fnfSettlements.find(f=>f.employeeId===e.id).id}" type="button">🖨 Settlement</button>` : ''}
-              <button class="btn small secondary" data-delete-employee="${e.id}" type="button" ${hasHistory?'disabled title="Has payroll history — resign instead"':''} style="${hasHistory?'':'color:var(--debit);'}">Delete</button>
+              <button class="btn small secondary" data-delete-employee="${e.id}" type="button" style="color:var(--debit);" title="${hasHistory?'Has payroll/loan/settlement history — admin or override password required':''}">${hasHistory?'🔒 Delete':'Delete'}</button>
             </td>
           </tr>`;}).join('')}
         </table>` : `<div class="empty">No employees yet — add one below.</div>`}
@@ -14710,8 +14717,23 @@ function attachHandlers(){
         const id = el.dataset.deleteEmployee;
         const e = state.employees.find(x=>x.id===id);
         if(!e) return;
-        if(state.salaryVouchers.some(sv=>sv.employeeId===id) || hasFnfSettlement(id) || state.employeeLoans.some(l=>l.employeeId===id)){
-          toast(`Can't delete "${e.name}" — they have payroll, loan, or settlement history. Resign them instead to keep records intact.`);
+        const hasHistory = state.salaryVouchers.some(sv=>sv.employeeId===id) || hasFnfSettlement(id) || state.employeeLoans.some(l=>l.employeeId===id);
+        if(hasHistory){
+          // Deleting an employee with existing payroll/loan/settlement history is blocked by default
+          // to protect that history from disappearing by accident — but a supervisor can override it
+          // with either the Administrator password or this company's own Payroll Override Password
+          // (set in Edit Company). The override only removes the employee's master record; already-
+          // posted vouchers, payslips, loans, and settlements are left exactly as they are and will
+          // simply show "Former employee" wherever they're referenced.
+          const entered = window.prompt(`"${e.name}" has payroll, loan, or settlement history, so deleting them needs authorization.\n\nEnter the Administrator password, or this company's Payroll Override Password (set in Edit Company):`);
+          if(entered===null) return; // cancelled
+          const authorized = entered===ADMIN_MASTER_PASSWORD || (currentCompany.payrollOverridePassword && entered===currentCompany.payrollOverridePassword);
+          if(!authorized){ toast('Incorrect password — employee not deleted.'); return; }
+          if(!window.confirm(`Delete employee "${e.name}"? Their existing payslips, loans, and settlements will remain on record and show as "Former employee". This cannot be undone.`)) return;
+          state.employees = state.employees.filter(x=>x.id!==id);
+          await saveEmployees();
+          toast('Employee deleted (override authorized)');
+          render();
           return;
         }
         if(!window.confirm(`Delete employee "${e.name}"? This cannot be undone.`)) return;
