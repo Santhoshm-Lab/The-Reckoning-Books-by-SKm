@@ -1539,8 +1539,8 @@ let state = {
   costCenters: [], // [{id, name, active}]
   currencies: [], // [{id, code, symbol, name, rate, active}] -- rate is units of this currency per 1 INR's worth i.e. INR = amount * rate... see currencyToINR()
   budgets: [], // [{id, ledgerId, fy, amount, costCenterId?}]
-  employees: [], // [{id, name, designation, ledgerId, joinDate, active, salary:{basic,hra,allowances,deductions}}]
-  salaryVouchers: [], // [{id, employeeId, month (YYYY-MM), basic,hra,allowances,deductions,netPay,voucherId,generatedAt}]
+  employees: [], // [{id, code, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, active, salary:{basic,hra,allowances,bonus,pf,esi,pt,tds,otherDeductions}}]
+  salaryVouchers: [], // [{id, employeeId, month (YYYY-MM), basic,hra,allowances,bonus,pf,esi,pt,tds,otherDeductions,netPay,voucherId,generatedAt}]
   quotations: [], // [{id, docType:'quotation', no, date, partyLedgerId, items:[...], narration, status:'open'|'converted', convertedVoucherId}]
   salesOrders: [],
   purchaseOrders: [],
@@ -1643,8 +1643,26 @@ let contactSupportNotice = '';
 let helpTab = 'info';    // 'info' | 'tickets' — which section is active inside the tabbed Help modal
 let myTickets = [];      // cache of the current user's own support tickets, loaded when the Tickets tab opens
 let myTicketUpdateIds = new Set(); // "<ticketId>_<updatedAt>" keys already toasted this session — avoids re-toasting the same admin update on every 30s poll, while still catching the NEXT update to that same ticket
-let featureFlags = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false }; // settings/featureFlags doc
-let featureFlagsDraft = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false };
+const DEFAULT_FEATURE_FLAGS = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false, gstRequiresPaid:false, assetsRequiresPaid:false, partiesRequiresPaid:false, ordersRequiresPaid:false, payrollRequiresPaid:false };
+let featureFlags = { ...DEFAULT_FEATURE_FLAGS }; // settings/featureFlags doc
+let featureFlagsDraft = { ...DEFAULT_FEATURE_FLAGS };
+// Which sidebar tabs can be paid-gated, and the settings/featureFlags field that gates each one.
+// Single source of truth used by tab(), goToTab(), renderView() and the Admin Panel toggles below.
+const GATED_TABS = { inventory:'inventoryRequiresPaid', reconcile:'reconcileRequiresPaid', gst:'gstRequiresPaid', assets:'assetsRequiresPaid', parties:'partiesRequiresPaid', orders:'ordersRequiresPaid', payroll:'payrollRequiresPaid' };
+const GATED_TAB_LABELS = { inventory:'Inventory', reconcile:'Reconcile', gst:'GST', assets:'Assets', parties:'Parties', orders:'Orders', payroll:'Payroll' };
+function isTabGated(id){
+  const flagKey = GATED_TABS[id];
+  return !!(flagKey && featureFlags[flagKey] && !userEntitled(id));
+}
+function paidFeatureLockedView(label){
+  return `
+    <div class="panel"><div class="panel-body" style="text-align:center;padding:48px 24px;">
+      <div style="font-size:32px;margin-bottom:10px;">🔒</div>
+      <h2 style="margin:0 0 8px;font-size:16px;">${escapeHtml(label)} is a Paid-plan feature</h2>
+      <p class="muted" style="font-size:12.5px;max-width:420px;margin:0 auto;">Ask your administrator to upgrade this account's plan to Paid or Lifetime to unlock ${escapeHtml(label)}.</p>
+    </div></div>
+  `;
+}
 let errorLog = [];              // cache of client-side error log entries, loaded when the Settings tab opens
 /* ---- Admin Panel additions: Companies search/export, Analytics range, Users bulk actions +
    drill-down, Audit Log search/filter ---- */
@@ -1708,8 +1726,10 @@ let ordersSubTab = 'quotation'; // which of the 4 pre-sale document types the Or
 let oform = null; // null = not adding/editing a pre-sale document | {docType, id?, partyLedgerId, date, narration, items:[{itemId,name,qty,rate,disc}], status}
 let pendingConvertDoc = null; // {docType, id} of the order document being converted, set by the Orders tab's "Convert to Voucher" button; the next voucher save marks it converted
 let budgetReportFY = null; // which FY the Budget vs Actual report is showing; null = default to the current FY the first time it's opened
-let employeeDraft = null; // null = not adding/editing an employee | {id?, name, designation, joinDate, basic, hra, allowances, deductions}
+let employeeDraft = null; // null = not adding/editing an employee | {id?, code?, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions}
 let payrollMonth = new Date().toISOString().slice(0,7); // YYYY-MM the "Generate Payroll" panel is showing
+let payrollPayFromLedgerId = null; // which Bank/Cash ledger salary net pay is credited from, for the "Generate Payroll" panel
+let payslipYearFilter = 'all'; // 'all' or a 'YYYY' string — filters the Payslips history table
 let ewayVoucherId = null; // which Sales voucher the e-Way Bill transport-details modal is generating for
 let attachmentsVoucherId = null; // which voucher the Attachments modal is open for
 let attachmentsCache = {}; // voucherId -> [{id, filename, mimeType, size, uploadedAt, dataUrl}], lazy-loaded per voucher from its own Firestore subcollection
@@ -2304,8 +2324,18 @@ async function submitSupportTicket(subject, message){
 async function loadFeatureFlags(){
   try{
     const doc = await db.collection('settings').doc('featureFlags').get();
-    featureFlags = doc.exists ? { inventoryRequiresPaid: !!doc.data().inventoryRequiresPaid, importRequiresPaid: !!doc.data().importRequiresPaid, reconcileRequiresPaid: !!doc.data().reconcileRequiresPaid } : { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false };
-  }catch(e){ featureFlags = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false }; }
+    const d = doc.exists ? doc.data() : {};
+    featureFlags = {
+      inventoryRequiresPaid: !!d.inventoryRequiresPaid,
+      importRequiresPaid: !!d.importRequiresPaid,
+      reconcileRequiresPaid: !!d.reconcileRequiresPaid,
+      gstRequiresPaid: !!d.gstRequiresPaid,
+      assetsRequiresPaid: !!d.assetsRequiresPaid,
+      partiesRequiresPaid: !!d.partiesRequiresPaid,
+      ordersRequiresPaid: !!d.ordersRequiresPaid,
+      payrollRequiresPaid: !!d.payrollRequiresPaid,
+    };
+  }catch(e){ featureFlags = { ...DEFAULT_FEATURE_FLAGS }; }
   featureFlagsDraft = { ...featureFlags };
 }
 function userEntitled(featureKey){
@@ -3503,6 +3533,44 @@ function buildCompanyBackup(){
 }
 // Generic "save this object as a downloaded .json file" helper, used by the e-Invoice/e-Way Bill
 // JSON generators below (and reusable anywhere else a JSON download is needed).
+/* ---------------- Printing ----------------
+   Every printable document (invoice, order doc, payslip) builds a full standalone HTML page and
+   hands it here. This used to open the page with window.open('', '_blank') + document.write(),
+   which silently fails to produce anything wherever popups are blocked or unavailable: popup
+   blockers, sandboxed/embedded webviews, and mobile in-app browsers all either block window.open
+   outright or open a blank/backgrounded tab the person never sees. A hidden same-page <iframe> with
+   srcdoc sidesteps all of that -- nothing needs to leave the current page or ask permission, and
+   contentWindow.print() still opens the browser/OS print dialog exactly like a normal print. */
+function printHTMLDocument(html){
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.setAttribute('aria-hidden', 'true');
+  let printed = false;
+  const cleanup = ()=> setTimeout(()=>{ if(iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 1500);
+  iframe.onload = ()=>{
+    if(printed) return; // avoid double-firing if the browser triggers onload more than once
+    printed = true;
+    try{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }catch(e){
+      // Last-resort fallback for the rare embed that blocks even iframe printing.
+      try{
+        const w = window.open('', '_blank');
+        if(w){ w.document.open(); w.document.write(html); w.document.close(); }
+        else toast('Printing is blocked in this browser. Please allow pop-ups, or try a different browser.');
+      }catch(e2){ toast('Printing is blocked in this browser/embed.'); }
+    }
+    cleanup();
+  };
+  document.body.appendChild(iframe);
+  iframe.srcdoc = html;
+}
 function downloadJSON(obj, filename){
   const json = JSON.stringify(obj, null, 2);
   const blob = new Blob([json], {type:'application/json'});
@@ -5532,9 +5600,8 @@ function render(){
     document.querySelectorAll('[data-view-jump]').forEach(el=>{
       el.addEventListener('click', (e)=>{
         e.stopPropagation();
-        view = el.dataset.viewJump;
         viewMenuOpen = false;
-        render();
+        goToTab(el.dataset.viewJump);
       });
     });
   }
@@ -5671,7 +5738,7 @@ function tab(id,label,shortcutLetter){
   const labelHtml = idx>=0
     ? `${escapeHtml(label.slice(0,idx))}<b>${escapeHtml(label[idx])}</b>${escapeHtml(label.slice(idx+1))}`
     : escapeHtml(label);
-  const gated = ((id==='inventory' && featureFlags.inventoryRequiresPaid && !userEntitled('inventory')) || (id==='reconcile' && featureFlags.reconcileRequiresPaid && !userEntitled('reconcile')));
+  const gated = isTabGated(id);
   return `<button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${gated?'Paid-plan feature':'Shortcut: '+(shortcutLetter||'')}">${tabIcon(id)}<span>${labelHtml}${gated?' 🔒':''}</span></button>`;
 }
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
@@ -5680,12 +5747,8 @@ function tab(id,label,shortcutLetter){
 const TAB_SHORTCUTS = { d:'dashboard', v:'voucher', b:'daybook', c:'calendar', l:'ledgers', a:'coa', i:'inventory', r:'reports', g:'gst', e:'reconcile', s:'assets', p:'parties', o:'orders', y:'payroll' };
 function goToTab(id){
   if(!id || view===id) return;
-  if(id==='inventory' && featureFlags.inventoryRequiresPaid && !userEntitled('inventory')){
-    toast('Inventory is a Paid-plan feature — contact the administrator to upgrade.');
-    return;
-  }
-  if(id==='reconcile' && featureFlags.reconcileRequiresPaid && !userEntitled('reconcile')){
-    toast('Reconcile is a Paid-plan feature — contact the administrator to upgrade.');
+  if(isTabGated(id)){
+    toast(`${GATED_TAB_LABELS[id]||id} is a Paid-plan feature — contact the administrator to upgrade.`);
     return;
   }
   view = id;
@@ -8216,13 +8279,19 @@ function renderGateway(){
       const inventoryRequiresPaid = document.getElementById('flagInventory').checked;
       const importRequiresPaid = document.getElementById('flagImport').checked;
       const reconcileRequiresPaid = document.getElementById('flagReconcile').checked;
+      const gstRequiresPaid = document.getElementById('flagGST').checked;
+      const assetsRequiresPaid = document.getElementById('flagAssets').checked;
+      const partiesRequiresPaid = document.getElementById('flagParties').checked;
+      const ordersRequiresPaid = document.getElementById('flagOrders').checked;
+      const payrollRequiresPaid = document.getElementById('flagPayroll').checked;
       const btn = document.getElementById('saveFeatureFlagsBtn');
       btn.disabled = true;
       try{
-        await db.collection('settings').doc('featureFlags').set({ inventoryRequiresPaid, importRequiresPaid, reconcileRequiresPaid, updatedAt: new Date().toISOString() }, {merge:true});
-        featureFlags = { inventoryRequiresPaid, importRequiresPaid, reconcileRequiresPaid };
+        const newFlags = { inventoryRequiresPaid, importRequiresPaid, reconcileRequiresPaid, gstRequiresPaid, assetsRequiresPaid, partiesRequiresPaid, ordersRequiresPaid, payrollRequiresPaid };
+        await db.collection('settings').doc('featureFlags').set({ ...newFlags, updatedAt: new Date().toISOString() }, {merge:true});
+        featureFlags = { ...newFlags };
         featureFlagsDraft = { ...featureFlags };
-        await logAudit('feature_flags_updated', `Inventory paid-gated: ${inventoryRequiresPaid}, Import paid-gated: ${importRequiresPaid}, Reconcile paid-gated: ${reconcileRequiresPaid}`);
+        await logAudit('feature_flags_updated', `Inventory:${inventoryRequiresPaid} Import:${importRequiresPaid} Reconcile:${reconcileRequiresPaid} GST:${gstRequiresPaid} Assets:${assetsRequiresPaid} Parties:${partiesRequiresPaid} Orders:${ordersRequiresPaid} Payroll:${payrollRequiresPaid}`);
         toast('Feature flags saved');
         renderGateway();
       }catch(err){
@@ -8934,6 +9003,21 @@ function adminSettingsTab(){
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
       <input type="checkbox" id="flagReconcile" style="width:auto;" ${featureFlagsDraft.reconcileRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Reconcile</strong>
     </label>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" id="flagGST" style="width:auto;" ${featureFlagsDraft.gstRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>GST</strong>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" id="flagAssets" style="width:auto;" ${featureFlagsDraft.assetsRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Assets</strong>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" id="flagParties" style="width:auto;" ${featureFlagsDraft.partiesRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Parties</strong>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" id="flagOrders" style="width:auto;" ${featureFlagsDraft.ordersRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Orders</strong>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" id="flagPayroll" style="width:auto;" ${featureFlagsDraft.payrollRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Payroll</strong>
+    </label>
     <button class="btn secondary small" id="saveFeatureFlagsBtn" type="button" style="margin-top:10px;" ${isFullAdmin()?'':'disabled'}>Save Feature Flags</button>
 
     <div class="section-title">Data Export</div>
@@ -9590,6 +9674,7 @@ function groupAdminAuditTab(){
 }
 
 function renderView(){
+  if(isTabGated(view)) return paidFeatureLockedView(GATED_TAB_LABELS[view]||view);
   switch(view){
     case 'dashboard': return viewDashboard();
     case 'voucher': return viewVoucher();
@@ -11272,14 +11357,9 @@ function generateAndPrintBill(){
   </table>
   ${vform.narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(vform.narration)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
-  <script>window.onload = function(){ window.print(); };<\/script>
 </body></html>`;
 
-  const w = window.open('', '_blank');
-  if(!w){ toast('Please allow pop-ups to print the bill'); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  printHTMLDocument(html);
 }
 
 // Indian financial-year label for a date, e.g. '2026-27', anchored on the company's fyStart/booksFrom
@@ -11530,14 +11610,9 @@ function printInvoiceForVoucher(voucherId){
   ${v.narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(v.narration)}</div>`:''}
   ${footerNote?`<div class="footer-note">${escapeHtml(footerNote)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
-  <script>window.onload = function(){ window.print(); };<\/script>
 </body></html>`;
 
-  const w = window.open('', '_blank');
-  if(!w){ toast('Please allow pop-ups to print the invoice'); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  printHTMLDocument(html);
 }
 
 /* ---------------- Pre-sale Documents: Quotation / Sales Order / Purchase Order / Delivery Challan ----------------
@@ -11714,13 +11789,8 @@ function printOrderDoc(docType, id){
   </table>
   ${doc.narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(doc.narration)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
-  <script>window.onload = function(){ window.print(); };<\/script>
 </body></html>`;
-  const w = window.open('', '_blank');
-  if(!w){ toast('Please allow pop-ups to print'); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  printHTMLDocument(html);
 }
 // Hands the document's party + items over to the real Voucher form instead of guessing which
 // Sales/Purchase and GST-rate ledgers to post against -- the user picks those and clicks the GST
@@ -13582,14 +13652,21 @@ function viewAssets(){
 }
 
 /* ---------------- Payroll ----------------
-   Each employee gets its own auto-created "Salary Payable" ledger under Current Liabilities the
-   moment they're added -- there's nothing for the user to pre-configure. Running payroll for a month
-   posts ONE Journal voucher covering every employee paid that month: Dr a shared Salaries & Wages
-   expense ledger for the combined gross, Cr each employee's own ledger for their net pay, and Cr a
-   shared Salary Deductions Payable ledger for the combined deductions (so nothing just vanishes --
-   deductions sit as a liability until separately paid out, same as PF/TDS would in real payroll).
-   Both shared ledgers are found-by-name-or-created the first time payroll is ever run, exactly like
-   the GST system ledgers are seeded for every company. */
+   All employees share ONE "Employee Salary" ledger under Indirect Expenses -- it's found-by-name-or-
+   created the very first time payroll is ever run for the company (exactly like the GST system
+   ledgers are seeded), and every run after that just posts straight into the same ledger. Nothing
+   employee-specific needs to be pre-configured.
+   Running payroll posts one Journal voucher PER EMPLOYEE for the month (not one combined voucher):
+   Dr the shared Employee Salary ledger for that employee's gross pay, Cr the chosen Cash/Bank ledger
+   for their net pay, and Cr a shared Salary Deductions Payable ledger for anything withheld (PF, ESI,
+   Professional Tax, TDS, other deductions -- sits as a liability until paid out separately, same as
+   real statutory dues). Because each employee gets their own voucher with their own name in the
+   narration, the Employee Salary ledger's statement shows every employee's name and amount as its
+   own line -- and since it's all just normal vouchers/entries, every report (P&L, Trial Balance, Cash/
+   Bank Book, ledger statements) picks it up automatically with no extra wiring. */
+const EMPLOYEE_SALARY_LEDGER_NAME = 'Employee Salary';
+const SALARY_DEDUCTIONS_LEDGER_NAME = 'Salary Deductions Payable';
+const EMPLOYMENT_TYPES = ['Full-time','Part-time','Contract','Intern'];
 function ensureLedgerByName(name, groupId){
   let l = state.ledgers.find(x=>x.name.toLowerCase()===name.toLowerCase());
   let created = false;
@@ -13600,13 +13677,37 @@ function ensureLedgerByName(name, groupId){
   }
   return { ledger:l, created };
 }
+function nextEmployeeCode(){
+  let max = 0;
+  state.employees.forEach(e=>{
+    const m = /^EMP-(\d+)$/.exec(e.code||'');
+    if(m) max = Math.max(max, parseInt(m[1],10));
+  });
+  return 'EMP-'+String(max+1).padStart(3,'0');
+}
 function employeeGross(emp){
   const s = emp.salary||{};
-  return (Number(s.basic)||0)+(Number(s.hra)||0)+(Number(s.allowances)||0);
+  return (Number(s.basic)||0)+(Number(s.hra)||0)+(Number(s.allowances)||0)+(Number(s.bonus)||0);
+}
+// Deductions are broken into named statutory-style buckets (PF/ESI/Professional Tax/TDS/Other) the
+// way Zoho Payroll and similar tools do. `otherDeductions` falls back to the old single `deductions`
+// field so employees added before this breakdown existed keep working unchanged.
+function employeeDeductionsBreakdown(emp){
+  const s = emp.salary||{};
+  return {
+    pf: Number(s.pf)||0,
+    esi: Number(s.esi)||0,
+    pt: Number(s.pt)||0,
+    tds: Number(s.tds)||0,
+    other: Number(s.otherDeductions!=null ? s.otherDeductions : s.deductions)||0,
+  };
+}
+function employeeTotalDeductions(emp){
+  const d = employeeDeductionsBreakdown(emp);
+  return r2(d.pf+d.esi+d.pt+d.tds+d.other);
 }
 function employeeNetPay(emp){
-  const s = emp.salary||{};
-  return r2(employeeGross(emp) - (Number(s.deductions)||0));
+  return r2(employeeGross(emp) - employeeTotalDeductions(emp));
 }
 function employeeDraftForm(){
   const d = employeeDraft;
@@ -13616,18 +13717,38 @@ function employeeDraftForm(){
       <div class="panel-head"><h2>${editing?'Edit':'Add'} Employee</h2></div>
       <div class="panel-body">
         <div class="row">
+          <div class="field" style="max-width:130px;"><label>Employee ID</label><input type="text" value="${escapeAttr(d.code||nextEmployeeCode())}" disabled></div>
           <div class="field"><label>Full Name</label><input type="text" id="empName" value="${escapeAttr(d.name)}" placeholder="e.g. Priya Sharma"></div>
           <div class="field"><label>Designation</label><input type="text" id="empDesignation" value="${escapeAttr(d.designation)}" placeholder="e.g. Accountant"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Department</label><input type="text" id="empDepartment" value="${escapeAttr(d.department)}" placeholder="e.g. Operations"></div>
+          <div class="field" style="max-width:170px;"><label>Employment Type</label><select id="empType">${EMPLOYMENT_TYPES.map(t=>`<option ${d.employmentType===t?'selected':''}>${t}</option>`).join('')}</select></div>
           <div class="field" style="max-width:170px;"><label>Date of Joining</label><input type="date" id="empJoinDate" value="${d.joinDate}"></div>
         </div>
-        <div class="section-title" style="margin-top:10px;">Monthly Salary Structure</div>
+        <div class="section-title" style="margin-top:10px;">Bank &amp; Statutory Details</div>
+        <div class="row">
+          <div class="field"><label>Bank Name</label><input type="text" id="empBankName" value="${escapeAttr(d.bankName)}" placeholder="e.g. HDFC Bank"></div>
+          <div class="field"><label>Bank Account No.</label><input type="text" id="empBankAccount" value="${escapeAttr(d.bankAccount)}"></div>
+          <div class="field" style="max-width:150px;"><label>IFSC</label><input type="text" id="empBankIFSC" value="${escapeAttr(d.bankIFSC)}"></div>
+          <div class="field" style="max-width:150px;"><label>PAN</label><input type="text" id="empPAN" value="${escapeAttr(d.pan)}"></div>
+        </div>
+        <div class="section-title" style="margin-top:10px;">Monthly Salary Structure — Earnings</div>
         <div class="row">
           <div class="field" style="max-width:150px;"><label>Basic</label><input type="number" id="empBasic" step="0.01" value="${d.basic}"></div>
           <div class="field" style="max-width:150px;"><label>HRA</label><input type="number" id="empHRA" step="0.01" value="${d.hra}"></div>
           <div class="field" style="max-width:150px;"><label>Other Allowances</label><input type="number" id="empAllowances" step="0.01" value="${d.allowances}"></div>
-          <div class="field" style="max-width:150px;"><label>Deductions</label><input type="number" id="empDeductions" step="0.01" value="${d.deductions}"></div>
+          <div class="field" style="max-width:150px;"><label>Bonus / Incentive</label><input type="number" id="empBonus" step="0.01" value="${d.bonus}"></div>
         </div>
-        <p class="muted" style="font-size:11px;">A dedicated "Salary Payable" ledger is created for this employee automatically — nothing to set up.</p>
+        <div class="section-title" style="margin-top:10px;">Monthly Salary Structure — Deductions</div>
+        <div class="row">
+          <div class="field" style="max-width:130px;"><label>PF</label><input type="number" id="empPF" step="0.01" value="${d.pf}"></div>
+          <div class="field" style="max-width:130px;"><label>ESI</label><input type="number" id="empESI" step="0.01" value="${d.esi}"></div>
+          <div class="field" style="max-width:150px;"><label>Professional Tax</label><input type="number" id="empPT" step="0.01" value="${d.pt}"></div>
+          <div class="field" style="max-width:130px;"><label>TDS</label><input type="number" id="empTDS" step="0.01" value="${d.tds}"></div>
+          <div class="field" style="max-width:150px;"><label>Other Deductions</label><input type="number" id="empOtherDeductions" step="0.01" value="${d.otherDeductions}"></div>
+        </div>
+        <p class="muted" style="font-size:11px;">Salaries post straight to the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger — nothing to set up per employee.</p>
         <div style="display:flex;gap:8px;margin-top:6px;">
           <button class="btn" id="saveEmployeeBtn" type="button">${editing?'Update':'Add'} Employee</button>
           <button class="btn secondary" id="cancelEmployeeBtn" type="button">Cancel</button>
@@ -13640,7 +13761,12 @@ function viewPayroll(){
   const activeEmployees = state.employees.filter(e=>e.active!==false);
   const paidThisMonth = new Set(state.salaryVouchers.filter(sv=>sv.month===payrollMonth).map(sv=>sv.employeeId));
   const totalMonthlyPayroll = activeEmployees.reduce((s,e)=>s+employeeNetPay(e),0);
-  const recentPayslips = state.salaryVouchers.slice().sort((a,b)=> b.month.localeCompare(a.month) || b.generatedAt.localeCompare(a.generatedAt));
+  const payFromOptions = state.ledgers.filter(l=>['bank','cash'].includes(bucketOf(l)));
+  if(!payFromOptions.find(l=>l.id===payrollPayFromLedgerId)) payrollPayFromLedgerId = payFromOptions[0]?payFromOptions[0].id:null;
+  const years = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month.slice(0,4)))).sort((a,b)=>b.localeCompare(a));
+  const filteredPayslips = state.salaryVouchers.filter(sv=> payslipYearFilter==='all' || sv.month.startsWith(payslipYearFilter));
+  const recentPayslips = filteredPayslips.slice().sort((a,b)=> b.month.localeCompare(a.month) || b.generatedAt.localeCompare(a.generatedAt));
+  const monthsWithPayroll = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
   return `
     ${masthead('Payroll','Employee master, monthly salary run, and payslips')}
     <div class="grid">
@@ -13653,15 +13779,22 @@ function viewPayroll(){
     <div class="panel">
       <div class="panel-body" style="padding:0;">
         ${state.employees.length ? `<table>
-          <tr><th>Name</th><th>Designation</th><th class="num">Gross/mo</th><th class="num">Net/mo</th><th>Status</th><th></th></tr>
-          ${state.employees.map(e=>`<tr>
+          <tr><th>Code</th><th>Name</th><th>Designation</th><th class="num">Gross/mo</th><th class="num">Net/mo</th><th>Status</th><th></th></tr>
+          ${state.employees.map(e=>{
+            const hasHistory = state.salaryVouchers.some(sv=>sv.employeeId===e.id);
+            return `<tr>
+            <td class="muted">${escapeHtml(e.code||'—')}</td>
             <td>${escapeHtml(e.name)}</td>
             <td class="muted">${escapeHtml(e.designation||'—')}</td>
             <td class="num">₹${fmt(employeeGross(e))}</td>
             <td class="num" style="font-weight:700;">₹${fmt(employeeNetPay(e))}</td>
-            <td>${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Inactive</span>`}</td>
-            <td><button class="btn small secondary" data-edit-employee="${e.id}" type="button">Edit</button> <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Deactivate':'Reactivate'}</button></td>
-          </tr>`).join('')}
+            <td>${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}</td>
+            <td>
+              <button class="btn small secondary" data-edit-employee="${e.id}" type="button">Edit</button>
+              <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Resign':'Reactivate'}</button>
+              <button class="btn small secondary" data-delete-employee="${e.id}" type="button" ${hasHistory?'disabled title="Has payroll history — resign instead"':''} style="${hasHistory?'':'color:var(--debit);'}">Delete</button>
+            </td>
+          </tr>`;}).join('')}
         </table>` : `<div class="empty">No employees yet — add one below.</div>`}
       </div>
     </div>
@@ -13672,7 +13805,15 @@ function viewPayroll(){
     <div class="section-title">Generate Payroll</div>
     <div class="panel">
       <div class="panel-body">
-        <div class="field" style="max-width:170px;"><label>Month</label><input type="month" id="payrollMonthInput" value="${payrollMonth}"></div>
+        <div class="row">
+          <div class="field" style="max-width:170px;"><label>Month</label><input type="month" id="payrollMonthInput" value="${payrollMonth}"></div>
+          <div class="field" style="max-width:240px;"><label>Pay From</label>
+            <select id="payrollPayFromInput" ${payFromOptions.length?'':'disabled'}>
+              ${payFromOptions.length ? payFromOptions.map(l=>`<option value="${l.id}" ${l.id===payrollPayFromLedgerId?'selected':''}>${escapeHtml(l.name)}</option>`).join('') : `<option>No Bank/Cash ledger found</option>`}
+            </select>
+          </div>
+        </div>
+        ${!payFromOptions.length ? `<p class="muted" style="font-size:12px;">Add a Bank or Cash ledger (Accounts tab) before running payroll.</p>` : ''}
         ${activeEmployees.length ? `<table style="margin-top:8px;">
           <tr><th>Employee</th><th class="num">Net Pay</th><th>Status</th></tr>
           ${activeEmployees.map(e=>`<tr>
@@ -13681,13 +13822,26 @@ function viewPayroll(){
             <td>${paidThisMonth.has(e.id) ? `<span class="muted">Already paid for ${payrollMonth}</span>` : `<span class="muted">Pending</span>`}</td>
           </tr>`).join('')}
         </table>
-        <button class="btn" id="generatePayrollBtn" type="button" style="margin-top:10px;">Generate Payroll for ${payrollMonth}</button>
+        <button class="btn" id="generatePayrollBtn" type="button" style="margin-top:10px;" ${payFromOptions.length?'':'disabled'}>Generate Payroll for ${payrollMonth}</button>
         ` : `<p class="muted" style="font-size:12px;margin-top:8px;">Add an active employee above first.</p>`}
       </div>
     </div>
 
     <div class="section-title">Payslips</div>
     <div class="panel">
+      <div class="panel-head">
+        <h2>Payroll History</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${years.length>1 ? `<select id="payslipYearFilter" style="width:auto;">
+            <option value="all" ${payslipYearFilter==='all'?'selected':''}>All years</option>
+            ${years.map(y=>`<option value="${y}" ${payslipYearFilter===y?'selected':''}>${y}</option>`).join('')}
+          </select>` : ''}
+          ${monthsWithPayroll.length ? `<select id="payrollDownloadMonth" style="width:auto;">
+            ${monthsWithPayroll.map(m=>`<option value="${m}">${m}</option>`).join('')}
+          </select>
+          <button class="btn small secondary" id="downloadPayrollBtn" type="button">⬇ Download Consolidated Payroll</button>` : ''}
+        </div>
+      </div>
       <div class="panel-body" style="padding:0;">
         ${recentPayslips.length ? `<table>
           <tr><th>Month</th><th>Employee</th><th class="num">Net Pay</th><th></th></tr>
@@ -13703,7 +13857,7 @@ function viewPayroll(){
         </table>` : `<div class="empty">No payroll run yet.</div>`}
       </div>
     </div>
-    <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher for the month: Salaries &amp; Wages expense debited for the combined gross, each employee's own ledger credited for their net pay, and (if any deductions) a Salary Deductions Payable ledger credited for the combined deductions.</p>
+    <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher per employee for the month: the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger (Indirect Expenses) is debited with that employee's gross pay, the chosen Pay From ledger is credited with their net pay, and (if any deductions) "${SALARY_DEDUCTIONS_LEDGER_NAME}" is credited with what was withheld. Every employee's name and amount shows as its own line in the ledger statement, and all reports (P&amp;L, Trial Balance, Cash/Bank Book) pick it up automatically.</p>
   `;
 }
 function printPayslip(salaryVoucherId){
@@ -13712,6 +13866,8 @@ function printPayslip(salaryVoucherId){
   const e = state.employees.find(x=>x.id===sv.employeeId);
   const now = new Date();
   const printedAt = now.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const gross = r2((sv.basic||0)+(sv.hra||0)+(sv.allowances||0)+(sv.bonus||0));
+  const totalDed = r2((sv.pf||0)+(sv.esi||0)+(sv.pt||0)+(sv.tds||0)+(sv.otherDeductions||0));
   const html = `<!DOCTYPE html><html><head><title>Payslip — ${escapeHtml(e?e.name:'')} — ${sv.month}</title>
 <meta charset="UTF-8">
 <style>
@@ -13720,6 +13876,8 @@ function printPayslip(salaryVoucherId){
   .bill-header h1{margin:0;font-size:20px;}
   .bill-header .meta{text-align:right;font-size:12px;color:#333;}
   .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:#111;margin-bottom:4px;}
+  .cols{display:flex;gap:24px;}
+  .cols table{flex:1;}
   table{width:100%;border-collapse:collapse;margin-bottom:18px;}
   th{background:#f0f0f0;text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid #111;}
   td{padding:8px;border-bottom:1px solid #ddd;font-size:12.5px;}
@@ -13735,26 +13893,61 @@ function printPayslip(salaryVoucherId){
     </div>
     <div class="meta">
       <div class="invtitle">PAYSLIP — ${sv.month}</div>
-      <div>${escapeHtml(e?e.name:'—')}${e&&e.designation?' · '+escapeHtml(e.designation):''}</div>
+      <div>${escapeHtml(e?e.name:'—')}${e&&e.code?' · '+escapeHtml(e.code):''}${e&&e.designation?' · '+escapeHtml(e.designation):''}</div>
+      ${e&&e.bankAccount?`<div style="font-size:11px;color:#666;margin-top:2px;">${escapeHtml(e.bankName||'')} ${escapeHtml(e.bankAccount)}</div>`:''}
     </div>
   </div>
+  <div class="cols">
+    <table>
+      <tr><th>Earnings</th><th style="text-align:right;">Amount</th></tr>
+      <tr><td>Basic</td><td style="text-align:right;">₹${fmt(sv.basic)}</td></tr>
+      <tr><td>HRA</td><td style="text-align:right;">₹${fmt(sv.hra)}</td></tr>
+      <tr><td>Other Allowances</td><td style="text-align:right;">₹${fmt(sv.allowances)}</td></tr>
+      <tr><td>Bonus / Incentive</td><td style="text-align:right;">₹${fmt(sv.bonus||0)}</td></tr>
+      <tr class="grand-total"><td>Gross Earnings</td><td style="text-align:right;">₹${fmt(gross)}</td></tr>
+    </table>
+    <table>
+      <tr><th>Deductions</th><th style="text-align:right;">Amount</th></tr>
+      <tr><td>PF</td><td style="text-align:right;">₹${fmt(sv.pf||0)}</td></tr>
+      <tr><td>ESI</td><td style="text-align:right;">₹${fmt(sv.esi||0)}</td></tr>
+      <tr><td>Professional Tax</td><td style="text-align:right;">₹${fmt(sv.pt||0)}</td></tr>
+      <tr><td>TDS</td><td style="text-align:right;">₹${fmt(sv.tds||0)}</td></tr>
+      <tr><td>Other Deductions</td><td style="text-align:right;">₹${fmt(sv.otherDeductions||0)}</td></tr>
+      <tr class="grand-total"><td>Total Deductions</td><td style="text-align:right;">₹${fmt(totalDed)}</td></tr>
+    </table>
+  </div>
   <table>
-    <tr><th>Earnings</th><th style="text-align:right;">Amount</th></tr>
-    <tr><td>Basic</td><td style="text-align:right;">₹${fmt(sv.basic)}</td></tr>
-    <tr><td>HRA</td><td style="text-align:right;">₹${fmt(sv.hra)}</td></tr>
-    <tr><td>Other Allowances</td><td style="text-align:right;">₹${fmt(sv.allowances)}</td></tr>
-    <tr><td>Gross Earnings</td><td style="text-align:right;">₹${fmt(sv.basic+sv.hra+sv.allowances)}</td></tr>
-    <tr><td>Deductions</td><td style="text-align:right;">₹${fmt(sv.deductions)}</td></tr>
     <tr class="grand-total"><td>Net Pay</td><td style="text-align:right;">₹${fmt(sv.netPay)}</td></tr>
   </table>
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
-  <script>window.onload = function(){ window.print(); };<\/script>
 </body></html>`;
-  const w = window.open('', '_blank');
-  if(!w){ toast('Please allow pop-ups to print'); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  printHTMLDocument(html);
+}
+function buildPayrollRegisterSheet(month){
+  const rows = [[`Payroll Register — ${month}`],[]];
+  rows.push(['Employee Code','Employee Name','Designation','Basic','HRA','Allowances','Bonus','Gross','PF','ESI','Professional Tax','TDS','Other Deductions','Total Deductions','Net Pay']);
+  const svs = state.salaryVouchers.filter(sv=>sv.month===month);
+  let totGross=0, totDed=0, totNet=0;
+  svs.forEach(sv=>{
+    const e = state.employees.find(x=>x.id===sv.employeeId);
+    const gross = r2((sv.basic||0)+(sv.hra||0)+(sv.allowances||0)+(sv.bonus||0));
+    const ded = r2((sv.pf||0)+(sv.esi||0)+(sv.pt||0)+(sv.tds||0)+(sv.otherDeductions||0));
+    rows.push([e?e.code||'':'', e?e.name:'Former employee', e?e.designation||'':'', sv.basic||0, sv.hra||0, sv.allowances||0, sv.bonus||0, gross, sv.pf||0, sv.esi||0, sv.pt||0, sv.tds||0, sv.otherDeductions||0, ded, sv.netPay]);
+    totGross+=gross; totDed+=ded; totNet+=sv.netPay;
+  });
+  rows.push([]);
+  rows.push(['','','','','','','','Total',r2(totGross),'','','','',r2(totDed),r2(totNet)]);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+function downloadPayrollRegister(month){
+  if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  const svs = state.salaryVouchers.filter(sv=>sv.month===month);
+  if(!svs.length){ toast(`No payroll run found for ${month}`); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildPayrollRegisterSheet(month), 'Payroll Register');
+  const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
+  XLSX.writeFile(wb, `${safeName}_Payroll_Register_${month}.xlsx`);
+  toast(`Payroll register for ${month} exported`);
 }
 
 function partyAgeingTable(rows, emptyMsg){
@@ -14067,7 +14260,7 @@ function attachHandlers(){
   if(view==='payroll'){
     document.getElementById('newEmployeeBtn')?.addEventListener('click', ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-      employeeDraft = { name:'', designation:'', joinDate: new Date().toISOString().slice(0,10), basic:0, hra:0, allowances:0, deductions:0 };
+      employeeDraft = { name:'', designation:'', department:'', employmentType:'Full-time', joinDate: new Date().toISOString().slice(0,10), resignDate:'', pan:'', bankName:'', bankAccount:'', bankIFSC:'', basic:0, hra:0, allowances:0, bonus:0, pf:0, esi:0, pt:0, tds:0, otherDeductions:0 };
       render();
     });
     document.getElementById('cancelEmployeeBtn')?.addEventListener('click', ()=>{ employeeDraft = null; render(); });
@@ -14076,7 +14269,14 @@ function attachHandlers(){
         const e = state.employees.find(x=>x.id===el.dataset.editEmployee);
         if(!e) return;
         const s = e.salary||{};
-        employeeDraft = { id:e.id, name:e.name, designation:e.designation||'', joinDate:e.joinDate||new Date().toISOString().slice(0,10), basic:s.basic||0, hra:s.hra||0, allowances:s.allowances||0, deductions:s.deductions||0 };
+        const ded = employeeDeductionsBreakdown(e);
+        employeeDraft = {
+          id:e.id, code:e.code||'', name:e.name, designation:e.designation||'', department:e.department||'', employmentType:e.employmentType||'Full-time',
+          joinDate:e.joinDate||new Date().toISOString().slice(0,10), resignDate:e.resignDate||'',
+          pan:e.pan||'', bankName:e.bankName||'', bankAccount:e.bankAccount||'', bankIFSC:e.bankIFSC||'',
+          basic:s.basic||0, hra:s.hra||0, allowances:s.allowances||0, bonus:s.bonus||0,
+          pf:ded.pf, esi:ded.esi, pt:ded.pt, tds:ded.tds, otherDeductions:ded.other,
+        };
         render();
       });
     });
@@ -14085,8 +14285,35 @@ function attachHandlers(){
         if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
         const e = state.employees.find(x=>x.id===el.dataset.toggleEmployee);
         if(!e) return;
-        e.active = e.active===false ? true : false;
+        if(e.active!==false){
+          const resignDate = (window.prompt(`Resignation date for ${e.name} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10)) || '').trim();
+          if(!resignDate) return; // cancelled
+          e.active = false;
+          e.resignDate = resignDate;
+          toast(`${e.name} marked as resigned`);
+        } else {
+          e.active = true;
+          e.resignDate = '';
+          toast(`${e.name} reactivated`);
+        }
         await saveEmployees();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-delete-employee]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+        const id = el.dataset.deleteEmployee;
+        const e = state.employees.find(x=>x.id===id);
+        if(!e) return;
+        if(state.salaryVouchers.some(sv=>sv.employeeId===id)){
+          toast(`Can't delete "${e.name}" — payroll has already been run for them. Resign them instead to keep their history intact.`);
+          return;
+        }
+        if(!window.confirm(`Delete employee "${e.name}"? This cannot be undone.`)) return;
+        state.employees = state.employees.filter(x=>x.id!==id);
+        await saveEmployees();
+        toast('Employee deleted');
         render();
       });
     });
@@ -14095,22 +14322,31 @@ function attachHandlers(){
       const d = employeeDraft;
       const name = document.getElementById('empName').value.trim();
       const designation = document.getElementById('empDesignation').value.trim();
+      const department = document.getElementById('empDepartment').value.trim();
+      const employmentType = document.getElementById('empType').value;
       const joinDate = document.getElementById('empJoinDate').value;
+      const pan = document.getElementById('empPAN').value.trim();
+      const bankName = document.getElementById('empBankName').value.trim();
+      const bankAccount = document.getElementById('empBankAccount').value.trim();
+      const bankIFSC = document.getElementById('empBankIFSC').value.trim();
       const basic = Number(document.getElementById('empBasic').value)||0;
       const hra = Number(document.getElementById('empHRA').value)||0;
       const allowances = Number(document.getElementById('empAllowances').value)||0;
-      const deductions = Number(document.getElementById('empDeductions').value)||0;
+      const bonus = Number(document.getElementById('empBonus').value)||0;
+      const pf = Number(document.getElementById('empPF').value)||0;
+      const esi = Number(document.getElementById('empESI').value)||0;
+      const pt = Number(document.getElementById('empPT').value)||0;
+      const tds = Number(document.getElementById('empTDS').value)||0;
+      const otherDeductions = Number(document.getElementById('empOtherDeductions').value)||0;
       if(!name){ toast('Enter the employee\'s name'); return; }
-      const salary = {basic, hra, allowances, deductions};
+      const salary = {basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions};
       if(d.id){
         const e = state.employees.find(x=>x.id===d.id);
-        if(e){ e.name=name; e.designation=designation; e.joinDate=joinDate; e.salary=salary; }
+        if(e){ if(!e.code) e.code = nextEmployeeCode(); e.name=name; e.designation=designation; e.department=department; e.employmentType=employmentType; e.joinDate=joinDate; e.pan=pan; e.bankName=bankName; e.bankAccount=bankAccount; e.bankIFSC=bankIFSC; e.salary=salary; }
         await saveEmployees();
         toast('Employee updated');
       } else {
-        const {ledger, created} = ensureLedgerByName(`Employee - ${name} (Salary Payable)`, 'curl');
-        state.employees.push({ id: uid('emp'), name, designation, ledgerId: ledger.id, joinDate, active:true, salary });
-        if(created) await saveLedgers();
+        state.employees.push({ id: uid('emp'), code: nextEmployeeCode(), name, designation, department, employmentType, joinDate, resignDate:'', pan, bankName, bankAccount, bankIFSC, active:true, salary });
         await saveEmployees();
         toast('Employee added');
       }
@@ -14118,8 +14354,15 @@ function attachHandlers(){
       render();
     });
     document.getElementById('payrollMonthInput')?.addEventListener('change', e=>{ payrollMonth = e.target.value; render(); });
+    document.getElementById('payrollPayFromInput')?.addEventListener('change', e=>{ payrollPayFromLedgerId = e.target.value; });
+    document.getElementById('payslipYearFilter')?.addEventListener('change', e=>{ payslipYearFilter = e.target.value; render(); });
+    document.getElementById('downloadPayrollBtn')?.addEventListener('click', ()=>{
+      const month = document.getElementById('payrollDownloadMonth').value;
+      downloadPayrollRegister(month);
+    });
     document.getElementById('generatePayrollBtn')?.addEventListener('click', async ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      if(!payrollPayFromLedgerId){ toast('Add a Bank or Cash ledger first (Accounts tab).'); return; }
       const [y,m] = payrollMonth.split('-').map(Number);
       const voucherDate = new Date(y, m, 0).toISOString().slice(0,10); // last day of the month
       if(currentCompany.lockDate && voucherDate <= currentCompany.lockDate){
@@ -14129,32 +14372,44 @@ function attachHandlers(){
       const alreadyPaid = new Set(state.salaryVouchers.filter(sv=>sv.month===payrollMonth).map(sv=>sv.employeeId));
       const eligible = state.employees.filter(e=>e.active!==false && !alreadyPaid.has(e.id));
       if(!eligible.length){ toast('Everyone active has already been paid for this month'); return; }
-      const totalGross = eligible.reduce((s,e)=>s+employeeGross(e),0);
-      const totalDeductions = eligible.reduce((s,e)=>s+(Number(e.salary?.deductions)||0),0);
-      const {ledger: salariesLedger, created: c1} = ensureLedgerByName('Salaries & Wages', 'iexp');
-      const entries = [{ledgerId: salariesLedger.id, dr: r2(totalGross), cr:0}];
-      eligible.forEach(e=> entries.push({ledgerId: e.ledgerId, dr:0, cr: employeeNetPay(e)}));
-      let c2 = false;
-      if(totalDeductions>0){
-        const ded = ensureLedgerByName('Salary Deductions Payable', 'curl');
-        c2 = ded.created;
-        entries.push({ledgerId: ded.ledger.id, dr:0, cr: r2(totalDeductions)});
-      }
-      if(c1||c2) await saveLedgers();
+      // The shared Employee Salary ledger is created once, the very first time payroll is ever run --
+      // and we jump straight to its ledger statement afterwards so the user sees where salaries post.
+      const {ledger: salariesLedger, created: salaryLedgerJustCreated} = ensureLedgerByName(EMPLOYEE_SALARY_LEDGER_NAME, 'iexp');
+      let anyLedgerCreated = salaryLedgerJustCreated;
       const now = new Date().toISOString();
-      const v = { id: uid('v'), date: voucherDate, type:'Journal', narration:`Salary for ${payrollMonth}`, entries, createdAt: now };
-      state.vouchers.push(v);
-      await saveVouchers();
       eligible.forEach(e=>{
+        const gross = employeeGross(e);
+        const netPay = employeeNetPay(e);
+        const totalDed = employeeTotalDeductions(e);
+        const entries = [
+          {ledgerId: salariesLedger.id, dr: r2(gross), cr:0},
+          {ledgerId: payrollPayFromLedgerId, dr:0, cr: netPay},
+        ];
+        if(totalDed>0){
+          const ded = ensureLedgerByName(SALARY_DEDUCTIONS_LEDGER_NAME, 'curl');
+          if(ded.created) anyLedgerCreated = true;
+          entries.push({ledgerId: ded.ledger.id, dr:0, cr: totalDed});
+        }
+        const v = { id: uid('v'), date: voucherDate, type:'Journal', narration:`Salary - ${e.name}${e.code?' ('+e.code+')':''} - ${payrollMonth}`, entries, createdAt: now };
+        state.vouchers.push(v);
         const s = e.salary||{};
         state.salaryVouchers.push({
           id: uid('sal'), employeeId: e.id, month: payrollMonth,
-          basic: Number(s.basic)||0, hra: Number(s.hra)||0, allowances: Number(s.allowances)||0, deductions: Number(s.deductions)||0,
-          netPay: employeeNetPay(e), voucherId: v.id, generatedAt: now,
+          basic: Number(s.basic)||0, hra: Number(s.hra)||0, allowances: Number(s.allowances)||0, bonus: Number(s.bonus)||0,
+          pf: Number(s.pf)||0, esi: Number(s.esi)||0, pt: Number(s.pt)||0, tds: Number(s.tds)||0, otherDeductions: Number(s.otherDeductions!=null?s.otherDeductions:s.deductions)||0,
+          netPay, voucherId: v.id, generatedAt: now,
         });
       });
+      if(anyLedgerCreated) await saveLedgers();
+      await saveVouchers();
       await saveSalaryVouchers();
       toast(`Payroll generated for ${eligible.length} employee${eligible.length===1?'':'s'} — ${payrollMonth}`);
+      if(salaryLedgerJustCreated){
+        // First payroll run ever for this company — open the newly-created Employee Salary ledger
+        // automatically so the user can see exactly where salaries are posting.
+        ledgerDetailId = salariesLedger.id;
+        modal = 'ledgerDetail';
+      }
       render();
     });
     document.querySelectorAll('[data-print-payslip]').forEach(el=>{
