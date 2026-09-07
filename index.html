@@ -1542,6 +1542,7 @@ let state = {
   employees: [], // [{id, code, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, active, salary:{basic,hra,allowances,bonus,pf,esi,pt,tds,otherDeductions}}]
   salaryVouchers: [], // [{id, employeeId, month (YYYY-MM), basic,hra,allowances,bonus,pf,esi,pt,tds,otherDeductions,employerPF,employerESI,loanDeduction,netPay,voucherId,generatedAt}]
   employeeLoans: [], // [{id, employeeId, principal, emiAmount, outstanding, disbursedDate, disburseVoucherId, active}]
+  fnfSettlements: [], // [{id, employeeId, date, leaveEncashment, otherDues, loanRecovered, netPayable, voucherId, generatedAt}]
   quotations: [], // [{id, docType:'quotation', no, date, partyLedgerId, items:[...], narration, status:'open'|'converted', convertedVoucherId}]
   salesOrders: [],
   purchaseOrders: [],
@@ -1732,6 +1733,8 @@ let payrollMonth = new Date().toISOString().slice(0,7); // YYYY-MM the "Generate
 let payrollPayFromLedgerId = null; // which Bank/Cash ledger salary net pay is credited from, for the "Generate Payroll" panel
 let payslipYearFilter = 'all'; // 'all' or a 'YYYY' string — filters the Payslips history table
 let loanDraft = null; // null = not giving a loan/advance | {employeeId, principal, emiAmount, payFromLedgerId, date}
+let payrollLopDays = {}; // employeeId -> Loss-of-Pay days entered for the CURRENT Generate Payroll run (transient, reset on month change)
+let fnfDraft = null; // null = not running a settlement | {employeeId, date, leaveEncashment, otherDues, payFromLedgerId}
 let ewayVoucherId = null; // which Sales voucher the e-Way Bill transport-details modal is generating for
 let attachmentsVoucherId = null; // which voucher the Attachments modal is open for
 let attachmentsCache = {}; // voucherId -> [{id, filename, mimeType, size, uploadedAt, dataUrl}], lazy-loaded per voucher from its own Firestore subcollection
@@ -3059,6 +3062,7 @@ async function loadState(){
     state.employees = Array.isArray(data.employees) ? data.employees : [];
     state.salaryVouchers = Array.isArray(data.salaryVouchers) ? data.salaryVouchers : [];
     state.employeeLoans = Array.isArray(data.employeeLoans) ? data.employeeLoans : [];
+    state.fnfSettlements = Array.isArray(data.fnfSettlements) ? data.fnfSettlements : [];
     state.quotations = Array.isArray(data.quotations) ? data.quotations : [];
     state.salesOrders = Array.isArray(data.salesOrders) ? data.salesOrders : [];
     state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
@@ -3080,6 +3084,7 @@ async function loadState(){
     state.employees = [];
     state.salaryVouchers = [];
     state.employeeLoans = [];
+    state.fnfSettlements = [];
     state.quotations = [];
     state.salesOrders = [];
     state.purchaseOrders = [];
@@ -3202,6 +3207,11 @@ async function saveEmployeeLoans(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   try{ await db.collection('companies').doc(currentCompany.id).set({ employeeLoans: state.employeeLoans }, {merge:true}); }
   catch(e){ toast('Could not save employee loans'); }
+}
+async function saveFnfSettlements(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  try{ await db.collection('companies').doc(currentCompany.id).set({ fnfSettlements: state.fnfSettlements }, {merge:true}); }
+  catch(e){ toast('Could not save settlements'); }
 }
 async function saveQuotations(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -3534,6 +3544,7 @@ function buildCompanyBackup(){
     employees: state.employees,
     salaryVouchers: state.salaryVouchers,
     employeeLoans: state.employeeLoans,
+    fnfSettlements: state.fnfSettlements,
     quotations: state.quotations,
     salesOrders: state.salesOrders,
     purchaseOrders: state.purchaseOrders,
@@ -3593,6 +3604,25 @@ function downloadJSON(obj, filename){
   document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }
+// Generic CSV download -- used for the bank transfer file, which needs a plain, universally-
+// importable .csv rather than the .xlsx workbooks the rest of the app's exports use, since bank
+// portals' bulk-upload tools almost always expect CSV.
+function downloadCSV(headerRow, dataRows, filename){
+  const esc = v=>{
+    const s = String(v==null?'':v);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  };
+  const lines = [headerRow, ...dataRows].map(r=>r.map(esc).join(','));
+  const blob = new Blob([lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
 function downloadCompanyBackup(){
   const data = buildCompanyBackup();
   const json = JSON.stringify(data, null, 2);
@@ -3624,6 +3654,7 @@ async function restoreCompanyBackup(data){
   state.employees = Array.isArray(data.employees) ? data.employees : [];
   state.salaryVouchers = Array.isArray(data.salaryVouchers) ? data.salaryVouchers : [];
   state.employeeLoans = Array.isArray(data.employeeLoans) ? data.employeeLoans : [];
+  state.fnfSettlements = Array.isArray(data.fnfSettlements) ? data.fnfSettlements : [];
   state.quotations = Array.isArray(data.quotations) ? data.quotations : [];
   state.salesOrders = Array.isArray(data.salesOrders) ? data.salesOrders : [];
   state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
@@ -3632,7 +3663,7 @@ async function restoreCompanyBackup(data){
   await Promise.all([
     saveLedgers(), saveVouchers(), saveItems(), saveStockAdjustments(),
     saveBankClears(), saveReconciliations(), saveRecurringTemplates(), saveFixedAssets(),
-    saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(),
+    saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
     saveQuotations(), saveSalesOrders(), savePurchaseOrders(), saveDeliveryChallans(),
     saveTaxDeductions(),
   ]);
@@ -13680,6 +13711,7 @@ const SALARY_DEDUCTIONS_LEDGER_NAME = 'Salary Deductions Payable';
 const EMPLOYER_CONTRIB_LEDGER_NAME = 'Employer PF & ESI Contributions';
 const EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME = 'Employer Contributions Payable';
 const EMPLOYEE_LOAN_LEDGER_NAME = 'Employee Loans & Advances';
+const FNF_SETTLEMENT_LEDGER_NAME = 'Full & Final Settlements';
 const EMPLOYMENT_TYPES = ['Full-time','Part-time','Contract','Intern'];
 function ensureLedgerByName(name, groupId){
   let l = state.ledgers.find(x=>x.name.toLowerCase()===name.toLowerCase());
@@ -13774,6 +13806,49 @@ function reverseLoanRecovery(employeeId, amount){
   target.outstanding = r2((target.outstanding||0) + amount);
   if(target.outstanding>0.001) target.active = true;
 }
+// Recovers up to `amount` across an employee's active loans WITHOUT the per-loan EMI cap -- used for
+// Full & Final settlement, where the whole outstanding balance is cleared in one go rather than one
+// month's installment at a time.
+function applyFullLoanRecovery(employeeId, amount){
+  let remaining = amount;
+  activeLoansFor(employeeId).forEach(l=>{
+    if(remaining<=0) return;
+    const take = Math.min(l.outstanding, remaining);
+    if(take<=0) return;
+    l.outstanding = r2(l.outstanding - take);
+    if(l.outstanding<=0.001){ l.outstanding = 0; l.active = false; }
+    remaining = r2(remaining - take);
+  });
+}
+function daysInPayrollMonth(yyyyMM){
+  const [y,m] = yyyyMM.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+// Straight-line Loss-of-Pay proration: every earnings AND deduction line is scaled by the
+// payable-days ratio, except Bonus/Incentive (a fixed award, not pay-for-attendance) and loan EMI
+// (a fixed monthly installment, handled separately). This mirrors the simple LOP method most SMB
+// payroll tools use — exact statutory formulas (e.g. PF computed only on prorated Basic) can differ
+// by company policy, so treat this as a sensible default rather than a compliance guarantee.
+function proratedSalaryFigures(emp, payableDays, totalDays){
+  const ratio = totalDays>0 ? Math.max(0, Math.min(1, payableDays/totalDays)) : 1;
+  const s = emp.salary||{};
+  const ded = employeeDeductionsBreakdown(emp);
+  const basic = r2((Number(s.basic)||0)*ratio);
+  const hra = r2((Number(s.hra)||0)*ratio);
+  const allowances = r2((Number(s.allowances)||0)*ratio);
+  const bonus = r2(Number(s.bonus)||0); // fixed award, not prorated
+  const pf = r2(ded.pf*ratio);
+  const esi = r2(ded.esi*ratio);
+  const pt = r2(ded.pt*ratio);
+  const tds = r2(ded.tds*ratio);
+  const other = r2(ded.other*ratio);
+  const gross = r2(basic+hra+allowances+bonus);
+  const totalDed = r2(pf+esi+pt+tds+other);
+  return { basic, hra, allowances, bonus, gross, pf, esi, pt, tds, otherDeductions: other, totalDed, netPay: r2(gross-totalDed), ratio };
+}
+function hasFnfSettlement(employeeId){
+  return state.fnfSettlements.some(f=>f.employeeId===employeeId);
+}
 function employeeDraftForm(){
   const d = employeeDraft;
   const editing = !!d.id;
@@ -13860,6 +13935,44 @@ function loanDraftForm(){
     </div>
   `;
 }
+function fnfDraftForm(){
+  const d = fnfDraft;
+  const e = state.employees.find(x=>x.id===d.employeeId);
+  if(!e) return '';
+  const payFromOptions = state.ledgers.filter(l=>['bank','cash'].includes(bucketOf(l)));
+  const loanOutstanding = employeeLoanOutstanding(e.id);
+  const grossSettlement = r2((Number(d.leaveEncashment)||0)+(Number(d.otherDues)||0));
+  const loanRecovered = Math.min(loanOutstanding, grossSettlement);
+  const netPayable = r2(grossSettlement-loanRecovered);
+  const remainingLoan = r2(loanOutstanding-loanRecovered);
+  return `
+    <div class="panel-head" style="padding:0 0 12px;"><h2>Full &amp; Final Settlement — ${escapeHtml(e.name)}</h2></div>
+    <div class="row">
+      <div class="field" style="max-width:170px;"><label>Settlement Date</label><input type="date" id="fnfDate" value="${d.date}"></div>
+      <div class="field" style="max-width:170px;"><label>Leave Encashment</label><input type="number" id="fnfLeaveEncashment" step="0.01" value="${d.leaveEncashment}"></div>
+      <div class="field" style="max-width:170px;"><label>Other Dues / Reimbursements</label><input type="number" id="fnfOtherDues" step="0.01" value="${d.otherDues}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Pay From</label>
+        <select id="fnfPayFrom" ${payFromOptions.length?'':'disabled'}>
+          ${payFromOptions.length ? payFromOptions.map(l=>`<option value="${l.id}" ${l.id===d.payFromLedgerId?'selected':''}>${escapeHtml(l.name)}</option>`).join('') : `<option>No Bank/Cash ledger found</option>`}
+        </select>
+      </div>
+    </div>
+    <table style="margin-top:8px;">
+      <tr><td>Gross Settlement (Leave Encashment + Other Dues)</td><td class="num">₹${fmt(grossSettlement)}</td></tr>
+      <tr><td>Loan/Advance Outstanding</td><td class="num">₹${fmt(loanOutstanding)}</td></tr>
+      <tr><td>Loan Recovered Now</td><td class="num ${loanRecovered>0?'neg':''}">${loanRecovered>0?'− ₹'+fmt(loanRecovered):'—'}</td></tr>
+      <tr><td style="font-weight:700;">Net Payable to Employee</td><td class="num" style="font-weight:700;">₹${fmt(netPayable)}</td></tr>
+      ${remainingLoan>0 ? `<tr><td class="muted">Loan balance remaining after settlement (not recovered here)</td><td class="num muted">₹${fmt(remainingLoan)}</td></tr>` : ''}
+    </table>
+    <p class="muted" style="font-size:11px;">Only Leave Encashment and Other Dues post to the books here — normal monthly pay for days worked this exit month should already be covered by a regular payroll run. Any loan balance beyond what this settlement can cover stays outstanding for recovery outside payroll.</p>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button class="btn" id="saveFnfBtn" type="button" ${(grossSettlement>0 && !payFromOptions.length)?'disabled':''}>Complete Settlement</button>
+      <button class="btn secondary" id="cancelFnfBtn" type="button">Cancel</button>
+    </div>
+  `;
+}
 function viewPayroll(){
   const activeEmployees = state.employees.filter(e=>e.active!==false);
   const paidThisMonth = new Set(state.salaryVouchers.filter(sv=>sv.month===payrollMonth).map(sv=>sv.employeeId));
@@ -13871,8 +13984,10 @@ function viewPayroll(){
   const filteredPayslips = state.salaryVouchers.filter(sv=> payslipYearFilter==='all' || sv.month.startsWith(payslipYearFilter));
   const recentPayslips = filteredPayslips.slice().sort((a,b)=> b.month.localeCompare(a.month) || b.generatedAt.localeCompare(a.generatedAt));
   const monthsWithPayroll = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
+  const totalDaysThisMonth = daysInPayrollMonth(payrollMonth);
+  const resignedEmployees = state.employees.filter(e=>e.active===false);
   return `
-    ${masthead('Payroll','Employee master, monthly salary run, payslips, and salary advances')}
+    ${masthead('Payroll','Employee master, monthly salary run, payslips, advances, and exits')}
     <div class="grid">
       <div class="stat"><div class="label">Active Employees</div><div class="val">${activeEmployees.length}</div></div>
       <div class="stat"><div class="label">Monthly Payroll (Net)</div><div class="val">₹${fmt(totalMonthlyPayroll)}</div></div>
@@ -13886,8 +14001,9 @@ function viewPayroll(){
         ${state.employees.length ? `<table>
           <tr><th>Code</th><th>Name</th><th>Designation</th><th class="num">Gross/mo</th><th class="num">Net/mo</th><th class="num">CTC/mo</th><th>Status</th><th></th></tr>
           ${state.employees.map(e=>{
-            const hasHistory = state.salaryVouchers.some(sv=>sv.employeeId===e.id);
+            const hasHistory = state.salaryVouchers.some(sv=>sv.employeeId===e.id) || hasFnfSettlement(e.id) || state.employeeLoans.some(l=>l.employeeId===e.id);
             const loanOut = employeeLoanOutstanding(e.id);
+            const settled = hasFnfSettlement(e.id);
             return `<tr>
             <td class="muted">${escapeHtml(e.code||'—')}</td>
             <td>${escapeHtml(e.name)}${loanOut>0?`<div class="muted" style="font-size:10.5px;">Loan outstanding: ₹${fmt(loanOut)}</div>`:''}</td>
@@ -13895,10 +14011,12 @@ function viewPayroll(){
             <td class="num">₹${fmt(employeeGross(e))}</td>
             <td class="num" style="font-weight:700;">₹${fmt(employeeNetPay(e))}</td>
             <td class="num muted">₹${fmt(employeeCTC(e))}</td>
-            <td>${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}</td>
+            <td>${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}${settled?` <span class="pill pos">F&amp;F Settled</span>`:''}</td>
             <td>
               <button class="btn small secondary" data-edit-employee="${e.id}" type="button">Edit</button>
               <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Resign':'Reactivate'}</button>
+              ${e.active===false && !settled ? `<button class="btn small secondary" data-run-fnf="${e.id}" type="button">Run F&amp;F</button>` : ''}
+              ${settled ? `<button class="btn small secondary" data-print-fnf="${state.fnfSettlements.find(f=>f.employeeId===e.id).id}" type="button">🖨 Settlement</button>` : ''}
               <button class="btn small secondary" data-delete-employee="${e.id}" type="button" ${hasHistory?'disabled title="Has payroll history — resign instead"':''} style="${hasHistory?'':'color:var(--debit);'}">Delete</button>
             </td>
           </tr>`;}).join('')}
@@ -13933,6 +14051,29 @@ function viewPayroll(){
     </div></div>
     <p class="muted" style="font-size:11px;">An active loan's EMI is auto-deducted from that employee's take-home pay every time payroll is generated, until it's fully recovered — posted to a shared "${EMPLOYEE_LOAN_LEDGER_NAME}" asset ledger.</p>
 
+    <div class="section-title">Full &amp; Final Settlements</div>
+    <div class="panel">
+      <div class="panel-body" style="padding:0;">
+        ${state.fnfSettlements.length ? `<table>
+          <tr><th>Employee</th><th class="muted">Date</th><th class="num">Leave Encashment</th><th class="num">Other Dues</th><th class="num">Loan Recovered</th><th class="num">Net Paid</th><th></th></tr>
+          ${state.fnfSettlements.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(f=>{
+            const e = state.employees.find(x=>x.id===f.employeeId);
+            return `<tr>
+              <td>${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
+              <td class="muted">${f.date}</td>
+              <td class="num">₹${fmt(f.leaveEncashment)}</td>
+              <td class="num">₹${fmt(f.otherDues)}</td>
+              <td class="num">₹${fmt(f.loanRecovered)}</td>
+              <td class="num" style="font-weight:700;">₹${fmt(f.netPayable)}</td>
+              <td><button class="btn small secondary" data-print-fnf="${f.id}" type="button">🖨 Statement</button> <button class="btn small secondary" data-delete-fnf="${f.id}" type="button" style="color:var(--debit);">Void</button></td>
+            </tr>`;
+          }).join('')}
+        </table>` : `<div class="empty">No settlements run yet.</div>`}
+      </div>
+    </div>
+    ${fnfDraft ? `<div class="panel"><div class="panel-body">${fnfDraftForm()}</div></div>` : (resignedEmployees.some(e=>!hasFnfSettlement(e.id)) ? `<p class="muted" style="font-size:11px;">Click "Run F&amp;F" next to a resigned employee above to settle their exit.</p>` : '')}
+    <p class="muted" style="font-size:11px;">Full &amp; Final settlement covers leave encashment and other one-off dues on exit, recovers any remaining loan balance immediately (not EMI-wise), and posts to a shared "${FNF_SETTLEMENT_LEDGER_NAME}" ledger.</p>
+
     <div class="section-title">Generate Payroll</div>
     <div class="panel">
       <div class="panel-body">
@@ -13943,21 +14084,30 @@ function viewPayroll(){
               ${payFromOptions.length ? payFromOptions.map(l=>`<option value="${l.id}" ${l.id===payrollPayFromLedgerId?'selected':''}>${escapeHtml(l.name)}</option>`).join('') : `<option>No Bank/Cash ledger found</option>`}
             </select>
           </div>
+          <div class="field" style="max-width:150px;"><label>Days in Month</label><input type="text" value="${totalDaysThisMonth}" disabled></div>
         </div>
         ${!payFromOptions.length ? `<p class="muted" style="font-size:12px;">Add a Bank or Cash ledger (Accounts tab) before running payroll.</p>` : ''}
         ${activeEmployees.length ? `<table style="margin-top:8px;">
-          <tr><th>Employee</th><th class="num">Net Pay</th><th class="num">Loan EMI</th><th class="num">Take-Home</th><th>Status</th></tr>
+          <tr><th>Employee</th><th class="num" style="width:90px;">LOP Days</th><th class="num">Payable Days</th><th class="num">Prorated Net</th><th class="num">Loan EMI</th><th class="num">Take-Home</th><th>Status</th></tr>
           ${activeEmployees.map(e=>{
-            const emi = employeeLoanEmiDue(e.id);
+            const lop = Math.max(0, Number(payrollLopDays[e.id])||0);
+            const payableDays = Math.max(0, totalDaysThisMonth-lop);
+            const prorated = proratedSalaryFigures(e, payableDays, totalDaysThisMonth);
+            const emi = Math.min(employeeLoanEmiDue(e.id), prorated.netPay);
+            const takeHome = r2(prorated.netPay-emi);
+            const already = paidThisMonth.has(e.id);
             return `<tr>
             <td>${escapeHtml(e.name)}</td>
-            <td class="num">₹${fmt(employeeNetPay(e))}</td>
+            <td class="num"><input type="number" min="0" max="${totalDaysThisMonth}" step="1" data-lop-employee="${e.id}" value="${lop}" style="width:70px;text-align:right;padding:5px 8px;" ${already?'disabled':''}></td>
+            <td class="num muted">${payableDays} / ${totalDaysThisMonth}</td>
+            <td class="num">₹${fmt(prorated.netPay)}</td>
             <td class="num ${emi>0?'neg':''}">${emi>0?'− ₹'+fmt(emi):'—'}</td>
-            <td class="num" style="font-weight:700;">₹${fmt(r2(employeeNetPay(e)-emi))}</td>
-            <td>${paidThisMonth.has(e.id) ? `<span class="muted">Already paid for ${payrollMonth}</span>` : `<span class="muted">Pending</span>`}</td>
+            <td class="num" style="font-weight:700;">₹${fmt(takeHome)}</td>
+            <td>${already ? `<span class="muted">Already paid for ${payrollMonth}</span>` : `<span class="muted">Pending</span>`}</td>
           </tr>`;}).join('')}
         </table>
         <button class="btn" id="generatePayrollBtn" type="button" style="margin-top:10px;" ${payFromOptions.length?'':'disabled'}>Generate Payroll for ${payrollMonth}</button>
+        <p class="muted" style="font-size:11px;margin-top:8px;">LOP Days = days of unpaid leave this month. Earnings and statutory deductions are prorated straight-line by payable days; Bonus and loan EMI are not prorated.</p>
         ` : `<p class="muted" style="font-size:12px;margin-top:8px;">Add an active employee above first.</p>`}
       </div>
     </div>
@@ -13966,7 +14116,7 @@ function viewPayroll(){
     <div class="panel">
       <div class="panel-head">
         <h2>Payroll History</h2>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           ${years.length>1 ? `<select id="payslipYearFilter" style="width:auto;">
             <option value="all" ${payslipYearFilter==='all'?'selected':''}>All years</option>
             ${years.map(y=>`<option value="${y}" ${payslipYearFilter===y?'selected':''}>${y}</option>`).join('')}
@@ -13974,7 +14124,8 @@ function viewPayroll(){
           ${monthsWithPayroll.length ? `<select id="payrollDownloadMonth" style="width:auto;">
             ${monthsWithPayroll.map(m=>`<option value="${m}">${m}</option>`).join('')}
           </select>
-          <button class="btn small secondary" id="downloadPayrollBtn" type="button">⬇ Download Consolidated Payroll</button>` : ''}
+          <button class="btn small secondary" id="downloadPayrollBtn" type="button">⬇ Consolidated Payroll</button>
+          <button class="btn small secondary" id="downloadBankTransferBtn" type="button">⬇ Bank Transfer File</button>` : ''}
         </div>
       </div>
       <div class="panel-body" style="padding:0;">
@@ -13992,7 +14143,7 @@ function viewPayroll(){
         </table>` : `<div class="empty">No payroll run yet.</div>`}
       </div>
     </div>
-    <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher per employee for the month: the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger (Indirect Expenses) is debited with that employee's gross pay, the chosen Pay From ledger is credited with their take-home pay, "${SALARY_DEDUCTIONS_LEDGER_NAME}" is credited with anything withheld (PF/ESI/PT/TDS/other), and "${EMPLOYEE_LOAN_LEDGER_NAME}" is credited with any loan EMI recovered. If Employer PF/ESI apply, "${EMPLOYER_CONTRIB_LEDGER_NAME}" is also debited and "${EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME}" credited for the company's own contribution. Every employee's name and amount shows as its own line in these ledgers' statements, and all reports (P&amp;L, Trial Balance, Cash/Bank Book) pick it up automatically. Use "Void" on a payslip to reverse just that employee's entry for the month — it deletes the linked voucher and restores any loan balance it had recovered.</p>
+    <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher per employee for the month: the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger (Indirect Expenses) is debited with that employee's gross pay, the chosen Pay From ledger is credited with their take-home pay, "${SALARY_DEDUCTIONS_LEDGER_NAME}" is credited with anything withheld (PF/ESI/PT/TDS/other), and "${EMPLOYEE_LOAN_LEDGER_NAME}" is credited with any loan EMI recovered. If Employer PF/ESI apply, "${EMPLOYER_CONTRIB_LEDGER_NAME}" is also debited and "${EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME}" credited for the company's own contribution. Every employee's name and amount shows as its own line in these ledgers' statements, and all reports (P&amp;L, Trial Balance, Cash/Bank Book) pick it up automatically. Use "Void" on a payslip to reverse just that employee's entry for the month — it deletes the linked voucher and restores any loan balance it had recovered. The Bank Transfer File is a plain CSV (Beneficiary Name, Account Number, IFSC, Bank Name, Amount, Narration) for the month's take-home pay, ready to upload to most banks' bulk NEFT/RTGS portals — employees missing bank details are skipped and listed in a warning.</p>
   `;
 }
 function printPayslip(salaryVoucherId){
@@ -14031,6 +14182,7 @@ function printPayslip(salaryVoucherId){
     <div class="meta">
       <div class="invtitle">PAYSLIP — ${sv.month}</div>
       <div>${escapeHtml(e?e.name:'—')}${e&&e.code?' · '+escapeHtml(e.code):''}${e&&e.designation?' · '+escapeHtml(e.designation):''}</div>
+      ${sv.lopDays>0?`<div style="font-size:11px;color:#a33;margin-top:2px;">Payable Days: ${sv.payableDays} / ${sv.totalDaysInMonth} (LOP: ${sv.lopDays} days)</div>`:''}
       ${e&&e.bankAccount?`<div style="font-size:11px;color:#666;margin-top:2px;">${escapeHtml(e.bankName||'')} ${escapeHtml(e.bankAccount)}</div>`:''}
     </div>
   </div>
@@ -14064,7 +14216,7 @@ function printPayslip(salaryVoucherId){
 }
 function buildPayrollRegisterSheet(month){
   const rows = [[`Payroll Register — ${month}`],[]];
-  rows.push(['Employee Code','Employee Name','Designation','Basic','HRA','Allowances','Bonus','Gross','PF','ESI','Professional Tax','TDS','Other Deductions','Loan EMI','Total Deductions','Employer PF','Employer ESI','CTC','Net Pay']);
+  rows.push(['Employee Code','Employee Name','Designation','Payable Days','LOP Days','Basic','HRA','Allowances','Bonus','Gross','PF','ESI','Professional Tax','TDS','Other Deductions','Loan EMI','Total Deductions','Employer PF','Employer ESI','CTC','Net Pay']);
   const svs = state.salaryVouchers.filter(sv=>sv.month===month);
   let totGross=0, totDed=0, totNet=0, totCTC=0;
   svs.forEach(sv=>{
@@ -14073,11 +14225,11 @@ function buildPayrollRegisterSheet(month){
     const ded = r2((sv.pf||0)+(sv.esi||0)+(sv.pt||0)+(sv.tds||0)+(sv.otherDeductions||0)+(sv.loanDeduction||0));
     const employerContrib = r2((sv.employerPF||0)+(sv.employerESI||0));
     const ctc = r2(gross+employerContrib);
-    rows.push([e?e.code||'':'', e?e.name:'Former employee', e?e.designation||'':'', sv.basic||0, sv.hra||0, sv.allowances||0, sv.bonus||0, gross, sv.pf||0, sv.esi||0, sv.pt||0, sv.tds||0, sv.otherDeductions||0, sv.loanDeduction||0, ded, sv.employerPF||0, sv.employerESI||0, ctc, sv.netPay]);
+    rows.push([e?e.code||'':'', e?e.name:'Former employee', e?e.designation||'':'', sv.payableDays!=null?sv.payableDays:'', sv.lopDays||0, sv.basic||0, sv.hra||0, sv.allowances||0, sv.bonus||0, gross, sv.pf||0, sv.esi||0, sv.pt||0, sv.tds||0, sv.otherDeductions||0, sv.loanDeduction||0, ded, sv.employerPF||0, sv.employerESI||0, ctc, sv.netPay]);
     totGross+=gross; totDed+=ded; totNet+=sv.netPay; totCTC+=ctc;
   });
   rows.push([]);
-  rows.push(['','','','','','','','Total',r2(totGross),'','','','','',r2(totDed),'','',r2(totCTC),r2(totNet)]);
+  rows.push(['','','','','','','','','Total',r2(totGross),'','','','','',r2(totDed),'','',r2(totCTC),r2(totNet)]);
   return XLSX.utils.aoa_to_sheet(rows);
 }
 function downloadPayrollRegister(month){
@@ -14108,6 +14260,95 @@ async function voidPayslip(salaryVoucherId){
   state.salaryVouchers = state.salaryVouchers.filter(x=>x.id!==salaryVoucherId);
   await saveSalaryVouchers();
   toast('Payslip voided');
+  render();
+}
+// Builds the rows for a bank bulk-transfer upload: one row per employee actually paid that month,
+// skipping (and reporting) anyone missing bank account/IFSC details rather than guessing.
+function buildBankTransferRows(month){
+  const svs = state.salaryVouchers.filter(sv=>sv.month===month && sv.netPay>0);
+  const rows = [];
+  const missing = [];
+  svs.forEach(sv=>{
+    const e = state.employees.find(x=>x.id===sv.employeeId);
+    if(!e) return;
+    if(!e.bankAccount || !e.bankIFSC){ missing.push(e.name); return; }
+    rows.push([e.name, e.bankAccount, e.bankIFSC, e.bankName||'', sv.netPay, `Salary ${month}`]);
+  });
+  return { rows, missing };
+}
+function downloadBankTransferFile(month){
+  const {rows, missing} = buildBankTransferRows(month);
+  if(!rows.length){ toast(`No employees with bank details found for ${month}`); return; }
+  const header = ['Beneficiary Name','Account Number','IFSC Code','Bank Name','Amount','Narration'];
+  const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
+  downloadCSV(header, rows, `${safeName}_Bank_Transfer_${month}.csv`);
+  toast(missing.length ? `Bank transfer file downloaded — skipped ${missing.length} employee(s) missing bank details: ${missing.join(', ')}` : `Bank transfer file downloaded for ${month}`);
+}
+function printFnfStatement(fnfId){
+  const f = state.fnfSettlements.find(x=>x.id===fnfId);
+  if(!f){ toast('Settlement not found'); return; }
+  const e = state.employees.find(x=>x.id===f.employeeId);
+  const now = new Date();
+  const printedAt = now.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const gross = r2((f.leaveEncashment||0)+(f.otherDues||0));
+  const html = `<!DOCTYPE html><html><head><title>Full & Final Settlement — ${escapeHtml(e?e.name:'')}</title>
+<meta charset="UTF-8">
+<style>
+  body{font-family: Arial, Helvetica, sans-serif; color:#111; margin:0; padding:34px; font-size:13px;}
+  .bill-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:18px;}
+  .bill-header h1{margin:0;font-size:20px;}
+  .bill-header .meta{text-align:right;font-size:12px;color:#333;}
+  .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:#111;margin-bottom:4px;}
+  table{width:100%;border-collapse:collapse;margin-bottom:18px;}
+  th{background:#f0f0f0;text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid #111;}
+  td{padding:8px;border-bottom:1px solid #ddd;font-size:12.5px;}
+  .grand-total td{font-weight:bold;font-size:15px;border-top:2px solid #111;padding-top:8px;}
+  .footer{margin-top:30px;font-size:10.5px;color:#777;border-top:1px solid #ddd;padding-top:10px;}
+  @media print{ body{padding:0;} }
+</style>
+</head><body>
+  <div class="bill-header">
+    <div>
+      <h1>${escapeHtml(currentCompany.name)}</h1>
+      ${currentCompany.address?`<div style="font-size:12px;color:#555;margin-top:2px;">${escapeHtml(currentCompany.address)}</div>`:''}
+    </div>
+    <div class="meta">
+      <div class="invtitle">FULL &amp; FINAL SETTLEMENT</div>
+      <div>${escapeHtml(e?e.name:'—')}${e&&e.code?' · '+escapeHtml(e.code):''}${e&&e.designation?' · '+escapeHtml(e.designation):''}</div>
+      <div style="margin-top:2px;">Settlement Date: ${f.date}${e&&e.resignDate?' · Last Working Day: '+escapeHtml(e.resignDate):''}</div>
+    </div>
+  </div>
+  <table>
+    <tr><th>Particulars</th><th style="text-align:right;">Amount</th></tr>
+    <tr><td>Leave Encashment</td><td style="text-align:right;">₹${fmt(f.leaveEncashment)}</td></tr>
+    <tr><td>Other Dues / Reimbursements</td><td style="text-align:right;">₹${fmt(f.otherDues)}</td></tr>
+    <tr><td>Gross Settlement</td><td style="text-align:right;">₹${fmt(gross)}</td></tr>
+    <tr><td>Loan / Advance Recovered</td><td style="text-align:right;">₹${fmt(f.loanRecovered)}</td></tr>
+    <tr class="grand-total"><td>Net Amount Paid</td><td style="text-align:right;">₹${fmt(f.netPayable)}</td></tr>
+  </table>
+  <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
+</body></html>`;
+  printHTMLDocument(html);
+}
+// Reverses a Full & Final settlement: deletes its voucher (if one was posted) and restores any loan
+// balance it had recovered, keeping the loan ledger and "already settled" status in sync.
+async function voidFnfSettlement(fnfId){
+  const f = state.fnfSettlements.find(x=>x.id===fnfId);
+  if(!f) return;
+  const e = state.employees.find(x=>x.id===f.employeeId);
+  const ok = window.confirm(`Void the settlement for ${e?e.name:'this former employee'}? This deletes the linked voucher (if any) and restores any loan balance it recovered.\n\nThis cannot be undone.`);
+  if(!ok) return;
+  if(f.voucherId){
+    state.vouchers = state.vouchers.filter(v=>v.id!==f.voucherId);
+    await saveVouchers();
+  }
+  if(f.loanRecovered>0){
+    reverseLoanRecovery(f.employeeId, f.loanRecovered);
+    await saveEmployeeLoans();
+  }
+  state.fnfSettlements = state.fnfSettlements.filter(x=>x.id!==fnfId);
+  await saveFnfSettlements();
+  toast('Settlement voided');
   render();
 }
 
@@ -14469,8 +14710,8 @@ function attachHandlers(){
         const id = el.dataset.deleteEmployee;
         const e = state.employees.find(x=>x.id===id);
         if(!e) return;
-        if(state.salaryVouchers.some(sv=>sv.employeeId===id)){
-          toast(`Can't delete "${e.name}" — payroll has already been run for them. Resign them instead to keep their history intact.`);
+        if(state.salaryVouchers.some(sv=>sv.employeeId===id) || hasFnfSettlement(id) || state.employeeLoans.some(l=>l.employeeId===id)){
+          toast(`Can't delete "${e.name}" — they have payroll, loan, or settlement history. Resign them instead to keep records intact.`);
           return;
         }
         if(!window.confirm(`Delete employee "${e.name}"? This cannot be undone.`)) return;
@@ -14552,12 +14793,83 @@ function attachHandlers(){
       loanDraft = null;
       render();
     });
-    document.getElementById('payrollMonthInput')?.addEventListener('change', e=>{ payrollMonth = e.target.value; render(); });
+    document.querySelectorAll('[data-run-fnf]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+        const payFrom = state.ledgers.find(l=>['bank','cash'].includes(bucketOf(l)));
+        fnfDraft = { employeeId: el.dataset.runFnf, date: new Date().toISOString().slice(0,10), leaveEncashment:0, otherDues:0, payFromLedgerId: payFrom?payFrom.id:'' };
+        render();
+      });
+    });
+    document.getElementById('cancelFnfBtn')?.addEventListener('click', ()=>{ fnfDraft = null; render(); });
+    document.getElementById('fnfLeaveEncashment')?.addEventListener('change', e=>{ fnfDraft.leaveEncashment = e.target.value; render(); });
+    document.getElementById('fnfOtherDues')?.addEventListener('change', e=>{ fnfDraft.otherDues = e.target.value; render(); });
+    document.getElementById('fnfDate')?.addEventListener('change', e=>{ fnfDraft.date = e.target.value; });
+    document.getElementById('fnfPayFrom')?.addEventListener('change', e=>{ fnfDraft.payFromLedgerId = e.target.value; });
+    document.getElementById('saveFnfBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const d = fnfDraft;
+      const emp = state.employees.find(x=>x.id===d.employeeId);
+      if(!emp){ toast('Employee not found'); return; }
+      const date = document.getElementById('fnfDate').value;
+      const leaveEncashment = Number(document.getElementById('fnfLeaveEncashment').value)||0;
+      const otherDues = Number(document.getElementById('fnfOtherDues').value)||0;
+      const payFromLedgerId = document.getElementById('fnfPayFrom').value;
+      const grossSettlement = r2(leaveEncashment+otherDues);
+      const loanOutstanding = employeeLoanOutstanding(emp.id);
+      const loanRecovered = Math.min(loanOutstanding, grossSettlement);
+      const netPayable = r2(grossSettlement-loanRecovered);
+      let voucherId = null;
+      if(grossSettlement>0){
+        if(!payFromLedgerId){ toast('Add a Bank or Cash ledger first (Accounts tab).'); return; }
+        const {ledger: fnfLedger, created} = ensureLedgerByName(FNF_SETTLEMENT_LEDGER_NAME, 'iexp');
+        if(created) await saveLedgers();
+        const entries = [{ledgerId: fnfLedger.id, dr: grossSettlement, cr:0}];
+        if(loanRecovered>0){
+          const loanLedger = ensureLedgerByName(EMPLOYEE_LOAN_LEDGER_NAME, 'loanadv');
+          entries.push({ledgerId: loanLedger.ledger.id, dr:0, cr: loanRecovered});
+        }
+        if(netPayable>0) entries.push({ledgerId: payFromLedgerId, dr:0, cr: netPayable});
+        const v = { id: uid('v'), date, type:'Journal', narration:`Full & Final Settlement - ${emp.name}${emp.code?' ('+emp.code+')':''}`, entries, createdAt: new Date().toISOString() };
+        state.vouchers.push(v);
+        await saveVouchers();
+        voucherId = v.id;
+      }
+      if(loanRecovered>0){
+        applyFullLoanRecovery(emp.id, loanRecovered);
+        await saveEmployeeLoans();
+      }
+      state.fnfSettlements.push({ id: uid('fnf'), employeeId: emp.id, date, leaveEncashment: r2(leaveEncashment), otherDues: r2(otherDues), loanRecovered: r2(loanRecovered), netPayable, voucherId, generatedAt: new Date().toISOString() });
+      await saveFnfSettlements();
+      toast(`Settlement completed for ${emp.name}`);
+      fnfDraft = null;
+      render();
+    });
+    document.querySelectorAll('[data-print-fnf]').forEach(el=>{
+      el.addEventListener('click', ()=>{ printFnfStatement(el.dataset.printFnf); });
+    });
+    document.querySelectorAll('[data-delete-fnf]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+        voidFnfSettlement(el.dataset.deleteFnf);
+      });
+    });
+    document.querySelectorAll('[data-lop-employee]').forEach(el=>{
+      el.addEventListener('change', ()=>{
+        payrollLopDays[el.dataset.lopEmployee] = Math.max(0, Number(el.value)||0);
+        render();
+      });
+    });
+    document.getElementById('payrollMonthInput')?.addEventListener('change', e=>{ payrollMonth = e.target.value; payrollLopDays = {}; render(); });
     document.getElementById('payrollPayFromInput')?.addEventListener('change', e=>{ payrollPayFromLedgerId = e.target.value; });
     document.getElementById('payslipYearFilter')?.addEventListener('change', e=>{ payslipYearFilter = e.target.value; render(); });
     document.getElementById('downloadPayrollBtn')?.addEventListener('click', ()=>{
       const month = document.getElementById('payrollDownloadMonth').value;
       downloadPayrollRegister(month);
+    });
+    document.getElementById('downloadBankTransferBtn')?.addEventListener('click', ()=>{
+      const month = document.getElementById('payrollDownloadMonth').value;
+      downloadBankTransferFile(month);
     });
     document.getElementById('generatePayrollBtn')?.addEventListener('click', async ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -14571,6 +14883,7 @@ function attachHandlers(){
       const alreadyPaid = new Set(state.salaryVouchers.filter(sv=>sv.month===payrollMonth).map(sv=>sv.employeeId));
       const eligible = state.employees.filter(e=>e.active!==false && !alreadyPaid.has(e.id));
       if(!eligible.length){ toast('Everyone active has already been paid for this month'); return; }
+      const totalDaysThisMonth = daysInPayrollMonth(payrollMonth);
       // The shared Employee Salary ledger is created once, the very first time payroll is ever run --
       // and we jump straight to its ledger statement afterwards so the user sees where salaries post.
       const {ledger: salariesLedger, created: salaryLedgerJustCreated} = ensureLedgerByName(EMPLOYEE_SALARY_LEDGER_NAME, 'iexp');
@@ -14578,21 +14891,21 @@ function attachHandlers(){
       let anyLoanTouched = false;
       const now = new Date().toISOString();
       eligible.forEach(e=>{
-        const gross = employeeGross(e);
-        const structuralNet = employeeNetPay(e);
-        const totalDed = employeeTotalDeductions(e);
-        const loanEmi = employeeLoanEmiDue(e.id);
-        const takeHome = r2(structuralNet - loanEmi);
+        const lopDays = Math.max(0, Number(payrollLopDays[e.id])||0);
+        const payableDays = Math.max(0, totalDaysThisMonth-lopDays);
+        const p = proratedSalaryFigures(e, payableDays, totalDaysThisMonth);
+        const loanEmi = Math.min(employeeLoanEmiDue(e.id), p.netPay);
+        const takeHome = r2(p.netPay - loanEmi);
         const employerContrib = employeeEmployerContribBreakdown(e);
-        const employerContribTotal = r2(employerContrib.pf+employerContrib.esi);
+        const employerContribTotal = r2((employerContrib.pf+employerContrib.esi)*p.ratio);
         const entries = [
-          {ledgerId: salariesLedger.id, dr: r2(gross), cr:0},
+          {ledgerId: salariesLedger.id, dr: r2(p.gross), cr:0},
           {ledgerId: payrollPayFromLedgerId, dr:0, cr: takeHome},
         ];
-        if(totalDed>0){
+        if(p.totalDed>0){
           const ded = ensureLedgerByName(SALARY_DEDUCTIONS_LEDGER_NAME, 'curl');
           if(ded.created) anyLedgerCreated = true;
-          entries.push({ledgerId: ded.ledger.id, dr:0, cr: totalDed});
+          entries.push({ledgerId: ded.ledger.id, dr:0, cr: p.totalDed});
         }
         if(loanEmi>0){
           const loanLedger = ensureLedgerByName(EMPLOYEE_LOAN_LEDGER_NAME, 'loanadv');
@@ -14608,17 +14921,19 @@ function attachHandlers(){
           entries.push({ledgerId: contribExp.ledger.id, dr: employerContribTotal, cr:0});
           entries.push({ledgerId: contribPayable.ledger.id, dr:0, cr: employerContribTotal});
         }
-        const v = { id: uid('v'), date: voucherDate, type:'Journal', narration:`Salary - ${e.name}${e.code?' ('+e.code+')':''} - ${payrollMonth}`, entries, createdAt: now };
+        const lopNote = lopDays>0 ? ` — LOP ${lopDays}d, payable ${payableDays}/${totalDaysThisMonth}` : '';
+        const v = { id: uid('v'), date: voucherDate, type:'Journal', narration:`Salary - ${e.name}${e.code?' ('+e.code+')':''} - ${payrollMonth}${lopNote}`, entries, createdAt: now };
         state.vouchers.push(v);
-        const s = e.salary||{};
         state.salaryVouchers.push({
           id: uid('sal'), employeeId: e.id, month: payrollMonth,
-          basic: Number(s.basic)||0, hra: Number(s.hra)||0, allowances: Number(s.allowances)||0, bonus: Number(s.bonus)||0,
-          pf: Number(s.pf)||0, esi: Number(s.esi)||0, pt: Number(s.pt)||0, tds: Number(s.tds)||0, otherDeductions: Number(s.otherDeductions!=null?s.otherDeductions:s.deductions)||0,
-          employerPF: employerContrib.pf, employerESI: employerContrib.esi, loanDeduction: loanEmi,
+          basic: p.basic, hra: p.hra, allowances: p.allowances, bonus: p.bonus,
+          pf: p.pf, esi: p.esi, pt: p.pt, tds: p.tds, otherDeductions: p.otherDeductions,
+          employerPF: r2(employerContrib.pf*p.ratio), employerESI: r2(employerContrib.esi*p.ratio), loanDeduction: loanEmi,
+          lopDays, payableDays, totalDaysInMonth: totalDaysThisMonth,
           netPay: takeHome, voucherId: v.id, generatedAt: now,
         });
       });
+      payrollLopDays = {};
       if(anyLedgerCreated) await saveLedgers();
       await saveVouchers();
       await saveSalaryVouchers();
