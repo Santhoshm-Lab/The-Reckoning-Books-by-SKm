@@ -1678,6 +1678,7 @@ let adminCompanySearch = '';    // search box text on the Companies tab (matches
 let adminAnalyticsRangeDays = 30; // 7 | 30 | 90 | 365 — drives both the signup trend and the active/dormant window on the Analytics tab
 let selectedUserIds = {};       // uid -> true, for the Users tab's bulk-action checkboxes (session-only, like every other draft state here)
 let adminUserDetailId = null;   // uid whose drill-down modal (companies + account info) is open, stacked above the Admin Panel
+let adminGroupDetailId = null;  // a Support user's uid whose group view (that Support account + everyone they created) is showing in the Users tab, or null for the normal flat list
 let adminFeatureAccessSearch = ''; // search box text on the Admin Panel's Feature Access tab
 let adminFeatureAccessUserId = null; // uid currently selected on the Admin Panel's Feature Access tab
 let adminAddUserOpen = false;   // whether the "Add User" dialog is open, stacked above the Admin Panel like adminUserDetailId
@@ -7851,7 +7852,7 @@ function renderGateway(){
     const closeTopModal = ()=>{
       modal = null; editingUserId = null; editingPlanUserId = null; reassigningCompanyId = null;
       editingTicketId = null; contactSupportOpen = false; contactSupportNotice = '';
-      adminUserDetailId = null; selectedUserIds = {};
+      adminUserDetailId = null; selectedUserIds = {}; adminGroupDetailId = null;
       groupUserDetailId = null; groupEditingTicketId = null;
       renderGateway();
     };
@@ -7876,6 +7877,7 @@ function renderGateway(){
         adminTab = el.dataset.adminTab;
         editingUserId = null; editingPlanUserId = null; reassigningCompanyId = null; editingTicketId = null;
         adminUserDetailId = null; selectedUserIds = {};
+        if(el.dataset.adminTab!=='users') adminGroupDetailId = null;
         if(adminTab==='auditLog') await refreshAuditLog();
         if(adminTab==='support') await refreshSupportTickets();
         if(adminTab==='settings') await refreshErrorLog();
@@ -8222,6 +8224,16 @@ function renderGateway(){
         adminUserDetailId = el.dataset.viewUserDetail;
         renderGateway();
       });
+    });
+    document.querySelectorAll('[data-view-group]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        adminGroupDetailId = el.dataset.viewGroup;
+        renderGateway();
+      });
+    });
+    document.getElementById('backToAllUsersBtn')?.addEventListener('click', ()=>{
+      adminGroupDetailId = null;
+      renderGateway();
     });
   }
   if(modal==='adminPanel' && adminUserDetailId){
@@ -9520,7 +9532,49 @@ function adminFilteredSortedUsers(){
   });
   return list;
 }
+// Shows one Support user's group (that account plus everyone they created) as its own screen
+// within the Users tab -- reached by clicking any "→ Group" link, so an Administrator can go
+// straight from "who made this account" to "who else is in their team" in one click.
+function adminGroupDetailView(){
+  const support = users.find(x=>x.id===adminGroupDetailId);
+  if(!support){ adminGroupDetailId = null; return adminUsersTab(); }
+  const members = users.filter(u=>u.groupOwnerId===support.id);
+  const groupCompanyCount = companies.filter(c=>c.groupId===support.id).length;
+  const blockedInGroup = members.filter(m=>m.blocked).length;
+  return `
+    <button class="btn secondary small" id="backToAllUsersBtn" type="button" style="margin-bottom:14px;">← All Users</button>
+    <div class="panel"><div class="panel-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-weight:700;font-size:15.5px;">${escapeHtml(support.name)} <span class="pill pos" style="margin-left:6px;">Support · Group Admin</span></div>
+          <div class="muted" style="font-size:12px;margin-top:2px;">@${escapeHtml(support.username)}${support.email?' · '+escapeHtml(support.email):''}${support.mobile?' · '+escapeHtml(support.mobile):''}</div>
+        </div>
+        <span class="pill ${support.blocked?'neg':'pos'}">${support.blocked?'Blocked':'Active'}</span>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:16px;margin-bottom:0;">
+        <div class="stat"><div class="label">Group Members</div><div class="val">${members.length} / ${support.groupUserLimit||10}</div></div>
+        <div class="stat"><div class="label">Group Companies</div><div class="val">${groupCompanyCount}</div></div>
+        <div class="stat"><div class="label">Blocked in Group</div><div class="val ${blockedInGroup?'neg':''}">${blockedInGroup}</div></div>
+      </div>
+      <div style="margin-top:14px;"><button class="btn secondary small" data-view-user-detail="${escapeAttr(support.id)}" type="button">View Support Account Details</button></div>
+    </div></div>
+    <div class="section-title">Group Members (${members.length})</div>
+    ${members.length ? `<div style="overflow-x:auto;"><table>
+      <tr><th>Account</th><th>Mobile</th><th>Email</th><th>Signed Up</th><th class="num">Companies</th><th>Status</th><th></th></tr>
+      ${members.map(u=>`<tr>
+        <td>${escapeHtml(u.name)}<div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}</div></td>
+        <td class="muted">${escapeHtml(u.mobile||'—')}</td>
+        <td class="muted">${escapeHtml(u.email||'—')}</td>
+        <td class="muted" style="font-size:11px;">${fmtTimestamp(u.createdAt)}</td>
+        <td class="num">${companies.filter(c=>c.ownerId===u.id).length}</td>
+        <td><span class="pill ${u.blocked?'neg':'pos'}">${u.blocked?'Blocked':'Active'}</span></td>
+        <td><button class="btn secondary small" data-view-user-detail="${escapeAttr(u.id)}" type="button">Details</button></td>
+      </tr>`).join('')}
+    </table></div>` : `<div class="empty">This group has no members yet.</div>`}
+  `;
+}
 function adminUsersTab(){
+  if(adminGroupDetailId) return adminGroupDetailView();
   const list = adminFilteredSortedUsers();
   const arrow = (key)=> adminUserSort===key ? (adminUserSortDir==='asc'?' ▲':' ▼') : '';
   const selectableList = list.filter(u=> !(currentUser && u.id===currentUser.id));
@@ -9548,6 +9602,7 @@ function adminUsersTab(){
         <th><input type="checkbox" id="selectAllUsersCheckbox" ${allVisibleSelected?'checked':''}></th>
         <th>#</th>
         <th data-admin-sort="name" style="cursor:pointer;">Account${arrow('name')}</th>
+        <th>Group</th>
         <th>Mobile</th>
         <th>Email</th>
         <th data-admin-sort="created" style="cursor:pointer;">Signed Up${arrow('created')}</th>
@@ -9567,6 +9622,11 @@ function adminUsersTab(){
           <td>
             ${isEditing ? `<input type="text" data-edit-name="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.name)}" style="margin-bottom:4px;">` : escapeHtml(u.name)}
             <div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}${u.role==='admin'?' · <strong>Admin</strong>':(u.role==='support'?' · <strong>Support</strong>':'')}</div>
+          </td>
+          <td>
+            ${u.role==='support' ? `<button class="btn secondary small" data-view-group="${escapeAttr(u.id)}" type="button" title="View this Support user's group">My Group →</button>`
+              : u.groupOwnerId ? (()=>{ const owner = users.find(x=>x.id===u.groupOwnerId); return `<button class="btn secondary small" data-view-group="${escapeAttr(u.groupOwnerId)}" type="button">${owner?escapeHtml(owner.name):'Group'} →</button>`; })()
+              : `<span class="muted">—</span>`}
           </td>
           <td class="muted">${isEditing ? `<input type="tel" data-edit-mobile="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.mobile)}" maxlength="10">` : escapeHtml(u.mobile||'—')}</td>
           <td class="muted">${isEditing ? `<input type="email" data-edit-email="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.email)}">` : escapeHtml(u.email||'—')}</td>
