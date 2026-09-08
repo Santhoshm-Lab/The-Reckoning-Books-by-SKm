@@ -1677,6 +1677,8 @@ let adminCompanySearch = '';    // search box text on the Companies tab (matches
 let adminAnalyticsRangeDays = 30; // 7 | 30 | 90 | 365 — drives both the signup trend and the active/dormant window on the Analytics tab
 let selectedUserIds = {};       // uid -> true, for the Users tab's bulk-action checkboxes (session-only, like every other draft state here)
 let adminUserDetailId = null;   // uid whose drill-down modal (companies + account info) is open, stacked above the Admin Panel
+let adminFeatureAccessSearch = ''; // search box text on the Admin Panel's Feature Access tab
+let adminFeatureAccessUserId = null; // uid currently selected on the Admin Panel's Feature Access tab
 let adminAddUserOpen = false;   // whether the "Add User" dialog is open, stacked above the Admin Panel like adminUserDetailId
 let adminAddUserDraft = { name:'', username:'', mobile:'', email:'', password:'' };
 let adminAddUserError = '';
@@ -1701,6 +1703,8 @@ let groupCompanies = [];          // cache: companies owned by any group member 
 let groupTickets = [];            // cache: support tickets raised by group members
 let groupAuditLog = [];           // cache: audit log entries where actorUid or targetUid is the support user or a group member
 let groupUserDetailId = null;     // uid whose drill-down modal (companies + account info) is open, stacked above the Group Admin panel
+let groupFeatureAccessSearch = ''; // search box text on the Group Admin panel's Feature Access tab
+let groupFeatureAccessUserId = null; // uid currently selected on the Group Admin panel's Feature Access tab
 let groupAddUserOpen = false;     // whether the "Add User" dialog is open, stacked above the Group Admin panel
 let groupAddUserDraft = { name:'', username:'', mobile:'', email:'', password:'' };
 let groupAddUserError = '';
@@ -8191,6 +8195,46 @@ function renderGateway(){
       }
     });
   }
+  if(modal==='adminPanel' && adminTab==='features'){
+    document.getElementById('featureAccessSearchInput')?.addEventListener('input', (e)=>{
+      adminFeatureAccessSearch = e.target.value;
+      const caret = e.target.selectionStart;
+      renderGateway();
+      const el = document.getElementById('featureAccessSearchInput');
+      if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.querySelectorAll('[data-select-feature-user]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        adminFeatureAccessUserId = el.dataset.selectFeatureUser;
+        renderGateway();
+      });
+    });
+    document.getElementById('saveFeatureAccessBtn')?.addEventListener('click', async ()=>{
+      if(!isFullAdmin()) return;
+      const uid = adminFeatureAccessUserId;
+      const u = users.find(x=>x.id===uid);
+      if(!u) return;
+      const overrides = {};
+      document.querySelectorAll('#featureOverridesWrap [data-override-key]').forEach(el=>{
+        overrides[el.dataset.overrideKey] = !!el.checked;
+      });
+      const btn = document.getElementById('saveFeatureAccessBtn');
+      btn.disabled = true;
+      try{
+        await db.collection('users').doc(uid).set({ featureOverrides: overrides }, {merge:true});
+        u.featureOverrides = overrides;
+        if(currentUser && currentUser.id===uid) currentUser.featureOverrides = overrides;
+        const granted = Object.keys(overrides).filter(k=>overrides[k]).map(k=>OVERRIDABLE_FEATURE_LABELS[k]||k);
+        await logAudit('feature_override_updated', granted.length ? `Granted: ${granted.join(', ')}` : 'Cleared all overrides', uid, u.name);
+        toast('Feature overrides saved');
+        renderGateway();
+      }catch(err){
+        console.error('Save feature overrides failed:', err);
+        toast('Could not save feature overrides — ' + (err && (err.code || err.message) || 'unknown error'));
+        btn.disabled = false;
+      }
+    });
+  }
   if(modal==='adminPanel' && adminTab==='companies'){
     document.getElementById('adminCompanySearchInput')?.addEventListener('input', (e)=>{
       adminCompanySearch = e.target.value;
@@ -8672,6 +8716,47 @@ function renderGateway(){
       }
     });
   }
+  if(modal==='groupAdmin' && groupAdminTab==='features'){
+    document.getElementById('groupFeatureAccessSearchInput')?.addEventListener('input', (e)=>{
+      groupFeatureAccessSearch = e.target.value;
+      const caret = e.target.selectionStart;
+      renderGateway();
+      const el = document.getElementById('groupFeatureAccessSearchInput');
+      if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.querySelectorAll('[data-group-select-feature-user]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        groupFeatureAccessUserId = el.dataset.groupSelectFeatureUser;
+        renderGateway();
+      });
+    });
+    document.getElementById('saveGroupFeatureAccessBtn')?.addEventListener('click', async ()=>{
+      const uid = groupFeatureAccessUserId;
+      const u = groupMembers.find(x=>x.id===uid);
+      // Defence in depth: groupMembers is already scoped to this Support user's own group by the
+      // query in loadGroupAdminData(), but re-check here too so a stale/forged id can never write
+      // to an account outside their group.
+      if(!u || u.groupOwnerId !== currentUser.id) return;
+      const overrides = {};
+      document.querySelectorAll('#featureOverridesWrap [data-override-key]').forEach(el=>{
+        overrides[el.dataset.overrideKey] = !!el.checked;
+      });
+      const btn = document.getElementById('saveGroupFeatureAccessBtn');
+      btn.disabled = true;
+      try{
+        await db.collection('users').doc(uid).set({ featureOverrides: overrides }, {merge:true});
+        u.featureOverrides = overrides;
+        const granted = Object.keys(overrides).filter(k=>overrides[k]).map(k=>OVERRIDABLE_FEATURE_LABELS[k]||k);
+        await logAudit('feature_override_updated', granted.length ? `Granted: ${granted.join(', ')}` : 'Cleared all overrides', uid, u.name);
+        toast('Feature overrides saved');
+        renderGateway();
+      }catch(err){
+        console.error('Save feature overrides failed:', err);
+        toast('Could not save feature overrides — ' + (err && (err.code || err.message) || 'unknown error'));
+        btn.disabled = false;
+      }
+    });
+  }
   if(modal==='groupAdmin' && groupAdminTab==='support'){
     document.getElementById('groupTicketStatusFilterSelect')?.addEventListener('change', (e)=>{
       groupTicketStatusFilter = e.target.value;
@@ -8831,6 +8916,7 @@ function adminPanelModal(){
         <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
           ${adminTabBtn('overview','Overview')}
           ${adminTabBtn('users','Users')}
+          ${adminTabBtn('features','Feature Access')}
           ${adminTabBtn('companies','Companies')}
           ${adminTabBtn('analytics','Analytics')}
           ${adminTabBtn('support','Support'+(supportTickets.filter(t=>t.status==='open').length?` (${supportTickets.filter(t=>t.status==='open').length})`:''))}
@@ -8840,6 +8926,7 @@ function adminPanelModal(){
         <div class="panel-body" style="overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;">
           ${adminTab==='overview' ? adminOverviewTab() : ''}
           ${adminTab==='users' ? adminUsersTab() : ''}
+          ${adminTab==='features' ? adminFeatureAccessTab() : ''}
           ${adminTab==='companies' ? adminCompaniesTab() : ''}
           ${adminTab==='analytics' ? adminAnalyticsTab() : ''}
           ${adminTab==='support' ? adminSupportTab() : ''}
@@ -9254,6 +9341,53 @@ function adminUsersTab(){
     ` : `<div class="empty">${adminUserSearch ? 'No accounts match your search.' : 'No accounts have been created yet.'}</div>`}
   `;
 }
+// A direct "pick a user, then flag their features" screen — the Users tab's per-user Details modal
+// has always had Feature Overrides too, but that's a click-through-to-Details-then-scroll away from
+// the Users list. This tab puts the exact same control front and center: search/select the account
+// right here, and the checkboxes for it appear on the same page, no modal involved.
+function adminFeatureAccessTab(){
+  const q = adminFeatureAccessSearch.trim().toLowerCase();
+  const matches = !q ? users : users.filter(u=>
+    (u.name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) ||
+    (u.email||'').toLowerCase().includes(q) || (u.mobile||'').includes(q)
+  );
+  const selected = adminFeatureAccessUserId ? users.find(x=>x.id===adminFeatureAccessUserId) : null;
+  return `
+    <p class="muted" style="font-size:12.5px;margin-top:0;">Grant or remove access to individual gated features (GST, Assets, Parties, Orders, Payroll, Inventory, Reconcile, Import) for one account at a time — regardless of that account's plan.</p>
+    <div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex:1;min-width:260px;">
+        <div class="section-title" style="margin-top:0;">1. Select a user</div>
+        <input type="text" id="featureAccessSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(adminFeatureAccessSearch)}" style="margin-bottom:10px;">
+        <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+          ${matches.length ? matches.map(u=>{
+            const isActive = adminFeatureAccessUserId===u.id;
+            const grantedCount = u.featureOverrides ? Object.values(u.featureOverrides).filter(Boolean).length : 0;
+            return `<div data-select-feature-user="${escapeAttr(u.id)}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;${isActive?'background:var(--credit-bg);':''}">
+              <div style="min-width:0;">
+                <div style="font-weight:${isActive?'700':'500'};font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(u.name)}</div>
+                <div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)} · ${planLabel(u)}</div>
+              </div>
+              ${grantedCount ? `<span class="pill pos" style="flex-shrink:0;">${grantedCount} granted</span>` : ''}
+            </div>`;
+          }).join('') : `<div class="empty" style="padding:16px;">No accounts match your search.</div>`}
+        </div>
+      </div>
+      <div style="flex:1;min-width:280px;">
+        <div class="section-title" style="margin-top:0;">2. Flag their features</div>
+        ${selected ? `
+          <div class="panel">
+            <div class="panel-body">
+              <div style="font-weight:700;font-size:13.5px;margin-bottom:2px;">${escapeHtml(selected.name)}</div>
+              <div class="muted" style="font-size:11px;margin-bottom:6px;">@${escapeHtml(selected.username)} · Plan: ${planLabel(selected)}</div>
+              <div id="featureOverridesWrap">${featureOverrideCheckboxes(selected, isFullAdmin())}</div>
+              <button class="btn small" id="saveFeatureAccessBtn" type="button" style="margin-top:12px;" ${isFullAdmin()?'':'disabled'}>Save Overrides</button>
+            </div>
+          </div>
+        ` : `<div class="empty">Select a user on the left to flag their features.</div>`}
+      </div>
+    </div>
+  `;
+}
 // Per-user drill-down — stacked above the Admin Panel (adminUserDetailId, not the `modal` variable,
 // so it can layer on top of whichever admin tab is open underneath). Shows account info plus the
 // companies this user owns; there's no login-history array in the data model, only a single
@@ -9464,6 +9598,7 @@ function groupAdminModal(){
         <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
           ${groupAdminTabBtn('overview','Overview')}
           ${groupAdminTabBtn('users','Users')}
+          ${groupAdminTabBtn('features','Feature Access')}
           ${groupAdminTabBtn('support','Support'+(openTickets?` (${openTickets})`:''))}
           ${groupAdminTabBtn('settings','Settings')}
           ${groupAdminTabBtn('audit','Audit')}
@@ -9472,6 +9607,7 @@ function groupAdminModal(){
           <p class="muted" style="font-size:11.5px;background:var(--surface-strong);padding:8px 12px;border-radius:6px;margin-bottom:14px;">This is your own group's admin area — it only ever shows the users you've created here and their data, never anything else on the platform.</p>
           ${groupAdminTab==='overview' ? groupAdminOverviewTab() : ''}
           ${groupAdminTab==='users' ? groupAdminUsersTab() : ''}
+          ${groupAdminTab==='features' ? groupAdminFeatureAccessTab() : ''}
           ${groupAdminTab==='support' ? groupAdminSupportTab() : ''}
           ${groupAdminTab==='settings' ? groupAdminSettingsTab() : ''}
           ${groupAdminTab==='audit' ? groupAdminAuditTab() : ''}
@@ -9571,6 +9707,52 @@ function groupAdminUsersTab(){
     </div>
     ` : `<div class="empty">You haven't created any users yet.</div>`}
     ${groupMembers.length && !list.length ? `<div class="empty">No accounts match your search.</div>` : ''}
+  `;
+}
+// Support's own version of adminFeatureAccessTab() — same "select a user, then flag their
+// features" layout, but scoped to groupMembers (already queried as groupOwnerId==currentUser.id,
+// so every row here is necessarily inside this Support user's own group).
+function groupAdminFeatureAccessTab(){
+  const q = groupFeatureAccessSearch.trim().toLowerCase();
+  const matches = !q ? groupMembers : groupMembers.filter(u=>
+    (u.name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) ||
+    (u.email||'').toLowerCase().includes(q) || (u.mobile||'').includes(q)
+  );
+  const selected = groupFeatureAccessUserId ? groupMembers.find(x=>x.id===groupFeatureAccessUserId) : null;
+  return `
+    <p class="muted" style="font-size:12.5px;margin-top:0;">Grant or remove access to individual gated features (GST, Assets, Parties, Orders, Payroll, Inventory, Reconcile, Import) for one of your group's users — regardless of their plan.</p>
+    <div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex:1;min-width:260px;">
+        <div class="section-title" style="margin-top:0;">1. Select a user</div>
+        <input type="text" id="groupFeatureAccessSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(groupFeatureAccessSearch)}" style="margin-bottom:10px;">
+        <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+          ${matches.length ? matches.map(u=>{
+            const isActive = groupFeatureAccessUserId===u.id;
+            const grantedCount = u.featureOverrides ? Object.values(u.featureOverrides).filter(Boolean).length : 0;
+            return `<div data-group-select-feature-user="${escapeAttr(u.id)}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;${isActive?'background:var(--credit-bg);':''}">
+              <div style="min-width:0;">
+                <div style="font-weight:${isActive?'700':'500'};font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(u.name)}</div>
+                <div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}</div>
+              </div>
+              ${grantedCount ? `<span class="pill pos" style="flex-shrink:0;">${grantedCount} granted</span>` : ''}
+            </div>`;
+          }).join('') : `<div class="empty" style="padding:16px;">${groupMembers.length ? 'No accounts match your search.' : "You haven't created any users yet."}</div>`}
+        </div>
+      </div>
+      <div style="flex:1;min-width:280px;">
+        <div class="section-title" style="margin-top:0;">2. Flag their features</div>
+        ${selected ? `
+          <div class="panel">
+            <div class="panel-body">
+              <div style="font-weight:700;font-size:13.5px;margin-bottom:2px;">${escapeHtml(selected.name)}</div>
+              <div class="muted" style="font-size:11px;margin-bottom:6px;">@${escapeHtml(selected.username)}</div>
+              <div id="featureOverridesWrap">${featureOverrideCheckboxes(selected, true)}</div>
+              <button class="btn small" id="saveGroupFeatureAccessBtn" type="button" style="margin-top:12px;">Save Overrides</button>
+            </div>
+          </div>
+        ` : `<div class="empty">Select a user on the left to flag their features.</div>`}
+      </div>
+    </div>
   `;
 }
 // Per-group-member drill-down — stacked above the Group Admin panel (groupUserDetailId, not `modal`,
