@@ -25,9 +25,9 @@
     --debit:#D64545;
     --debit-bg:rgba(214,69,69,0.10);
     --gold:#F2994A;
-    --radius:10px;
-    --radius-sm:7px;
-    --radius-btn:6px;
+    --radius:14px;
+    --radius-sm:10px;
+    --radius-btn:9px;
   }
   *{box-sizing:border-box;}
   body{
@@ -59,6 +59,25 @@
   .navtab b{font-weight:900;text-decoration:underline;text-underline-offset:2px;}
   .tab-icon{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
+  /* ---------------- Modern pill tab bar (Admin Panel / Group Admin panel) ---------------- */
+  .modern-tabbar{display:flex;gap:6px;padding:14px 20px 16px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(44,160,28,0.05),transparent);border-bottom:1px solid var(--border);}
+  .modern-tab{display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--ink-soft);border:1px solid transparent;padding:8px 15px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:-.005em;transition:all .15s ease;white-space:nowrap;}
+  .modern-tab .tab-icon{width:14px;height:14px;}
+  .modern-tab:hover:not(.active){background:var(--surface-strong);color:var(--ink);}
+  .modern-tab.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:var(--accent2);box-shadow:0 3px 10px rgba(44,160,28,0.32);}
+  .modern-tab .tab-count{background:rgba(0,0,0,0.15);padding:1px 7px;border-radius:999px;font-size:10px;margin-left:2px;}
+  .modern-tab.active .tab-count{background:rgba(255,255,255,0.28);}
+  .modern-tab:not(.active) .tab-count{background:var(--gold);color:#fff;}
+
+  /* ---------------- Modal header with gradient accent (Admin / Group Admin panels) ---------------- */
+  .admin-modal-head{position:relative;display:flex;justify-content:space-between;align-items:center;padding:20px 24px;background:linear-gradient(120deg,#173B1E 0%,#1E7A12 55%,#2CA01C 100%);color:#fff;overflow:hidden;}
+  .admin-modal-head::after{content:'';position:absolute;top:-40%;right:-6%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(242,153,74,0.35),transparent 70%);pointer-events:none;}
+  .admin-modal-head .amh-icon{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .admin-modal-head h2{font-size:16.5px;font-weight:800;margin:0;letter-spacing:-.01em;position:relative;z-index:1;}
+  .admin-modal-head .amh-sub{font-size:11.5px;color:rgba(255,255,255,0.75);margin-top:1px;position:relative;z-index:1;}
+  .admin-modal-head .btn.secondary{background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.3);color:#fff;position:relative;z-index:1;}
+  .admin-modal-head .btn.secondary:hover{background:rgba(255,255,255,0.24);}
+
   .main{flex:1;min-width:0;padding:20px 24px 50px;overflow:auto;}
 
   /* Status bar */
@@ -70,19 +89,20 @@
   .masthead .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
   .datebadge{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:700;font-size:11.5px;color:var(--ink-soft);border:1px solid var(--border);background:var(--surface-strong);padding:5px 11px;border-radius:999px;}
 
-  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
-  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:0 1px 2px rgba(20,30,25,0.04);}
-  .stat[data-open-kpi]{cursor:pointer;transition:box-shadow .15s, transform .15s, border-color .15s;}
-  .stat[data-open-kpi]:hover{box-shadow:0 6px 18px rgba(20,30,25,0.10);transform:translateY(-1px);border-color:var(--border-strong);}
-  .stat .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:8px;font-weight:700;}
-  .stat .val{font-family:inherit;font-variant-numeric:tabular-nums;font-size:21px;font-weight:800;letter-spacing:-.01em;color:var(--ink);}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  .stat{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px 17px;box-shadow:0 2px 10px rgba(20,30,25,0.06);overflow:hidden;transition:box-shadow .2s ease, transform .2s ease;}
+  .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent1),var(--gold));opacity:.9;}
+  .stat[data-open-kpi]{cursor:pointer;}
+  .stat:hover{box-shadow:0 12px 28px rgba(20,30,25,0.13);transform:translateY(-2px);border-color:var(--border-strong);}
+  .stat .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);margin-bottom:9px;font-weight:800;}
+  .stat .val{font-family:inherit;font-variant-numeric:tabular-nums;font-size:23px;font-weight:800;letter-spacing:-.015em;color:var(--ink);}
   .stat .val.neg{color:var(--debit);}
   .stat .val.pos{color:var(--credit);}
 
-  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:18px;overflow:hidden;box-shadow:0 1px 3px rgba(20,30,25,0.05);}
-  .panel-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
-  .panel-head h2{font-family:inherit;font-size:14px;font-weight:800;margin:0;letter-spacing:-.01em;color:var(--ink);}
-  .panel-body{padding:16px 18px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 12px rgba(20,30,25,0.06);}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, rgba(44,160,28,0.035), rgba(44,160,28,0));}
+  .panel-head h2{font-family:inherit;font-size:14.5px;font-weight:800;margin:0;letter-spacing:-.01em;color:var(--ink);}
+  .panel-body{padding:18px 20px;}
 
   /* ---------------- Interactive dashboard visuals (Power BI–style charts) ---------------- */
   .viz-grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:12px;}
@@ -118,27 +138,27 @@
   #chartTooltip .tt-muted{color:rgba(255,255,255,0.65);font-size:10px;margin-top:3px;}
 
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface-strong);}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:800;padding:9px 12px;border-bottom:2px solid var(--border);background:var(--surface-strong);}
   td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--ink);}
   tr:last-child td{border-bottom:none;}
-  tr:hover td{background:#FAFBFA;}
+  tr:hover td{background:#F5FAF5;}
   .num{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap;}
   .num.neg{color:var(--debit);}
   .num.pos{color:var(--credit);}
-  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10.5px;font-family:inherit;font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:.02em;}
+  .pill{display:inline-block;padding:4px 11px;border-radius:999px;font-size:10.5px;font-family:inherit;font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;}
   .pill.neg{background:var(--debit-bg);color:var(--debit);}
   .pill.pos{background:var(--credit-bg);color:var(--credit);}
   .muted{color:var(--ink-faint);}
   .empty{padding:28px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
 
   button{font-family:'Inter',sans-serif;cursor:pointer;}
-  .btn{background:var(--accent1);color:#fff;border:1px solid var(--accent1);padding:9px 18px;border-radius:var(--radius-btn);font-size:12.5px;font-weight:700;letter-spacing:-.005em;box-shadow:0 1px 2px rgba(44,160,28,0.25);transition:background .12s, box-shadow .12s;}
-  .btn:hover:not(:disabled){background:var(--accent2);border-color:var(--accent2);}
-  .btn:active:not(:disabled){background:var(--accent2);}
+  .btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border:1px solid var(--accent2);padding:9px 19px;border-radius:var(--radius-btn);font-size:12.5px;font-weight:700;letter-spacing:-.005em;box-shadow:0 2px 8px rgba(44,160,28,0.3);transition:box-shadow .15s ease, transform .15s ease;}
+  .btn:hover:not(:disabled){box-shadow:0 5px 16px rgba(44,160,28,0.4);transform:translateY(-1px);}
+  .btn:active:not(:disabled){transform:translateY(0);box-shadow:0 2px 6px rgba(44,160,28,0.3);}
   .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--border-strong);box-shadow:none;}
-  .btn.secondary:hover:not(:disabled){background:var(--surface-strong);}
+  .btn.secondary:hover:not(:disabled){background:var(--surface-strong);border-color:var(--ink-soft);transform:translateY(-1px);box-shadow:0 3px 10px rgba(20,30,25,0.08);}
   .btn.small{padding:6px 13px;font-size:11.5px;}
-  .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none;}
 
   select, input[type=text], input[type=date], input[type=number], input[type=password], input[type=email], input[type=tel], textarea{
     font-family:inherit;font-size:12.5px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--field);color:var(--ink);width:100%;transition:border-color .15s, box-shadow .15s;
@@ -219,6 +239,54 @@
   .rb-credit{text-align:center;font-size:11.5px;font-weight:600;letter-spacing:.03em;color:var(--ink-faint);padding:4px 20px 22px;}
   .rb-credit strong{color:var(--accent1);font-weight:800;}
   .rb-greeting{text-align:center;padding:18px 20px 0;font-size:13.5px;color:var(--ink-soft);font-weight:600;}
+
+  /* ---------------- Gateway page redesign: hero banner + company card grid ---------------- */
+  .gw-hero{max-width:980px;margin:28px auto 0;padding:28px 32px;border-radius:20px;position:relative;overflow:hidden;
+    background:linear-gradient(120deg,#173B1E 0%,#1E7A12 55%,#2CA01C 100%);color:#fff;
+    box-shadow:0 20px 50px rgba(20,60,25,0.28);}
+  .gw-hero::before{content:'';position:absolute;top:-50%;right:-8%;width:320px;height:320px;border-radius:50%;
+    background:radial-gradient(circle,rgba(242,153,74,0.4),transparent 70%);pointer-events:none;}
+  .gw-hero::after{content:'';position:absolute;bottom:-60%;left:-6%;width:280px;height:280px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,0.10),transparent 70%);pointer-events:none;}
+  .gw-hero-inner{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap;}
+  .gw-hero-eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,0.7);margin-bottom:6px;}
+  .gw-hero h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.02em;}
+  .gw-hero h1 em{font-style:normal;color:#FFDE9E;}
+  .gw-hero-sub{font-size:13px;color:rgba(255,255,255,0.82);margin-top:6px;max-width:440px;}
+  .gw-hero-chips{display:flex;gap:10px;flex-wrap:wrap;}
+  .gw-chip{background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.22);border-radius:14px;padding:10px 16px;min-width:88px;text-align:center;backdrop-filter:blur(6px);}
+  .gw-chip .gw-chip-val{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .gw-chip .gw-chip-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.7);font-weight:700;margin-top:2px;}
+
+  .gw-wrap{max-width:980px;margin:0 auto;padding:26px 32px 10px;}
+  .gw-section-title{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);margin:0 0 14px;display:flex;align-items:center;gap:8px;}
+  .company-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
+  .company-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 18px 16px;cursor:pointer;
+    box-shadow:0 2px 10px rgba(20,30,25,0.06);transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;overflow:hidden;}
+  .company-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent1),var(--gold));
+    opacity:0;transition:opacity .18s ease;}
+  .company-card:hover{transform:translateY(-4px);box-shadow:0 16px 32px rgba(20,30,25,0.16);border-color:var(--border-strong);}
+  .company-card:hover::before{opacity:1;}
+  .company-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:14px;}
+  .company-card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:17px;color:#fff;flex-shrink:0;letter-spacing:-.02em;}
+  .company-card-arrow{color:var(--ink-faint);opacity:0;transform:translateX(-4px);transition:all .18s ease;}
+  .company-card:hover .company-card-arrow{opacity:1;transform:translateX(0);color:var(--accent1);}
+  .company-card-name{font-size:14.5px;font-weight:800;color:var(--ink);letter-spacing:-.01em;line-height:1.3;
+    overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .company-card-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+  .company-card-stats{display:flex;gap:14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+  .company-card-stats span{font-size:10.5px;color:var(--ink-faint);font-weight:600;}
+  .company-card-stats b{color:var(--ink-soft);font-variant-numeric:tabular-nums;font-weight:800;}
+  .company-card-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    border:2px dashed var(--border-strong);border-radius:16px;padding:24px 18px;cursor:pointer;min-height:150px;
+    color:var(--ink-soft);transition:all .18s ease;background:transparent;}
+  .company-card-add:hover{border-color:var(--accent1);background:var(--credit-bg);color:var(--accent2);transform:translateY(-4px);}
+  .company-card-add .gw-add-icon{width:44px;height:44px;border-radius:50%;background:var(--surface-strong);display:flex;
+    align-items:center;justify-content:center;font-size:22px;font-weight:300;transition:all .18s ease;}
+  .company-card-add:hover .gw-add-icon{background:var(--accent1);color:#fff;transform:rotate(90deg);}
+  .company-card-add .gw-add-label{font-size:12.5px;font-weight:700;}
+  .gw-empty-state{grid-column:1/-1;text-align:center;padding:36px 20px;color:var(--ink-faint);font-size:13px;}
   .rb-greeting strong{color:var(--accent1);font-weight:800;}
 
   /* Login / welcome screen */
@@ -277,8 +345,8 @@
   .menu-dropdown a:hover{background:var(--surface-strong);}
 
   /* Modal (Edit Company / Help) */
-  .modal-overlay{position:fixed;inset:0;background:rgba(20,30,25,0.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
-  .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);width:400px;max-width:100%;box-shadow:0 24px 60px rgba(20,30,25,0.25);overflow:hidden;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(13,20,15,0.58);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:400px;max-width:100%;box-shadow:0 30px 70px rgba(13,20,15,0.35);overflow:hidden;}
   .modal-card .panel-head{padding:14px 18px;}
   .modal-card .panel-body{padding:18px;}
 
@@ -325,7 +393,8 @@
   .landing-hero{position:relative;overflow:hidden;background:radial-gradient(ellipse 900px 500px at 15% -10%,#2E7D32 0%,transparent 60%),linear-gradient(160deg,#0F2A17 0%,#123B1C 45%,#1B5E20 100%);padding-bottom:60px;}
   .landing-hero-glow{position:absolute;right:-120px;top:-120px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(242,169,0,0.35) 0%,transparent 70%);pointer-events:none;}
   .landing-hero-inner{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:28px 28px 0;display:grid;grid-template-columns:1.05fr 0.95fr;gap:40px;align-items:center;}
-  .landing-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(242,169,0,0.16);border:1px solid rgba(242,169,0,0.4);color:#FFD584;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;border-radius:999px;margin-bottom:18px;}
+  .landing-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(242,169,0,0.16);border:1px solid rgba(242,169,0,0.4);color:#FFD584;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;border-radius:999px;margin-bottom:18px;animation:badgeGlow 2.6s ease-in-out infinite;}
+  @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(242,169,0,0.28);}50%{box-shadow:0 0 0 6px rgba(242,169,0,0);}}
   .landing-hero h1{margin:0 0 16px;font-size:clamp(30px,4.2vw,46px);line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#fff;}
   .landing-hero h1 em{font-style:normal;background:linear-gradient(100deg,#FFD584,#8BEB9F);-webkit-background-clip:text;background-clip:text;color:transparent;}
   .landing-hero-sub{margin:0 0 26px;font-size:15px;line-height:1.65;color:rgba(255,255,255,0.82);max-width:520px;}
@@ -350,9 +419,11 @@
   .landing-stat .l{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:3px;}
 
   .landing-feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
-  .landing-feature-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 18px;transition:transform .15s,box-shadow .15s;}
-  .landing-feature-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(20,30,25,0.08);}
-  .landing-feature-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#F2A900,var(--accent1));display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:#fff;}
+  .landing-feature-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 18px;transition:transform .18s ease,box-shadow .18s ease;overflow:hidden;}
+  .landing-feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent1),var(--gold));opacity:0;transition:opacity .18s ease;}
+  .landing-feature-card:hover{transform:translateY(-4px);box-shadow:0 16px 34px rgba(20,30,25,0.10);border-color:var(--border-strong);}
+  .landing-feature-card:hover::before{opacity:1;}
+  .landing-feature-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#F2A900,var(--accent1));display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:#fff;box-shadow:0 4px 12px rgba(242,169,0,0.3);}
   .landing-feature-icon svg{width:20px;height:20px;}
   .landing-feature-card h3{margin:0 0 6px;font-size:13.5px;font-weight:800;color:var(--ink);}
   .landing-feature-card p{margin:0;font-size:12px;line-height:1.55;color:var(--ink-soft);}
@@ -7616,16 +7687,59 @@ function renderGateway(){
       <button class="btn secondary small" id="dismissAnnouncementBtn" type="button" style="background:#fff;flex-shrink:0;">Dismiss</button>
     </div>
     ` : ''}
-    ${currentUser ? `<div class="rb-greeting">Welcome, <strong>${escapeHtml(currentUser.name)}</strong></div>` : ''}
-    <div class="gateway-shell">
-      <div class="gateway-box">
-        <div class="gw-title">Main Window — Select Company</div>
-        ${(()=>{ const myCompanies = visibleCompanies(); return myCompanies.length ? `<ul class="gateway-list">
-          ${myCompanies.map((c,i)=>`<li data-select-co="${c.id}"><span><span class="num">${i+1}.</span>${c.name}${isSharedDemoId(c.id)?' <span class="pill pos" style="margin-left:6px;">Sample</span>':''}${c.groupId?' <span class="pill" style="margin-left:6px;background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}</span></li>`).join('')}
-        </ul>` : `<div class="gateway-empty">No companies yet. Create one to begin →</div>`; })()}
-        <div class="gateway-hint">Select a company to load its books, or create a new one.</div>
-        ${!isDemoUser ? `<button class="btn" id="openCreateCoBtn" type="button" style="width:100%;margin-top:14px;padding:14px;font-size:14px;">+ Create Company</button>` : `<div class="muted" style="font-size:11.5px;margin-top:14px;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>`}
+    ${currentUser ? (()=>{
+      const myCompanies = visibleCompanies();
+      const totalLedgers = myCompanies.reduce((s,c)=>s+(c.ledgers||[]).length,0);
+      const totalVouchers = myCompanies.reduce((s,c)=>s+(c.vouchers||[]).length,0);
+      const hour = new Date().getHours();
+      const greeting = hour<12 ? 'Good morning' : hour<17 ? 'Good afternoon' : 'Good evening';
+      return `
+      <div class="gw-hero">
+        <div class="gw-hero-inner">
+          <div>
+            <div class="gw-hero-eyebrow">${escapeHtml(greeting)}</div>
+            <h1>Welcome back, <em>${escapeHtml(currentUser.name.split(' ')[0]||currentUser.name)}</em></h1>
+            <div class="gw-hero-sub">Select a company below to pick up where you left off, or create a new one to get started.</div>
+          </div>
+          <div class="gw-hero-chips">
+            <div class="gw-chip"><div class="gw-chip-val">${myCompanies.length}</div><div class="gw-chip-lbl">Compan${myCompanies.length===1?'y':'ies'}</div></div>
+            <div class="gw-chip"><div class="gw-chip-val">${totalLedgers}</div><div class="gw-chip-lbl">Ledgers</div></div>
+            <div class="gw-chip"><div class="gw-chip-val">${totalVouchers}</div><div class="gw-chip-lbl">Vouchers</div></div>
+          </div>
+        </div>
       </div>
+      `;
+    })() : ''}
+    <div class="gw-wrap">
+      <div class="gw-section-title">Your Companies</div>
+      <div class="company-grid">
+        ${(()=>{ const myCompanies = visibleCompanies(); return myCompanies.map((c,i)=>{
+          const initials = (c.name||'?').trim().slice(0,2).toUpperCase();
+          const palette = ['linear-gradient(135deg,#2CA01C,#1E7A12)','linear-gradient(135deg,#F2994A,#C9701A)','linear-gradient(135deg,#4A90D9,#2563AD)','linear-gradient(135deg,#B15CDE,#7B3FA0)','linear-gradient(135deg,#E0546B,#B23350)','linear-gradient(135deg,#2FB6A6,#1D8377)'];
+          const bg = palette[Math.abs((c.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
+          return `<div class="company-card" data-select-co="${c.id}">
+            <div class="company-card-top">
+              <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
+              <span class="company-card-arrow">→</span>
+            </div>
+            <div class="company-card-name">${escapeHtml(c.name)}</div>
+            <div class="company-card-badges">
+              ${isSharedDemoId(c.id)?'<span class="pill pos">Sample</span>':''}
+              ${c.groupId?'<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}
+            </div>
+            <div class="company-card-stats">
+              <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
+              <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
+            </div>
+          </div>`;
+        }).join('') || `<div class="gw-empty-state">No companies yet — create your first one to begin →</div>`; })()}
+        ${!isDemoUser ? `
+        <div class="company-card-add" id="openCreateCoBtn">
+          <div class="gw-add-icon">+</div>
+          <div class="gw-add-label">Create Company</div>
+        </div>` : ''}
+      </div>
+      ${isDemoUser ? `<div class="muted" style="font-size:11.5px;margin-top:16px;text-align:center;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>` : ''}
     </div>
     <div class="rb-credit">Created by <strong>SKm</strong></div>
     ${modal==='help' ? helpModal() : ''}
@@ -9175,16 +9289,33 @@ function fileDropdown(){
 function servicesDropdown(){
   return `<div class="menu-dropdown"><a id="gwAdminPanelLink">Admin Panel</a></div>`;
 }
+function adminTabIcon(id){
+  const icons = {
+    overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
+    users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    features: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+    companies: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+    analytics: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+    support: '<path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+    auditLog: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+    audit: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  };
+  return `<svg class="tab-icon" viewBox="0 0 24 24">${icons[id]||''}</svg>`;
+}
 function adminTabBtn(id, label){
   const active = adminTab===id;
-  return `<button class="btn ${active?'':'secondary'} small" data-admin-tab="${id}" type="button" style="border-radius:8px 8px 0 0;">${label}</button>`;
+  const m = label.match(/^(.*?)(?:\s*\((\d+)\))?$/);
+  const text = m ? m[1] : label;
+  const count = m ? m[2] : null;
+  return `<button class="modern-tab ${active?'active':''}" data-admin-tab="${id}" type="button">${adminTabIcon(id)}<span>${escapeHtml(text)}</span>${count?`<span class="tab-count">${count}</span>`:''}</button>`;
 }
 function adminPanelModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
-        <div class="panel-head"><h2>Admin Panel</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
-        <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="modern-tabbar">
           ${adminTabBtn('overview','Overview')}
           ${adminTabBtn('users','Users')}
           ${adminTabBtn('companies','Companies')}
@@ -9983,15 +10114,18 @@ function adminAuditLogTab(){
    just by convention. */
 function groupAdminTabBtn(id, label){
   const active = groupAdminTab===id;
-  return `<button class="btn ${active?'':'secondary'} small" data-group-admin-tab="${id}" type="button" style="border-radius:8px 8px 0 0;">${label}</button>`;
+  const m = label.match(/^(.*?)(?:\s*\((\d+)\))?$/);
+  const text = m ? m[1] : label;
+  const count = m ? m[2] : null;
+  return `<button class="modern-tab ${active?'active':''}" data-group-admin-tab="${id}" type="button">${adminTabIcon(id)}<span>${escapeHtml(text)}</span>${count?`<span class="tab-count">${count}</span>`:''}</button>`;
 }
 function groupAdminModal(){
   const openTickets = groupTickets.filter(t=>t.status==='open').length;
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
-        <div class="panel-head"><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
-        <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="modern-tabbar">
           ${groupAdminTabBtn('overview','Overview')}
           ${groupAdminTabBtn('users','Users')}
           ${groupAdminTabBtn('companies','Company')}
