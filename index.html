@@ -8503,6 +8503,19 @@ function renderGateway(){
         }
       });
     });
+    document.querySelectorAll('[data-admin-delete-company]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        if(!isFullAdmin()) return;
+        const cid = el.dataset.adminDeleteCompany;
+        const c = companies.find(x=>x.id===cid);
+        const name = c ? c.name : cid;
+        const deleted = await deleteCompanyById(cid);
+        if(deleted){
+          await logAudit('company_deleted', `Deleted company "${name}"`, cid, name);
+          renderGateway();
+        }
+      });
+    });
   }
   if(modal==='adminPanel' && adminTab==='analytics'){
     document.getElementById('adminAnalyticsRangeSelect')?.addEventListener('change', (e)=>{
@@ -9545,7 +9558,11 @@ function adminSettingsTab(){
 }
 function adminFilteredSortedUsers(){
   const q = adminUserSearch.trim().toLowerCase();
-  let list = users.slice();
+  // Users created by a Support user are deliberately excluded from this main list — they live
+  // inside their Support admin's own group tree instead (see the "N users →" link below, which
+  // opens adminGroupTreeModal). This keeps the main Users table down to top-level accounts only:
+  // Admins, Support admins, and independent users with no group.
+  let list = users.filter(u=>!u.groupOwnerId);
   if(q){
     list = list.filter(u=>
       (u.name||'').toLowerCase().includes(q) ||
@@ -9613,32 +9630,16 @@ function adminGroupTreeModal(){
   </div>
   `;
 }
-// A Support user and everyone they've created share the SAME serial number in the Users table --
-// visually grouping them at a glance -- computed from the full `users` list (not the filtered/
-// sorted one on screen) so numbers stay stable regardless of search or sort order. Clicking that
-// number opens either the group tree (if it's a Support user's group) or straight to that person's
-// own details (an independent account has no group to show).
-function computeGroupNumbers(){
-  const roots = users.filter(u=>u.role==='support' || !u.groupOwnerId)
-    .sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
-  const map = {};
-  roots.forEach((u,i)=>{ map[u.id] = i+1; });
-  users.forEach(u=>{
-    if(u.groupOwnerId && map[u.groupOwnerId]!=null) map[u.id] = map[u.groupOwnerId];
-  });
-  return map;
-}
 function adminUsersTab(){
   const list = adminFilteredSortedUsers();
   const arrow = (key)=> adminUserSort===key ? (adminUserSortDir==='asc'?' ▲':' ▼') : '';
   const selectableList = list.filter(u=> !(currentUser && u.id===currentUser.id));
   const selectedCount = Object.keys(selectedUserIds).filter(id=>selectedUserIds[id]).length;
   const allVisibleSelected = selectableList.length>0 && selectableList.every(u=>selectedUserIds[u.id]);
-  const groupNumbers = computeGroupNumbers();
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="adminUserSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(adminUserSearch)}" style="max-width:280px;">
-      <span class="muted" style="font-size:12px;">${list.length} of ${users.length} account${users.length===1?'':'s'}</span>
+      <span class="muted" style="font-size:12px;">${list.length} of ${users.filter(u=>!u.groupOwnerId).length} account${users.filter(u=>!u.groupOwnerId).length===1?'':'s'}</span>
       ${isFullAdmin() ? `<button class="btn small" id="openAddUserBtn" type="button" style="margin-left:auto;">+ Add User</button>` : ''}
     </div>
     ${selectedCount ? `
@@ -9673,14 +9674,13 @@ function adminUsersTab(){
         const isEditingPlan = editingPlanUserId===u.id;
         return `<tr>
           <td><input type="checkbox" data-select-user="${escapeAttr(u.id)}" ${selectedUserIds[u.id]?'checked':''} ${isSelf?'disabled':''} title="${isSelf?'Your own account is excluded from bulk actions':''}"></td>
-          <td><button class="btn secondary small" data-open-group-serial="${escapeAttr(u.id)}" type="button" title="${u.role==='support'||u.groupOwnerId?'View this group':'View account details'}" style="min-width:34px;padding:4px 8px;">${groupNumbers[u.id]||(i+1)}</button></td>
+          <td><button class="btn secondary small" data-open-group-serial="${escapeAttr(u.id)}" type="button" title="${u.role==='support'?'View this group':'View account details'}" style="min-width:34px;padding:4px 8px;">${i+1}</button></td>
           <td>
             ${isEditing ? `<input type="text" data-edit-name="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.name)}" style="margin-bottom:4px;">` : escapeHtml(u.name)}
             <div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}${u.role==='admin'?' · <strong>Admin</strong>':(u.role==='support'?' · <strong>Support</strong>':'')}</div>
           </td>
           <td>
-            ${u.role==='support' ? `<button class="btn secondary small" data-view-group="${escapeAttr(u.id)}" type="button" title="View this Support user's group">My Group →</button>`
-              : u.groupOwnerId ? (()=>{ const owner = users.find(x=>x.id===u.groupOwnerId); return `<button class="btn secondary small" data-view-group="${escapeAttr(u.groupOwnerId)}" type="button">${owner?escapeHtml(owner.name):'Group'} →</button>`; })()
+            ${u.role==='support' ? (()=>{ const n = users.filter(x=>x.groupOwnerId===u.id).length; return `<button class="btn secondary small" data-view-group="${escapeAttr(u.id)}" type="button" title="View this Support user's group">${n} user${n===1?'':'s'} →</button>`; })()
               : `<span class="muted">—</span>`}
           </td>
           <td class="muted">${isEditing ? `<input type="tel" data-edit-mobile="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.mobile)}" maxlength="10">` : escapeHtml(u.mobile||'—')}</td>
@@ -9935,6 +9935,7 @@ function adminCompaniesTab(){
                 <button class="btn secondary small" id="cancelReassignBtn" type="button">Cancel</button>
               ` : `<button class="btn secondary small" data-reassign-company="${escapeAttr(c.id)}" type="button">Reassign Owner</button>`
             ) : ''}
+            ${isFullAdmin() ? `<button class="btn secondary small" data-admin-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);" ${isSharedDemoId(c.id)?'disabled title="Shared demo companies can\'t be deleted here"':''}>Delete</button>` : ''}
           </div>
         </td>
       </tr>`;}).join('')}
