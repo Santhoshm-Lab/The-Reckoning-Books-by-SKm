@@ -9086,13 +9086,15 @@ const RECOMMENDED_FIRESTORE_RULES = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
-    function isOwnerUid(uid) { return isSignedIn() && request.auth.uid == uid; }
-    function myRole() { return isSignedIn() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role : null; }
-    function isAdmin() { return myRole() == 'admin'; }
-    function isSupport() { return myRole() == 'support'; }
-    // Cross-document lookup: the groupOwnerId of the user identified by uid, or null if uid is
-    // missing or has no such document — guarded so a stray null/blocked-account uid on a company,
-    // ticket or audit-log doc can never error the whole rule evaluation.
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function myProfile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isAdmin() { return isSignedIn() && myProfile().role == 'admin'; }
+    // Support is a scoped group admin — they may only touch their own group (the users whose
+    // users/{uid}.groupOwnerId equals their own uid), never the whole platform like isAdmin() can.
+    function isSupport() { return isSignedIn() && myProfile().role == 'support'; }
+    // Cross-document lookup used to decide whether some OTHER uid (the owner of a company, a
+    // support ticket, or the target of an audit-log entry) belongs to the requesting Support user's
+    // group. Guarded with exists() so a stray/missing uid can never error the whole rule evaluation.
     function groupOwnerOf(uid) {
       return uid != null && exists(/databases/$(database)/documents/users/$(uid))
         ? get(/databases/$(database)/documents/users/$(uid)).data.groupOwnerId
@@ -9100,61 +9102,103 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      // A Support user may read their own group's member docs directly (groupOwnerId lives right
-      // on this document, so no extra lookup is needed here, unlike the collections below).
-      allow read: if isOwnerUid(uid) || isAdmin() || (isSupport() && resource.data.groupOwnerId == request.auth.uid);
-      allow create: if isOwnerUid(uid);
-      // A Support user may edit their own group members' everyday profile fields (and block/unblock
-      // them, and grant/revoke their Feature Overrides), but never their role, groupOwnerId or
-      // groupUserLimit — those stay admin-only, so a Support user can never promote themselves,
-      // re-home a member into someone else's group, or raise their own cap.
-      allow update: if isOwnerUid(uid) || isAdmin() || (
+      // A Support user may fetch/list their own group's member docs (groupOwnerId lives right on
+      // the doc being read, so no extra lookup is needed here).
+      allow get:    if isOwner(uid) || isAdmin() || (isSupport() && resource.data.groupOwnerId == request.auth.uid);
+      allow list:   if isAdmin() || (isSupport() && resource.data.groupOwnerId == request.auth.uid);
+      allow create: if isOwner(uid);
+      // A Support user may edit their own group members' everyday profile fields — including
+      // block/unblock and Feature Overrides — but never role, groupOwnerId or groupUserLimit, so a
+      // Support user can never promote themselves, re-home a member into someone else's group, or
+      // raise their own seat cap.
+      allow update: if isOwner(uid) || isAdmin() || (
         isSupport() && resource.data.groupOwnerId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','blocked','featureOverrides'])
       );
       allow delete: if isAdmin();
     }
-    match /usernames/{name} {
-      allow read, write: if isSignedIn();
+    match /usernames/{usernameLower} {
+      allow get:    if true;
+      allow list:   if false;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
-    match /companies/{cid} {
-      allow read: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin() || (isSupport() && groupOwnerOf(resource.data.ownerId) == request.auth.uid));
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Support's access to a group member's company is READ-ONLY (view their books, never edit or
-      // delete them) — only the owner themselves or a full Administrator may write here.
-      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
-    }
-    match /companies/{cid}/attachments/{aid} {
-      function companyOwnerId() { return get(/databases/$(database)/documents/companies/$(cid)).data.ownerId; }
-      // Same visibility as the company document itself (owner, admin, or that owner's group-admin),
-      // but writes are owner/admin-only -- a group-admin's view of a member's company stays read-only,
-      // same as the company document's own rule above.
-      allow read: if isSignedIn() && (companyOwnerId() == request.auth.uid || isAdmin() || (isSupport() && groupOwnerOf(companyOwnerId()) == request.auth.uid));
-      allow create, update, delete: if isSignedIn() && (companyOwnerId() == request.auth.uid || isAdmin());
-    }
-    match /auditLog/{id} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.actorUid == request.auth.uid) || (isSupport() && groupOwnerOf(resource.data.targetUid) == request.auth.uid);
+    match /auditLog/{entryId} {
+      // A Support user may read entries where they are the actor (their own actions) or where the
+      // target belongs to their group (actions taken on one of their members).
+      allow get:  if isAdmin() || (isSignedIn() && resource.data.actorUid == request.auth.uid) || (isSupport() && groupOwnerOf(resource.data.targetUid) == request.auth.uid);
+      allow list: if isAdmin() || (isSupport() && (resource.data.actorUid == request.auth.uid || groupOwnerOf(resource.data.targetUid) == request.auth.uid));
       // Anyone signed in may log an event, but only as themselves — actorUid can never be spoofed
       // to someone else's uid.
       allow create: if isSignedIn() && request.resource.data.actorUid == request.auth.uid;
       allow update, delete: if false;
     }
-    match /errorLog/{id} {
-      allow read, delete: if isAdmin();
-      allow create: if isSignedIn();
-      allow update: if false;
+    match /companies/{companyId} {
+      // A Support user may view (never edit or delete) a company owned by one of their group
+      // members — same read-only visibility a full Administrator gets, scoped to their own group.
+      allow get: if isSignedIn() && (
+        companyId == 'co_demo' ||
+        companyId == 'co_skdemo' ||
+        resource.data.ownerId == request.auth.uid ||
+        isAdmin() ||
+        (isSupport() && groupOwnerOf(resource.data.ownerId) == request.auth.uid)
+      );
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.ownerId == request.auth.uid ||
+        (isSupport() && groupOwnerOf(resource.data.ownerId) == request.auth.uid)
+      );
+      allow create: if isSignedIn() && (
+        companyId == 'co_demo' ||
+        companyId == 'co_skdemo' ||
+        request.resource.data.ownerId == request.auth.uid
+      );
+      // Support's access to a group member's company stays READ-ONLY — only the owner themselves or
+      // a full Administrator may write here.
+      allow update: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
     }
-    match /supportTickets/{id} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      // The ticket's own user may only flip seenByUser (to dismiss the "updated" badge once they've
-      // viewed it) — every other field, including status and adminNote, stays admin/group-admin-only.
-      allow update: if isAdmin() || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid) || (isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByUser']));
-      allow delete: if isAdmin();
+    match /companies/{companyId}/attachments/{attachmentId} {
+      function companyOwnerId() { return get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId; }
+      // Same visibility as the company document itself (owner, admin, or that owner's group-admin),
+      // but writes are owner/admin-only — a group-admin's view of a member's company stays
+      // read-only, same as the company document's own rule above. This subcollection holds voucher
+      // attachments (scanned bills/receipts) as individual documents, kept off the main company
+      // document specifically so a handful of them can never blow past Firestore's 1 MiB document cap.
+      allow get, list: if isSignedIn() && (companyOwnerId() == request.auth.uid || isAdmin() || (isSupport() && groupOwnerOf(companyOwnerId()) == request.auth.uid));
+      allow create, update, delete: if isSignedIn() && (companyOwnerId() == request.auth.uid || isAdmin());
     }
     match /settings/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+    match /supportTickets/{ticketId} {
+      // A Support user may read tickets raised by one of their own group members.
+      allow get:    if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid);
+      allow list:   if isAdmin() || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // A Support user may update (status, admin note, escalate) tickets from their own group; the
+      // ticket's own author may still only flip seenByUser to dismiss the "updated" badge — every
+      // other field, including status and adminNote, stays admin/group-admin-only.
+      allow update: if isAdmin()
+        || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid)
+        || (isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByUser']));
+      allow delete: if isAdmin();
+    }
+    match /errorLog/{entryId} {
+      allow get, list: if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }`;
