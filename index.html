@@ -1678,7 +1678,7 @@ let adminCompanySearch = '';    // search box text on the Companies tab (matches
 let adminAnalyticsRangeDays = 30; // 7 | 30 | 90 | 365 — drives both the signup trend and the active/dormant window on the Analytics tab
 let selectedUserIds = {};       // uid -> true, for the Users tab's bulk-action checkboxes (session-only, like every other draft state here)
 let adminUserDetailId = null;   // uid whose drill-down modal (companies + account info) is open, stacked above the Admin Panel
-let adminGroupDetailId = null;  // a Support user's uid whose group view (that Support account + everyone they created) is showing in the Users tab, or null for the normal flat list
+let adminGroupDetailId = null;  // a Support user's uid whose group tree modal (that Support account + everyone they created) is currently open, or null if closed
 let adminFeatureAccessSearch = ''; // search box text on the Admin Panel's Feature Access tab
 let adminFeatureAccessUserId = null; // uid currently selected on the Admin Panel's Feature Access tab
 let adminAddUserOpen = false;   // whether the "Add User" dialog is open, stacked above the Admin Panel like adminUserDetailId
@@ -7630,6 +7630,7 @@ function renderGateway(){
     <div class="rb-credit">Created by <strong>SKm</strong></div>
     ${modal==='help' ? helpModal() : ''}
     ${modal==='adminPanel' ? adminPanelModal() : ''}
+    ${modal==='adminPanel' && adminGroupDetailId && !adminUserDetailId ? adminGroupTreeModal() : ''}
     ${modal==='adminPanel' && adminUserDetailId ? adminUserDetailModal() : ''}
     ${modal==='adminPanel' && adminAddUserOpen ? adminAddUserModal() : ''}
     ${modal==='groupAdmin' ? groupAdminModal() : ''}
@@ -8228,12 +8229,41 @@ function renderGateway(){
     document.querySelectorAll('[data-view-group]').forEach(el=>{
       el.addEventListener('click', ()=>{
         adminGroupDetailId = el.dataset.viewGroup;
+        adminUserDetailId = null;
         renderGateway();
       });
     });
-    document.getElementById('backToAllUsersBtn')?.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-open-group-serial]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const u = users.find(x=>x.id===el.dataset.openGroupSerial);
+        if(!u) return;
+        const rootId = u.role==='support' ? u.id : u.groupOwnerId;
+        const root = rootId ? users.find(x=>x.id===rootId) : null;
+        if(root && root.role==='support'){
+          adminGroupDetailId = root.id;
+          adminUserDetailId = null;
+        }else{
+          adminUserDetailId = u.id;
+          adminGroupDetailId = null;
+        }
+        renderGateway();
+      });
+    });
+  }
+  if(modal==='adminPanel' && adminGroupDetailId && !adminUserDetailId){
+    document.getElementById('groupTreeOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='groupTreeOverlayBg'){ adminGroupDetailId = null; renderGateway(); }
+    });
+    document.getElementById('groupTreeCloseBtn')?.addEventListener('click', ()=>{
       adminGroupDetailId = null;
       renderGateway();
+    });
+    document.querySelectorAll('[data-open-person-detail]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        adminUserDetailId = el.dataset.openPersonDetail;
+        adminGroupDetailId = null;
+        renderGateway();
+      });
     });
   }
   if(modal==='adminPanel' && adminUserDetailId){
@@ -9535,51 +9565,76 @@ function adminFilteredSortedUsers(){
 // Shows one Support user's group (that account plus everyone they created) as its own screen
 // within the Users tab -- reached by clicking any "→ Group" link, so an Administrator can go
 // straight from "who made this account" to "who else is in their team" in one click.
-function adminGroupDetailView(){
+// A real modal (not an in-tab view) showing one Support user's group as a visual hierarchy: the
+// Support account at the top, every user they created indented and connected underneath it. Clicking
+// either the Support row or any member opens that account's full adminUserDetailModal, where every
+// alteration (edit, plan, role, block, delete, feature overrides) is available -- this modal exists
+// purely to show WHO belongs together before drilling into any one of them.
+function adminGroupTreeModal(){
   const support = users.find(x=>x.id===adminGroupDetailId);
-  if(!support){ adminGroupDetailId = null; return adminUsersTab(); }
-  const members = users.filter(u=>u.groupOwnerId===support.id);
+  if(!support){ adminGroupDetailId = null; return ''; }
+  const members = users.filter(u=>u.groupOwnerId===support.id)
+    .sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
   const groupCompanyCount = companies.filter(c=>c.groupId===support.id).length;
   const blockedInGroup = members.filter(m=>m.blocked).length;
+  const personRow = (u, isRoot)=> `
+    <div data-open-person-detail="${escapeAttr(u.id)}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:${isRoot?'var(--surface-strong)':'var(--surface)'};${isRoot?'':'margin-left:26px;'}">
+      <div style="min-width:0;">
+        <div style="font-weight:${isRoot?'700':'500'};font-size:${isRoot?'13.5px':'12.5px'};">${escapeHtml(u.name)}${isRoot?' <span class="pill pos" style="margin-left:6px;">Support · Group Admin</span>':''}</div>
+        <div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}${u.email?' · '+escapeHtml(u.email):''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span class="pill ${u.blocked?'neg':'pos'}">${u.blocked?'Blocked':'Active'}</span>
+        <span class="muted" style="font-size:11px;">${companies.filter(c=>c.ownerId===u.id).length} co.</span>
+      </div>
+    </div>`;
   return `
-    <button class="btn secondary small" id="backToAllUsersBtn" type="button" style="margin-bottom:14px;">← All Users</button>
-    <div class="panel"><div class="panel-body">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-weight:700;font-size:15.5px;">${escapeHtml(support.name)} <span class="pill pos" style="margin-left:6px;">Support · Group Admin</span></div>
-          <div class="muted" style="font-size:12px;margin-top:2px;">@${escapeHtml(support.username)}${support.email?' · '+escapeHtml(support.email):''}${support.mobile?' · '+escapeHtml(support.mobile):''}</div>
+  <div class="modal-overlay" id="groupTreeOverlayBg">
+    <div class="modal-card" style="width:600px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>Group: ${escapeHtml(support.name)}</h2><button class="btn secondary small" id="groupTreeCloseBtn" type="button">✕</button></div>
+      <div style="padding:16px 18px;overflow-y:auto;flex:1;min-height:0;">
+        <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
+          <div class="stat"><div class="label">Members</div><div class="val">${members.length} / ${support.groupUserLimit||10}</div></div>
+          <div class="stat"><div class="label">Shared Companies</div><div class="val">${groupCompanyCount}</div></div>
+          <div class="stat"><div class="label">Blocked</div><div class="val ${blockedInGroup?'neg':''}">${blockedInGroup}</div></div>
         </div>
-        <span class="pill ${support.blocked?'neg':'pos'}">${support.blocked?'Blocked':'Active'}</span>
+        <p class="muted" style="font-size:11px;margin-top:0;">Click the Support admin or any user below to view and alter their full account details.</p>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${personRow(support, true)}
+          ${members.length ? members.map(u=>`
+            <div style="display:flex;align-items:center;gap:0;">
+              <div style="width:26px;flex-shrink:0;text-align:center;color:var(--border-strong);font-size:14px;margin-left:6px;">└</div>
+              <div style="flex:1;">${personRow(u, false).replace('margin-left:26px;','')}</div>
+            </div>
+          `).join('') : `<div class="empty" style="margin-left:26px;">No users created yet.</div>`}
+        </div>
       </div>
-      <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:16px;margin-bottom:0;">
-        <div class="stat"><div class="label">Group Members</div><div class="val">${members.length} / ${support.groupUserLimit||10}</div></div>
-        <div class="stat"><div class="label">Group Companies</div><div class="val">${groupCompanyCount}</div></div>
-        <div class="stat"><div class="label">Blocked in Group</div><div class="val ${blockedInGroup?'neg':''}">${blockedInGroup}</div></div>
-      </div>
-      <div style="margin-top:14px;"><button class="btn secondary small" data-view-user-detail="${escapeAttr(support.id)}" type="button">View Support Account Details</button></div>
-    </div></div>
-    <div class="section-title">Group Members (${members.length})</div>
-    ${members.length ? `<div style="overflow-x:auto;"><table>
-      <tr><th>Account</th><th>Mobile</th><th>Email</th><th>Signed Up</th><th class="num">Companies</th><th>Status</th><th></th></tr>
-      ${members.map(u=>`<tr>
-        <td>${escapeHtml(u.name)}<div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}</div></td>
-        <td class="muted">${escapeHtml(u.mobile||'—')}</td>
-        <td class="muted">${escapeHtml(u.email||'—')}</td>
-        <td class="muted" style="font-size:11px;">${fmtTimestamp(u.createdAt)}</td>
-        <td class="num">${companies.filter(c=>c.ownerId===u.id).length}</td>
-        <td><span class="pill ${u.blocked?'neg':'pos'}">${u.blocked?'Blocked':'Active'}</span></td>
-        <td><button class="btn secondary small" data-view-user-detail="${escapeAttr(u.id)}" type="button">Details</button></td>
-      </tr>`).join('')}
-    </table></div>` : `<div class="empty">This group has no members yet.</div>`}
+    </div>
+  </div>
   `;
 }
+// A Support user and everyone they've created share the SAME serial number in the Users table --
+// visually grouping them at a glance -- computed from the full `users` list (not the filtered/
+// sorted one on screen) so numbers stay stable regardless of search or sort order. Clicking that
+// number opens either the group tree (if it's a Support user's group) or straight to that person's
+// own details (an independent account has no group to show).
+function computeGroupNumbers(){
+  const roots = users.filter(u=>u.role==='support' || !u.groupOwnerId)
+    .sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||''));
+  const map = {};
+  roots.forEach((u,i)=>{ map[u.id] = i+1; });
+  users.forEach(u=>{
+    if(u.groupOwnerId && map[u.groupOwnerId]!=null) map[u.id] = map[u.groupOwnerId];
+  });
+  return map;
+}
 function adminUsersTab(){
-  if(adminGroupDetailId) return adminGroupDetailView();
   const list = adminFilteredSortedUsers();
   const arrow = (key)=> adminUserSort===key ? (adminUserSortDir==='asc'?' ▲':' ▼') : '';
   const selectableList = list.filter(u=> !(currentUser && u.id===currentUser.id));
   const selectedCount = Object.keys(selectedUserIds).filter(id=>selectedUserIds[id]).length;
   const allVisibleSelected = selectableList.length>0 && selectableList.every(u=>selectedUserIds[u.id]);
+  const groupNumbers = computeGroupNumbers();
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="adminUserSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(adminUserSearch)}" style="max-width:280px;">
@@ -9618,7 +9673,7 @@ function adminUsersTab(){
         const isEditingPlan = editingPlanUserId===u.id;
         return `<tr>
           <td><input type="checkbox" data-select-user="${escapeAttr(u.id)}" ${selectedUserIds[u.id]?'checked':''} ${isSelf?'disabled':''} title="${isSelf?'Your own account is excluded from bulk actions':''}"></td>
-          <td class="muted">${i+1}</td>
+          <td><button class="btn secondary small" data-open-group-serial="${escapeAttr(u.id)}" type="button" title="${u.role==='support'||u.groupOwnerId?'View this group':'View account details'}" style="min-width:34px;padding:4px 8px;">${groupNumbers[u.id]||(i+1)}</button></td>
           <td>
             ${isEditing ? `<input type="text" data-edit-name="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.name)}" style="margin-bottom:4px;">` : escapeHtml(u.name)}
             <div class="muted" style="font-size:10.5px;">@${escapeHtml(u.username)}${u.role==='admin'?' · <strong>Admin</strong>':(u.role==='support'?' · <strong>Support</strong>':'')}</div>
