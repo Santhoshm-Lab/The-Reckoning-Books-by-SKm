@@ -1607,6 +1607,7 @@ let verifyLinkCooldownUntil = 0;   // Date.now() timestamp before which the Veri
 let verifyLinkNotice = '';         // inline success/status message on the sign-up form
 let verifyLinkError = '';          // inline error message on the sign-up form
 let coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
 let modal = null;          // null | 'editCompany' | 'help' | 'isDetail'
 let gstFormatIndex = 0;    // which GST_FORMS entry the "GST Format" modal is showing
 let viewMenuOpen = false;  // View menu dropdown toggle
@@ -2100,7 +2101,12 @@ async function loadGroupAdminData(){
   }catch(err){ groupMembers = []; toast('Could not load your users'); }
   const memberIds = groupMembers.map(u=>u.id);
   try{
-    groupCompanies = await fetchByIdsIn('companies', 'ownerId', memberIds);
+    // groupId is the authoritative "belongs to this group" field (stamped at creation time on every
+    // company created by the Support user themselves OR by any of their group's members) -- querying
+    // by it directly also naturally covers companies the Support user created personally, which an
+    // ownerId-in-memberIds query would miss since the Support user isn't a member of their own group.
+    const snap = await db.collection('companies').where('groupId','==',currentUser.id).get();
+    groupCompanies = snap.docs.map(d=>d.data());
   }catch(err){ groupCompanies = []; }
   try{
     groupTickets = (await fetchByIdsIn('supportTickets', 'userId', memberIds))
@@ -2589,6 +2595,14 @@ async function loadCompanies(){
     }else{
       const mineSnap = await db.collection('companies').where('ownerId','==',currentUser.id).get();
       const mine = mineSnap.docs.map(d=>d.data());
+      // A company created by any member of a Support user's group -- or by that Support user
+      // themselves -- is shared across the whole group, not just visible to whoever clicked
+      // "Create Company". myGroupId is that shared id: the Support user's own uid, whether this
+      // account IS that Support user or was created BY them.
+      const myGroupId = currentUser.groupOwnerId || (currentUser.role==='support' ? currentUser.id : null);
+      const groupShared = myGroupId
+        ? (await db.collection('companies').where('groupId','==',myGroupId).get()).docs.map(d=>d.data())
+        : [];
       // Each shared/demo company is fetched independently and best-effort with allSettled — a
       // permissions problem or outage affecting just ONE shared company (e.g. a newly added one
       // whose Firestore security rules haven't been opened up for it yet) must never take down the
@@ -2601,7 +2615,12 @@ async function loadCompanies(){
         .filter(r=>r.status==='fulfilled' && r.value.exists)
         .map(r=>r.value.data());
       sharedResults.forEach((r,i)=>{ if(r.status==='rejected') console.error('Could not load shared company', SHARED_DEMO_COMPANY_IDS[i], r.reason); });
-      companies = [...shared, ...mine.filter(c=>!isSharedDemoId(c.id))];
+      // Dedupe: a company the current user personally created inside their own group would
+      // otherwise appear twice (once from `mine`, once from `groupShared`).
+      const byId = new Map();
+      [...shared, ...mine, ...groupShared].forEach(c=>{ if(!isSharedDemoId(c.id)) byId.set(c.id, c); });
+      shared.filter(c=>isSharedDemoId(c.id)).forEach(c=> byId.set(c.id, c));
+      companies = [...byId.values()];
     }
   }catch(e){
     console.error(e);
@@ -7377,6 +7396,111 @@ function renderLogin(){
 }
 
 /* ---------------- Gateway of Tally — company selection ---------------- */
+// The "Create Company" form used to sit permanently open next to the company list on the Gateway
+// screen. It's now a modal, opened by a big obvious "+ Create Company" button, so the list itself
+// isn't crowded by a long form the person may not be about to fill in.
+function companyCreateModal(){
+  return `
+  <div class="modal-overlay" id="createCoModalOverlayBg">
+    <div class="modal-card" style="width:560px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>Create Company</h2><button class="btn secondary small" id="closeCreateCoBtn" type="button">✕</button></div>
+      <div style="padding:14px 18px;overflow-y:auto;flex:1;min-height:0;">
+        <label>Company Name</label>
+        <input type="text" id="coName" placeholder="e.g. Sunrise Traders" value="${escapeAttr(coform.name)}">
+        <label>Directory</label>
+        <input type="text" id="coDirectory" placeholder="Auto-filled from company name" value="${escapeAttr(coform.directory)}">
+        <label>Mailing Name (if different)</label>
+        <input type="text" id="coMailingName" placeholder="Same as company name if left blank" value="${escapeAttr(coform.mailingName)}">
+        <label>Address</label>
+        <input type="text" id="coAddress" placeholder="Building, street, area" value="${escapeAttr(coform.address)}">
+        <label>Country</label>
+        <select id="coCountry">
+          ${COUNTRIES.map(c=>`<option value="${escapeAttr(c)}" ${(coform.country||'India')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+        </select>
+        <div class="row" style="gap:10px;">
+          <div style="flex:2;">
+            <label>State / Province</label>
+            <div id="coStateWrap">${stateProvinceControl('coState', coform.country, coform.state)}</div>
+          </div>
+          <div style="flex:1;">
+            <label>Pincode</label>
+            <input type="text" id="coPincode" placeholder="e.g. 600001" value="${escapeAttr(coform.pincode)}">
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">Contact Details</div>
+        <div class="row" style="gap:10px;">
+          <div style="flex:1;">
+            <label>Phone</label>
+            <input type="text" id="coPhone" placeholder="Landline" value="${escapeAttr(coform.phone)}">
+          </div>
+          <div style="flex:1;">
+            <label>Mobile</label>
+            <input type="text" id="coMobile" placeholder="10-digit mobile" value="${escapeAttr(coform.mobile)}">
+          </div>
+        </div>
+        <div class="row" style="gap:10px;">
+          <div style="flex:1;">
+            <label>Email</label>
+            <input type="text" id="coEmail" placeholder="name@company.com" value="${escapeAttr(coform.email)}">
+          </div>
+          <div style="flex:1;">
+            <label>Website</label>
+            <input type="text" id="coWebsite" placeholder="www.company.com" value="${escapeAttr(coform.website)}">
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">Financial Year Details</div>
+        <div class="row" style="gap:10px;">
+          <div style="flex:1;">
+            <label>Financial Year Begins From</label>
+            <input type="date" id="coFY" value="${coform.fyStart || defaultFYStart()}">
+          </div>
+          <div style="flex:1;">
+            <label>Books Beginning From</label>
+            <input type="date" id="coBooksFrom" value="${coform.booksFrom || coform.fyStart || defaultFYStart()}">
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">Tax Registration Details</div>
+        <label>GSTIN / UIN (optional)</label>
+        <input type="text" id="coGSTIN" placeholder="22AAAAA0000A1Z5" value="${escapeAttr(coform.gstin)}">
+        <label>PAN / Income Tax No. (optional)</label>
+        <input type="text" id="coPAN" placeholder="AAAAA0000A" value="${escapeAttr(coform.pan)}">
+
+        <div class="section-title" style="margin-top:16px;">Base Currency Information</div>
+        <div class="row" style="gap:10px;">
+          <div style="flex:1;">
+            <label>Base Currency Symbol</label>
+            <input type="text" id="coCurrencySymbol" value="${escapeAttr(coform.currencySymbol||'₹')}">
+          </div>
+          <div style="flex:1;">
+            <label>Formal Name</label>
+            <input type="text" id="coCurrencyFormalName" value="${escapeAttr(coform.currencyFormalName||'INR')}">
+          </div>
+        </div>
+        <div class="row" style="gap:10px;">
+          <div style="flex:1;">
+            <label>Decimal Places</label>
+            <select id="coDecimalPlaces">
+              ${[0,1,2,3,4].map(d=>`<option value="${d}" ${Number(coform.decimalPlaces)===d?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Fraction Unit (e.g. Paisa, Cents)</label>
+            <input type="text" id="coFractionUnit" value="${escapeAttr(coform.fractionUnit||'Paisa')}">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:2px;">
+          <input type="checkbox" id="coSuffixSymbol" style="width:auto;" ${coform.suffixSymbol?'checked':''}> Show symbol after the amount (e.g. 100₹ instead of ₹100)
+        </label>
+        ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="muted" style="font-size:11px;margin-top:10px;">This company will be shared with the rest of your group — everyone in it will be able to work in the same books.</p>` : ''}
+        <button class="btn" id="createCoBtn" type="button" style="width:100%;margin-top:12px;">Create Company</button>
+      </div>
+    </div>
+  </div>
+  `;
+}
 function renderGateway(){
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -7406,106 +7530,10 @@ function renderGateway(){
       <div class="gateway-box">
         <div class="gw-title">Main Window — Select Company</div>
         ${(()=>{ const myCompanies = visibleCompanies(); return myCompanies.length ? `<ul class="gateway-list">
-          ${myCompanies.map((c,i)=>`<li data-select-co="${c.id}"><span><span class="num">${i+1}.</span>${c.name}${isSharedDemoId(c.id)?' <span class="pill pos" style="margin-left:6px;">Sample</span>':''}</span></li>`).join('')}
+          ${myCompanies.map((c,i)=>`<li data-select-co="${c.id}"><span><span class="num">${i+1}.</span>${c.name}${isSharedDemoId(c.id)?' <span class="pill pos" style="margin-left:6px;">Sample</span>':''}${c.groupId?' <span class="pill" style="margin-left:6px;background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}</span></li>`).join('')}
         </ul>` : `<div class="gateway-empty">No companies yet. Create one to begin →</div>`; })()}
         <div class="gateway-hint">Select a company to load its books, or create a new one.</div>
-      </div>
-      <div class="gateway-box gateway-form" style="width:520px;">
-        <div class="gw-title">Create Company</div>
-        <div style="padding:14px 16px;max-height:70vh;overflow-y:auto;">
-          <label>Company Name</label>
-          <input type="text" id="coName" placeholder="e.g. Sunrise Traders" value="${escapeAttr(coform.name)}">
-          <label>Directory</label>
-          <input type="text" id="coDirectory" placeholder="Auto-filled from company name" value="${escapeAttr(coform.directory)}">
-          <label>Mailing Name (if different)</label>
-          <input type="text" id="coMailingName" placeholder="Same as company name if left blank" value="${escapeAttr(coform.mailingName)}">
-          <label>Address</label>
-          <input type="text" id="coAddress" placeholder="Building, street, area" value="${escapeAttr(coform.address)}">
-          <label>Country</label>
-          <select id="coCountry">
-            ${COUNTRIES.map(c=>`<option value="${escapeAttr(c)}" ${(coform.country||'India')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
-          </select>
-          <div class="row" style="gap:10px;">
-            <div style="flex:2;">
-              <label>State / Province</label>
-              <div id="coStateWrap">${stateProvinceControl('coState', coform.country, coform.state)}</div>
-            </div>
-            <div style="flex:1;">
-              <label>Pincode</label>
-              <input type="text" id="coPincode" placeholder="e.g. 600001" value="${escapeAttr(coform.pincode)}">
-            </div>
-          </div>
-
-          <div class="section-title" style="margin-top:16px;">Contact Details</div>
-          <div class="row" style="gap:10px;">
-            <div style="flex:1;">
-              <label>Phone</label>
-              <input type="text" id="coPhone" placeholder="Landline" value="${escapeAttr(coform.phone)}">
-            </div>
-            <div style="flex:1;">
-              <label>Mobile</label>
-              <input type="text" id="coMobile" placeholder="10-digit mobile" value="${escapeAttr(coform.mobile)}">
-            </div>
-          </div>
-          <div class="row" style="gap:10px;">
-            <div style="flex:1;">
-              <label>Email</label>
-              <input type="text" id="coEmail" placeholder="name@company.com" value="${escapeAttr(coform.email)}">
-            </div>
-            <div style="flex:1;">
-              <label>Website</label>
-              <input type="text" id="coWebsite" placeholder="www.company.com" value="${escapeAttr(coform.website)}">
-            </div>
-          </div>
-
-          <div class="section-title" style="margin-top:16px;">Financial Year Details</div>
-          <div class="row" style="gap:10px;">
-            <div style="flex:1;">
-              <label>Financial Year Begins From</label>
-              <input type="date" id="coFY" value="${coform.fyStart || defaultFYStart()}">
-            </div>
-            <div style="flex:1;">
-              <label>Books Beginning From</label>
-              <input type="date" id="coBooksFrom" value="${coform.booksFrom || coform.fyStart || defaultFYStart()}">
-            </div>
-          </div>
-
-          <div class="section-title" style="margin-top:16px;">Tax Registration Details</div>
-          <label>GSTIN / UIN (optional)</label>
-          <input type="text" id="coGSTIN" placeholder="22AAAAA0000A1Z5" value="${escapeAttr(coform.gstin)}">
-          <label>PAN / Income Tax No. (optional)</label>
-          <input type="text" id="coPAN" placeholder="AAAAA0000A" value="${escapeAttr(coform.pan)}">
-
-          <div class="section-title" style="margin-top:16px;">Base Currency Information</div>
-          <div class="row" style="gap:10px;">
-            <div style="flex:1;">
-              <label>Base Currency Symbol</label>
-              <input type="text" id="coCurrencySymbol" value="${escapeAttr(coform.currencySymbol||'₹')}">
-            </div>
-            <div style="flex:1;">
-              <label>Formal Name</label>
-              <input type="text" id="coCurrencyFormalName" value="${escapeAttr(coform.currencyFormalName||'INR')}">
-            </div>
-          </div>
-          <div class="row" style="gap:10px;">
-            <div style="flex:1;">
-              <label>Decimal Places</label>
-              <select id="coDecimalPlaces">
-                ${[0,1,2,3,4].map(d=>`<option value="${d}" ${Number(coform.decimalPlaces)===d?'selected':''}>${d}</option>`).join('')}
-              </select>
-            </div>
-            <div style="flex:1;">
-              <label>Fraction Unit (e.g. Paisa, Cents)</label>
-              <input type="text" id="coFractionUnit" value="${escapeAttr(coform.fractionUnit||'Paisa')}">
-            </div>
-          </div>
-          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:2px;">
-            <input type="checkbox" id="coSuffixSymbol" style="width:auto;" ${coform.suffixSymbol?'checked':''}> Show symbol after the amount (e.g. 100₹ instead of ₹100)
-          </label>
-
-          <button class="btn" id="createCoBtn" type="button" style="width:100%;margin-top:12px;">Create Company</button>
-          ${isDemoUser ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>` : ''}
-        </div>
+        ${!isDemoUser ? `<button class="btn" id="openCreateCoBtn" type="button" style="width:100%;margin-top:14px;padding:14px;font-size:14px;">+ Create Company</button>` : `<div class="muted" style="font-size:11.5px;margin-top:14px;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>`}
       </div>
     </div>
     <div class="rb-credit">Created by <strong>SKm</strong></div>
@@ -7516,6 +7544,7 @@ function renderGateway(){
     ${modal==='groupAdmin' ? groupAdminModal() : ''}
     ${modal==='groupAdmin' && groupUserDetailId ? groupUserDetailModal() : ''}
     ${modal==='groupAdmin' && groupAddUserOpen ? groupAddUserModal() : ''}
+    ${companyCreateModalOpen ? companyCreateModal() : ''}
       </div>
     </div>
   `;
@@ -7526,6 +7555,19 @@ function renderGateway(){
       if(!c || !canAccessCompany(c)) return;
       await enterCompanyApp(c);
     });
+  });
+  document.getElementById('openCreateCoBtn')?.addEventListener('click', ()=>{
+    companyCreateModalOpen = true;
+    renderGateway();
+  });
+  document.getElementById('gwDemoSignupLink')?.addEventListener('click', ()=> exitDemoSession('signup'));
+  if(companyCreateModalOpen){
+  document.getElementById('closeCreateCoBtn')?.addEventListener('click', ()=>{
+    companyCreateModalOpen = false;
+    renderGateway();
+  });
+  document.getElementById('createCoModalOverlayBg')?.addEventListener('click', (e)=>{
+    if(e.target.id==='createCoModalOverlayBg'){ companyCreateModalOpen = false; renderGateway(); }
   });
   document.getElementById('coName').addEventListener('input', e=>{
     coform.name = e.target.value;
@@ -7593,6 +7635,12 @@ function renderGateway(){
       fractionUnit: document.getElementById('coFractionUnit').value.trim() || 'Paisa',
       suffixSymbol: document.getElementById('coSuffixSymbol').checked,
       ownerId: currentUser ? currentUser.id : null,
+      // If this account belongs to a Support user's group (either because they WERE created by one,
+      // or because they ARE that Support user), stamp the company with that group's id so every
+      // member of the group -- and the Support user who administers it -- can see and use it, not
+      // just whoever happened to click "Create Company". See canAccessCompany()/loadCompanies() for
+      // the read side of this sharing, and the Firestore rules for the actual enforcement.
+      groupId: currentUser ? (currentUser.groupOwnerId || (currentUser.role==='support' ? currentUser.id : null)) : null,
     };
     // Don't touch local state or open the company until the write is CONFIRMED to have landed in
     // Firestore — pushing optimistically and opening it regardless (the old behaviour) meant a
@@ -7612,9 +7660,10 @@ function renderGateway(){
     }
     companies.push(company);
     coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+    companyCreateModalOpen = false;
     await enterCompanyApp(company);
   });
-  document.getElementById('gwDemoSignupLink')?.addEventListener('click', ()=> exitDemoSession('signup'));
+  } // end if(companyCreateModalOpen)
 
   document.getElementById('dismissAnnouncementBtn')?.addEventListener('click', ()=>{
     announcementDismissed = true;
@@ -8219,7 +8268,7 @@ function renderGateway(){
       }
     });
   }
-  if(modal==='adminPanel' && adminTab==='features'){
+  if(modal==='adminPanel' && adminTab==='settings'){
     document.getElementById('featureAccessSearchInput')?.addEventListener('input', (e)=>{
       adminFeatureAccessSearch = e.target.value;
       const caret = e.target.selectionStart;
@@ -8478,6 +8527,21 @@ function renderGateway(){
         renderGateway();
       });
     });
+    // Registered at this top level (rather than nested under the user-detail modal) because the
+    // "Manage" button appears in two places: this panel's own Overview tab, and the per-user
+    // drill-down modal — both need this handler wired regardless of which one is currently showing.
+    document.querySelectorAll('[data-group-view-company]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const cid = el.dataset.groupViewCompany;
+        const c = groupCompanies.find(x=>x.id===cid);
+        if(!c) return;
+        // Shared-group companies are administered by the Support user, not just viewed — full
+        // read-write, same as any owner. (adminViewOnly is reserved for a full Administrator
+        // inspecting a company OUTSIDE their own group, where they have no business editing.)
+        await logAudit('company_opened', `Opened "${c.name}" to administer`, cid, c.name);
+        await enterCompanyApp(c);
+      });
+    });
   }
   if(modal==='groupAdmin' && groupAdminTab==='users'){
     document.getElementById('groupUserSearchInput')?.addEventListener('input', (e)=>{
@@ -8646,15 +8710,6 @@ function renderGateway(){
     document.getElementById('userDetailClose')?.addEventListener('click', ()=>{
       groupUserDetailId = null;
       renderGateway();
-    });
-    document.querySelectorAll('[data-group-view-company]').forEach(el=>{
-      el.addEventListener('click', async ()=>{
-        const cid = el.dataset.groupViewCompany;
-        const c = groupCompanies.find(x=>x.id===cid);
-        if(!c) return;
-        await logAudit('company_viewed', `Opened "${c.name}" in read-only View mode`, cid, c.name);
-        await enterCompanyApp(c, {adminViewOnly:true});
-      });
     });
     document.getElementById('saveFeatureOverridesBtn')?.addEventListener('click', async ()=>{
       const uid = groupUserDetailId;
@@ -8940,7 +8995,6 @@ function adminPanelModal(){
         <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
           ${adminTabBtn('overview','Overview')}
           ${adminTabBtn('users','Users')}
-          ${adminTabBtn('features','Feature Access')}
           ${adminTabBtn('companies','Companies')}
           ${adminTabBtn('analytics','Analytics')}
           ${adminTabBtn('support','Support'+(supportTickets.filter(t=>t.status==='open').length?` (${supportTickets.filter(t=>t.status==='open').length})`:''))}
@@ -8950,7 +9004,6 @@ function adminPanelModal(){
         <div class="panel-body" style="overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;">
           ${adminTab==='overview' ? adminOverviewTab() : ''}
           ${adminTab==='users' ? adminUsersTab() : ''}
-          ${adminTab==='features' ? adminFeatureAccessTab() : ''}
           ${adminTab==='companies' ? adminCompaniesTab() : ''}
           ${adminTab==='analytics' ? adminAnalyticsTab() : ''}
           ${adminTab==='support' ? adminSupportTab() : ''}
@@ -9159,45 +9212,61 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /companies/{companyId} {
-      // A Support user may view (never edit or delete) a company owned by one of their group
-      // members — same read-only visibility a full Administrator gets, scoped to their own group.
+      // A company created inside a Support user's group carries a groupId equal to that Support
+      // user's own uid, whether the company was created by the Support user themselves or by any
+      // member of their group. Every one of those accounts gets FULL read-write on it, not just the
+      // original creator — the whole point of a group is that its books are a shared workspace the
+      // Support user administers and every member can work in. myGroupId() below is "which group (if
+      // any) does the requester belong to" — either their own groupOwnerId, or their own uid if
+      // they're themselves a Support user.
+      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
       allow get: if isSignedIn() && (
         companyId == 'co_demo' ||
         companyId == 'co_skdemo' ||
         resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (isSupport() && groupOwnerOf(resource.data.ownerId) == request.auth.uid)
+        (resource.data.groupId != null && resource.data.groupId == myGroupId())
       );
       allow list: if isSignedIn() && (
         isAdmin() ||
         resource.data.ownerId == request.auth.uid ||
-        (isSupport() && groupOwnerOf(resource.data.ownerId) == request.auth.uid)
+        (resource.data.groupId != null && resource.data.groupId == myGroupId())
       );
+      // groupId can only ever be set to the CREATOR's own real group affiliation (or left null for
+      // an independent, ungrouped account) — never to an arbitrary value, so a company can't be
+      // planted inside a group its creator doesn't actually belong to.
       allow create: if isSignedIn() && (
         companyId == 'co_demo' ||
         companyId == 'co_skdemo' ||
-        request.resource.data.ownerId == request.auth.uid
+        (request.resource.data.ownerId == request.auth.uid &&
+         (request.resource.data.groupId == null || request.resource.data.groupId == myGroupId()))
       );
-      // Support's access to a group member's company stays READ-ONLY — only the owner themselves or
-      // a full Administrator may write here.
       allow update: if isSignedIn() && (
         resource.data.ownerId == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        (resource.data.groupId != null && resource.data.groupId == myGroupId())
       );
       allow delete: if isSignedIn() && (
         resource.data.ownerId == request.auth.uid ||
-        isAdmin()
+        isAdmin() ||
+        (resource.data.groupId != null && resource.data.groupId == myGroupId())
       );
     }
     match /companies/{companyId}/attachments/{attachmentId} {
-      function companyOwnerId() { return get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId; }
-      // Same visibility as the company document itself (owner, admin, or that owner's group-admin),
-      // but writes are owner/admin-only — a group-admin's view of a member's company stays
-      // read-only, same as the company document's own rule above. This subcollection holds voucher
-      // attachments (scanned bills/receipts) as individual documents, kept off the main company
-      // document specifically so a handful of them can never blow past Firestore's 1 MiB document cap.
-      allow get, list: if isSignedIn() && (companyOwnerId() == request.auth.uid || isAdmin() || (isSupport() && groupOwnerOf(companyOwnerId()) == request.auth.uid));
-      allow create, update, delete: if isSignedIn() && (companyOwnerId() == request.auth.uid || isAdmin());
+      function companyDoc() { return get(/databases/$(database)/documents/companies/$(companyId)).data; }
+      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      // Same visibility and write access as the company document itself (owner, admin, or a fellow
+      // group member/administering Support user) — this subcollection holds voucher attachments
+      // (scanned bills/receipts) as individual documents, kept off the main company document
+      // specifically so a handful of them can never blow past Firestore's 1 MiB document cap.
+      allow get, list: if isSignedIn() && (
+        companyDoc().ownerId == request.auth.uid || isAdmin() ||
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
+      );
+      allow create, update, delete: if isSignedIn() && (
+        companyDoc().ownerId == request.auth.uid || isAdmin() ||
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
+      );
     }
     match /settings/{docId} {
       allow get: if true;
@@ -9255,6 +9324,10 @@ function adminSettingsTab(){
       <input type="checkbox" id="flagPayroll" style="width:auto;" ${featureFlagsDraft.payrollRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Payroll</strong>
     </label>
     <button class="btn secondary small" id="saveFeatureFlagsBtn" type="button" style="margin-top:10px;" ${isFullAdmin()?'':'disabled'}>Save Feature Flags</button>
+
+    <div class="section-title">Per-User Feature Access</div>
+    <p class="muted" style="font-size:12px;margin-top:0;">Once an account is upgraded to a Paid or Lifetime plan, every gated feature above unlocks for them automatically — no extra step needed. Use this instead when a free-plan user needs to explore a specific gated feature before committing to a plan.</p>
+    ${adminFeatureAccessTab()}
 
     <div class="section-title">Data Export</div>
     <p class="muted" style="font-size:12px;margin-top:0;">Download every account and company (including ledgers and vouchers) as one JSON file.</p>
@@ -9421,7 +9494,6 @@ function adminFeatureAccessTab(){
   );
   const selected = adminFeatureAccessUserId ? users.find(x=>x.id===adminFeatureAccessUserId) : null;
   return `
-    <p class="muted" style="font-size:12.5px;margin-top:0;">Grant or remove access to individual gated features (GST, Assets, Parties, Orders, Payroll, Inventory, Reconcile, Import) for one account at a time — regardless of that account's plan.</p>
     <div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;">
       <div style="flex:1;min-width:260px;">
         <div class="section-title" style="margin-top:0;">1. Select a user</div>
@@ -9696,16 +9768,17 @@ function groupAdminOverviewTab(){
     <div class="section-title">Companies</div>
     ${groupCompanies.length ? `
     <table>
-      <tr><th>Company</th><th>Owner</th><th class="num">Ledgers</th><th class="num">Vouchers</th><th>Last Activity</th></tr>
+      <tr><th>Company</th><th>Created By</th><th class="num">Ledgers</th><th class="num">Vouchers</th><th>Last Activity</th><th></th></tr>
       ${groupCompanies.map(c=>{
         const owner = groupMembers.find(u=>u.id===c.ownerId);
         const lastActivity = companyLastActivity(c);
         return `<tr>
           <td>${escapeHtml(c.name)}</td>
-          <td class="muted">${owner ? `${escapeHtml(owner.name)} (@${escapeHtml(owner.username)})` : '—'}</td>
+          <td class="muted">${owner ? `${escapeHtml(owner.name)} (@${escapeHtml(owner.username)})` : (c.ownerId===currentUser.id ? 'You' : '—')}</td>
           <td class="num">${(c.ledgers||[]).length}</td>
           <td class="num">${(c.vouchers||[]).length}</td>
           <td class="muted" style="font-size:11px;">${lastActivity ? escapeHtml(lastActivity) : '—'}</td>
+          <td><button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Manage</button></td>
         </tr>`;
       }).join('')}
     </table>
@@ -9846,7 +9919,8 @@ function groupUserDetailModal(){
             <tr><th>Signed Up</th><td>${fmtTimestamp(u.createdAt)}</td></tr>
             <tr><th>Last Active</th><td>${u.lastLoginAt ? fmtTimestamp(u.lastLoginAt) : '—'}</td></tr>
           </table>
-          <div class="section-title">Companies (${owned.length})</div>
+          <div class="section-title">Companies Created By This User (${owned.length})</div>
+          <p class="muted" style="font-size:11px;margin-top:-6px;">Every company in your group is shared — anyone in it, and you, can open and work in any of them. This just shows who originally created each one.</p>
           ${owned.length ? `
           <table>
             <tr><th>Company</th><th class="num">Ledgers</th><th class="num">Vouchers</th><th>Last Activity</th><th></th></tr>
@@ -9857,7 +9931,7 @@ function groupUserDetailModal(){
                 <td class="num">${(c.ledgers||[]).length}</td>
                 <td class="num">${(c.vouchers||[]).length}</td>
                 <td class="muted" style="font-size:11px;">${lastActivity ? escapeHtml(lastActivity) : '—'}</td>
-                <td><button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">View</button></td>
+                <td><button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Manage</button></td>
               </tr>`;
             }).join('')}
           </table>
