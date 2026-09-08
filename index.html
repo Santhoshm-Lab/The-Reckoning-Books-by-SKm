@@ -2593,16 +2593,11 @@ async function loadCompanies(){
       const snap = await db.collection('companies').get();
       companies = snap.docs.map(d=>d.data());
     }else{
+      // Companies are personal, not shared across a Support user's group — a Support user
+      // administers their group's companies from their own "Company" tab (backed by the separate
+      // groupCompanies cache in loadGroupAdminData()), but this is each account's OWN gateway list.
       const mineSnap = await db.collection('companies').where('ownerId','==',currentUser.id).get();
       const mine = mineSnap.docs.map(d=>d.data());
-      // A company created by any member of a Support user's group -- or by that Support user
-      // themselves -- is shared across the whole group, not just visible to whoever clicked
-      // "Create Company". myGroupId is that shared id: the Support user's own uid, whether this
-      // account IS that Support user or was created BY them.
-      const myGroupId = currentUser.groupOwnerId || (currentUser.role==='support' ? currentUser.id : null);
-      const groupShared = myGroupId
-        ? (await db.collection('companies').where('groupId','==',myGroupId).get()).docs.map(d=>d.data())
-        : [];
       // Each shared/demo company is fetched independently and best-effort with allSettled — a
       // permissions problem or outage affecting just ONE shared company (e.g. a newly added one
       // whose Firestore security rules haven't been opened up for it yet) must never take down the
@@ -2615,12 +2610,7 @@ async function loadCompanies(){
         .filter(r=>r.status==='fulfilled' && r.value.exists)
         .map(r=>r.value.data());
       sharedResults.forEach((r,i)=>{ if(r.status==='rejected') console.error('Could not load shared company', SHARED_DEMO_COMPANY_IDS[i], r.reason); });
-      // Dedupe: a company the current user personally created inside their own group would
-      // otherwise appear twice (once from `mine`, once from `groupShared`).
-      const byId = new Map();
-      [...shared, ...mine, ...groupShared].forEach(c=>{ if(!isSharedDemoId(c.id)) byId.set(c.id, c); });
-      shared.filter(c=>isSharedDemoId(c.id)).forEach(c=> byId.set(c.id, c));
-      companies = [...byId.values()];
+      companies = [...shared, ...mine.filter(c=>!isSharedDemoId(c.id))];
     }
   }catch(e){
     console.error(e);
@@ -2659,6 +2649,20 @@ async function deleteCompanyById(id){
   try{ await db.collection('companies').doc(id).delete(); }
   catch(e){ toast('Could not delete company'); return false; }
   companies = companies.filter(x=>x.id!==id);
+  toast('Company deleted');
+  return true;
+}
+// Support's own version of deleteCompanyById() — operates on groupCompanies (their group's shared
+// oversight cache) rather than the `companies` array, which only ever holds the SIGNED-IN account's
+// own personal companies and would never contain a group member's company to find.
+async function deleteGroupCompanyById(id){
+  const c = groupCompanies.find(x=>x.id===id);
+  if(!c) return false;
+  const ok = window.confirm(`Delete company "${c.name}" and all its ledgers and vouchers?\n\nThis cannot be undone.`);
+  if(!ok) return false;
+  try{ await db.collection('companies').doc(id).delete(); }
+  catch(e){ toast('Could not delete company'); return false; }
+  groupCompanies = groupCompanies.filter(x=>x.id!==id);
   toast('Company deleted');
   return true;
 }
@@ -3078,6 +3082,52 @@ async function exitDemoSession(destAuthMode){
   pushHistory();
 }
 
+// Manually pulls in anything that changed server-side since this tab last loaded -- a plan
+// upgrade, a Feature Override, an edited company setting, changes made by an Administrator or
+// Support user in another tab/device -- without navigating away or losing where the person is.
+// Wired to the small "⟳ Refresh" control shown in the main app, the Gateway, and both admin panels.
+async function refreshCurrentSession(btnId){
+  const btn = btnId ? document.getElementById(btnId) : null;
+  const originalLabel = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = '⟳ Refreshing…'; }
+  try{
+    if(currentUser && !isDemoUser){
+      const doc = await db.collection('users').doc(currentUser.id).get();
+      if(doc.exists){
+        const profile = doc.data();
+        if(profile.blocked){
+          toast('This account has been blocked.');
+          try{ await fbAuth.signOut(); }catch(e){}
+          currentUser = null; screen = 'landing'; renderLanding();
+          return;
+        }
+        const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
+        Object.assign(currentUser, {
+          role, isAdmin: role==='admin' || role==='support',
+          name: profile.name || currentUser.name, plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
+          groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '',
+          groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null,
+        });
+      }
+    }
+    await loadFeatureFlags();
+    if(currentCompany){
+      const cdoc = await db.collection('companies').doc(currentCompany.id).get();
+      if(cdoc.exists) currentCompany = cdoc.data();
+      await loadState();
+    }
+    if(screen==='gateway') await loadCompanies();
+    if(modal==='adminPanel') await loadAdminPanelData();
+    if(modal==='groupAdmin') await loadGroupAdminData();
+    toast('Refreshed');
+  }catch(e){
+    console.error('Refresh failed:', e);
+    toast('Could not refresh — check your connection and try again.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.innerHTML = originalLabel; }
+    if(screen==='app') render(); else renderGateway();
+  }
+}
 async function loadState(){
   const cid = currentCompany.id;
   reconcileLedgerId = null; // reset so the Reconcile tab re-picks a bank ledger belonging to this company
@@ -5504,7 +5554,7 @@ function render(){
       <span id="menuBackup">Backup</span>
       <span id="menuHelp">Help</span>
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
-      <span id="menuDeleteCompany" class="menu-danger">Delete Company</span>
+      ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
     </div>
     ${adminViewOnlyCompanyId===currentCompany.id ? `
     <div style="background:#F2A900;color:#2a2200;padding:8px 18px;font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">
@@ -5541,6 +5591,7 @@ function render(){
       <span>Ledgers: ${state.ledgers.length}</span>
       <span>Vouchers: ${state.vouchers.length}</span>
       <span>Items: ${state.items.length}</span>
+      <button class="btn secondary small" id="refreshSessionBtn" type="button" style="margin-left:auto;padding:3px 10px;font-size:11px;" title="Reload this company's data, your plan, and any admin changes">⟳ Refresh</button>
     </div>
     ${modal==='editCompany' ? editCompanyModal() : ''}
     ${modal==='help' ? helpModal() : ''}
@@ -5594,6 +5645,7 @@ function render(){
     renderGateway();
     pushHistory();
   });
+  document.getElementById('refreshSessionBtn')?.addEventListener('click', ()=> refreshCurrentSession('refreshSessionBtn'));
   document.getElementById('exitAdminViewBtn')?.addEventListener('click', ()=>{
     adminViewOnlyCompanyId = null;
     currentCompany = null;
@@ -5667,7 +5719,7 @@ function render(){
     renderGateway();
     pushHistory();
   });
-  document.getElementById('menuDeleteCompany').addEventListener('click', async ()=>{
+  document.getElementById('menuDeleteCompany')?.addEventListener('click', async ()=>{
     const deleted = await deleteCompanyById(currentCompany.id);
     if(deleted){
       screen = 'gateway';
@@ -7095,7 +7147,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '' };
+        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
         lastUsername = username;
         authDraft = { name:'', username:'', mobile:'', email:'' };
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
@@ -7146,7 +7198,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '' };
+        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
         lastUsername = profile.username || lastUsername;
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
         try{ await db.collection('users').doc(cred.user.uid).update({ lastLoginAt: new Date().toISOString() }); }catch(e){}
@@ -7494,7 +7546,7 @@ function companyCreateModal(){
         <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:2px;">
           <input type="checkbox" id="coSuffixSymbol" style="width:auto;" ${coform.suffixSymbol?'checked':''}> Show symbol after the amount (e.g. 100₹ instead of ₹100)
         </label>
-        ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="muted" style="font-size:11px;margin-top:10px;">This company will be shared with the rest of your group — everyone in it will be able to work in the same books.</p>` : ''}
+        ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="muted" style="font-size:11px;margin-top:10px;">Your group administrator will be able to see and manage this company from their Admin panel.</p>` : ''}
         <button class="btn" id="createCoBtn" type="button" style="width:100%;margin-top:12px;">Create Company</button>
       </div>
     </div>
@@ -7530,7 +7582,7 @@ function renderGateway(){
       <div class="gateway-box">
         <div class="gw-title">Main Window — Select Company</div>
         ${(()=>{ const myCompanies = visibleCompanies(); return myCompanies.length ? `<ul class="gateway-list">
-          ${myCompanies.map((c,i)=>`<li data-select-co="${c.id}"><span><span class="num">${i+1}.</span>${c.name}${isSharedDemoId(c.id)?' <span class="pill pos" style="margin-left:6px;">Sample</span>':''}${c.groupId?' <span class="pill" style="margin-left:6px;background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}</span></li>`).join('')}
+          ${myCompanies.map((c,i)=>`<li data-select-co="${c.id}"><span><span class="num">${i+1}.</span>${c.name}${isSharedDemoId(c.id)?' <span class="pill pos" style="margin-left:6px;">Sample</span>':''}</span></li>`).join('')}
         </ul>` : `<div class="gateway-empty">No companies yet. Create one to begin →</div>`; })()}
         <div class="gateway-hint">Select a company to load its books, or create a new one.</div>
         ${!isDemoUser ? `<button class="btn" id="openCreateCoBtn" type="button" style="width:100%;margin-top:14px;padding:14px;font-size:14px;">+ Create Company</button>` : `<div class="muted" style="font-size:11.5px;margin-top:14px;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>`}
@@ -8542,6 +8594,39 @@ function renderGateway(){
         await enterCompanyApp(c);
       });
     });
+    document.querySelectorAll('[data-group-edit-company]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const cid = el.dataset.groupEditCompany;
+        const c = groupCompanies.find(x=>x.id===cid);
+        if(!c) return;
+        await logAudit('company_opened', `Opened "${c.name}" to edit its settings`, cid, c.name);
+        await enterCompanyApp(c);
+        editCoDraft = {
+          name: currentCompany.name, directory: currentCompany.directory||'', mailingName: currentCompany.mailingName||'',
+          address: currentCompany.address||'', state: currentCompany.state||'', pincode: currentCompany.pincode||'',
+          country: currentCompany.country||'India', phone: currentCompany.phone||'', mobile: currentCompany.mobile||'',
+          email: currentCompany.email||'', website: currentCompany.website||'', fyStart: currentCompany.fyStart||'',
+          booksFrom: currentCompany.booksFrom||currentCompany.fyStart||'', gstin: currentCompany.gstin||'', pan: currentCompany.pan||'',
+          currencySymbol: currentCompany.currencySymbol||'₹', currencyFormalName: currentCompany.currencyFormalName||'INR',
+          decimalPlaces: currentCompany.decimalPlaces!=null ? currentCompany.decimalPlaces : 2, fractionUnit: currentCompany.fractionUnit||'Paisa',
+          suffixSymbol: !!currentCompany.suffixSymbol, lockDate: currentCompany.lockDate||'',
+          payrollOverridePassword: currentCompany.payrollOverridePassword||'',
+        };
+        modal = 'editCompany';
+        render();
+      });
+    });
+    document.querySelectorAll('[data-group-delete-company]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const cid = el.dataset.groupDeleteCompany;
+        const c = groupCompanies.find(x=>x.id===cid);
+        const deleted = await deleteGroupCompanyById(cid);
+        if(deleted){
+          await logAudit('company_deleted', `Deleted "${c ? c.name : cid}"`, cid, c ? c.name : '');
+          renderGateway();
+        }
+      });
+    });
   }
   if(modal==='groupAdmin' && groupAdminTab==='users'){
     document.getElementById('groupUserSearchInput')?.addEventListener('input', (e)=>{
@@ -9212,25 +9297,21 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /companies/{companyId} {
-      // A company created inside a Support user's group carries a groupId equal to that Support
-      // user's own uid, whether the company was created by the Support user themselves or by any
-      // member of their group. Every one of those accounts gets FULL read-write on it, not just the
-      // original creator — the whole point of a group is that its books are a shared workspace the
-      // Support user administers and every member can work in. myGroupId() below is "which group (if
-      // any) does the requester belong to" — either their own groupOwnerId, or their own uid if
-      // they're themselves a Support user.
-      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      // A company created by a Support user, or by anyone in their group, carries a groupId equal
+      // to that Support user's own uid — this is NOT shared with fellow group members (each
+      // person's books stay their own), it exists purely so the Support user who administers that
+      // group can see, edit, and delete any of their group's companies from their own Admin panel.
       allow get: if isSignedIn() && (
         companyId == 'co_demo' ||
         companyId == 'co_skdemo' ||
         resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (isSupport() && resource.data.groupId == request.auth.uid)
       );
       allow list: if isSignedIn() && (
         isAdmin() ||
         resource.data.ownerId == request.auth.uid ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (isSupport() && resource.data.groupId == request.auth.uid)
       );
       // groupId can only ever be set to the CREATOR's own real group affiliation (or left null for
       // an independent, ungrouped account) — never to an arbitrary value, so a company can't be
@@ -9239,33 +9320,37 @@ service cloud.firestore {
         companyId == 'co_demo' ||
         companyId == 'co_skdemo' ||
         (request.resource.data.ownerId == request.auth.uid &&
-         (request.resource.data.groupId == null || request.resource.data.groupId == myGroupId()))
+         (request.resource.data.groupId == null ||
+          request.resource.data.groupId == (isSupport() ? request.auth.uid : myProfile().groupOwnerId)))
       );
+      // A grouped 'user' account can still create/edit vouchers etc. inside a company they own (all
+      // of that lives on this same document via merge writes), but only an Administrator or their
+      // own group's Support user may DELETE it outright — see the app's "Delete Company" menu item,
+      // which is hidden client-side for exactly this case as a matching defence-in-depth measure.
       allow update: if isSignedIn() && (
         resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (isSupport() && resource.data.groupId == request.auth.uid)
       );
       allow delete: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (isSupport() && resource.data.groupId == request.auth.uid) ||
+        (resource.data.ownerId == request.auth.uid && resource.data.groupId == null)
       );
     }
     match /companies/{companyId}/attachments/{attachmentId} {
       function companyDoc() { return get(/databases/$(database)/documents/companies/$(companyId)).data; }
-      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
-      // Same visibility and write access as the company document itself (owner, admin, or a fellow
-      // group member/administering Support user) — this subcollection holds voucher attachments
-      // (scanned bills/receipts) as individual documents, kept off the main company document
-      // specifically so a handful of them can never blow past Firestore's 1 MiB document cap.
+      // Same visibility as the company document itself (owner, admin, or that group's administering
+      // Support user) — this subcollection holds voucher attachments (scanned bills/receipts) as
+      // individual documents, kept off the main company document specifically so a handful of them
+      // can never blow past Firestore's 1 MiB document cap.
       allow get, list: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
-        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
+        (isSupport() && companyDoc().groupId == request.auth.uid)
       );
       allow create, update, delete: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
-        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
+        (isSupport() && companyDoc().groupId == request.auth.uid)
       );
     }
     match /settings/{docId} {
@@ -9738,6 +9823,7 @@ function groupAdminModal(){
         <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
           ${groupAdminTabBtn('overview','Overview')}
           ${groupAdminTabBtn('users','Users')}
+          ${groupAdminTabBtn('companies','Company')}
           ${groupAdminTabBtn('features','Feature Access')}
           ${groupAdminTabBtn('support','Support'+(openTickets?` (${openTickets})`:''))}
           ${groupAdminTabBtn('settings','Settings')}
@@ -9747,6 +9833,7 @@ function groupAdminModal(){
           <p class="muted" style="font-size:11.5px;background:var(--surface-strong);padding:8px 12px;border-radius:6px;margin-bottom:14px;">This is your own group's admin area — it only ever shows the users you've created here and their data, never anything else on the platform.</p>
           ${groupAdminTab==='overview' ? groupAdminOverviewTab() : ''}
           ${groupAdminTab==='users' ? groupAdminUsersTab() : ''}
+          ${groupAdminTab==='companies' ? groupAdminCompaniesTab() : ''}
           ${groupAdminTab==='features' ? groupAdminFeatureAccessTab() : ''}
           ${groupAdminTab==='support' ? groupAdminSupportTab() : ''}
           ${groupAdminTab==='settings' ? groupAdminSettingsTab() : ''}
@@ -9765,7 +9852,13 @@ function groupAdminOverviewTab(){
       <div class="stat"><div class="label">Blocked Accounts</div><div class="val ${stats.blocked?'neg':''}">${stats.blocked}</div></div>
       <div class="stat"><div class="label">New This Week</div><div class="val ${stats.newThisWeek?'pos':''}">${stats.newThisWeek}</div></div>
     </div>
-    <div class="section-title">Companies</div>
+    <p class="muted" style="font-size:12px;">See the Company tab for the full list of every company in your group, with the ability to open, edit, or delete any of them.</p>
+  `;
+}
+function groupAdminCompaniesTab(){
+  return `
+    <div class="section-title" style="margin-top:0;">Companies in Your Group</div>
+    <p class="muted" style="font-size:12px;margin-top:0;">Every company created by you or by anyone you've added — each one stays that person's own books, but you can open, edit its settings, or delete it here.</p>
     ${groupCompanies.length ? `
     <table>
       <tr><th>Company</th><th>Created By</th><th class="num">Ledgers</th><th class="num">Vouchers</th><th>Last Activity</th><th></th></tr>
@@ -9778,7 +9871,11 @@ function groupAdminOverviewTab(){
           <td class="num">${(c.ledgers||[]).length}</td>
           <td class="num">${(c.vouchers||[]).length}</td>
           <td class="muted" style="font-size:11px;">${lastActivity ? escapeHtml(lastActivity) : '—'}</td>
-          <td><button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Manage</button></td>
+          <td>
+            <button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Open</button>
+            <button class="btn secondary small" data-group-edit-company="${escapeAttr(c.id)}" type="button">Edit</button>
+            <button class="btn secondary small" data-group-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);">Delete</button>
+          </td>
         </tr>`;
       }).join('')}
     </table>
@@ -16385,34 +16482,100 @@ window.addEventListener('unhandledrejection', (e)=>{
   try{ logClientError('Unhandled promise rejection: ' + (e.reason && e.reason.message || e.reason), e.reason && e.reason.stack); }catch(err){}
 });
 
-(async function init(){
-  try{ const n = await window.storage.get('lastUsername'); lastUsername = n ? n.value : ''; }catch(e){ lastUsername = ''; }
-  authMode = 'login';
-  screen = 'landing'; // a fresh visit lands on the marketing/intro page, not straight at the form
-  if(fbAuth.isSignInWithEmailLink(window.location.href)){
-    // Landed here from the "Verify Email" link — finish the passwordless sign-in before anything
-    // else, and skip the landing page: this is a returning, mid-signup visit, not a fresh one.
-    screen = 'login';
-    await handleEmailLinkReturn();
-  }else{
-    // Not a link click — but if a signup was left mid-flight (link sent, not yet opened), resume
-    // showing that "check your inbox" state instead of the landing page.
-    const draft = await loadPendingSignupDraft();
-    if(draft){
-      authDraft = { name:draft.name||'', username:draft.username||'', mobile:draft.mobile||'', email:draft.email||'' };
-      authMode = 'signup';
-      pendingVerifyEmail = draft.email||'';
-      verifyLinkAwaiting = true;
-      screen = 'login';
+// Restores an existing Firebase Auth session (e.g. after a page reload) instead of dumping the
+// person back to the landing page even though they were never actually signed out. Every login path
+// in this app already writes a matching users/{uid} profile doc, so re-reading that one doc is
+// enough to rebuild the same `currentUser` shape login itself builds, then resume straight at the
+// Gateway with fresh data -- which also means any plan/feature-override/company change an admin or
+// Support user made since this tab was last open is picked up automatically on reload, not lost.
+async function restoreSessionFor(fbUser){
+  try{
+    const doc = await db.collection('users').doc(fbUser.uid).get();
+    if(!doc.exists){
+      // No matching profile (a stale/half-created auth account) -- nothing to restore into, so fall
+      // back to a normal fresh visit rather than getting stuck on a blank screen.
+      screen = 'landing';
+      renderLanding();
+      return;
     }
+    const profile = doc.data();
+    if(profile.blocked){
+      try{ await fbAuth.signOut(); }catch(e){}
+      authError = 'This account has been blocked. Please contact the administrator.';
+      authMode = 'login';
+      screen = 'login';
+      renderLogin();
+      return;
+    }
+    const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
+    currentUser = {
+      id: fbUser.uid, name: profile.name || fbUser.displayName || '', username: profile.username || '',
+      isAdmin: role==='admin' || role==='support', role,
+      plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
+      groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '',
+      groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null,
+    };
+    isDemoUser = profile.username === DEMO_ACCOUNT_USERNAME;
+    lastUsername = profile.username || lastUsername;
+    await loadFeatureFlags();
+    await loadCompanies();
+    screen = 'gateway';
+    renderGateway();
+  }catch(e){
+    console.error('Session restore failed:', e);
+    toast('Could not restore your session — please log in again.');
+    try{ await fbAuth.signOut(); }catch(err){}
+    screen = 'landing';
+    renderLanding();
   }
-  if(screen==='landing') renderLanding(); else renderLogin();
+}
+let sessionRestoreDone = false; // guards against onAuthStateChanged's LATER firings (explicit login/logout elsewhere already handle those themselves) -- only its very first callback, reflecting whatever session existed when this tab opened, should ever trigger a restore
+function setupHistoryRoot(){
   try{
     const rootSnap = { isRoot:true, screen, view:null, authMode: screen==='login' ? authMode : null, companyId:null };
     history.replaceState(rootSnap, '', location.href);
     history.pushState(rootSnap, '', location.href);
   }catch(e){}
+}
+(async function init(){
+  try{ const n = await window.storage.get('lastUsername'); lastUsername = n ? n.value : ''; }catch(e){ lastUsername = ''; }
+  authMode = 'login';
+
+  // An email-verification link click always wins over session restore -- honour it even if this
+  // browser already has another session open.
+  if(fbAuth.isSignInWithEmailLink(window.location.href)){
+    sessionRestoreDone = true;
+    screen = 'login';
+    renderLogin();
+    await handleEmailLinkReturn();
+    setupHistoryRoot();
+    return;
+  }
+  // A signup left mid-flight (verification link sent, not yet opened) resumes its "check your
+  // inbox" state, same as before -- also takes priority over restoring some OTHER older session.
+  const draft = await loadPendingSignupDraft();
+  if(draft){
+    sessionRestoreDone = true;
+    authDraft = { name:draft.name||'', username:draft.username||'', mobile:draft.mobile||'', email:draft.email||'' };
+    authMode = 'signup';
+    pendingVerifyEmail = draft.email||'';
+    verifyLinkAwaiting = true;
+    screen = 'login';
+    renderLogin();
+    setupHistoryRoot();
+    return;
+  }
+  // Neither of the above applies -- ask Firebase whether this browser already has a signed-in user
+  // (restored from its own local storage) before deciding to show the landing page at all.
+  fbAuth.onAuthStateChanged(async (user)=>{
+    if(sessionRestoreDone) return;
+    sessionRestoreDone = true;
+    if(user) await restoreSessionFor(user);
+    else{ screen = 'landing'; renderLanding(); }
+    setupHistoryRoot();
+  });
 })();
+
 </script>
 </body>
 </html>
