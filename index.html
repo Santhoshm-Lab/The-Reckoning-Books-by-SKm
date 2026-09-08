@@ -1652,6 +1652,11 @@ let featureFlagsDraft = { ...DEFAULT_FEATURE_FLAGS };
 // Single source of truth used by tab(), goToTab(), renderView() and the Admin Panel toggles below.
 const GATED_TABS = { inventory:'inventoryRequiresPaid', reconcile:'reconcileRequiresPaid', gst:'gstRequiresPaid', assets:'assetsRequiresPaid', parties:'partiesRequiresPaid', orders:'ordersRequiresPaid', payroll:'payrollRequiresPaid' };
 const GATED_TAB_LABELS = { inventory:'Inventory', reconcile:'Reconcile', gst:'GST', assets:'Assets', parties:'Parties', orders:'Orders', payroll:'Payroll' };
+// Every feature that can be individually granted to ONE account via Feature Overrides, regardless
+// of their plan -- this is GATED_TAB_LABELS (the sidebar tabs) plus 'import', which is gated the
+// same way but lives inside Backup & Restore rather than being its own tab. Single source of truth
+// for both the full Admin Panel's per-user drill-down and a Support user's own scoped version of it.
+const OVERRIDABLE_FEATURE_LABELS = { ...GATED_TAB_LABELS, import:'Import Accounting Data' };
 function isTabGated(id){
   const flagKey = GATED_TABS[id];
   return !!(flagKey && featureFlags[flagKey] && !userEntitled(id));
@@ -8086,18 +8091,17 @@ function renderGateway(){
       const uid = adminUserDetailId;
       const u = users.find(x=>x.id===uid);
       if(!u) return;
-      const overrides = {
-        inventory: !!document.getElementById('overrideInventory')?.checked,
-        import: !!document.getElementById('overrideImport')?.checked,
-        reconcile: !!document.getElementById('overrideReconcile')?.checked,
-      };
+      const overrides = {};
+      document.querySelectorAll('#featureOverridesWrap [data-override-key]').forEach(el=>{
+        overrides[el.dataset.overrideKey] = !!el.checked;
+      });
       const btn = document.getElementById('saveFeatureOverridesBtn');
       btn.disabled = true;
       try{
         await db.collection('users').doc(uid).set({ featureOverrides: overrides }, {merge:true});
         u.featureOverrides = overrides;
         if(currentUser && currentUser.id===uid) currentUser.featureOverrides = overrides;
-        const granted = Object.keys(overrides).filter(k=>overrides[k]);
+        const granted = Object.keys(overrides).filter(k=>overrides[k]).map(k=>OVERRIDABLE_FEATURE_LABELS[k]||k);
         await logAudit('feature_override_updated', granted.length ? `Granted: ${granted.join(', ')}` : 'Cleared all overrides', uid, u.name);
         toast('Feature overrides saved');
         renderGateway();
@@ -8584,6 +8588,32 @@ function renderGateway(){
         await enterCompanyApp(c, {adminViewOnly:true});
       });
     });
+    document.getElementById('saveFeatureOverridesBtn')?.addEventListener('click', async ()=>{
+      const uid = groupUserDetailId;
+      const u = groupMembers.find(x=>x.id===uid);
+      // Defence in depth: groupMembers is already scoped to this Support user's own group by the
+      // query in loadGroupAdminData(), but re-check here too so a stale/forged id can never write
+      // to an account outside their group.
+      if(!u || u.groupOwnerId !== currentUser.id) return;
+      const overrides = {};
+      document.querySelectorAll('#featureOverridesWrap [data-override-key]').forEach(el=>{
+        overrides[el.dataset.overrideKey] = !!el.checked;
+      });
+      const btn = document.getElementById('saveFeatureOverridesBtn');
+      btn.disabled = true;
+      try{
+        await db.collection('users').doc(uid).set({ featureOverrides: overrides }, {merge:true});
+        u.featureOverrides = overrides;
+        const granted = Object.keys(overrides).filter(k=>overrides[k]).map(k=>OVERRIDABLE_FEATURE_LABELS[k]||k);
+        await logAudit('feature_override_updated', granted.length ? `Granted: ${granted.join(', ')}` : 'Cleared all overrides', uid, u.name);
+        toast('Feature overrides saved');
+        renderGateway();
+      }catch(err){
+        console.error('Save feature overrides failed:', err);
+        toast('Could not save feature overrides — ' + (err && (err.code || err.message) || 'unknown error'));
+        btn.disabled = false;
+      }
+    });
   }
   if(modal==='groupAdmin' && groupAddUserOpen){
     const closeGroupAddUser = ()=>{ groupAddUserOpen = false; groupAddUserError = ''; renderGateway(); };
@@ -8958,11 +8988,13 @@ function adminSupportTab(){
 // 'support' is a scoped GROUP ADMIN, not a junior full-admin: a Support user may only read/touch
 // their own group — the users whose users/{uid}.groupOwnerId equals their own uid, and only up to
 // their groupUserLimit's worth of them — plus those members' companies (read-only), support tickets
-// and audit-log entries. groupOwnerOf(uid) is the one cross-document lookup that makes the latter
-// three possible: those docs carry a user's uid (ownerId / userId / targetUid), not a groupOwnerId of
-// their own, so the rule has to look up THAT uid's own groupOwnerId to decide whether it's inside the
-// requesting Support user's group. A full Administrator (role=='admin') still sees everything, same
-// as before.
+// and audit-log entries. Within their own group, a Support user can also grant or revoke a group
+// member's Feature Overrides (letting that one account use a Paid-plan-gated feature regardless of
+// their plan) exactly like a full Administrator can for any account. groupOwnerOf(uid) is the one
+// cross-document lookup that makes the companies/tickets/audit-log visibility possible: those docs
+// carry a user's uid (ownerId / userId / targetUid), not a groupOwnerId of their own, so the rule
+// has to look up THAT uid's own groupOwnerId to decide whether it's inside the requesting Support
+// user's group. A full Administrator (role=='admin') still sees everything, same as before.
 const RECOMMENDED_FIRESTORE_RULES = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -8986,12 +9018,12 @@ service cloud.firestore {
       allow read: if isOwnerUid(uid) || isAdmin() || (isSupport() && resource.data.groupOwnerId == request.auth.uid);
       allow create: if isOwnerUid(uid);
       // A Support user may edit their own group members' everyday profile fields (and block/unblock
-      // them), but never their role, groupOwnerId or groupUserLimit — those stay admin-only, so a
-      // Support user can never promote themselves, re-home a member into someone else's group, or
-      // raise their own cap.
+      // them, and grant/revoke their Feature Overrides), but never their role, groupOwnerId or
+      // groupUserLimit — those stay admin-only, so a Support user can never promote themselves,
+      // re-home a member into someone else's group, or raise their own cap.
       allow update: if isOwnerUid(uid) || isAdmin() || (
         isSupport() && resource.data.groupOwnerId == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','blocked'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','blocked','featureOverrides'])
       );
       allow delete: if isAdmin();
     }
@@ -9226,6 +9258,20 @@ function adminUsersTab(){
 // so it can layer on top of whichever admin tab is open underneath). Shows account info plus the
 // companies this user owns; there's no login-history array in the data model, only a single
 // lastLoginAt field, so that's the one login-related fact shown.
+// Shared by the full Admin Panel's per-user drill-down (adminUserDetailModal) and a Support user's
+// own scoped version of it (groupUserDetailModal) -- renders one checkbox per overridable feature.
+// `editable` controls whether the checkboxes (and the Save button rendered alongside them by the
+// caller) are interactive; the underlying data field (users/{uid}.featureOverrides) is the same
+// regardless of who is granting it.
+function featureOverrideCheckboxes(u, editable){
+  return Object.keys(OVERRIDABLE_FEATURE_LABELS).map(key=>{
+    const label = OVERRIDABLE_FEATURE_LABELS[key];
+    const checked = u.featureOverrides && u.featureOverrides[key];
+    return `<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" data-override-key="${key}" style="width:auto;" ${checked?'checked':''} ${editable?'':'disabled'}> Grant <strong>${label}</strong> regardless of plan
+    </label>`;
+  }).join('\n');
+}
 function adminUserDetailModal(){
   const u = users.find(x=>x.id===adminUserDetailId);
   if(!u) return '';
@@ -9273,15 +9319,7 @@ function adminUserDetailModal(){
           ` : ''}
           <div class="section-title">Feature Overrides</div>
           <p class="muted" style="font-size:12px;margin-top:0;">Grant this one account a gated feature regardless of their plan — for a pilot, a beta tester, or a one-off exception — without changing their plan for everything else.</p>
-          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:10px;">
-            <input type="checkbox" id="overrideInventory" style="width:auto;" ${u.featureOverrides&&u.featureOverrides.inventory?'checked':''} ${isFullAdmin()?'':'disabled'}> Grant <strong>Inventory</strong> regardless of plan
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
-            <input type="checkbox" id="overrideImport" style="width:auto;" ${u.featureOverrides&&u.featureOverrides.import?'checked':''} ${isFullAdmin()?'':'disabled'}> Grant <strong>Import Accounting Data</strong> regardless of plan
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
-            <input type="checkbox" id="overrideReconcile" style="width:auto;" ${u.featureOverrides&&u.featureOverrides.reconcile?'checked':''} ${isFullAdmin()?'':'disabled'}> Grant <strong>Reconcile</strong> regardless of plan
-          </label>
+          <div id="featureOverridesWrap">${featureOverrideCheckboxes(u, isFullAdmin())}</div>
           <button class="btn secondary small" id="saveFeatureOverridesBtn" type="button" style="margin-top:10px;" ${isFullAdmin()?'':'disabled'}>Save Overrides</button>
         </div>
       </div>
@@ -9574,6 +9612,10 @@ function groupUserDetailModal(){
             }).join('')}
           </table>
           ` : `<div class="empty">Owns no companies.</div>`}
+          <div class="section-title">Feature Overrides</div>
+          <p class="muted" style="font-size:12px;margin-top:0;">Grant this member of your group a gated feature regardless of their plan — for a pilot, a beta tester, or a one-off exception — without changing their plan for everything else.</p>
+          <div id="featureOverridesWrap">${featureOverrideCheckboxes(u, true)}</div>
+          <button class="btn secondary small" id="saveFeatureOverridesBtn" type="button" style="margin-top:10px;">Save Overrides</button>
         </div>
       </div>
     </div>
