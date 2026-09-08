@@ -2613,10 +2613,19 @@ async function loadCompanies(){
    ledgers/vouchers/items/stock adjustments, which live as separate fields on the same Firestore
    document and are written independently by saveLedgers()/saveVouchers()/saveItems()/
    saveStockAdjustments(). Used when a company is created and when its details are edited. */
+/* Saves company metadata (name, address, GSTIN, etc.) without touching that company's stored
+   ledgers/vouchers/items/stock adjustments, which live as separate fields on the same Firestore
+   document and are written independently by saveLedgers()/saveVouchers()/saveItems()/
+   saveStockAdjustments(). Used when a company is created and when its details are edited.
+   Returns true/false so callers that create a brand-new company can tell whether it actually landed
+   in Firestore before treating it as real -- see the "createCoBtn" handler, which used to push the
+   new company into local state and open it regardless of whether this save succeeded, so a failed
+   write (a network blip, an expired session, anything) would silently vanish on the next login with
+   no error ever shown at the time it happened. */
 async function saveCompanyMeta(company){
-  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(company.id).set(company, {merge:true}); }
-  catch(e){ toast('Could not save company'); }
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; }
+  try{ await db.collection('companies').doc(company.id).set(company, {merge:true}); return true; }
+  catch(e){ console.error('saveCompanyMeta failed:', e); toast('Could not save company — ' + (e && (e.code || e.message) || 'unknown error')); return false; }
 }
 /* Deletes a company and all of its stored books (ledgers, vouchers, items, stock adjustments —
    all embedded on the same Firestore document, so one delete removes everything). Shared by the
@@ -7585,8 +7594,23 @@ function renderGateway(){
       suffixSymbol: document.getElementById('coSuffixSymbol').checked,
       ownerId: currentUser ? currentUser.id : null,
     };
+    // Don't touch local state or open the company until the write is CONFIRMED to have landed in
+    // Firestore — pushing optimistically and opening it regardless (the old behaviour) meant a
+    // failed save was invisible at the moment it happened, and the "created" company would just be
+    // gone the next time this user logged in, with no error ever shown. Disable the button and show
+    // a clear retry path instead of losing the person's entered details on failure.
+    const btn = document.getElementById('createCoBtn');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Creating…';
+    const saved = await saveCompanyMeta(company);
+    if(!saved){
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      toast('Company was not saved — check your connection and try again.');
+      return;
+    }
     companies.push(company);
-    await saveCompanyMeta(company);
     coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
     await enterCompanyApp(company);
   });
