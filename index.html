@@ -155,7 +155,7 @@
   .btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border:1px solid var(--accent2);padding:9px 19px;border-radius:var(--radius-btn);font-size:12.5px;font-weight:700;letter-spacing:-.005em;box-shadow:0 2px 8px rgba(44,160,28,0.3);transition:box-shadow .15s ease, transform .15s ease;}
   .btn:hover:not(:disabled){box-shadow:0 5px 16px rgba(44,160,28,0.4);transform:translateY(-1px);}
   .btn:active:not(:disabled){transform:translateY(0);box-shadow:0 2px 6px rgba(44,160,28,0.3);}
-  .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--border-strong);box-shadow:none;}
+  .btn.secondary{background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);box-shadow:none;}
   .btn.secondary:hover:not(:disabled){background:var(--surface-strong);border-color:var(--ink-soft);transform:translateY(-1px);box-shadow:0 3px 10px rgba(20,30,25,0.08);}
   .btn.small{padding:6px 13px;font-size:11.5px;}
   .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none;}
@@ -543,6 +543,93 @@
   @media (prefers-reduced-motion: reduce){
     *, *::before, *::after{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;scroll-behavior:auto !important;}
   }
+
+  /* ================= Advanced UI/UX pass — command palette, dark mode, smart insights =================
+     Same principle as the refresh above: every rule reads existing tokens or a small set of new ones
+     defined once here, nothing hardcodes a color that skips the token layer. Dark mode is a second set
+     of values for the exact same --variable names, so every existing rule above adapts automatically. */
+
+  /* ---- Dark mode: an explicit, user-controlled toggle (not tied to OS preference) — the same
+     token names throughout the file, just re-pointed. Brand green/gold stay recognizable on dark. */
+  :root[data-theme="dark"]{
+    --bg:#12181A;
+    --surface:#1A2320;
+    --surface-strong:#212D27;
+    --field:#1E2A24;
+    --border:#2C3A33;
+    --border-strong:#3B4C43;
+    --ink:#EAF2EC;
+    --ink-soft:#9FB2A6;
+    --ink-faint:#6C8177;
+    --accent1:#33B521;
+    --accent2:#2CA01C;
+    --accent-grad:#33B521;
+    --credit:#3ECB2C;
+    --credit-bg:rgba(62,203,44,0.16);
+    --debit:#FF7A7A;
+    --debit-bg:rgba(255,122,122,0.16);
+    --gold:#F2A44F;
+  }
+  [data-theme="dark"] body{background:var(--bg);}
+  [data-theme="dark"] .modal-overlay{background:rgba(0,0,0,0.66);}
+  [data-theme="dark"] ::-webkit-scrollbar-thumb{border-color:var(--bg);}
+
+  /* Theme toggle pill in the menubar */
+  .theme-toggle{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;cursor:pointer;color:var(--ink-soft);font-weight:700;font-size:12px;border:1px solid transparent;transition:all .15s;}
+  .theme-toggle:hover{background:var(--surface-strong);color:var(--ink);}
+
+  /* ---- Command palette (Ctrl/Cmd+K) ---- */
+  .cmdpal-overlay{position:fixed;inset:0;background:rgba(13,20,15,0.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;z-index:600;padding:14vh 20px 20px;}
+  .cmdpal{width:560px;max-width:100%;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:0 30px 80px rgba(13,20,15,0.4);overflow:hidden;animation:cmdpalIn .14s ease;}
+  @keyframes cmdpalIn{from{opacity:0;transform:translateY(-6px) scale(.98);}to{opacity:1;transform:none;}}
+  .cmdpal-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .cmdpal-input-wrap svg{flex-shrink:0;color:var(--ink-faint);}
+  .cmdpal-input{flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:15px;color:var(--ink);}
+  .cmdpal-input::placeholder{color:var(--ink-faint);}
+  .cmdpal-hint{font-size:10.5px;color:var(--ink-faint);border:1px solid var(--border-strong);border-radius:5px;padding:2px 6px;font-weight:700;}
+  .cmdpal-list{max-height:360px;overflow-y:auto;padding:8px;}
+  .cmdpal-group{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:8px 10px 4px;}
+  .cmdpal-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--ink);}
+  .cmdpal-item .cp-icon{width:30px;height:30px;border-radius:9px;background:var(--surface-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .cmdpal-item .cp-icon svg{width:15px;height:15px;stroke:var(--accent1);}
+  .cmdpal-item .cp-label{font-weight:700;font-size:13px;}
+  .cmdpal-item .cp-sub{font-size:11px;color:var(--ink-soft);margin-top:1px;}
+  .cmdpal-item.active{background:var(--accent1);color:#fff;}
+  .cmdpal-item.active .cp-sub{color:rgba(255,255,255,0.85);}
+  .cmdpal-item.active .cp-icon{background:rgba(255,255,255,0.2);}
+  .cmdpal-item.active .cp-icon svg{stroke:#fff;}
+  .cmdpal-empty{padding:30px 20px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
+  .cmdpal-footer{display:flex;gap:14px;padding:9px 16px;border-top:1px solid var(--border);font-size:10.5px;color:var(--ink-faint);}
+  .cmdpal-footer kbd{background:var(--surface-strong);border:1px solid var(--border-strong);border-radius:4px;padding:1px 5px;font-family:inherit;font-weight:700;}
+  .cmdk-trigger{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 11px;border-radius:999px;border:1px solid var(--border-strong);color:var(--ink-faint);font-size:11.5px;font-weight:700;cursor:pointer;background:var(--surface-strong);transition:all .15s;}
+  .cmdk-trigger:hover{color:var(--ink);border-color:var(--ink-faint);}
+  .cmdk-trigger kbd{background:var(--surface);border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;font-family:inherit;}
+
+  /* ---- Smart insights card (Dashboard) ---- */
+  .insights-card{background:linear-gradient(155deg, var(--surface-strong), var(--surface));border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px;}
+  .insights-head{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin-bottom:10px;}
+  .insights-head .spark{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--accent1),var(--gold));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .insights-head .spark svg{width:12px;height:12px;stroke:#fff;}
+  .insights-list{display:flex;flex-direction:column;gap:8px;}
+  .insight-row{display:flex;align-items:flex-start;gap:9px;font-size:12.3px;line-height:1.5;padding:6px 8px;border-radius:9px;transition:background .15s;}
+  .insight-row[data-insight-action]{cursor:pointer;}
+  .insight-row[data-insight-action]:hover{background:var(--surface);}
+  .insight-row .dot{width:6px;height:6px;border-radius:50%;margin-top:6px;flex-shrink:0;}
+  .insight-row .dot.up{background:var(--credit);} .insight-row .dot.down{background:var(--debit);} .insight-row .dot.flat{background:var(--ink-faint);} .insight-row .dot.warn{background:var(--gold);}
+  .insight-row b{color:var(--ink);}
+
+  /* ---- Smart ledger-suggestion chip (Voucher narration) ---- */
+  .narr-suggest{margin-top:7px;min-height:1px;}
+  .narr-suggest-chip{display:inline-flex;align-items:center;gap:7px;background:var(--credit-bg);border:1px solid rgba(44,160,28,0.3);color:var(--accent2);font-weight:700;font-size:11.5px;padding:6px 12px;border-radius:999px;cursor:pointer;animation:narrChipIn .15s ease;}
+  .narr-suggest-chip:hover{background:rgba(44,160,28,0.2);}
+  @keyframes narrChipIn{from{opacity:0;transform:translateY(-3px);}to{opacity:1;transform:none;}}
+
+  /* ---- View transition: a short, subtle fade+rise every time the main content repaints ---- */
+  .main{animation:mainFadeIn .18s ease;}
+  @keyframes mainFadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  /* ---- Animated dashboard counters: value starts at 0 and counts up on first paint ---- */
+  .stat .val{transition:color .2s;}
 </style>
 </head>
 <body>
@@ -627,6 +714,11 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const fbAuth = firebase.auth();
 const db = firebase.firestore();
+// Dark mode: declared this early (rather than alongside the other UI state further down) so it can
+// be applied before first paint, with no flash of the wrong palette.
+let darkMode = false;
+try{ darkMode = localStorage.getItem('rb_darkMode')==='1'; }catch(e){}
+document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
 const EMAIL_DOMAIN = '@reckoningbooks.local'; // admin's fixed synthetic email only — regular accounts now use the real email they sign up with
 // Brand mark for the landing page (renderLanding()) — the actual generated logo icon,
 // downsized and inlined as base64 so the app stays a single self-contained HTML file.
@@ -1680,6 +1772,11 @@ let state = {
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
 };
 let view = 'dashboard';
+// ---- Advanced UI/UX state: command palette, dashboard counter animation (darkMode is declared
+// near the top of the script, right after firebase.initializeApp, so it can be applied pre-paint) ----
+let cmdQuery = '';       // command palette search text (modal==='commandPalette')
+let cmdActiveIndex = 0;  // highlighted row in the command palette results
+let dashCountersAnimated = false; // only count-up the stat tiles once per company session, not on every render
 let activeFY = null; // FY label (e.g. '2025-26') the user has chosen to view for the open company; null = "All Years" (no filter, the original all-time behaviour)
 let vform = null; // active voucher form draft
 let quickLedgerFocus = null; // remembers which ledger field to fill after creating a ledger from within the voucher form: {type:'entry', index} | {type:'single', which:'A'|'B'}
@@ -5727,6 +5824,101 @@ function wireQAWidget(){
   if(msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
+/* ---------------- Command palette (Ctrl/Cmd+K) ----------------
+   A single searchable list combining "jump to a module" and a handful of quick actions, filtered
+   by simple whitespace/substring matching (no fuzzy library needed for ~20 items). Opened from
+   anywhere in the app via a dedicated keydown listener (see near TAB_SHORTCUTS) since the existing
+   plain-letter-shortcut listener deliberately ignores Ctrl/Cmd-held keys. */
+function cmdIcon(name){
+  const paths = {
+    chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+    theme: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    spark: '<path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6-5.6-1.9 5.6-1.9z"/>',
+  };
+  return `<svg class="tab-icon" viewBox="0 0 24 24">${paths[name]||''}</svg>`;
+}
+function toggleTheme(){
+  darkMode = !darkMode;
+  try{ localStorage.setItem('rb_darkMode', darkMode?'1':'0'); }catch(e){}
+  document.documentElement.setAttribute('data-theme', darkMode?'dark':'light');
+}
+function commandPaletteItems(){
+  const moduleDefs = [
+    ['dashboard','Dashboard','Overview & KPIs'],['voucher','Voucher','Record a transaction'],
+    ['daybook','Day Book','Chronological log'],['calendar','Calendar','Dates & due items'],
+    ['ledgers','Ledgers','Running balances'],['coa','Accounts','Chart of accounts'],
+    ['inventory','Inventory','Stock & valuation'],['reports','Reports','P&L, Balance Sheet…'],
+    ['gst','GST','Tax summaries & filing'],['reconcile','Reconcile','Bank matching'],
+    ['assets','Assets','Fixed asset register'],['parties','Parties','Customers & suppliers'],
+    ['orders','Orders','Quotes & purchase orders'],['payroll','Payroll','Salaries & payslips'],
+  ];
+  const modules = moduleDefs.map(([id,label,sub])=>{
+    const gated = isTabGated(id);
+    return { group:'Go to', label: gated?label+' 🔒':label, sub, icon:tabIcon(id), run: ()=>{ modal=null; goToTab(id); render(); } };
+  });
+  const actions = [
+    { group:'Quick actions', label:'New Voucher', sub:'Record a payment, receipt, sale & more', icon:tabIcon('voucher'),
+      run: ()=>{ modal=null; vform=null; goToTab('voucher'); render(); } },
+    { group:'Quick actions', label:'New Ledger', sub:'Add an account under a group', icon:tabIcon('coa'),
+      run: ()=>{ modal=null; goToTab('coa'); render(); } },
+    { group:'Quick actions', label:'New Party', sub:'Add a customer or supplier', icon:tabIcon('parties'),
+      run: ()=>{ modal=null; goToTab('parties'); render(); } },
+    { group:'Quick actions', label:'New Stock Item', sub:'Add an inventory item', icon:tabIcon('inventory'),
+      run: ()=>{ modal=null; goToTab('inventory'); render(); } },
+    { group:'Quick actions', label:'Ask Your Books', sub:'Ask a question about your numbers', icon:cmdIcon('chat'),
+      run: ()=>{ modal=null; qaOpen=true; render(); } },
+    { group:'Quick actions', label:'Recent Vouchers', sub:'Browse recently recorded entries', icon:cmdIcon('clock'),
+      run: ()=>{ modal='recentVouchers'; render(); } },
+    { group:'Quick actions', label: darkMode?'Switch to Light Mode':'Switch to Dark Mode', sub:'Toggle the app theme', icon:cmdIcon('theme'),
+      run: ()=>{ modal=null; toggleTheme(); render(); } },
+  ];
+  return [...modules, ...actions];
+}
+function commandPaletteFiltered(){
+  const items = commandPaletteItems();
+  const q = cmdQuery.trim().toLowerCase();
+  if(!q) return items;
+  const words = q.split(/\s+/).filter(Boolean);
+  return items.filter(it=>{
+    const hay = (it.label+' '+(it.sub||'')).toLowerCase();
+    return words.every(w=>hay.includes(w));
+  });
+}
+function commandPaletteModal(){
+  const items = commandPaletteFiltered();
+  if(cmdActiveIndex>=items.length) cmdActiveIndex = Math.max(0, items.length-1);
+  let lastGroup = null;
+  const rows = items.map((it,i)=>{
+    const groupHtml = it.group!==lastGroup ? `<div class="cmdpal-group">${escapeHtml(it.group)}</div>` : '';
+    lastGroup = it.group;
+    return `${groupHtml}<div class="cmdpal-item ${i===cmdActiveIndex?'active':''}" data-cmd-index="${i}">
+      <div class="cp-icon">${it.icon}</div>
+      <div><div class="cp-label">${escapeHtml(it.label)}</div>${it.sub?`<div class="cp-sub">${escapeHtml(it.sub)}</div>`:''}</div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="cmdpal-overlay" id="cmdpalOverlay">
+      <div class="cmdpal">
+        <div class="cmdpal-input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="cmdpalInput" class="cmdpal-input" placeholder="Jump to a module or run a quick action…" value="${escapeAttr(cmdQuery)}" autocomplete="off">
+          <span class="cmdpal-hint">Esc</span>
+        </div>
+        <div class="cmdpal-list" id="cmdpalList">
+          ${items.length ? rows : `<div class="cmdpal-empty">No matches for "${escapeHtml(cmdQuery)}"</div>`}
+        </div>
+        <div class="cmdpal-footer">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span><kbd>Esc</kbd> close</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 /* ---------------- rendering ---------------- */
 function render(){
   // Read-only session (admin view-only, or the shared demo company opened by anyone but the
@@ -5757,16 +5949,20 @@ function render(){
       <span id="menuHelp">Help</span>
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
       ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
+      <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span class="cmdk-trigger" id="openCmdPaletteBtn" title="Command palette"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Quick jump <kbd>${navigator.platform&&navigator.platform.toLowerCase().includes('mac')?'⌘':'Ctrl'}K</kbd></span>
+        <span class="theme-toggle" id="themeToggleBtn" title="${darkMode?'Switch to light mode':'Switch to dark mode'}">${darkMode?'☀️':'🌙'}</span>
+      </span>
     </div>
     ${adminViewOnlyCompanyId===currentCompany.id ? `
     <div style="background:#F2A900;color:#2a2200;padding:8px 18px;font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">
       <span>👁 Viewing "${escapeHtml(currentCompany.name)}" as ${currentUser && currentUser.role==='support' ? 'a group admin' : 'Administrator'} — read-only, nothing you do here is saved.</span>
-      <button class="btn secondary small" id="exitAdminViewBtn" type="button" style="background:#fff;">${currentUser && currentUser.role==='support' ? 'Exit to Admin' : 'Exit to Admin Panel'}</button>
+      <button class="btn secondary small" id="exitAdminViewBtn" type="button" style="background:#fff;color:#1B2420;">${currentUser && currentUser.role==='support' ? 'Exit to Admin' : 'Exit to Admin Panel'}</button>
     </div>
     ` : (!adminViewOnlyCompanyId && isReadOnlyMode() && currentCompany.id===SK_DEMO_COMPANY_ID) ? `
     <div style="background:#F2A900;color:#2a2200;padding:8px 18px;font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
       <span>👁 ${isDemoUser ? "You're viewing the shared Sk Enterprises demo" : `"${escapeHtml(currentCompany.name)}" is a shared demo company`} — read-only, nothing you do here is saved. Only the Administrator can change it.</span>
-      ${isDemoUser ? `<button class="btn secondary small" id="demoBannerSignupBtn" type="button" style="background:#fff;">Create Your Free Account →</button>` : ''}
+      ${isDemoUser ? `<button class="btn secondary small" id="demoBannerSignupBtn" type="button" style="background:#fff;color:#1B2420;">Create Your Free Account →</button>` : ''}
     </div>
     ` : ''}
     <div class="body-shell">
@@ -5824,6 +6020,7 @@ function render(){
     ${modal==='eway' ? eWayBillTransportModal() : ''}
     ${modal==='attachments' ? attachmentsModal() : ''}
     ${modal==='invoiceSettings' ? invoiceSettingsModal() : ''}
+    ${modal==='commandPalette' ? commandPaletteModal() : ''}
     ${qaWidget()}
   `;
   attachHandlers();
@@ -5903,6 +6100,10 @@ function render(){
     modal = 'backup';
     render();
   });
+  document.getElementById('openCmdPaletteBtn')?.addEventListener('click', ()=>{
+    cmdQuery = ''; cmdActiveIndex = 0; modal = 'commandPalette'; render();
+  });
+  document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
   document.getElementById('menuHelp').addEventListener('click', async ()=>{
     modal = 'help';
     helpTab = 'info';
@@ -5945,6 +6146,33 @@ function render(){
       if(e.target.id==='modalOverlayBg'){ modal = null; render(); }
     });
     document.getElementById('modalClose')?.addEventListener('click', ()=>{ modal = null; render(); });
+  }
+  if(modal==='commandPalette'){
+    const items = commandPaletteFiltered();
+    const input = document.getElementById('cmdpalInput');
+    if(input){
+      input.focus();
+      try{ input.setSelectionRange(input.value.length, input.value.length); }catch(err){}
+    }
+    document.getElementById('cmdpalOverlay')?.addEventListener('click', (e)=>{
+      if(e.target.id==='cmdpalOverlay'){ modal = null; render(); }
+    });
+    input?.addEventListener('input', (e)=>{
+      cmdQuery = e.target.value;
+      cmdActiveIndex = 0;
+      render();
+    });
+    document.querySelectorAll('[data-cmd-index]').forEach(el=>{
+      const idx = Number(el.dataset.cmdIndex);
+      el.addEventListener('mouseenter', ()=>{ cmdActiveIndex = idx; render(); });
+      el.addEventListener('click', ()=>{ const it = items[idx]; if(it) it.run(); });
+    });
+    input?.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape'){ e.preventDefault(); modal = null; render(); }
+      else if(e.key==='ArrowDown'){ e.preventDefault(); cmdActiveIndex = Math.min(items.length-1, cmdActiveIndex+1); render(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); cmdActiveIndex = Math.max(0, cmdActiveIndex-1); render(); }
+      else if(e.key==='Enter'){ e.preventDefault(); const it = items[cmdActiveIndex]; if(it) it.run(); }
+    });
   }
   if(modal==='gstFormats'){
     document.querySelectorAll('[data-fmt-jump]').forEach(el=>{
@@ -6090,6 +6318,7 @@ function goToTab(id){
   }
   view = id;
   if(view==='reports') reportsSelected = null;
+  if(view==='dashboard') dashCountersAnimated = false; // count up again each time you land on the Dashboard
   render();
   pushHistory();
 }
@@ -6103,6 +6332,17 @@ document.addEventListener('keydown', (e)=>{
   if(!id) return;
   e.preventDefault();
   goToTab(id);
+});
+// Command palette: Ctrl+K on Windows/Linux, Cmd+K on Mac — a separate listener since the one above
+// deliberately ignores every Ctrl/Cmd-held key. Works from anywhere in the app, including while
+// another modal is open (it simply replaces it), so it always feels reachable.
+document.addEventListener('keydown', (e)=>{
+  if(screen!=='app') return;
+  if(!(e.ctrlKey || e.metaKey) || e.key.toLowerCase()!=='k') return;
+  e.preventDefault();
+  if(modal==='commandPalette'){ modal = null; }
+  else { cmdQuery = ''; cmdActiveIndex = 0; modal = 'commandPalette'; }
+  render();
 });
 function viewDropdown(){
   const tabs = [
@@ -7777,7 +8017,7 @@ function renderGateway(){
     ${currentUser && !currentUser.isAdmin && announcement.active && announcement.message && !announcementDismissed ? `
     <div style="background:#F2A900;color:#2a2200;padding:10px 20px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:12px;">
       <span>📢 ${escapeHtml(announcement.message)}</span>
-      <button class="btn secondary small" id="dismissAnnouncementBtn" type="button" style="background:#fff;flex-shrink:0;">Dismiss</button>
+      <button class="btn secondary small" id="dismissAnnouncementBtn" type="button" style="background:#fff;color:#1B2420;flex-shrink:0;">Dismiss</button>
     </div>
     ` : ''}
     ${currentUser ? (()=>{
@@ -10626,6 +10866,85 @@ function masthead(title, sub, helpKey){
   </div>`;
 }
 
+/* ---- Smart Dashboard insights ----
+   Plain-English bullets computed from real ledger/voucher data already used elsewhere on the
+   Dashboard (the same monthly-trend, expense-breakdown and overdue-invoice helpers the charts and
+   the "Ask Your Books" widget use) — no API, no guessing, just numbers pulled live from the books
+   and phrased as sentences. */
+function dashboardInsights(){
+  const insights = [];
+  const trend = qaMonthlyTrend(2);
+  if(trend.length===2){
+    const [prev, cur] = trend;
+    if(Math.abs(prev.revenue)>0){
+      const pct = r2(((cur.revenue-prev.revenue)/Math.abs(prev.revenue))*100);
+      if(Math.abs(pct)>=1) insights.push({ tone: pct>=0?'up':'down', text: `Revenue is ${pct>=0?'up':'down'} <b>${Math.abs(pct)}%</b> vs last month — ₹${fmt(cur.revenue)} vs ₹${fmt(prev.revenue)}.` });
+    }
+    if(Math.abs(prev.expenses)>0){
+      const pct = r2(((cur.expenses-prev.expenses)/Math.abs(prev.expenses))*100);
+      if(Math.abs(pct)>=1) insights.push({ tone: pct<=0?'up':'down', text: `Expenses are ${pct>=0?'up':'down'} <b>${Math.abs(pct)}%</b> vs last month.` });
+    }
+  }
+  const is = incomeStatementData();
+  const groups = dashboardExpenseTreemapData(is);
+  let topLeaf = null;
+  for(const g of groups){ for(const leaf of g.leaves){ if(!topLeaf || leaf.value>topLeaf.value) topLeaf = leaf; } }
+  if(topLeaf) insights.push({ tone:'flat', text: `Your single biggest expense ledger is <b>${escapeHtml(topLeaf.name)}</b>, at ₹${fmt(topLeaf.value)}.` });
+  const overdue = overdueInvoices();
+  if(overdue.length){
+    const total = overdue.reduce((s,r)=>s+r.invoice.remaining,0);
+    insights.push({ tone:'warn', action:'overdue', text: `<b>${overdue.length}</b> invoice${overdue.length===1?'':'s'} overdue — ₹${fmt(total)} outstanding.` });
+  } else if(state.vouchers.length){
+    insights.push({ tone:'up', text: `No overdue invoices right now — receivables are current.` });
+  }
+  const recent = state.vouchers.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,20);
+  if(recent.length>=5){
+    const amounts = recent.map(v=>(v.entries||[]).reduce((s,e)=>s+(e.dr||0),0));
+    const avg = amounts.reduce((s,a)=>s+a,0)/amounts.length;
+    const maxIdx = amounts.indexOf(Math.max(...amounts));
+    if(avg>0 && amounts[maxIdx] > avg*3){
+      insights.push({ tone:'warn', text: `One recent voucher (₹${fmt(amounts[maxIdx])}, dated ${recent[maxIdx].date}) is well above your typical entry size — worth a second look.` });
+    }
+  }
+  return insights.slice(0,4);
+}
+function dashboardInsightsCard(){
+  const insights = dashboardInsights();
+  if(!insights.length) return '';
+  return `
+    <div class="insights-card">
+      <div class="insights-head"><span class="spark">${cmdIcon('spark')}</span>Smart Insights</div>
+      <div class="insights-list">
+        ${insights.map(i=>`<div class="insight-row" ${i.action?`data-insight-action="${i.action}"`:''}><span class="dot ${i.tone}"></span><span>${i.text}</span></div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+// Counts each Dashboard stat tile up from 0 to its real value on first paint — purely cosmetic
+// (the correct final figure is already in the HTML the moment it's rendered; this just animates the
+// transition), and only runs once per Dashboard visit (see dashCountersAnimated / goToTab).
+function animateDashboardCounters(){
+  if(dashCountersAnimated) return;
+  dashCountersAnimated = true;
+  let reduceMotion = false;
+  try{ reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduceMotion) return; // the static, already-correct value in the HTML is left exactly as-is
+  document.querySelectorAll('.stat .val[data-count]').forEach(el=>{
+    const target = Number(el.dataset.count)||0;
+    const prefix = el.dataset.prefix||'';
+    const duration = 550;
+    const start = performance.now();
+    function frame(now){
+      const t = Math.min(1, (now-start)/duration);
+      const eased = 1-Math.pow(1-t,3);
+      const val = target*eased;
+      el.textContent = prefix ? `${prefix}${fmt(val)}` : String(Math.round(val));
+      if(t<1) requestAnimationFrame(frame);
+      else el.textContent = prefix ? `${prefix}${fmt(target)}` : String(target);
+    }
+    requestAnimationFrame(frame);
+  });
+}
 function viewDashboard(){
   const cash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank')
     .reduce((s,l)=>s+ledgerBalance(l.id),0);
@@ -10640,15 +10959,17 @@ function viewDashboard(){
     ${overdue.length ? `
     <div style="background:#FBE7E7;border:1px solid var(--debit);color:#7a1f1f;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
       <span>⚠ ${overdue.length} invoice${overdue.length===1?'':'s'} overdue, ₹${fmt(overdueTotal)} outstanding past due date</span>
-      <button class="btn secondary small" data-open-kpi="overdue" type="button" style="background:#fff;">View Overdue Invoices</button>
+      <button class="btn secondary small" data-open-kpi="overdue" type="button" style="background:#fff;color:#7a1f1f;">View Overdue Invoices</button>
     </div>` : ''}
     <div class="grid">
-      <div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}">₹${fmt(cash)}</div></div>
-      <div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}">₹${fmt(assets)}</div></div>
-      <div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}">₹${fmt(liab)}</div></div>
-      <div class="stat" data-open-kpi="profit"><div class="label">${profit>=0?'Net Profit':'Net Loss'}</div><div class="val ${profit>=0?'pos':'neg'}">₹${fmt(profit)}</div></div>
-      <div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}">${overdue.length}</div></div>
+      <div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>
+      <div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>
+      <div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>
+      <div class="stat" data-open-kpi="profit"><div class="label">${profit>=0?'Net Profit':'Net Loss'}</div><div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div></div>
+      <div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>
     </div>
+
+    ${dashboardInsightsCard()}
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
       <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
@@ -11963,6 +12284,58 @@ function renderDashboardCharts(){
   ]);
 }
 
+/* ---- Smart ledger suggestion (Voucher narration) ----
+   Pure client-side pattern matching, no API: looks at every past voucher's narration, scores it by
+   shared significant words against what's being typed right now, and tallies which non-cash/bank
+   ledger those better-matching vouchers actually posted to. The ledger with the strongest tally is
+   the suggestion — e.g. typing "office rent" after a few "Paid office rent" vouchers exist suggests
+   the Rent ledger those used. Same idea as the "Ask Your Books" engine above, applied to entry instead
+   of query. */
+function suggestLedgerForNarration(text, excludeLedgerIds){
+  const words = (text||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !QA_STOPWORDS.has(w));
+  if(words.length<1) return null;
+  const tally = {}; // ledgerId -> {count, name}
+  for(const v of state.vouchers){
+    if(!v.narration) continue;
+    const vw = v.narration.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2);
+    const overlap = words.filter(w=>vw.includes(w)).length;
+    if(overlap<1) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || (excludeLedgerIds && excludeLedgerIds.includes(l.id))) continue;
+      const b = bucketOf(l);
+      if(b==='cash' || b==='bank') continue; // the settlement side isn't the interesting suggestion
+      tally[l.id] = tally[l.id] || {count:0, name:l.name};
+      tally[l.id].count += overlap;
+    }
+  }
+  let best = null;
+  for(const id in tally){ if(!best || tally[id].count>best.count) best = {ledgerId:id, name:tally[id].name, count:tally[id].count}; }
+  return (best && best.count>=2) ? best : null;
+}
+// Re-renders just the suggestion chip under the narration field, without a full render() — keeps
+// the caret and keyboard focus exactly where the user is typing.
+function updateNarrationSuggestion(){
+  const holder = document.getElementById('vnarrSuggest');
+  if(!holder) return;
+  const usedIds = (vform.mode==='single' ? [vform.single.ledgerA, vform.single.ledgerB] : vform.entries.map(e=>e.ledgerId)).filter(Boolean);
+  const sug = suggestLedgerForNarration(vform.narration, usedIds);
+  if(!sug){ holder.innerHTML = ''; return; }
+  holder.innerHTML = `<span class="narr-suggest-chip" id="narrSuggestChip">💡 Looks like <b>${escapeHtml(sug.name)}</b> — click to add</span>`;
+  document.getElementById('narrSuggestChip')?.addEventListener('click', ()=>{
+    if(vform.mode==='single' && ['Payment','Receipt','Contra'].includes(vform.type)){
+      if(!vform.single.ledgerB) vform.single.ledgerB = sug.ledgerId;
+      else if(!vform.single.ledgerA) vform.single.ledgerA = sug.ledgerId;
+      updateSingleEntryPreview();
+    } else {
+      const empty = vform.entries.find(e=>!e.ledgerId);
+      if(empty) empty.ledgerId = sug.ledgerId;
+      else vform.entries.push({ ledgerId: sug.ledgerId, dr:0, cr:0 });
+    }
+    render();
+  });
+}
+
 function viewVoucher(){
   if(!vform){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
@@ -12042,7 +12415,11 @@ function viewVoucher(){
           <span>${balanced?'Balanced ✓':'Not balanced'}</span>
         </div>`}
 
-        <div class="field" style="margin-top:16px;"><label>Narration</label><input type="text" id="vnarr" placeholder="e.g. Paid office rent for August" value="${escapeAttr(vform.narration)}"></div>
+        <div class="field" style="margin-top:16px;">
+          <label>Narration</label>
+          <input type="text" id="vnarr" placeholder="e.g. Paid office rent for August" value="${escapeAttr(vform.narration)}">
+          <div class="narr-suggest" id="vnarrSuggest"></div>
+        </div>
 
         <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn" id="saveVoucher" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
@@ -16043,8 +16420,15 @@ function attachHandlers(){
         render();
       });
     });
+    document.querySelectorAll('[data-insight-action]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        modal = KPI_MODALS[el.dataset.insightAction] || null;
+        if(modal) render();
+      });
+    });
     renderDashboardCharts();
     wireVizInteractivity();
+    animateDashboardCounters();
   }
 
   if(view==='voucher'){
@@ -16056,7 +16440,8 @@ function attachHandlers(){
       });
     });
     document.getElementById('vdate').addEventListener('input', e=> vform.date = e.target.value);
-    document.getElementById('vnarr').addEventListener('input', e=> vform.narration = e.target.value);
+    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); });
+    updateNarrationSuggestion(); // show a suggestion immediately if editing a voucher that already has a narration
     document.getElementById('vCurrency')?.addEventListener('change', e=>{
       vform.currency = e.target.value;
       vform.fxRate = currencyOf(vform.currency)?.rate || 1;
