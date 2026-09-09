@@ -484,6 +484,65 @@
     .fmt-tbl{grid-template-columns:1fr;}
     .fmt-tbl dt{margin-bottom:1px;} .fmt-tbl dd{margin-top:0;margin-bottom:9px;}
   }
+
+  /* ================= 2026 refresh — same palette/tokens above, just carried further =================
+     Nothing here introduces a new color: every rule below reads from the existing --accent1/--gold/
+     --ink/--border tokens, so the app's identity (green + gold, Inter, the current radii) is unchanged.
+     This section brings shared, app-wide chrome (scrollbars, focus rings, motion, loading/empty states,
+     table stickiness) up to current conventions, and adds a couple of consistency touches (a top accent
+     rail on .panel matching the one .stat already has) — all additive, nothing above is overridden. */
+
+  html{scroll-behavior:smooth;}
+
+  /* Slim, themed scrollbars instead of the OS default — one of the most visible "this feels current"
+     details a SaaS app can have, and free of any layout risk since it's purely cosmetic. */
+  *{scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:999px;border:2px solid var(--bg);background-clip:padding-box;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ink-faint);background-clip:padding-box;}
+
+  /* A visible, on-brand focus ring for keyboard navigation everywhere a mouse-only :hover state
+     already exists — buttons, tabs, cards, pills — so the app is actually usable without a mouse. */
+  button:focus-visible, .navtab:focus-visible, .modern-tab:focus-visible, .btn:focus-visible,
+  .vtype-tabs button:focus-visible, .company-card:focus-visible, .stat[data-open-kpi]:focus-visible,
+  a.linklike:focus-visible, .gateway-list li:focus-visible, .fmt-chip:focus-visible{
+    outline:2px solid var(--accent1);outline-offset:2px;border-radius:var(--radius-sm);
+  }
+  .btn:active:not(:disabled){transform:translateY(0) scale(.97);}
+
+  /* A soft shimmer instead of static gray text while a view is loading — the same information, just
+     reading as "in progress" rather than "stalled". */
+  .loading{position:relative;padding:70px 20px;overflow:hidden;}
+  .loading::before{
+    content:'';display:block;width:120px;height:120px;margin:0 auto 14px;border-radius:50%;
+    background:conic-gradient(var(--accent1) 0deg 90deg, var(--border) 90deg 360deg);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 8px));
+    mask:radial-gradient(farthest-side, transparent calc(100% - 8px), #000 calc(100% - 8px));
+    animation:reckoningSpin 0.9s linear infinite;
+  }
+  @keyframes reckoningSpin{to{transform:rotate(360deg);}}
+
+  /* Empty states read as "nothing here yet" rather than a blank cell — a dashed on-brand frame plus
+     a simple mark, reused everywhere .empty already appears with no template changes needed. */
+  .empty{border:1.5px dashed var(--border-strong);border-radius:var(--radius-sm);margin:6px;background:var(--surface-strong);}
+  .empty::before{content:'';display:block;width:30px;height:30px;margin:0 auto 10px;border-radius:9px;
+    background:var(--surface);border:1.5px solid var(--border-strong);
+  }
+
+  /* Sticky table headers inside a scrolling panel body — lets a long ledger/report stay legible
+     without losing the column labels off the top of the viewport. */
+  .panel-body[style*="padding:0"] table th, .panel-body table th{position:sticky;top:0;z-index:2;}
+
+  /* A touch of glass on the top chrome, current-SaaS style, still riding on the existing surface color. */
+  .menubar{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--surface) 88%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+
+  .toast{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:color-mix(in srgb, var(--ink) 92%, transparent);}
+
+  /* Respect the OS-level "reduce motion" preference — every hover-lift/keyframe above steps aside. */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;scroll-behavior:auto !important;}
+  }
 </style>
 </head>
 <body>
@@ -3910,6 +3969,39 @@ function creditLimitWarningFor(type, entries, editingVoucherId){
   }
   return null;
 }
+// Standard 15-character GSTIN pattern: 2-digit state code, 10-character PAN, 1-digit entity code,
+// literal "Z", 1 checksum character. Used to catch obvious typos in an optional field before they
+// end up baked into e-Invoice/e-Way Bill payloads or printed on an invoice.
+function isValidGSTIN(str){
+  return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test((str||'').toUpperCase());
+}
+// Returns a warning string if saving a Sales/Debit Note voucher with item lines would take any
+// item's stock below zero, else falsy. Mirrors creditLimitWarningFor's shape: a soft warning the
+// user can still push past (via confirm()) rather than a hard block, since backorders/negative
+// stock are sometimes intentional -- but they should never happen silently.
+function stockWarningFor(type, items, editingVoucherId){
+  if(!['Sales','Debit Note'].includes(type) || !Array.isArray(items) || !items.length) return null;
+  const existing = editingVoucherId ? state.vouchers.find(v=>v.id===editingVoucherId) : null;
+  const warnings = [];
+  for(const line of items){
+    if(!line.itemId) continue; // custom/non-inventory line items aren't stock-tracked
+    const item = state.items.find(x=>x.id===line.itemId);
+    if(!item) continue;
+    let closing = stockSummaryForItem(item).closing;
+    if(existing && existing.items){
+      const prevDir = itemVoucherDirection(existing.type);
+      for(const oe of existing.items){
+        if(oe.itemId===line.itemId && prevDir!==0) closing -= prevDir * oe.qty; // undo this voucher's own prior effect first
+      }
+    }
+    const projected = closing - (Number(line.qty)||0);
+    if(projected < 0){
+      warnings.push(`${item.name}: only ${fmt(closing)} in stock, this would take it to ${fmt(projected)}`);
+    }
+  }
+  if(!warnings.length) return null;
+  return warnings.length===1 ? warnings[0] : `${warnings.length} items would go below zero stock:\n${warnings.join('\n')}`;
+}
 
 /* ---------------- bank reconciliation ---------------- */
 // Ledger balance as of a specific date (inclusive) — a cumulative running balance up to that day,
@@ -5925,6 +6017,7 @@ function render(){
     });
     document.getElementById('saveCoEditBtn').addEventListener('click', async ()=>{
       if(!editCoDraft.name.trim()){ toast('Enter a company name'); return; }
+      if(editCoDraft.gstin.trim() && !isValidGSTIN(editCoDraft.gstin)){ toast('That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.'); return; }
       Object.assign(currentCompany, {
         name: editCoDraft.name.trim(),
         directory: editCoDraft.directory.trim(),
@@ -7818,6 +7911,8 @@ function renderGateway(){
     if(isDemoUser){ toast('Demo accounts can\'t create a company — sign up for your own free account to add your own.'); return; }
     const name = document.getElementById('coName').value.trim();
     if(!name){ toast('Enter a company name'); return; }
+    const gstinEntered = document.getElementById('coGSTIN').value.trim();
+    if(gstinEntered && !isValidGSTIN(gstinEntered)){ toast('That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.'); return; }
     const fyStart = document.getElementById('coFY').value || defaultFYStart();
     const directory = document.getElementById('coDirectory').value.trim() || `/ReckoningBooks/Data/${name.replace(/[^a-z0-9]+/gi,'_')}`;
     const company = {
@@ -15536,6 +15631,11 @@ function attachHandlers(){
       const employerPF = Number(document.getElementById('empEmployerPF').value)||0;
       const employerESI = Number(document.getElementById('empEmployerESI').value)||0;
       if(!name){ toast('Enter the employee\'s name'); return; }
+      // Deductions can't exceed gross pay — otherwise net pay goes negative and payroll would end up
+      // crediting the employee's salary ledger for a negative amount (a debit dressed as a credit).
+      const grossPreview = basic+hra+allowances+bonus;
+      const deductionsPreview = pf+esi+pt+tds+otherDeductions;
+      if(deductionsPreview > grossPreview){ toast(`Deductions (₹${fmt(deductionsPreview)}) exceed gross pay (₹${fmt(grossPreview)}) — net pay can't go negative. Adjust the salary structure.`); return; }
       const salary = {basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions, employerPF, employerESI};
       if(d.id){
         const e = state.employees.find(x=>x.id===d.id);
@@ -15825,7 +15925,12 @@ function attachHandlers(){
         const a = (attachmentsCache[attachmentsVoucherId]||[]).find(x=>x.id===el.dataset.viewAttachment);
         if(!a) return;
         const w = window.open('');
-        if(w) w.document.write(a.mimeType.startsWith('image/') ? `<img src="${a.dataUrl}" style="max-width:100%;">` : `<iframe src="${a.dataUrl}" style="width:100%;height:100vh;border:0;"></iframe>`);
+        if(w){
+          w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(a.filename||'Attachment')}</title><meta charset="UTF-8"></head><body style="margin:0;">${a.mimeType.startsWith('image/') ? `<img src="${a.dataUrl}" style="max-width:100%;">` : `<iframe src="${a.dataUrl}" style="width:100%;height:100vh;border:0;"></iframe>`}</body></html>`);
+          w.document.close();
+        } else {
+          toast('Please allow pop-ups to view this attachment.');
+        }
       });
     });
     document.querySelectorAll('[data-delete-attachment]').forEach(el=>{
@@ -16227,6 +16332,8 @@ function attachHandlers(){
       const appliedItems = (vform.appliedItems && vform.appliedItems.length)
         ? (foreignTotal!=null ? vform.appliedItems.map(it=>({...it, rate:r2((Number(it.rate)||0)*fx)})) : vform.appliedItems)
         : null;
+      const stockWarning = stockWarningFor(vform.type, appliedItems, vform.id);
+      if(stockWarning && !confirm(stockWarning + '\n\nSave anyway?')) return;
       let savedVoucherId = vform.id || null;
       if(vform.id){
         const idx = state.vouchers.findIndex(v=>v.id===vform.id);
