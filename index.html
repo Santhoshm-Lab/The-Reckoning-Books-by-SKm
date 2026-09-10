@@ -110,6 +110,8 @@
   .viz-panel .panel-head{gap:10px;}
   .viz-panel .panel-head .viz-sub{font-size:10.5px;color:var(--ink-faint);font-weight:600;}
   .viz-pin-wrap{position:relative;}
+  .viz-pin-wrap .panel{transition:box-shadow .2s ease, transform .2s ease;}
+  .viz-pin-wrap .panel:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);}
   .viz-pin-btn{position:absolute;top:10px;right:14px;z-index:2;width:28px;height:28px;border-radius:8px;
     background:var(--surface);border:1px solid var(--border);font-size:13px;line-height:1;cursor:pointer;
     opacity:.4;filter:grayscale(1);transition:opacity .15s,filter .15s,background .15s,border-color .15s;}
@@ -143,6 +145,58 @@
   #chartTooltip .tt-row{display:flex;justify-content:space-between;gap:14px;align-items:center;}
   #chartTooltip .tt-swatch{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;flex-shrink:0;}
   #chartTooltip .tt-muted{color:rgba(255,255,255,0.65);font-size:10px;margin-top:3px;}
+
+  /* ---------------- Bento layouts, microinteractions, progressive disclosure ("next level" pass) ----------------
+     Reusable building blocks the flagship modules (Dashboard, Voucher, Ledgers) below are built from,
+     so the same look extends to other modules in later passes without re-deriving it. */
+
+  /* An asymmetric "bento box" grid: most tiles are one cell, .bento-hero and .bento-wide claim more
+     room for whichever figure matters most (Dashboard uses this for Net Profit/Loss) instead of every
+     KPI competing for equal visual weight. */
+  .bento-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;grid-auto-flow:dense;}
+  .bento-grid .stat{margin-bottom:0;}
+  .bento-hero{grid-column:span 2;grid-row:span 2;padding:22px 24px 20px;display:flex;flex-direction:column;justify-content:space-between;}
+  .bento-hero .val{font-size:32px;}
+  .bento-hero .stat-spark{margin-top:12px;}
+  .bento-wide{grid-column:span 2;}
+
+  /* Buttonless-leaning banners: the whole row is the control (click anywhere to act on the insight),
+     the button inside is a visible affordance for the same action rather than the only way to fire it. */
+  .insight-banner{cursor:pointer;transition:filter .15s ease, transform .1s ease;}
+  .insight-banner:hover{filter:brightness(0.97);}
+  .insight-banner:active{transform:scale(.998);}
+
+  /* A short "this just refreshed" flash on a stat tile — confirms new figures actually loaded without
+     another toast to read. Re-added and removed via JS so it can replay on demand. */
+  @keyframes statRefreshFlash{0%{box-shadow:0 0 0 0 rgba(44,160,28,0.38);}70%{box-shadow:0 0 0 9px rgba(44,160,28,0);}100%{box-shadow:0 0 0 0 rgba(44,160,28,0);}}
+  .stat.refresh-flash{animation:statRefreshFlash .9s ease-out;}
+
+  /* Voucher totals line: color already flips instantly between balanced/unbalanced; ease the change
+     and pop a small tick in the instant it becomes balanced. */
+  .totals-line{transition:color .25s ease;}
+  .totals-line .balanced-tick{display:inline-block;animation:tickPop .28s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes tickPop{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+  /* Progressive disclosure: a plain <details>/<summary> (native keyboard/screen-reader support for
+     free) styled to match the rest of the form chrome, for tucking rarely-needed fields away until
+     asked for -- Add/Alter Ledger's GST & party-credit terms, Voucher's optional currency/cost center. */
+  .disclosure{border:1px dashed var(--border-strong);border-radius:var(--radius-sm);margin:10px 0 4px;background:var(--surface-strong);}
+  .disclosure > summary{list-style:none;cursor:pointer;padding:10px 14px;font-size:12px;font-weight:700;color:var(--ink-soft);display:flex;align-items:center;gap:7px;user-select:none;}
+  .disclosure > summary::-webkit-details-marker{display:none;}
+  .disclosure > summary::before{content:'▸';display:inline-block;transition:transform .15s ease;font-size:10px;color:var(--ink-faint);}
+  .disclosure[open] > summary::before{transform:rotate(90deg);}
+  .disclosure[open] > summary{border-bottom:1px dashed var(--border-strong);}
+  .disclosure-body{padding:14px 14px 4px;}
+
+  /* Ledger picker <select>s group a "Recently Used" optgroup (per voucher type, from this browser's
+     own history) above the full list -- a light personalization touch, kept visually distinct. */
+  select optgroup{font-style:normal;font-weight:800;font-size:10.5px;color:var(--ink-faint);}
+
+  /* Ledgers tab sidebar rows: a left accent bar plus a touch of lift on hover/selection, echoing
+     .navtab's selected treatment instead of a flat background swap only. */
+  .ledger-row{border-left:3px solid transparent;transition:border-color .15s ease, background .15s ease, transform .1s ease;}
+  .ledger-row:hover{transform:translateX(1px);}
+  .ledger-row.selected{border-left-color:var(--accent1);}
 
   table{width:100%;border-collapse:collapse;font-size:12.5px;}
   th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:800;padding:9px 12px;border-bottom:2px solid var(--border);background:var(--surface-strong);}
@@ -379,9 +433,13 @@
     .navtab{justify-content:center;padding:10px 0;}
     .navtab span{display:none;}
     .grid{grid-template-columns:repeat(3,1fr);}
+    .bento-grid{grid-template-columns:repeat(3,1fr);}
   }
   @media (max-width:760px){
     .grid{grid-template-columns:1fr 1fr;}
+    .bento-grid{grid-template-columns:1fr 1fr;}
+    .bento-hero{grid-column:span 2;grid-row:span 1;}
+    .bento-wide{grid-column:span 2;}
     .main{padding:14px;}
     .entry-row{grid-template-columns:1fr;}
     .row{flex-direction:column;}
@@ -1833,6 +1891,10 @@ let dashCountersAnimated = false; // only count-up the stat tiles once per compa
 let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
 let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
 let pinnedTiles = (function(){ try{ return JSON.parse(localStorage.getItem('rb_pinnedTiles')||'[]'); }catch(e){ return []; } })(); // dashboard viz-card ids pinned to the top "Pinned" section
+// Recently-used-ledger tracking, per voucher type, so ledger <select>s on the Voucher tab can surface
+// a "Recently Used" optgroup above the full list -- see trackLedgerUsage/ledgerSelectOptionsHtml
+// below. Kept in this browser's localStorage only, exactly like pinnedTiles/darkMode above.
+let ledgerUsageHistory = (function(){ try{ return JSON.parse(localStorage.getItem('rb_ledgerUsage')||'{}'); }catch(e){ return {}; } })();
 let gstShowMonthCompare = false; // toggles the "Compare to Last Month" panel on the GST tab
 let activeFY = null; // FY label (e.g. '2025-26') the user has chosen to view for the open company; null = "All Years" (no filter, the original all-time behaviour)
 let vform = null; // active voucher form draft
@@ -2162,6 +2224,33 @@ function currencyNote(v){
 }
 function groupOf(id){ return GROUPS.find(g=>g.id===id); }
 function ledgerOf(id){ return state.ledgers.find(l=>l.id===id); }
+function trackLedgerUsage(voucherType, ledgerId){
+  if(!voucherType || !ledgerId) return;
+  const bucket = ledgerUsageHistory[voucherType] || (ledgerUsageHistory[voucherType] = {});
+  bucket[ledgerId] = (bucket[ledgerId]||0) + 1;
+  try{ localStorage.setItem('rb_ledgerUsage', JSON.stringify(ledgerUsageHistory)); }catch(e){}
+}
+function recentLedgersFor(voucherType, limit){
+  const bucket = voucherType && ledgerUsageHistory[voucherType];
+  if(!bucket) return [];
+  return Object.keys(bucket)
+    .filter(id=>ledgerOf(id))
+    .sort((a,b)=>bucket[b]-bucket[a])
+    .slice(0, limit||5);
+}
+// Builds a ledger <select>'s full <option> markup: a "Recently Used" optgroup (this voucher type's
+// most-picked ledgers on this browser, from ledgerUsageHistory) above the complete list, so a
+// frequently-used Payment/Sales/Purchase ledger is one click away instead of scrolled-to among 40+
+// rows every time -- entryRow() and singleEntryFields() on the Voucher tab both use this.
+function ledgerSelectOptionsHtml(selectedId, voucherType){
+  const recentIds = voucherType ? recentLedgersFor(voucherType, 5) : [];
+  const opt = l => `<option value="${l.id}" ${selectedId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`;
+  const recentHtml = recentIds.length
+    ? `<optgroup label="Recently Used">${recentIds.map(id=>opt(ledgerOf(id))).join('')}</optgroup>`
+    : '';
+  const allHtml = `<optgroup label="${recentIds.length?'All Ledgers':'Ledgers'}">${state.ledgers.map(opt).join('')}</optgroup>`;
+  return recentHtml + allHtml;
+}
 /* Builds <optgroup>-organized <option> markup for the 28 Tally-standard ledger groups,
    separating Primary Groups from Sub-Groups and labeling each sub-group with its parent
    so ledgers like the two "Provisions" groups (one primary, one a sub-group of Current
@@ -3524,7 +3613,18 @@ async function refreshCurrentSession(btnId){
     toast('Could not refresh — check your connection and try again.');
   }finally{
     if(btn){ btn.disabled = false; btn.innerHTML = originalLabel; }
-    if(screen==='app') render(); else renderGateway();
+    if(screen==='app'){
+      // Replay the Dashboard's count-up and a brief "refreshed" flash on each stat tile — a manual
+      // Refresh should visibly confirm something happened, not just silently re-render the same numbers.
+      if(view==='dashboard') dashCountersAnimated = false;
+      render();
+      if(view==='dashboard'){
+        document.querySelectorAll('.stat').forEach(el=>{
+          el.classList.add('refresh-flash');
+          el.addEventListener('animationend', ()=> el.classList.remove('refresh-flash'), {once:true});
+        });
+      }
+    } else renderGateway();
   }
 }
 async function loadState(){
@@ -3621,7 +3721,13 @@ async function enterCompanyApp(company, opts={}){
   // even for the instant before its blocked save() call returns. See isReadOnlyMode().
   readOnlySnapshot = isReadOnlyMode() ? JSON.parse(JSON.stringify(state)) : null;
   activeFY = null;
-  view = 'dashboard';
+  // Resume on whichever tab this browser last left this specific company on, instead of always
+  // landing back on Dashboard -- a light behavioral-personalization touch (see goToTab, which is
+  // what keeps this in sync). Falls back to Dashboard for a first visit or an unrecognized value.
+  let lastTab = null;
+  try{ lastTab = localStorage.getItem('rb_lastTab_'+company.id); }catch(e){}
+  view = (lastTab && Object.values(TAB_SHORTCUTS).includes(lastTab)) ? lastTab : 'dashboard';
+  if(view==='dashboard') dashCountersAnimated = false;
   screen = 'app';
   modal = distinctFYsInVouchers().length > 1 ? 'fyPicker' : null;
   // Offer the first-run tour only when nothing else needs the user's attention first (the FY
@@ -6831,6 +6937,7 @@ function goToTab(id){
   view = id;
   if(view==='reports') reportsSelected = null;
   if(view==='dashboard') dashCountersAnimated = false; // count up again each time you land on the Dashboard
+  if(currentCompany){ try{ localStorage.setItem('rb_lastTab_'+currentCompany.id, id); }catch(e){} }
   render();
   pushHistory();
 }
@@ -11497,6 +11604,33 @@ function dashboardInsightsCard(){
     </div>
   `;
 }
+// A tiny inline trend line for a bento hero tile -- reuses qaMonthlyTrend's own numbers (the same
+// engine "Ask Your Books" answers trend questions from) rather than recomputing anything, so this
+// is guaranteed to agree with what the rest of the app says the trend is.
+function sparklineSvg(values, opts={}){
+  const w = opts.width||128, h = opts.height||30;
+  if(!values || values.length<2) return '';
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max-min) || 1;
+  const stepX = w/(values.length-1);
+  const pts = values.map((v,i)=>[ i*stepX, h - ((v-min)/range)*h ]);
+  const path = pts.map((p,i)=> (i===0?'M':'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areaPath = `${path} L${w},${h} L0,${h} Z`;
+  const last = pts[pts.length-1];
+  const color = opts.color || 'var(--accent1)';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:visible;" aria-hidden="true">
+    <path d="${areaPath}" style="fill:${color};opacity:.14;stroke:none;"></path>
+    <path d="${path}" style="fill:none;stroke:${color};stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"></path>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.6" style="fill:${color};"></circle>
+  </svg>`;
+}
+function dashboardProfitSparkline(){
+  const trend = qaMonthlyTrend(6);
+  if(trend.length<2) return '';
+  const values = trend.map(t=>t.profit);
+  const isUp = values[values.length-1] >= values[0];
+  return `<div class="stat-spark" title="Net profit by month, last ${trend.length} months">${sparklineSvg(values, {color: isUp?'var(--credit)':'var(--debit)'})}</div>`;
+}
 // Counts each Dashboard stat tile up from 0 to its real value on first paint — purely cosmetic
 // (the correct final figure is already in the HTML the moment it's rendered; this just animates the
 // transition), and only runs once per Dashboard visit (see dashCountersAnimated / goToTab).
@@ -11571,20 +11705,26 @@ function viewDashboard(){
   return `
     ${masthead('Dashboard','Overview of the books')}
     ${overdue.length ? `
-    <div style="background:#FBE7E7;border:1px solid var(--debit);color:#7a1f1f;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+    <div class="insight-banner" data-open-kpi="overdue" style="background:#FBE7E7;border:1px solid var(--debit);color:#7a1f1f;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
       <span>⚠ ${overdue.length} invoice${overdue.length===1?'':'s'} overdue, ₹${fmt(overdueTotal)} outstanding past due date</span>
       <button class="btn secondary small" data-open-kpi="overdue" type="button" style="background:#fff;color:#7a1f1f;">View Overdue Invoices</button>
     </div>` : ''}
     ${lowStockCount ? `
-    <div style="background:#FFF4E0;border:1px solid var(--gold,#F2A900);color:#7a4f00;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+    <div class="insight-banner" data-dashboard-goto-inventory style="background:#FFF4E0;border:1px solid var(--gold,#F2A900);color:#7a4f00;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
       <span>📦 ${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level</span>
       <button class="btn secondary small" data-dashboard-goto-inventory type="button" style="background:#fff;color:#7a4f00;">View Reorder Suggestions</button>
     </div>` : ''}
-    <div class="grid">
+    <div class="bento-grid">
+      <div class="stat bento-hero" data-open-kpi="profit">
+        <div>
+          <div class="label">${profit>=0?'Net Profit':'Net Loss'}</div>
+          <div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div>
+        </div>
+        ${dashboardProfitSparkline()}
+      </div>
       <div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>
       <div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>
       <div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>
-      <div class="stat" data-open-kpi="profit"><div class="label">${profit>=0?'Net Profit':'Net Loss'}</div><div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div></div>
       <div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>
     </div>
 
@@ -13067,8 +13207,9 @@ function viewVoucher(){
       <button data-mode="double" type="button" class="${effectiveMode==='double'?'active':''}">Double Entry</button>
     </div>` : ''}
     ${(state.currencies.filter(c=>c.id!=='inr' && c.active).length || state.costCenters.length) ? `
-    <div class="panel" style="margin-bottom:14px;">
-      <div class="panel-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+    <details class="disclosure" id="vMoreOptions" ${(isForeign || vform.costCenterId) ? 'open' : ''}>
+      <summary>More options — Currency${state.costCenters.length?', Cost Center':''}${isForeign||vform.costCenterId?'':' (not set for this voucher)'}</summary>
+      <div class="disclosure-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
         ${state.currencies.filter(c=>c.id!=='inr' && c.active).length ? `
         <div class="field" style="max-width:180px;"><label>Currency</label>
           <select id="vCurrency">
@@ -13087,7 +13228,7 @@ function viewVoucher(){
           </select>
         </div>` : ''}
       </div>
-    </div>` : ''}
+    </details>` : ''}
     ${showGST ? gstCalculator() : ''}
     <div class="panel">
       <div class="panel-body">
@@ -13142,13 +13283,13 @@ function singleEntryFields(){
       <div class="field"><label>${labelA}</label>
         <select id="singleA">
           <option value="">Select ledger…</option>
-          ${state.ledgers.map(l=>`<option value="${l.id}" ${s.ledgerA===l.id?'selected':''}>${l.name}</option>`).join('')}
+          ${ledgerSelectOptionsHtml(s.ledgerA, vform.type)}
         </select>
       </div>
       <div class="field"><label>${labelB}</label>
         <select id="singleB">
           <option value="">Select ledger…</option>
-          ${state.ledgers.map(l=>`<option value="${l.id}" ${s.ledgerB===l.id?'selected':''}>${l.name}</option>`).join('')}
+          ${ledgerSelectOptionsHtml(s.ledgerB, vform.type)}
         </select>
       </div>
     </div>
@@ -13219,10 +13360,10 @@ function entryRow(e,i){
   return `<div class="entry-row" data-idx="${i}">
     <select class="e-ledger" data-i="${i}">
       <option value="">Select ledger…</option>
-      ${state.ledgers.map(l=>`<option value="${l.id}" ${e.ledgerId===l.id?'selected':''}>${l.name}</option>`).join('')}
+      ${ledgerSelectOptionsHtml(e.ledgerId, vform.type)}
     </select>
     <input type="number" class="e-dr" data-i="${i}" placeholder="Debit" value="${e.dr||''}" min="0" step="0.01">
-    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit" value="${e.cr||''}" min="0" step="0.01">
+    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit" value="${e.cr||''}" min="0" step="0.01" title="Press Enter here to add another row">
     <button class="rm" data-rm="${i}" title="Remove row">✕</button>
   </div>`;
 }
@@ -13269,6 +13410,7 @@ function alterLedgerModal(){
   if(editing && !l){ return ''; }
   const openingAbs = l ? Math.abs(l.opening||0) : 0;
   const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
+  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.creditLimit!=null || l.creditDays!=null || l.gstin));
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:560px;">
@@ -13286,34 +13428,39 @@ function alterLedgerModal(){
             <div class="field" style="max-width:120px;"><label>Type</label>
               <select id="alterLedgerType"><option value="1" ${openingSign===1?'selected':''}>Dr</option><option value="-1" ${openingSign===-1?'selected':''}>Cr</option></select>
             </div>
-            <div class="field" style="max-width:140px;"><label>GST Rate</label>
-              <select id="alterLedgerGST">
-                <option value="" ${l&&l.gstRate==null?'selected':''}>— None —</option>
-                ${[0,5,12,18,28].map(r=>`<option value="${r}" ${l&&l.gstRate===r?'selected':''}>${r}%</option>`).join('')}
-              </select>
-            </div>
           </div>
-          <div class="row">
-            <div class="field" style="max-width:220px;"><label>MSME Supplier?</label>
-              <select id="alterLedgerMSME">
-                <option value="0" ${!l||!l.isMSME?'selected':''}>No / Not applicable</option>
-                <option value="1" ${l&&l.isMSME?'selected':''}>Yes — Micro/Small/Medium Enterprise</option>
-              </select>
+          <details class="disclosure" ${hasAdvanced?'open':''}>
+            <summary>Advanced options — GST rate, MSME, party &amp; credit terms, GSTIN</summary>
+            <div class="disclosure-body">
+              <div class="row">
+                <div class="field" style="max-width:140px;"><label>GST Rate</label>
+                  <select id="alterLedgerGST">
+                    <option value="" ${l&&l.gstRate==null?'selected':''}>— None —</option>
+                    ${[0,5,12,18,28].map(r=>`<option value="${r}" ${l&&l.gstRate===r?'selected':''}>${r}%</option>`).join('')}
+                  </select>
+                </div>
+                <div class="field" style="max-width:220px;"><label>MSME Supplier?</label>
+                  <select id="alterLedgerMSME">
+                    <option value="0" ${!l||!l.isMSME?'selected':''}>No / Not applicable</option>
+                    <option value="1" ${l&&l.isMSME?'selected':''}>Yes — Micro/Small/Medium Enterprise</option>
+                  </select>
+                </div>
+                <div class="field" style="max-width:180px;"><label>Party Type</label>
+                  <select id="alterLedgerPartyType">
+                    <option value="" ${!l||!l.partyType?'selected':''}>— Not a party —</option>
+                    <option value="customer" ${l&&l.partyType==='customer'?'selected':''}>Customer</option>
+                    <option value="supplier" ${l&&l.partyType==='supplier'?'selected':''}>Supplier</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="alterLedgerCreditLimit" value="${l&&l.creditLimit!=null?l.creditLimit:''}" step="0.01" placeholder="e.g. 100000"></div>
+                <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
+                <div class="field"><label>GSTIN (optional, for parties)</label><input type="text" id="alterLedgerGSTIN" value="${escapeAttr(l&&l.gstin?l.gstin:'')}" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
+              </div>
             </div>
-            <div class="field" style="max-width:180px;"><label>Party Type</label>
-              <select id="alterLedgerPartyType">
-                <option value="" ${!l||!l.partyType?'selected':''}>— Not a party —</option>
-                <option value="customer" ${l&&l.partyType==='customer'?'selected':''}>Customer</option>
-                <option value="supplier" ${l&&l.partyType==='supplier'?'selected':''}>Supplier</option>
-              </select>
-            </div>
-          </div>
-          <div class="row">
-            <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="alterLedgerCreditLimit" value="${l&&l.creditLimit!=null?l.creditLimit:''}" step="0.01" placeholder="e.g. 100000"></div>
-            <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
-            <div class="field"><label>GSTIN (optional, for parties)</label><input type="text" id="alterLedgerGSTIN" value="${escapeAttr(l&&l.gstin?l.gstin:'')}" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
-          </div>
-          <button class="btn" id="alterLedgerSubmit" type="button" style="margin-top:6px;">${editing?'Save Changes':'Add Ledger'}</button>
+          </details>
+          <button class="btn" id="alterLedgerSubmit" type="button" style="margin-top:12px;">${editing?'Save Changes':'Add Ledger'}</button>
         </div>
       </div>
     </div>
@@ -14122,7 +14269,7 @@ function viewLedgers(){
           <div class="panel-body" style="padding:0 6px 6px;">
             ${visible.map(l=>{
               const b = ledgerBalance(l.id);
-              return `<div class="linklike" data-select-ledger="${l.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:3px;${sel===l.id?'background:var(--paper);':''}text-decoration:none;cursor:pointer;">
+              return `<div class="linklike ledger-row ${sel===l.id?'selected':''}" data-select-ledger="${l.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px 9px 8px;border-radius:3px;${sel===l.id?'background:var(--surface-strong);':''}text-decoration:none;cursor:pointer;">
                 <span>
                   <div>${l.name}</div>
                   <div class="muted" style="font-size:10.5px;">${groupOf(l.group)?groupOf(l.group).name:l.group}</div>
@@ -14314,35 +14461,44 @@ function viewCOA(){
           <div class="field" style="max-width:120px;"><label>Type</label>
             <select id="newLedgerType"><option value="1">Dr</option><option value="-1">Cr</option></select>
           </div>
-          <div class="field" style="max-width:140px;"><label>GST Rate</label>
-            <select id="newLedgerGST">
-              <option value="">— None —</option>
-              <option value="0">0%</option>
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18">18%</option>
-              <option value="28">28%</option>
-            </select>
-          </div>
-          <div class="field" style="max-width:220px;"><label>MSME Supplier?</label>
-            <select id="newLedgerMSME">
-              <option value="0">No / Not applicable</option>
-              <option value="1">Yes — Micro/Small/Medium Enterprise</option>
-            </select>
-          </div>
-          <div class="field" style="max-width:180px;"><label>Party Type</label>
-            <select id="newLedgerPartyType">
-              <option value="">— Not a party —</option>
-              <option value="customer">Customer</option>
-              <option value="supplier">Supplier</option>
-            </select>
-          </div>
-          <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="newLedgerCreditLimit" step="0.01" placeholder="e.g. 100000"></div>
-          <div class="field" style="max-width:160px;"><label>Credit Period, days (optional)</label><input type="number" id="newLedgerCreditDays" step="1" placeholder="e.g. 30"></div>
-          <div class="field" style="max-width:200px;"><label>GSTIN (optional, for parties)</label><input type="text" id="newLedgerGSTIN" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
         </div>
-        <p class="muted" style="font-size:11px;margin:6px 0 0;">MSME Supplier only matters for Current Liabilities ledgers — it drives the MSME/Others split under Trade Payables on the Schedule III Balance Sheet. Party Type feeds the AR/AP Ageing under the Parties tab. Credit Limit warns (but doesn't block) a Sales voucher that would push a customer over it; Credit Period sets how many days after the invoice date it's treated as overdue.</p>
-        <button class="btn" id="addLedgerBtn">Add Ledger</button>
+        <details class="disclosure">
+          <summary>Advanced options — GST rate, MSME, party &amp; credit terms, GSTIN</summary>
+          <div class="disclosure-body">
+            <div class="row">
+              <div class="field" style="max-width:140px;"><label>GST Rate</label>
+                <select id="newLedgerGST">
+                  <option value="">— None —</option>
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="12">12%</option>
+                  <option value="18">18%</option>
+                  <option value="28">28%</option>
+                </select>
+              </div>
+              <div class="field" style="max-width:220px;"><label>MSME Supplier?</label>
+                <select id="newLedgerMSME">
+                  <option value="0">No / Not applicable</option>
+                  <option value="1">Yes — Micro/Small/Medium Enterprise</option>
+                </select>
+              </div>
+              <div class="field" style="max-width:180px;"><label>Party Type</label>
+                <select id="newLedgerPartyType">
+                  <option value="">— Not a party —</option>
+                  <option value="customer">Customer</option>
+                  <option value="supplier">Supplier</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="newLedgerCreditLimit" step="0.01" placeholder="e.g. 100000"></div>
+              <div class="field" style="max-width:160px;"><label>Credit Period, days (optional)</label><input type="number" id="newLedgerCreditDays" step="1" placeholder="e.g. 30"></div>
+              <div class="field" style="max-width:200px;"><label>GSTIN (optional, for parties)</label><input type="text" id="newLedgerGSTIN" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
+            </div>
+            <p class="muted" style="font-size:11px;margin:6px 0 0;">MSME Supplier only matters for Current Liabilities ledgers — it drives the MSME/Others split under Trade Payables on the Schedule III Balance Sheet. Party Type feeds the AR/AP Ageing under the Parties tab. Credit Limit warns (but doesn't block) a Sales voucher that would push a customer over it; Credit Period sets how many days after the invoice date it's treated as overdue.</p>
+          </div>
+        </details>
+        <button class="btn" id="addLedgerBtn" style="margin-top:12px;">Add Ledger</button>
       </div>
     </div>
     ${bulkActionBar('ledger', bulkLedgerSelection.size, [
@@ -17781,6 +17937,20 @@ function attachHandlers(){
         renderTotalsOnly();
       });
     });
+    // Buttonless entry-adding: pressing Enter in the LAST row's Debit or Credit field adds a new
+    // row and focuses its ledger picker, the same intent "+ Add row" serves -- so a fast typist
+    // never has to reach for the mouse mid-voucher.
+    document.querySelectorAll('.e-dr, .e-cr').forEach(inp=>{
+      inp.addEventListener('keydown', e=>{
+        if(e.key!=='Enter') return;
+        e.preventDefault();
+        const i = +inp.dataset.i;
+        if(i !== vform.entries.length-1) return;
+        vform.entries.push({ledgerId:'',dr:0,cr:0});
+        render();
+        document.querySelector(`.e-ledger[data-i="${vform.entries.length-1}"]`)?.focus();
+      });
+    });
     document.querySelectorAll('[data-rm]').forEach(b=>{
       b.addEventListener('click', e=>{
         const i = +e.target.dataset.rm;
@@ -18024,6 +18194,9 @@ function attachHandlers(){
         });
         await saveTaxDeductions();
       }
+      // A voucher actually saved -- remember which ledgers were used for this voucher type, so its
+      // "Recently Used" optgroup (see ledgerSelectOptionsHtml) gets sharper the more the app is used.
+      entries.forEach(e=> trackLedgerUsage(vform.type, e.ledgerId));
       vform = null;
       view = 'daybook';
       render();
@@ -18829,8 +19002,14 @@ function renderTotalsOnly(){
   const balanced = Math.abs(dr-cr) < 0.005 && dr > 0;
   const el = document.querySelector('.totals-line');
   if(el){
+    // Only pop the little tick the instant it FLIPS to balanced (tracked via a data attribute on
+    // the element itself) -- not on every keystroke while it's already balanced, which would just
+    // be visual noise.
+    const justBalanced = balanced && el.dataset.wasBalanced !== '1';
+    el.dataset.wasBalanced = balanced ? '1' : '0';
     el.className = 'totals-line ' + (balanced?'balanced':'unbalanced');
-    el.innerHTML = `<span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span><span>${balanced?'Balanced ✓':'Not balanced'}</span>`;
+    const balancedLabel = balanced ? `${justBalanced?'<span class="balanced-tick">✓</span>':'✓'} Balanced` : 'Not balanced';
+    el.innerHTML = `<span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span><span>${balancedLabel}</span>`;
   }
   const saveBtn = document.getElementById('saveVoucher');
   if(saveBtn) saveBtn.disabled = !balanced || isReadOnlyMode();
