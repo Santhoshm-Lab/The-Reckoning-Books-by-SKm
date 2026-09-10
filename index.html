@@ -735,6 +735,111 @@
   .empty-state-title{font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:6px;}
   .empty-state-text{font-size:12.5px;color:var(--ink-faint);max-width:380px;margin:0 auto;line-height:1.55;}
   .empty-state-cta{margin-top:16px;}
+
+  /* ================= Landing + Gateway — advanced UI/UX pass =================
+     Aurora-drift backgrounds, a sticky glass nav, floating fact chips, scroll-reveal,
+     a bento feature grid and a dark-mode fix for the Gateway's rb-bg — all built on the
+     existing tokens above; the global prefers-reduced-motion rule already covers every
+     animation added here, so nothing below needs its own reduced-motion override. */
+
+  /* ---- Aurora gradient-blob backgrounds: soft, slow drifting orbs behind hero content ---- */
+  .aurora-orb{position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none;opacity:.55;}
+  @keyframes auroraDrift1{0%{transform:translate(0,0) scale(1);}50%{transform:translate(30px,-24px) scale(1.08);}100%{transform:translate(0,0) scale(1);}}
+  @keyframes auroraDrift2{0%{transform:translate(0,0) scale(1);}50%{transform:translate(-26px,22px) scale(1.05);}100%{transform:translate(0,0) scale(1);}}
+
+  /* ---- Sticky glassmorphic nav: sits directly above the dark hero (now a sibling of it, not a
+     child, so it can stick past the hero's own height) — its resting background matches the
+     hero's own top-left gradient corner so the two read as one continuous dark surface, then
+     condenses to a blurred glass bar once real content has scrolled underneath it. ---- */
+  .landing-nav.sticky-nav{position:sticky;top:0;z-index:50;background:linear-gradient(160deg,#0F2A17 0%,#123B1C 100%);transition:background .25s ease,box-shadow .25s ease,padding .25s ease;}
+  .landing-nav.sticky-nav.scrolled{background:rgba(15,42,23,0.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 24px rgba(0,0,0,0.22);padding-top:12px;padding-bottom:12px;}
+
+  /* ---- Floating glass "fact chip" badges near the hero illustration ---- */
+  .landing-fact-chip{position:absolute;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.24);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-radius:14px;padding:9px 14px;font-size:11.5px;font-weight:700;color:#fff;box-shadow:0 14px 30px rgba(0,0,0,0.22);
+    z-index:3;pointer-events:none;white-space:nowrap;}
+  .landing-fact-chip .fc-icon{width:20px;height:20px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#FFD584,#2CA01C);font-size:11px;flex-shrink:0;color:#12210f;}
+  .landing-fact-chip-1{top:4%;right:0;animation:floatChip 5.5s ease-in-out infinite;}
+  .landing-fact-chip-2{bottom:8%;left:-2%;animation:floatChip 6.5s ease-in-out infinite .8s;}
+  @keyframes floatChip{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+  @media (max-width:900px){ .landing-fact-chip{display:none;} }
+
+  /* ---- Scroll-reveal: sections fade/rise into place as they enter the viewport; JS toggles
+     .in-view via IntersectionObserver (wireScrollReveal()), with an immediate-class fallback
+     when unsupported, so content is never stuck invisible. ---- */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .65s ease,transform .65s ease;}
+  .reveal.in-view{opacity:1;transform:none;}
+  .reveal-stagger > *{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease;}
+  .reveal-stagger.in-view > *{opacity:1;transform:none;}
+  .reveal-stagger.in-view > *:nth-child(1){transition-delay:.03s;}
+  .reveal-stagger.in-view > *:nth-child(2){transition-delay:.09s;}
+  .reveal-stagger.in-view > *:nth-child(3){transition-delay:.15s;}
+  .reveal-stagger.in-view > *:nth-child(4){transition-delay:.21s;}
+  .reveal-stagger.in-view > *:nth-child(5){transition-delay:.27s;}
+  .reveal-stagger.in-view > *:nth-child(6){transition-delay:.33s;}
+  .reveal-stagger.in-view > *:nth-child(7){transition-delay:.39s;}
+  .reveal-stagger.in-view > *:nth-child(8){transition-delay:.45s;}
+
+  /* ---- Floating metrics band: activates the previously-unused .landing-stat-strip, overlapping
+     the hero's bottom edge like a modern SaaS "proof strip". Every number is a real, verifiable
+     count already true of the product (voucher types, ledger groups, feature modules, report
+     types) — never an invented usage or customer statistic. ---- */
+  .landing-metrics-band{max-width:1100px;margin:-46px auto 0;padding:0 28px;position:relative;z-index:4;}
+  .landing-metrics-band .landing-stat-strip{background:var(--surface);border:1px solid var(--border);border-radius:18px;
+    padding:22px 10px;box-shadow:0 22px 50px rgba(15,30,20,0.16);}
+  .landing-metrics-band .landing-stat{background:transparent;border:none;border-right:1px solid var(--border);border-radius:0;}
+  .landing-metrics-band .landing-stat:last-child{border-right:none;}
+  .landing-metrics-band .landing-stat .n{font-size:26px;}
+
+  /* ---- Bento variant of the feature grid: the first card spans 2x2, echoing the app's own
+     bento tiles rather than inventing a new visual pattern for the marketing page. ---- */
+  .landing-feature-grid.bento{grid-auto-flow:dense;}
+  .landing-feature-grid.bento .landing-feature-card:first-child{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;justify-content:center;}
+  .landing-feature-grid.bento .landing-feature-card:first-child .landing-feature-icon{width:48px;height:48px;}
+  .landing-feature-grid.bento .landing-feature-card:first-child .landing-feature-icon svg{width:26px;height:26px;}
+  .landing-feature-grid.bento .landing-feature-card:first-child h3{font-size:16.5px;}
+  .landing-feature-grid.bento .landing-feature-card:first-child p{font-size:12.8px;}
+  @media (max-width:900px){
+    .landing-feature-grid.bento .landing-feature-card:first-child{grid-column:span 2;grid-row:span 1;}
+  }
+  @media (max-width:560px){
+    .landing-feature-grid.bento .landing-feature-card:first-child{grid-column:span 1;}
+    .landing-metrics-band{margin-top:-28px;padding:0 18px;}
+    .landing-metrics-band .landing-stat-strip{grid-template-columns:1fr 1fr;padding:16px 8px;}
+    .landing-metrics-band .landing-stat{border-right:none;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:8px;}
+  }
+
+  /* ---- CTA banner aurora accents ---- */
+  .landing-cta-banner{position:relative;overflow:hidden;}
+  .landing-cta-banner .aurora-orb{opacity:.35;}
+  .landing-cta-banner-inner{position:relative;z-index:2;}
+
+  /* ---- Gateway (.rb-bg) dark-mode fix: the light-only radial gradient defined earlier has no
+     dark counterpart, so a dark-mode visit still showed the light-mode background — this repoints
+     it to the same dark surface tokens the rest of the app already uses on this theme, and softens
+     the giant R/B monogram letters so they don't glow too brightly against a dark ground. ---- */
+  [data-theme="dark"] .rb-bg{
+    background:
+      radial-gradient(60% 50% at 6% 0%, rgba(51,181,33,0.10) 0%, transparent 62%),
+      radial-gradient(55% 55% at 100% 100%, rgba(242,164,79,0.08) 0%, transparent 62%),
+      linear-gradient(180deg, var(--bg) 0%, #0D1315 100%);
+  }
+  [data-theme="dark"] .rb-letter-r,[data-theme="dark"] .rb-letter-b{opacity:.5;}
+
+  /* ---- Gateway hero: aurora orbs drifting behind the green banner, echoing the Landing hero ---- */
+  .gw-hero{isolation:isolate;}
+  .gw-hero .aurora-orb{position:absolute;z-index:0;}
+  .gw-hero-aurora-1{width:220px;height:220px;top:-90px;right:8%;background:radial-gradient(circle,rgba(255,222,158,0.5),transparent 70%);animation:auroraDrift1 9s ease-in-out infinite;}
+  .gw-hero-aurora-2{width:180px;height:180px;bottom:-100px;left:6%;background:radial-gradient(circle,rgba(255,255,255,0.16),transparent 70%);animation:auroraDrift2 11s ease-in-out infinite;}
+  .gw-hero-inner{position:relative;z-index:1;}
+  .gw-chip{transition:transform .18s ease,background .18s ease;}
+  .gw-chip:hover{transform:translateY(-2px);background:rgba(255,255,255,0.19);}
+
+  /* ---- Company cards: staggered entrance on first paint (animation-delay set per-card inline) ---- */
+  @keyframes cardEnter{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  .company-card{animation:cardEnter .45s ease backwards;}
 </style>
 </head>
 <body>
@@ -1891,6 +1996,11 @@ let view = 'dashboard';
 // ---- Advanced UI/UX state: dashboard counter animation (darkMode is declared
 // near the top of the script, right after firebase.initializeApp, so it can be applied pre-paint) ----
 let dashCountersAnimated = false; // only count-up the stat tiles once per company session, not on every render
+// ---- Landing / Gateway UI/UX state: track the single active scroll listener + reveal observer
+// so a repeat render (rare, but possible if the user's auth state flips while on these pages)
+// replaces them instead of stacking duplicates on `window`.
+let landingScrollHandler = null;
+let landingRevealObserver = null;
 let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
 let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
 let pinnedTiles = (function(){ try{ return JSON.parse(localStorage.getItem('rb_pinnedTiles')||'[]'); }catch(e){ return []; } })(); // dashboard viz-card ids pinned to the top "Pinned" section
@@ -7857,20 +7967,22 @@ function renderLanding(){
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="landing-page">
-      <div class="landing-hero">
-        <div class="landing-hero-glow"></div>
-        <div class="landing-nav">
-          <div class="landing-nav-brand"><img src="data:image/png;base64,${LOGO_ICON_B64}" alt="The Reckoning Books"> The Reckoning Books</div>
-          <div class="landing-nav-actions">
-            <button class="btn secondary small" id="landingTryDemoBtn" type="button">Try Demo</button>
-            <button class="btn secondary small" id="landingLoginBtn" type="button">Log In</button>
-            <button class="btn small" id="landingSignupBtn" type="button">Create Account</button>
-            <div class="landing-install-wrap nav" id="landingInstallWrapNav">
-              <button class="btn secondary small" id="landingInstallBtnNav" type="button">⭳ Install The Reckoning Books</button>
-              <div class="landing-install-menu" id="landingInstallMenuNav" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
-            </div>
+      <div class="landing-nav sticky-nav" id="landingNav">
+        <div class="landing-nav-brand"><img src="data:image/png;base64,${LOGO_ICON_B64}" alt="The Reckoning Books"> The Reckoning Books</div>
+        <div class="landing-nav-actions">
+          <button class="btn secondary small" id="landingTryDemoBtn" type="button">Try Demo</button>
+          <button class="btn secondary small" id="landingLoginBtn" type="button">Log In</button>
+          <button class="btn small" id="landingSignupBtn" type="button">Create Account</button>
+          <div class="landing-install-wrap nav" id="landingInstallWrapNav">
+            <button class="btn secondary small" id="landingInstallBtnNav" type="button">⭳ Install The Reckoning Books</button>
+            <div class="landing-install-menu" id="landingInstallMenuNav" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
           </div>
         </div>
+      </div>
+      <div class="landing-hero">
+        <div class="landing-hero-glow"></div>
+        <div class="aurora-orb" style="width:340px;height:340px;top:-140px;left:36%;background:radial-gradient(circle,rgba(46,125,50,0.55),transparent 70%);animation:auroraDrift1 12s ease-in-out infinite;"></div>
+        <div class="aurora-orb" style="width:260px;height:260px;bottom:-130px;right:4%;background:radial-gradient(circle,rgba(242,169,0,0.32),transparent 70%);animation:auroraDrift2 14s ease-in-out infinite;"></div>
         <div class="landing-hero-inner">
           <div>
             <div class="landing-badge">★ Real double-entry accounting</div>
@@ -7887,11 +7999,24 @@ function renderLanding(){
             </div>
             <div class="landing-hero-note">Free to start · No credit card · Or explore the Sk Enterprises demo company first, no sign-up needed</div>
           </div>
-          <div class="landing-hero-art">${svgLedgerHero()}</div>
+          <div class="landing-hero-art">
+            ${svgLedgerHero()}
+            <div class="landing-fact-chip landing-fact-chip-1"><span class="fc-icon">✓</span> Debits = Credits, every time</div>
+            <div class="landing-fact-chip landing-fact-chip-2"><span class="fc-icon">⟳</span> ${VOUCHER_TYPES.length} voucher types, fully built</div>
+          </div>
         </div>
       </div>
 
-      <div class="landing-section landing-intro">
+      <div class="landing-metrics-band reveal">
+        <div class="landing-stat-strip">
+          <div class="landing-stat"><div class="n" data-count="${VOUCHER_TYPES.length}">0</div><div class="l">Voucher Types</div></div>
+          <div class="landing-stat"><div class="n" data-count="${GROUPS.length}">0</div><div class="l">Ledger Groups, Tally-style</div></div>
+          <div class="landing-stat"><div class="n" data-count="${LANDING_FEATURES.length}">0</div><div class="l">Core Modules</div></div>
+          <div class="landing-stat"><div class="n" data-count="9">0</div><div class="l">Report Types</div></div>
+        </div>
+      </div>
+
+      <div class="landing-section landing-intro reveal">
         <h2>Why The Reckoning Books exists</h2>
         <p class="landing-section-sub">Not a stripped-down expense tracker, and not a spreadsheet wearing an accounting hat — the real thing, built for people who take their books seriously.</p>
         <div class="landing-intro-grid">
@@ -7901,9 +8026,9 @@ function renderLanding(){
       </div>
 
       <div class="landing-section" style="padding-top:8px;">
-        <h2>Everything real bookkeeping needs</h2>
-        <p class="landing-section-sub">Every module below is fully built and working today — this isn't a roadmap.</p>
-        <div class="landing-feature-grid">
+        <h2 class="reveal">Everything real bookkeeping needs</h2>
+        <p class="landing-section-sub reveal">Every module below is fully built and working today — this isn't a roadmap.</p>
+        <div class="landing-feature-grid bento reveal-stagger">
           ${LANDING_FEATURES.map(f=>`
           <div class="landing-feature-card">
             <div class="landing-feature-icon">${landingFeatureIcon(f.icon)}</div>
@@ -7914,7 +8039,7 @@ function renderLanding(){
       </div>
 
       <div class="landing-visual-band">
-        <div class="landing-visual-inner">
+        <div class="landing-visual-inner reveal">
           ${svgLedgerHero()}
           <div class="landing-visual-copy">
             <h2>Every entry, exactly where it belongs</h2>
@@ -7929,10 +8054,14 @@ function renderLanding(){
         </div>
       </div>
 
-      <div class="landing-cta-banner">
-        <h2>Ready to keep proper books?</h2>
-        <p>Create your free account in a couple of minutes — no credit card required.</p>
-        <button class="btn" id="landingCtaBtn" type="button">Create Your Free Account →</button>
+      <div class="landing-cta-banner reveal">
+        <div class="aurora-orb" style="width:260px;height:260px;top:-100px;left:8%;background:radial-gradient(circle,#FFD584,transparent 70%);animation:auroraDrift1 10s ease-in-out infinite;"></div>
+        <div class="aurora-orb" style="width:220px;height:220px;bottom:-110px;right:10%;background:radial-gradient(circle,rgba(255,255,255,0.5),transparent 70%);animation:auroraDrift2 13s ease-in-out infinite;"></div>
+        <div class="landing-cta-banner-inner">
+          <h2>Ready to keep proper books?</h2>
+          <p>Create your free account in a couple of minutes — no credit card required.</p>
+          <button class="btn" id="landingCtaBtn" type="button">Create Your Free Account →</button>
+        </div>
       </div>
 
       <div class="landing-footer">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
@@ -7955,6 +8084,9 @@ function renderLanding(){
   document.getElementById('landingHeroTryDemoBtn')?.addEventListener('click', demoLogin);
   wireInstallButton('landingInstallWrapNav', 'landingInstallBtnNav', 'landingInstallMenuNav');
   wireInstallButton('landingInstallWrapHero', 'landingInstallBtnHero', 'landingInstallMenuHero');
+  wireLandingNavScroll('#landingNav');
+  wireScrollReveal('.landing-page');
+  animateCountUpsIn(document.querySelector('.landing-metrics-band'));
 }
 
 /* ---------------- Login — welcome screen shown before Company Info ---------------- */
@@ -8684,6 +8816,8 @@ function renderGateway(){
       const greeting = hour<12 ? 'Good morning' : hour<17 ? 'Good afternoon' : 'Good evening';
       return `
       <div class="gw-hero">
+        <div class="aurora-orb gw-hero-aurora-1"></div>
+        <div class="aurora-orb gw-hero-aurora-2"></div>
         <div class="gw-hero-inner">
           <div>
             <div class="gw-hero-eyebrow">${escapeHtml(greeting)}</div>
@@ -8691,9 +8825,9 @@ function renderGateway(){
             <div class="gw-hero-sub">Select a company below to pick up where you left off, or create a new one to get started.</div>
           </div>
           <div class="gw-hero-chips">
-            <div class="gw-chip"><div class="gw-chip-val">${myCompanies.length}</div><div class="gw-chip-lbl">Compan${myCompanies.length===1?'y':'ies'}</div></div>
-            <div class="gw-chip"><div class="gw-chip-val">${totalLedgers}</div><div class="gw-chip-lbl">Ledgers</div></div>
-            <div class="gw-chip"><div class="gw-chip-val">${totalVouchers}</div><div class="gw-chip-lbl">Vouchers</div></div>
+            <div class="gw-chip"><div class="gw-chip-val" data-count="${myCompanies.length}">0</div><div class="gw-chip-lbl">Compan${myCompanies.length===1?'y':'ies'}</div></div>
+            <div class="gw-chip"><div class="gw-chip-val" data-count="${totalLedgers}">0</div><div class="gw-chip-lbl">Ledgers</div></div>
+            <div class="gw-chip"><div class="gw-chip-val" data-count="${totalVouchers}">0</div><div class="gw-chip-lbl">Vouchers</div></div>
           </div>
         </div>
       </div>
@@ -8706,7 +8840,7 @@ function renderGateway(){
           const initials = (c.name||'?').trim().slice(0,2).toUpperCase();
           const palette = ['linear-gradient(135deg,#2CA01C,#1E7A12)','linear-gradient(135deg,#F2994A,#C9701A)','linear-gradient(135deg,#4A90D9,#2563AD)','linear-gradient(135deg,#B15CDE,#7B3FA0)','linear-gradient(135deg,#E0546B,#B23350)','linear-gradient(135deg,#2FB6A6,#1D8377)'];
           const bg = palette[Math.abs((c.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
-          return `<div class="company-card" data-select-co="${c.id}">
+          return `<div class="company-card" data-select-co="${c.id}" style="animation-delay:${Math.min(i,10)*45}ms;">
             <div class="company-card-top">
               <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
               <span class="company-card-arrow">→</span>
@@ -8743,6 +8877,7 @@ function renderGateway(){
       </div>
     </div>
   `;
+  animateCountUpsIn(document.querySelector('.gw-hero-chips'));
   document.querySelectorAll('[data-select-co]').forEach(el=>{
     el.addEventListener('click', async (e)=>{
       const id = el.dataset.selectCo;
@@ -11641,6 +11776,67 @@ function dashboardProfitSparkline(){
   const values = trend.map(t=>t.profit);
   const isUp = values[values.length-1] >= values[0];
   return `<div class="stat-spark" title="Net profit by month, last ${trend.length} months">${sparklineSvg(values, {color: isUp?'var(--credit)':'var(--debit)'})}</div>`;
+}
+// ---- Shared count-up helper for the Landing metrics band + Gateway hero chips: same easing/
+// duration idea as animateDashboardCounters() below, generalized to run against any container
+// (rather than the Dashboard-only `.stat .val[data-count]` selector) and with no "only once per
+// session" guard, since Landing/Gateway are re-rendered far less often than the Dashboard is.
+function animateCountUpsIn(root){
+  if(!root) return;
+  let reduceMotion = false;
+  try{ reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  root.querySelectorAll('[data-count]').forEach(el=>{
+    const target = Number(el.dataset.count)||0;
+    const prefix = el.dataset.prefix||'';
+    if(reduceMotion){ el.textContent = prefix ? `${prefix}${fmt(target)}` : String(target); return; }
+    const duration = 650;
+    const start = performance.now();
+    function frame(now){
+      const t = Math.min(1, (now-start)/duration);
+      const eased = 1-Math.pow(1-t,3);
+      const val = target*eased;
+      el.textContent = prefix ? `${prefix}${fmt(val)}` : String(Math.round(val));
+      if(t<1) requestAnimationFrame(frame);
+      else el.textContent = prefix ? `${prefix}${fmt(target)}` : String(target);
+    }
+    requestAnimationFrame(frame);
+  });
+}
+// ---- Sticky landing nav: toggles a `.scrolled` class (blur/background/shadow) once the page has
+// scrolled a few pixels, so the nav reads as transparent-over-the-hero at rest and as a normal
+// app bar once content starts passing beneath it. Removes any previous listener first so
+// re-rendering the Landing page (e.g. after a theme toggle) never stacks duplicate listeners.
+function wireLandingNavScroll(navSelector){
+  if(landingScrollHandler){ window.removeEventListener('scroll', landingScrollHandler); landingScrollHandler = null; }
+  const nav = document.querySelector(navSelector);
+  if(!nav) return;
+  const onScroll = ()=>{ nav.classList.toggle('scrolled', window.scrollY > 12); };
+  landingScrollHandler = onScroll;
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+}
+// ---- Scroll-reveal: adds `.in-view` to every `.reveal`/`.reveal-stagger` element inside `root`
+// the first time it enters the viewport, via IntersectionObserver. Falls back to revealing
+// everything immediately when IntersectionObserver isn't available, so content is never stuck
+// invisible; prefers-reduced-motion is already handled globally (the transition just becomes
+// instant), so no special-casing is needed here.
+function wireScrollReveal(rootSelector){
+  if(landingRevealObserver){ landingRevealObserver.disconnect(); landingRevealObserver = null; }
+  const root = document.querySelector(rootSelector);
+  if(!root) return;
+  const els = root.querySelectorAll('.reveal, .reveal-stagger');
+  if(!els.length) return;
+  if(typeof IntersectionObserver === 'undefined'){
+    els.forEach(el=>el.classList.add('in-view'));
+    return;
+  }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){ entry.target.classList.add('in-view'); io.unobserve(entry.target); }
+    });
+  }, {threshold:0.12, rootMargin:'0px 0px -40px 0px'});
+  els.forEach(el=>io.observe(el));
+  landingRevealObserver = io;
 }
 // Counts each Dashboard stat tile up from 0 to its real value on first paint — purely cosmetic
 // (the correct final figure is already in the HTML the moment it's rendered; this just animates the
