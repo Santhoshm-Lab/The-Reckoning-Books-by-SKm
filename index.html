@@ -379,7 +379,6 @@
     .navtab{justify-content:center;padding:10px 0;}
     .navtab span{display:none;}
     .grid{grid-template-columns:repeat(3,1fr);}
-    .cmdk-trigger .cmdk-label{display:none;}
   }
   @media (max-width:760px){
     .grid{grid-template-columns:1fr 1fr;}
@@ -393,8 +392,6 @@
     .tabstrip{flex-direction:row;flex-wrap:wrap;width:auto;gap:6px;padding:12px 14px 8px;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible;}
     .navtab{width:auto;border-radius:999px;}
     .navtab span{display:none;}
-    .cmdpal{width:94vw;}
-    .cmdk-trigger{display:none;}
   }
 
   /* ---------------- Landing / intro page (renderLanding()) — shown on a fresh visit, before
@@ -578,7 +575,7 @@
     *, *::before, *::after{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;scroll-behavior:auto !important;}
   }
 
-  /* ================= Advanced UI/UX pass — command palette, dark mode, smart insights =================
+  /* ================= Advanced UI/UX pass — dark mode, smart insights =================
      Same principle as the refresh above: every rule reads existing tokens or a small set of new ones
      defined once here, nothing hardcodes a color that skips the token layer. Dark mode is a second set
      of values for the exact same --variable names, so every existing rule above adapts automatically. */
@@ -611,33 +608,6 @@
   /* Theme toggle pill in the menubar */
   .theme-toggle{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;cursor:pointer;color:var(--ink-soft);font-weight:700;font-size:12px;border:1px solid transparent;transition:all .15s;}
   .theme-toggle:hover{background:var(--surface-strong);color:var(--ink);}
-
-  /* ---- Command palette (Ctrl/Cmd+K) ---- */
-  .cmdpal-overlay{position:fixed;inset:0;background:rgba(13,20,15,0.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;z-index:600;padding:14vh 20px 20px;}
-  .cmdpal{width:560px;max-width:100%;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;box-shadow:0 30px 80px rgba(13,20,15,0.4);overflow:hidden;animation:cmdpalIn .14s ease;}
-  @keyframes cmdpalIn{from{opacity:0;transform:translateY(-6px) scale(.98);}to{opacity:1;transform:none;}}
-  .cmdpal-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
-  .cmdpal-input-wrap svg{flex-shrink:0;color:var(--ink-faint);}
-  .cmdpal-input{flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:15px;color:var(--ink);}
-  .cmdpal-input::placeholder{color:var(--ink-faint);}
-  .cmdpal-hint{font-size:10.5px;color:var(--ink-faint);border:1px solid var(--border-strong);border-radius:5px;padding:2px 6px;font-weight:700;}
-  .cmdpal-list{max-height:360px;overflow-y:auto;padding:8px;}
-  .cmdpal-group{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:8px 10px 4px;}
-  .cmdpal-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--ink);}
-  .cmdpal-item .cp-icon{width:30px;height:30px;border-radius:9px;background:var(--surface-strong);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .cmdpal-item .cp-icon svg{width:15px;height:15px;stroke:var(--accent1);}
-  .cmdpal-item .cp-label{font-weight:700;font-size:13px;}
-  .cmdpal-item .cp-sub{font-size:11px;color:var(--ink-soft);margin-top:1px;}
-  .cmdpal-item.active{background:var(--accent1);color:#fff;}
-  .cmdpal-item.active .cp-sub{color:rgba(255,255,255,0.85);}
-  .cmdpal-item.active .cp-icon{background:rgba(255,255,255,0.2);}
-  .cmdpal-item.active .cp-icon svg{stroke:#fff;}
-  .cmdpal-empty{padding:30px 20px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
-  .cmdpal-footer{display:flex;gap:14px;padding:9px 16px;border-top:1px solid var(--border);font-size:10.5px;color:var(--ink-faint);}
-  .cmdpal-footer kbd{background:var(--surface-strong);border:1px solid var(--border-strong);border-radius:4px;padding:1px 5px;font-family:inherit;font-weight:700;}
-  .cmdk-trigger{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 11px;border-radius:999px;border:1px solid var(--border-strong);color:var(--ink-faint);font-size:11.5px;font-weight:700;cursor:pointer;background:var(--surface-strong);transition:all .15s;}
-  .cmdk-trigger:hover{color:var(--ink);border-color:var(--ink-faint);}
-  .cmdk-trigger kbd{background:var(--surface);border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;font-family:inherit;}
 
   /* ---- Smart insights card (Dashboard) ---- */
   .insights-card{background:linear-gradient(155deg, var(--surface-strong), var(--surface));border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px;}
@@ -1849,10 +1819,8 @@ let state = {
   docVaultVerifier: null,  // base64 SHA-256(passphrase+salt) -- lets the app confirm a re-entered passphrase is correct WITHOUT ever storing the passphrase or the derived AES key anywhere persistent
 };
 let view = 'dashboard';
-// ---- Advanced UI/UX state: command palette, dashboard counter animation (darkMode is declared
+// ---- Advanced UI/UX state: dashboard counter animation (darkMode is declared
 // near the top of the script, right after firebase.initializeApp, so it can be applied pre-paint) ----
-let cmdQuery = '';       // command palette search text (modal==='commandPalette')
-let cmdActiveIndex = 0;  // highlighted row in the command palette results
 let dashCountersAnimated = false; // only count-up the stat tiles once per company session, not on every render
 let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
 let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
@@ -3637,8 +3605,7 @@ async function enterCompanyApp(company, opts={}){
   screen = 'app';
   modal = distinctFYsInVouchers().length > 1 ? 'fyPicker' : null;
   // Offer the first-run tour only when nothing else needs the user's attention first (the FY
-  // picker, when it shows, takes priority — the tour is still reachable afterward from the
-  // command palette's "Take the Tour" action).
+  // picker, when it shows, takes priority over it).
   if(!modal && shouldOfferTour()) tourStep = 0;
   render();
   pushHistory();
@@ -6346,21 +6313,18 @@ function askQA(question){
   if(el) el.scrollTop = el.scrollHeight;
   document.getElementById('qaInputBox')?.focus();
 }
-// A handful of shared-chrome controls (theme toggle, command palette trigger, the Ask Your Books
-// bubble) are styled as <span>/<div>, not <button>, so browsers don't fire a click on Enter/Space
-// for them the way they would for a real button. This makes those three keyboard-activatable
-// without changing their markup/CSS.
+// A couple of shared-chrome controls (theme toggle, the Ask Your Books bubble) are styled as
+// <span>/<div>, not <button>, so browsers don't fire a click on Enter/Space for them the way they
+// would for a real button. This makes those keyboard-activatable without changing their markup/CSS.
 // ---------------- First-run guided tour ----------------
 // A short, dismissible spotlight tour shown once per browser (localStorage flag, same pattern as
 // darkMode) to a signed-in user opening their own company for the first time. Never shown for the
-// shared read-only demo — that already has its own explanatory banner. Re-runnable anytime via the
-// command palette's "Take the Tour" quick action.
+// shared read-only demo — that already has its own explanatory banner.
 let tourStep = -1; // -1 = not running
 const TOUR_STEPS = [
   { tab:'dashboard', selector:'[data-tab="dashboard"]', title:'Your Dashboard', text:'Live KPIs and Smart Insights, computed from your own entries — no setup required.' },
   { tab:'voucher', selector:'[data-tab="voucher"]', title:'Record a Voucher', text:'Every transaction — sale, purchase, payment, receipt — starts here. Debits must equal credits before it saves.' },
   { tab:'reports', selector:'[data-tab="reports"]', title:'Reports', text:'Trial Balance, P&L, Balance Sheet and more — generated live from your entries, never a static template.' },
-  { selector:'#openCmdPaletteBtn', title:'Command Palette', text:'Press Ctrl/Cmd+K anytime to jump to any module, search your ledgers and vouchers, or run a quick action.' },
 ];
 function shouldOfferTour(){
   if(isReadOnlyMode()) return false;
@@ -6455,11 +6419,7 @@ function wireQAWidget(){
   if(msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
-/* ---------------- Command palette (Ctrl/Cmd+K) ----------------
-   A single searchable list combining "jump to a module" and a handful of quick actions, filtered
-   by simple whitespace/substring matching (no fuzzy library needed for ~20 items). Opened from
-   anywhere in the app via a dedicated keydown listener (see near TAB_SHORTCUTS) since the existing
-   plain-letter-shortcut listener deliberately ignores Ctrl/Cmd-held keys. */
+// Small inline-SVG icon set shared by a few chrome bits (e.g. the Dashboard's Smart Insights card).
 function cmdIcon(name){
   const paths = {
     chat: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
@@ -6475,142 +6435,6 @@ function toggleTheme(){
   try{ localStorage.setItem('rb_darkMode', darkMode?'1':'0'); }catch(e){}
   document.documentElement.setAttribute('data-theme', darkMode?'dark':'light');
 }
-function commandPaletteItems(){
-  const moduleDefs = [
-    ['dashboard','Dashboard','Overview & KPIs'],['voucher','Voucher','Record a transaction'],
-    ['daybook','Day Book','Chronological log'],['calendar','Calendar','Dates & due items'],
-    ['ledgers','Ledgers','Running balances'],['coa','Accounts','Chart of accounts'],
-    ['inventory','Inventory Control','Stock, locations & forecasting'],['reports','Reports','P&L, Balance Sheet…'],
-    ['gst','GST','Tax summaries & filing'],['reconcile','Reconcile','Bank matching'],
-    ['assets','Assets','Fixed asset register'],['parties','Parties','Customers & suppliers'],
-    ['orders','Orders','Quotes & purchase orders'],['payroll','Payroll Management','Salaries, documents & reports'],
-  ];
-  const modules = moduleDefs.map(([id,label,sub])=>{
-    const gated = isTabGated(id);
-    return { group:'Go to', label: gated?label+' 🔒':label, sub, icon:tabIcon(id), run: ()=>{ modal=null; goToTab(id); render(); } };
-  });
-  const actions = [
-    { group:'Quick actions', label:'New Voucher', sub:'Record a payment, receipt, sale & more', icon:tabIcon('voucher'),
-      run: ()=>{ modal=null; vform=null; goToTab('voucher'); render(); } },
-    { group:'Quick actions', label:'New Ledger', sub:'Add an account under a group', icon:tabIcon('coa'),
-      run: ()=>{ modal=null; goToTab('coa'); render(); } },
-    { group:'Quick actions', label:'New Party', sub:'Add a customer or supplier', icon:tabIcon('parties'),
-      run: ()=>{ modal=null; goToTab('parties'); render(); } },
-    { group:'Quick actions', label:'New Stock Item', sub:'Add an inventory item', icon:tabIcon('inventory'),
-      run: ()=>{ modal=null; goToTab('inventory'); render(); } },
-    { group:'Quick actions', label:'Ask Your Books', sub:'Ask a question about your numbers', icon:cmdIcon('chat'),
-      run: ()=>{ modal=null; qaOpen=true; render(); } },
-    { group:'Quick actions', label:'Recent Vouchers', sub:'Browse recently recorded entries', icon:cmdIcon('clock'),
-      run: ()=>{ modal='recentVouchers'; render(); } },
-    { group:'Quick actions', label: darkMode?'Switch to Light Mode':'Switch to Dark Mode', sub:'Toggle the app theme', icon:cmdIcon('theme'),
-      run: ()=>{ modal=null; toggleTheme(); render(); } },
-    { group:'Quick actions', label:'Take the Tour', sub:'A quick walkthrough of Dashboard, Voucher, Reports & search', icon:cmdIcon('spark'),
-      run: ()=>{ modal=null; startTour(); } },
-  ];
-  return [...modules, ...actions];
-}
-// Beyond navigating modules, the palette searches your own real records — ledgers, tagged
-// parties, and vouchers — so typing a name or narration jumps straight to that record instead of
-// just to its module. Purely local string matching against state already in memory: no API, no
-// network call. Capped per group so a broad query doesn't flood the list.
-function commandPaletteRecordMatches(q, words){
-  const results = [];
-  const MAX_PER_GROUP = 5;
-  const hit = (hay)=> words.every(w=>hay.includes(w));
-
-  for(const l of state.ledgers){
-    if(results.filter(r=>r.group==='Ledgers').length>=MAX_PER_GROUP) break;
-    if(!hit(l.name.toLowerCase())) continue;
-    const isParty = l.partyType==='customer' || l.partyType==='supplier';
-    results.push({
-      group:'Ledgers', label:l.name,
-      sub:(isParty ? (l.partyType==='customer'?'Customer · ':'Supplier · ') : '')+`Balance ₹${fmt(ledgerBalance(l.id))}`,
-      icon:tabIcon('ledgers'),
-      run: ()=>{ modal=null; ledgerDetailId=l.id; modal='ledgerDetail'; render(); },
-    });
-  }
-
-  const parties = state.ledgers.filter(l=>l.partyType==='customer'||l.partyType==='supplier');
-  for(const l of parties){
-    if(results.filter(r=>r.group==='Parties').length>=MAX_PER_GROUP) break;
-    if(!hit(l.name.toLowerCase())) continue;
-    results.push({
-      group:'Parties', label:l.name, sub:`${l.partyType==='customer'?'Customer':'Supplier'} · Outstanding ageing`,
-      icon:tabIcon('parties'),
-      run: ()=>{ modal=null; partyDetailLedgerId=l.id; modal='partyDetail'; render(); },
-    });
-  }
-
-  const qAmount = q.replace(/[,₹\s]/g,'');
-  const looksLikeAmount = /^\d+(\.\d+)?$/.test(qAmount) && qAmount.length>=3;
-  for(const v of state.vouchers){
-    if(results.filter(r=>r.group==='Vouchers').length>=MAX_PER_GROUP) break;
-    const amt = voucherAmount(v);
-    const amountMatch = looksLikeAmount && String(Math.round(amt)).includes(qAmount);
-    const textMatch = hit(((v.narration||'')+' '+v.type).toLowerCase());
-    if(!amountMatch && !textMatch) continue;
-    results.push({
-      group:'Vouchers', label:`${v.type} · ₹${fmt(amt)}`, sub:`${v.date}${v.narration?' — '+v.narration:''}`,
-      icon:tabIcon('voucher'),
-      run: ()=>{
-        modal=null;
-        if(state.salaryVouchers.some(sv=>sv.voucherId===v.id)){ view='payroll'; render(); return; }
-        vform = { id:v.id, type:v.type, date:v.date, narration:v.narration, entries:v.entries.map(e=>({...e})),
-          gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:(v.items||[]).map(it=>({...it}))},
-          costCenterId: v.costCenterId||null, channel: v.channel||'',
-          appliedItems: (v.items||[]).map(it=>({...it})) };
-        view='voucher'; render();
-      },
-    });
-  }
-
-  return results;
-}
-function commandPaletteFiltered(){
-  const items = commandPaletteItems();
-  const q = cmdQuery.trim().toLowerCase();
-  if(!q) return items;
-  const words = q.split(/\s+/).filter(Boolean);
-  const matched = items.filter(it=>{
-    const hay = (it.label+' '+(it.sub||'')).toLowerCase();
-    return words.every(w=>hay.includes(w));
-  });
-  const records = commandPaletteRecordMatches(q, words);
-  return [...records, ...matched];
-}
-function commandPaletteModal(){
-  const items = commandPaletteFiltered();
-  if(cmdActiveIndex>=items.length) cmdActiveIndex = Math.max(0, items.length-1);
-  let lastGroup = null;
-  const rows = items.map((it,i)=>{
-    const groupHtml = it.group!==lastGroup ? `<div class="cmdpal-group">${escapeHtml(it.group)}</div>` : '';
-    lastGroup = it.group;
-    return `${groupHtml}<div class="cmdpal-item ${i===cmdActiveIndex?'active':''}" data-cmd-index="${i}">
-      <div class="cp-icon">${it.icon}</div>
-      <div><div class="cp-label">${escapeHtml(it.label)}</div>${it.sub?`<div class="cp-sub">${escapeHtml(it.sub)}</div>`:''}</div>
-    </div>`;
-  }).join('');
-  return `
-    <div class="cmdpal-overlay" id="cmdpalOverlay">
-      <div class="cmdpal">
-        <div class="cmdpal-input-wrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="cmdpalInput" class="cmdpal-input" placeholder="Search ledgers, parties, vouchers, or jump to a module…" value="${escapeAttr(cmdQuery)}" autocomplete="off">
-          <span class="cmdpal-hint">Esc</span>
-        </div>
-        <div class="cmdpal-list" id="cmdpalList">
-          ${items.length ? rows : `<div class="cmdpal-empty">No matches for "${escapeHtml(cmdQuery)}"</div>`}
-        </div>
-        <div class="cmdpal-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-          <span><kbd>↵</kbd> select</span>
-          <span><kbd>Esc</kbd> close</span>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
 /* ---------------- rendering ---------------- */
 function render(){
   // Read-only session (admin view-only, or the shared demo company opened by anyone but the
@@ -6645,7 +6469,7 @@ function render(){
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
       ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-        <span class="cmdk-trigger" id="openCmdPaletteBtn" title="Command palette" role="button" tabindex="0" aria-label="Open command palette"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="cmdk-label">Quick jump <kbd>${navigator.platform&&navigator.platform.toLowerCase().includes('mac')?'⌘':'Ctrl'}K</kbd></span></span>
+        <button class="btn secondary small" id="refreshSessionBtn" type="button" style="padding:3px 10px;font-size:11px;" title="Reload this company's data, your plan, and any admin changes">⟳ Refresh</button>
         <span class="theme-toggle" id="themeToggleBtn" title="${darkMode?'Switch to light mode':'Switch to dark mode'}" role="button" tabindex="0" aria-label="${darkMode?'Switch to light mode':'Switch to dark mode'}">${darkMode?'☀️':'🌙'}</span>
       </span>
     </div>
@@ -6684,7 +6508,6 @@ function render(){
       <span>Ledgers: ${state.ledgers.length}</span>
       <span>Vouchers: ${state.vouchers.length}</span>
       <span>Items: ${state.items.length}</span>
-      <button class="btn secondary small" id="refreshSessionBtn" type="button" style="margin-left:auto;padding:3px 10px;font-size:11px;" title="Reload this company's data, your plan, and any admin changes">⟳ Refresh</button>
     </div>
     ${modal==='editCompany' ? editCompanyModal() : ''}
     ${modal==='help' ? helpModal() : ''}
@@ -6717,7 +6540,6 @@ function render(){
     ${modal==='eway' ? eWayBillTransportModal() : ''}
     ${modal==='attachments' ? attachmentsModal() : ''}
     ${modal==='invoiceSettings' ? invoiceSettingsModal() : ''}
-    ${modal==='commandPalette' ? commandPaletteModal() : ''}
     ${qaWidget()}
   `;
   attachHandlers();
@@ -6797,10 +6619,6 @@ function render(){
     modal = 'backup';
     render();
   });
-  document.getElementById('openCmdPaletteBtn')?.addEventListener('click', ()=>{
-    cmdQuery = ''; cmdActiveIndex = 0; modal = 'commandPalette'; render();
-  });
-  wireKeyActivate('openCmdPaletteBtn');
   document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
   wireKeyActivate('themeToggleBtn');
   document.getElementById('menuHelp').addEventListener('click', async ()=>{
@@ -6845,33 +6663,6 @@ function render(){
       if(e.target.id==='modalOverlayBg'){ modal = null; render(); }
     });
     document.getElementById('modalClose')?.addEventListener('click', ()=>{ modal = null; render(); });
-  }
-  if(modal==='commandPalette'){
-    const items = commandPaletteFiltered();
-    const input = document.getElementById('cmdpalInput');
-    if(input){
-      input.focus();
-      try{ input.setSelectionRange(input.value.length, input.value.length); }catch(err){}
-    }
-    document.getElementById('cmdpalOverlay')?.addEventListener('click', (e)=>{
-      if(e.target.id==='cmdpalOverlay'){ modal = null; render(); }
-    });
-    input?.addEventListener('input', (e)=>{
-      cmdQuery = e.target.value;
-      cmdActiveIndex = 0;
-      render();
-    });
-    document.querySelectorAll('[data-cmd-index]').forEach(el=>{
-      const idx = Number(el.dataset.cmdIndex);
-      el.addEventListener('mouseenter', ()=>{ cmdActiveIndex = idx; render(); });
-      el.addEventListener('click', ()=>{ const it = items[idx]; if(it) it.run(); });
-    });
-    input?.addEventListener('keydown', (e)=>{
-      if(e.key==='Escape'){ e.preventDefault(); modal = null; render(); }
-      else if(e.key==='ArrowDown'){ e.preventDefault(); cmdActiveIndex = Math.min(items.length-1, cmdActiveIndex+1); render(); }
-      else if(e.key==='ArrowUp'){ e.preventDefault(); cmdActiveIndex = Math.max(0, cmdActiveIndex-1); render(); }
-      else if(e.key==='Enter'){ e.preventDefault(); const it = items[cmdActiveIndex]; if(it) it.run(); }
-    });
   }
   if(modal==='gstFormats'){
     document.querySelectorAll('[data-fmt-jump]').forEach(el=>{
@@ -7031,17 +6822,6 @@ document.addEventListener('keydown', (e)=>{
   if(!id) return;
   e.preventDefault();
   goToTab(id);
-});
-// Command palette: Ctrl+K on Windows/Linux, Cmd+K on Mac — a separate listener since the one above
-// deliberately ignores every Ctrl/Cmd-held key. Works from anywhere in the app, including while
-// another modal is open (it simply replaces it), so it always feels reachable.
-document.addEventListener('keydown', (e)=>{
-  if(screen!=='app') return;
-  if(!(e.ctrlKey || e.metaKey) || e.key.toLowerCase()!=='k') return;
-  e.preventDefault();
-  if(modal==='commandPalette'){ modal = null; }
-  else { cmdQuery = ''; cmdActiveIndex = 0; modal = 'commandPalette'; }
-  render();
 });
 function viewDropdown(){
   const tabs = [
