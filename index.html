@@ -2006,6 +2006,11 @@ let ledgerDetailId = null;   // which ledger was clicked in the Balance Sheet, f
 let cfDetailBucket = null;   // which Cash Flow bucket (operating/investing/financing) was clicked, for the detail modal
 let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice ageing detail modal is showing
 let pieChartLedgerId = null; // which ledger's pie chart to show
+// Ledgers tab (viewLedgers): free-text filter typed into the sidebar's search box, and which
+// ledger the "New Ledger"/"Alter" modal is open for -- null when the modal is closed, the string
+// 'new' when it's open in create mode, or a ledger id when it's open in edit mode for that ledger.
+let ledgerSearchQuery = '';
+let alterLedgerId = null;
 // Which series are hidden (clicked off) in the new interactive Dashboard trend visuals — keyed by
 // a series key like 'revenue'/'cogs'/'margin'. Persists only for the session (like every other
 // piece of UI draft state in this app), reset is not needed since it's just a display toggle.
@@ -6536,6 +6541,7 @@ function render(){
     ${modal==='liabCapitalDetail' ? liabCapitalDetailModal() : ''}
     ${modal==='cfBucketDetail' ? cashFlowBucketDetailModal() : ''}
     ${modal==='quickAddLedger' ? quickAddLedgerModal() : ''}
+    ${modal==='alterLedger' ? alterLedgerModal() : ''}
     ${modal==='reconcileHelp' ? reconcileHelpModal() : ''}
     ${modal==='recurring' ? recurringModal() : ''}
     ${modal==='backup' ? backupModal() : ''}
@@ -13245,6 +13251,66 @@ function quickAddLedgerModal(){
     </div>
   `;
 }
+// Shared "New Ledger" / "Alter Ledger" modal for the Ledgers tab. alterLedgerId===‘new’ renders it
+// in create mode (blank fields); any other ledger id renders it in edit mode, prefilled from that
+// ledger and able to rename it or move it to a different group -- the two things the Chart of
+// Accounts screen never offered a way to change once a ledger existed.
+function alterLedgerModal(){
+  const editing = alterLedgerId && alterLedgerId!=='new';
+  const l = editing ? ledgerOf(alterLedgerId) : null;
+  if(editing && !l){ return ''; }
+  const openingAbs = l ? Math.abs(l.opening||0) : 0;
+  const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg">
+      <div class="modal-card" style="width:560px;">
+        <div class="panel-head"><h2>${editing?'Alter Ledger':'New Ledger'}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          ${editing ? `<p class="muted" style="font-size:12px;margin-top:0;">Renaming or re-grouping updates every statement, report and voucher that already references this ledger — nothing else needs to change.</p>` : ''}
+          <div class="row">
+            <div class="field"><label>Ledger Name</label><input type="text" id="alterLedgerName" value="${escapeAttr(l?l.name:'')}" placeholder="e.g. Electricity Expense"></div>
+            <div class="field"><label>Under Group</label>
+              <select id="alterLedgerGroup">${groupOptionsHtml(l?l.group:undefined)}</select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field" style="max-width:160px;"><label>Opening Balance</label><input type="number" id="alterLedgerOpening" value="${openingAbs}" step="0.01"></div>
+            <div class="field" style="max-width:120px;"><label>Type</label>
+              <select id="alterLedgerType"><option value="1" ${openingSign===1?'selected':''}>Dr</option><option value="-1" ${openingSign===-1?'selected':''}>Cr</option></select>
+            </div>
+            <div class="field" style="max-width:140px;"><label>GST Rate</label>
+              <select id="alterLedgerGST">
+                <option value="" ${l&&l.gstRate==null?'selected':''}>— None —</option>
+                ${[0,5,12,18,28].map(r=>`<option value="${r}" ${l&&l.gstRate===r?'selected':''}>${r}%</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field" style="max-width:220px;"><label>MSME Supplier?</label>
+              <select id="alterLedgerMSME">
+                <option value="0" ${!l||!l.isMSME?'selected':''}>No / Not applicable</option>
+                <option value="1" ${l&&l.isMSME?'selected':''}>Yes — Micro/Small/Medium Enterprise</option>
+              </select>
+            </div>
+            <div class="field" style="max-width:180px;"><label>Party Type</label>
+              <select id="alterLedgerPartyType">
+                <option value="" ${!l||!l.partyType?'selected':''}>— Not a party —</option>
+                <option value="customer" ${l&&l.partyType==='customer'?'selected':''}>Customer</option>
+                <option value="supplier" ${l&&l.partyType==='supplier'?'selected':''}>Supplier</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="alterLedgerCreditLimit" value="${l&&l.creditLimit!=null?l.creditLimit:''}" step="0.01" placeholder="e.g. 100000"></div>
+            <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
+            <div class="field"><label>GSTIN (optional, for parties)</label><input type="text" id="alterLedgerGSTIN" value="${escapeAttr(l&&l.gstin?l.gstin:'')}" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
+          </div>
+          <button class="btn" id="alterLedgerSubmit" type="button" style="margin-top:6px;">${editing?'Save Changes':'Add Ledger'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -14010,19 +14076,28 @@ function viewCalendar(){
 
 function viewLedgers(){
   const sel = view==='ledgers' && window._selectedLedger ? window._selectedLedger : (state.ledgers[0] && state.ledgers[0].id);
+  const q = ledgerSearchQuery.trim().toLowerCase();
+  const visible = q ? state.ledgers.filter(l=> l.name.toLowerCase().includes(q) || groupOf(l.group)?.name.toLowerCase().includes(q)) : state.ledgers;
   return `
     ${masthead('Ledgers','Account-wise statements')}
     <div class="row" style="align-items:flex-start;gap:20px;">
       <div style="flex:0 0 240px;">
         <div class="panel">
-          <div class="panel-body" style="padding:6px;">
-            ${state.ledgers.map(l=>{
+          <div class="panel-body" style="padding:8px;">
+            <input type="text" id="ledgerSearchInput" value="${escapeAttr(ledgerSearchQuery)}" placeholder="Search ledgers…" style="margin-bottom:6px;">
+            <button class="btn small secondary" id="newLedgerFromLedgersTabBtn" type="button" style="width:100%;margin-bottom:6px;">+ New Ledger</button>
+          </div>
+          <div class="panel-body" style="padding:0 6px 6px;">
+            ${visible.map(l=>{
               const b = ledgerBalance(l.id);
-              return `<div class="linklike" data-select-ledger="${l.id}" style="display:flex;justify-content:space-between;padding:9px 10px;border-radius:3px;${sel===l.id?'background:var(--paper);':''}text-decoration:none;cursor:pointer;">
-                <span>${l.name}</span>
-                <span class="num ${b>=0?'pos':'neg'}" style="font-size:12px;">${fmt(b)} ${balanceLabel(b)}</span>
+              return `<div class="linklike" data-select-ledger="${l.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border-radius:3px;${sel===l.id?'background:var(--paper);':''}text-decoration:none;cursor:pointer;">
+                <span>
+                  <div>${l.name}</div>
+                  <div class="muted" style="font-size:10.5px;">${groupOf(l.group)?groupOf(l.group).name:l.group}</div>
+                </span>
+                <span class="num ${b>=0?'pos':'neg'}" style="font-size:12px;white-space:nowrap;">${fmt(b)} ${balanceLabel(b)}</span>
               </div>`;
-            }).join('')}
+            }).join('') || `<div class="empty" style="padding:10px;">No ledgers match "${escapeHtml(ledgerSearchQuery)}"</div>`}
           </div>
         </div>
       </div>
@@ -14047,12 +14122,18 @@ function ledgerStatement(ledgerId){
     }
   }
   const bal = ledgerBalance(ledgerId);
+  const g = groupOf(l.group);
   return `
     <div class="panel">
       <div class="panel-head">
-        <h2>${l.name}</h2>
+        <div>
+          <h2>${l.name}</h2>
+          <div class="muted" style="font-size:11.5px;margin-top:2px;">${g?`${g.name} — ${g.cat}`:(l.group||'Ungrouped')}${l.partyType?` · ${l.partyType==='customer'?'Customer':'Supplier'}`:''}${l.isMSME?' · MSME':''}</div>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="btn small secondary" data-open-pie="${ledgerId}" type="button">📊 Pie Chart</button>
+          <button class="btn small secondary" data-open-alter-ledger="${ledgerId}" type="button">✎ Alter</button>
+          <button class="btn small danger" data-delete-ledger="${ledgerId}" type="button">Delete</button>
           <span class="pill ${bal>=0?'pos':'neg'}">${fmt(bal)} ${balanceLabel(bal)}</span>
         </div>
       </div>
@@ -17920,6 +18001,105 @@ function attachHandlers(){
   if(view==='ledgers'){
     document.querySelectorAll('[data-select-ledger]').forEach(el=>{
       el.addEventListener('click',()=>{ window._selectedLedger = el.dataset.selectLedger; render(); });
+    });
+    document.getElementById('ledgerSearchInput')?.addEventListener('input', (e)=>{
+      ledgerSearchQuery = e.target.value;
+      const caret = e.target.selectionStart;
+      render();
+      const el = document.getElementById('ledgerSearchInput');
+      if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.getElementById('newLedgerFromLedgersTabBtn')?.addEventListener('click', ()=>{
+      alterLedgerId = 'new';
+      modal = 'alterLedger';
+      render();
+    });
+    document.querySelectorAll('[data-open-alter-ledger]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        alterLedgerId = el.dataset.openAlterLedger;
+        modal = 'alterLedger';
+        render();
+      });
+    });
+    document.querySelectorAll('[data-delete-ledger]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const id = el.dataset.deleteLedger;
+        const l = ledgerOf(id);
+        if(!l) return;
+        if(DEFAULT_LEDGERS.some(d=>d.id===id)){
+          toast("This is a core ledger the app relies on and can't be deleted.");
+          return;
+        }
+        const hasEntries = state.vouchers.some(v=>v.entries.some(e=>e.ledgerId===id));
+        if(hasEntries){
+          toast("This ledger has voucher entries posted against it — it can't be deleted while transactions exist.");
+          return;
+        }
+        if((l.opening||0)!==0){
+          toast('This ledger has a non-zero opening balance — Alter it to zero first, then delete.');
+          return;
+        }
+        if(!window.confirm(`Delete "${l.name}"? This can't be undone from here.`)) return;
+        const idx = state.ledgers.findIndex(x=>x.id===id);
+        state.ledgers = state.ledgers.filter(x=>x.id!==id);
+        if(window._selectedLedger===id) window._selectedLedger = state.ledgers[0] && state.ledgers[0].id;
+        await saveLedgers();
+        render();
+        toast(`"${l.name}" deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+          state.ledgers.splice(Math.min(idx, state.ledgers.length), 0, l);
+          await saveLedgers();
+          toast('Ledger restored', {type:'success'});
+          render();
+        }}});
+      });
+    });
+  }
+  if(modal==='alterLedger'){
+    document.getElementById('alterLedgerSubmit')?.addEventListener('click', async ()=>{
+      const editing = alterLedgerId && alterLedgerId!=='new';
+      const name = document.getElementById('alterLedgerName').value.trim();
+      const group = document.getElementById('alterLedgerGroup').value;
+      const openingRaw = Number(document.getElementById('alterLedgerOpening').value)||0;
+      const sign = Number(document.getElementById('alterLedgerType').value);
+      const gstRaw = document.getElementById('alterLedgerGST').value;
+      const msmeRaw = document.getElementById('alterLedgerMSME').value;
+      const partyTypeRaw = document.getElementById('alterLedgerPartyType').value;
+      const creditLimitRaw = document.getElementById('alterLedgerCreditLimit').value;
+      const creditDaysRaw = document.getElementById('alterLedgerCreditDays').value;
+      const gstinRaw = document.getElementById('alterLedgerGSTIN').value.trim().toUpperCase();
+      if(!name){ toast('Enter a ledger name'); return; }
+      const dupe = state.ledgers.find(x=>x.name.toLowerCase()===name.toLowerCase() && (!editing || x.id!==alterLedgerId));
+      if(dupe){ toast(`A ledger named "${dupe.name}" already exists`); return; }
+      if(editing){
+        const l = ledgerOf(alterLedgerId);
+        if(!l){ modal = null; render(); return; }
+        l.name = name;
+        l.group = group;
+        l.opening = openingRaw*sign;
+        if(gstRaw !== ''){ l.gstRate = Number(gstRaw); } else { delete l.gstRate; }
+        if(msmeRaw === '1'){ l.isMSME = true; } else { delete l.isMSME; }
+        if(partyTypeRaw === 'customer' || partyTypeRaw === 'supplier'){ l.partyType = partyTypeRaw; } else { delete l.partyType; }
+        if(creditLimitRaw){ l.creditLimit = Number(creditLimitRaw); } else { delete l.creditLimit; }
+        if(creditDaysRaw){ l.creditDays = Number(creditDaysRaw); } else { delete l.creditDays; }
+        if(gstinRaw){ l.gstin = gstinRaw; } else { delete l.gstin; }
+        await saveLedgers();
+        toast('Ledger updated');
+      } else {
+        const ledger = { id: uid('l'), name, group, opening: openingRaw*sign };
+        if(gstRaw !== '') ledger.gstRate = Number(gstRaw);
+        if(msmeRaw === '1') ledger.isMSME = true;
+        if(partyTypeRaw === 'customer' || partyTypeRaw === 'supplier') ledger.partyType = partyTypeRaw;
+        if(creditLimitRaw) ledger.creditLimit = Number(creditLimitRaw);
+        if(creditDaysRaw) ledger.creditDays = Number(creditDaysRaw);
+        if(gstinRaw) ledger.gstin = gstinRaw;
+        state.ledgers.push(ledger);
+        window._selectedLedger = ledger.id;
+        await saveLedgers();
+        toast('Ledger added');
+      }
+      alterLedgerId = null;
+      modal = null;
+      render();
     });
   }
 
