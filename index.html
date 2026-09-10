@@ -112,6 +112,9 @@
   .viz-pin-wrap{position:relative;}
   .viz-pin-wrap .panel{transition:box-shadow .2s ease, transform .2s ease;}
   .viz-pin-wrap .panel:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);}
+  .report-card{transition:box-shadow .2s ease, transform .2s ease;}
+  .report-card:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);border-color:var(--border-strong);}
+  .reconciled-pop{animation:tickPop .3s cubic-bezier(.34,1.56,.64,1);}
   .viz-pin-btn{position:absolute;top:10px;right:14px;z-index:2;width:28px;height:28px;border-radius:8px;
     background:var(--surface);border:1px solid var(--border);font-size:13px;line-height:1;cursor:pointer;
     opacity:.4;filter:grayscale(1);transition:opacity .15s,filter .15s,background .15s,border-color .15s;}
@@ -273,7 +276,7 @@
   .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
   .calendar-grid .dow{font-size:10px;font-weight:700;text-align:center;padding:6px 0;color:var(--ink-faint);text-transform:uppercase;}
   .calendar-day{position:relative;min-height:56px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;}
-  .calendar-day:hover{background:var(--surface-strong);border-color:var(--border-strong);}
+  .calendar-day:hover{background:var(--surface-strong);border-color:var(--border-strong);transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
   .calendar-day.empty{background:transparent;border-color:transparent;cursor:default;}
   .calendar-day.empty:hover{background:transparent;border-color:transparent;}
   .calendar-day.today{border-color:var(--accent1);box-shadow:0 0 0 1px var(--accent1);}
@@ -2080,6 +2083,14 @@ let alterLedgerId = null;
 let ledgerDeleteConfirmId = null;
 let ledgerDeletePasswordError = '';
 let ledgerDeletePasswordBusy = false;
+// Contextual search/filter inputs added across the remaining modules (Day Book, Item Master,
+// Inventory, Parties, Orders) -- same free-text-filter convention as ledgerSearchQuery above.
+let daybookSearchQuery = '';
+let daybookTypeFilter = '';
+let itemMasterSearchQuery = '';
+let inventorySearchQuery = '';
+let partiesSearchQuery = '';
+let ordersSearchQuery = '';
 // Which series are hidden (clicked off) in the new interactive Dashboard trend visuals — keyed by
 // a series key like 'revenue'/'cogs'/'margin'. Persists only for the session (like every other
 // piece of UI draft state in this app), reset is not needed since it's just a display toggle.
@@ -13906,15 +13917,35 @@ function orderDocForm(){
 }
 function viewOrders(){
   const meta = ORDER_DOC_META[ordersSubTab];
-  const list = state[meta.stateKey].slice().sort((a,b)=> (Number(b.no)||0)-(Number(a.no)||0));
+  let list = state[meta.stateKey].slice().sort((a,b)=> (Number(b.no)||0)-(Number(a.no)||0));
+  const openCount = list.filter(d=>d.status!=='converted').length;
+  const convertedCount = list.length - openCount;
+  const openValue = list.filter(d=>d.status!=='converted').reduce((s,d)=>s+itemsSubtotal(d.items||[]),0);
+  if(ordersSearchQuery.trim()){
+    const q = ordersSearchQuery.trim().toLowerCase();
+    list = list.filter(d=>{
+      const party = ledgerOf(d.partyLedgerId);
+      const docNo = `${meta.prefix}-${String(d.no).padStart(4,'0')}`.toLowerCase();
+      return docNo.includes(q) || (party && party.name.toLowerCase().includes(q));
+    });
+  }
   return `
     ${masthead('Sales & Purchase Documents','Quotations, Sales Orders, Purchase Orders & Delivery Challans — track before you invoice')}
     <div class="vtype-tabs" style="margin-bottom:14px;">
       ${Object.keys(ORDER_DOC_META).map(k=>`<button data-orders-subtab="${k}" type="button" class="${ordersSubTab===k?'active':''}">${ORDER_DOC_META[k].label}s</button>`).join('')}
     </div>
     ${oform && oform.docType===ordersSubTab ? orderDocForm() : `
-      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-        <button class="btn secondary small" id="oNewBtn" type="button">+ New ${meta.label}</button>
+      <div class="grid">
+        <div class="stat"><div class="label">Total ${meta.label}s</div><div class="val">${state[meta.stateKey].length}</div></div>
+        <div class="stat"><div class="label">Open</div><div class="val">${openCount}</div></div>
+        <div class="stat"><div class="label">Converted</div><div class="val pos">${convertedCount}</div></div>
+        <div class="stat"><div class="label">Open Value</div><div class="val">₹${fmt(openValue)}</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="ordersSearchInput" placeholder="Search by ${meta.prefix} no. or party…" value="${escapeAttr(ordersSearchQuery)}" style="flex:1;min-width:200px;">
+          <button class="btn secondary small" id="oNewBtn" type="button">+ New ${meta.label}</button>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
@@ -13937,7 +13968,7 @@ function viewOrders(){
                 </td>
               </tr>`;
             }).join('')}
-          </table>` : `<div class="empty">No ${meta.label.toLowerCase()}s yet. Click "+ New ${meta.label}" to create one.</div>`}
+          </table>` : `<div class="empty">${ordersSearchQuery.trim() ? `No ${meta.label.toLowerCase()}s match your search.` : `No ${meta.label.toLowerCase()}s yet. Click "+ New ${meta.label}" to create one.`}</div>`}
         </div>
       </div>
     `}
@@ -14165,16 +14196,44 @@ function viewDaybook(){
     rows = rows.filter(v=> v.date >= b.start && v.date <= b.end);
   }
   const dueRecurringCount = dueRecurringTemplates(new Date().toISOString().slice(0,10)).length;
+  const voucherTypes = Array.from(new Set(rows.map(v=>v.type))).sort();
+  const totalDr = rows.reduce((s,v)=>s+v.entries.reduce((a,e)=>a+(Number(e.dr)||0),0),0);
+  const monthStr = new Date().toISOString().slice(0,7);
+  const thisMonthCount = rows.filter(v=>v.date.startsWith(monthStr)).length;
+
+  let filtered = rows;
+  if(daybookTypeFilter) filtered = filtered.filter(v=>v.type===daybookTypeFilter);
+  if(daybookSearchQuery.trim()){
+    const q = daybookSearchQuery.trim().toLowerCase();
+    filtered = filtered.filter(v=>{
+      if((v.narration||'').toLowerCase().includes(q)) return true;
+      return v.entries.some(e=>{ const l=ledgerOf(e.ledgerId); return l && l.name.toLowerCase().includes(q); });
+    });
+  }
+
   return `
     ${masthead('Day Book', activeFY ? `Vouchers for FY ${activeFY}, most recent first` : 'All vouchers, most recent first')}
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-      <button class="btn secondary small" id="openRecurringBtn" type="button">🔁 Recurring Vouchers${dueRecurringCount?` — ${dueRecurringCount} due`:''}</button>
+    <div class="bento-grid">
+      <div class="stat"><div class="label">Total Vouchers</div><div class="val">${rows.length}</div></div>
+      <div class="stat"><div class="label">This Month</div><div class="val">${thisMonthCount}</div></div>
+      <div class="stat"><div class="label">Total Value (Dr)</div><div class="val">₹${fmt(totalDr)}</div></div>
+      <div class="stat"><div class="label">Recurring Due</div><div class="val ${dueRecurringCount?'neg':''}">${dueRecurringCount}</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="daybookSearchInput" placeholder="Search narration or ledger…" value="${escapeAttr(daybookSearchQuery)}" style="flex:1;min-width:200px;">
+        <select id="daybookTypeFilterSelect" style="width:auto;min-width:140px;">
+          <option value="">All types</option>
+          ${voucherTypes.map(t=>`<option value="${escapeAttr(t)}" ${daybookTypeFilter===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <button class="btn secondary small" id="openRecurringBtn" type="button">🔁 Recurring Vouchers${dueRecurringCount?` — ${dueRecurringCount} due`:''}</button>
+      </div>
     </div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${rows.length ? `<table>
+        ${filtered.length ? `<table>
           <tr><th>Date</th><th>Type</th><th>Narration</th><th>Entries</th><th class="num">Amount</th><th>Action</th></tr>
-          ${rows.map(v=>`<tr>
+          ${filtered.map(v=>`<tr>
             <td class="muted">${v.date}</td>
             <td>${v.type}</td>
             <td>${v.narration||'—'}${itemsSummary(v)}${currencyNote(v)}${v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
@@ -14186,7 +14245,7 @@ function viewDaybook(){
             <td class="num">₹${fmt(voucherAmount(v))}</td>
             <td><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button></td>
           </tr>`).join('')}
-        </table>` : `<div class="empty">No vouchers recorded yet.</div>`}
+        </table>` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
       </div>
     </div>
   `;
@@ -14217,9 +14276,18 @@ function viewCalendar(){
   }
 
   const selectedVouchers = vouchersByDate[calState.selected] || [];
+  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+  const monthVouchers = state.vouchers.filter(v=>v.date.startsWith(monthPrefix));
+  const monthValue = monthVouchers.reduce((s,v)=>s+voucherAmount(v),0);
 
   return `
     ${masthead('Calendar','Browse vouchers by date')}
+    <div class="bento-grid">
+      <div class="stat"><div class="label">Vouchers this Month</div><div class="val">${monthVouchers.length}</div></div>
+      <div class="stat"><div class="label">Total Value this Month</div><div class="val">₹${fmt(monthValue)}</div></div>
+      <div class="stat"><div class="label">Busiest Day</div><div class="val" style="font-size:16px;">${(()=>{ let best=null,bc=0; for(const d in vouchersByDate){ if(d.startsWith(monthPrefix) && vouchersByDate[d].length>bc){bc=vouchersByDate[d].length; best=d;} } return best ? best.slice(8)+' ('+bc+')' : '—'; })()}</div></div>
+      <div class="stat"><div class="label">Selected Day</div><div class="val" style="font-size:16px;">${selectedVouchers.length} entr${selectedVouchers.length===1?'y':'ies'}</div></div>
+    </div>
     <div class="panel">
       <div class="panel-body">
         <div class="calendar-nav">
@@ -14525,7 +14593,9 @@ function viewCOA(){
       </div>
     `).join('')}
 
-    <div class="section-title">Foreign Currencies</div>
+    <details class="disclosure" ${state.currencies.some(c=>c.id!=='inr')?'open':''}>
+      <summary>Foreign Currencies ${state.currencies.length>1?`<span class="pill" style="margin-left:6px;">${state.currencies.length-1}</span>`:''}</summary>
+      <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
         <table>
@@ -14555,8 +14625,12 @@ function viewCOA(){
       </div>
     </div>
     <p class="muted" style="font-size:11px;">Set today's exchange rate here before entering a foreign-currency voucher on the Voucher tab — rates aren't fetched automatically, so keep them current. Vouchers always post to your ledgers in ₹; the original foreign amount and rate used are kept on the voucher for reference.</p>
+      </div>
+    </details>
 
-    <div class="section-title">Cost Centers / Dimensions</div>
+    <details class="disclosure" ${state.costCenters.length?'open':''}>
+      <summary>Cost Centers / Dimensions ${state.costCenters.length?`<span class="pill" style="margin-left:6px;">${state.costCenters.length}</span>`:''}</summary>
+      <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
         <table>
@@ -14578,8 +14652,12 @@ function viewCOA(){
       </div>
     </div>
     <p class="muted" style="font-size:11px;">Tag any voucher with a cost center on the Voucher tab, then see income/expense by cost center under Reports → Cost Center P&amp;L.</p>
+      </div>
+    </details>
 
-    <div class="section-title">Budgets</div>
+    <details class="disclosure" ${state.budgets.length?'open':''}>
+      <summary>Budgets ${state.budgets.length?`<span class="pill" style="margin-left:6px;">${state.budgets.length}</span>`:''}</summary>
+      <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
         <table>
@@ -14625,6 +14703,8 @@ function viewCOA(){
       </div>
     </div>
     <p class="muted" style="font-size:11px;">Set a budget once per ledger per financial year (optionally narrowed to one cost center). See how actuals compare under Reports → Budget vs Actual.</p>
+      </div>
+    </details>
 
     <div class="section-title">Item Master (Stock Items)</div>
     ${stockItemForm()}
@@ -14632,33 +14712,42 @@ function viewCOA(){
     ${bulkActionBar('item', bulkItemSelection.size, [
       {action:'delete', label:'Delete selected', danger:true},
     ])}
-    ${STOCK_GROUPS.map(grp=>{
-      const groupItems = state.items.filter(it=>(it.group||'Primary')===grp);
-      if(!groupItems.length) return '';
-      return `
-      <div class="section-title">${grp}</div>
-      <div class="panel">
-        <div class="panel-body" style="padding:0;">
-          <table>
-            <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="item-${escapeAttr(grp)}" aria-label="Select all items in ${escapeAttr(grp)}"></th><th>Item</th><th>Unit</th><th>HSN</th><th class="num">Rate</th><th>GST</th><th class="num">Opening Qty</th><th class="num">Opening Value</th><th></th></tr>
-            ${groupItems.map(it=>{
-              const openVal = (Number(it.openingQty)||0)*(Number(it.openingRate)||0);
-              return `<tr>
-                <td><input type="checkbox" class="bulk-check" data-bulk-item="${it.id}" data-bulk-cat="item-${escapeAttr(grp)}" ${bulkItemSelection.has(it.id)?'checked':''} aria-label="Select ${escapeAttr(it.name)}"></td>
-                <td>${it.name}</td>
-                <td class="muted">${it.unit||'—'}</td>
-                <td class="muted">${it.hsn||'—'}</td>
-                <td class="num">${it.rate!=null?'₹'+fmt(it.rate):'—'}</td>
-                <td class="muted">${it.gstRate!=null?it.gstRate+'%':'—'}</td>
-                <td class="num">${it.openingQty?fmt(it.openingQty)+' '+(it.unit||''):'—'}</td>
-                <td class="num">${openVal?'₹'+fmt(openVal):'—'}</td>
-                <td><button class="btn small secondary" data-delete-item="${it.id}" type="button">Delete</button></td>
-              </tr>`;
-            }).join('')}
-          </table>
-        </div>
-      </div>`;
-    }).join('') || emptyState({icon:'📦', title:'No stock items yet', text:'Create one above — items appear in the Sales/Purchase item picker once added.'})}
+    ${state.items.length>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
+      <input type="text" id="itemMasterSearchInput" placeholder="Search items by name, HSN or unit…" value="${escapeAttr(itemMasterSearchQuery)}">
+    </div></div>` : ''}
+    ${(()=>{
+      const q = itemMasterSearchQuery.trim().toLowerCase();
+      const matches = it => !q || it.name.toLowerCase().includes(q) || (it.hsn||'').toLowerCase().includes(q) || (it.unit||'').toLowerCase().includes(q);
+      const groupsHtml = STOCK_GROUPS.map(grp=>{
+        const groupItems = state.items.filter(it=>(it.group||'Primary')===grp && matches(it));
+        if(!groupItems.length) return '';
+        return `
+        <div class="section-title">${grp}</div>
+        <div class="panel">
+          <div class="panel-body" style="padding:0;">
+            <table>
+              <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="item-${escapeAttr(grp)}" aria-label="Select all items in ${escapeAttr(grp)}"></th><th>Item</th><th>Unit</th><th>HSN</th><th class="num">Rate</th><th>GST</th><th class="num">Opening Qty</th><th class="num">Opening Value</th><th></th></tr>
+              ${groupItems.map(it=>{
+                const openVal = (Number(it.openingQty)||0)*(Number(it.openingRate)||0);
+                return `<tr>
+                  <td><input type="checkbox" class="bulk-check" data-bulk-item="${it.id}" data-bulk-cat="item-${escapeAttr(grp)}" ${bulkItemSelection.has(it.id)?'checked':''} aria-label="Select ${escapeAttr(it.name)}"></td>
+                  <td>${it.name}</td>
+                  <td class="muted">${it.unit||'—'}</td>
+                  <td class="muted">${it.hsn||'—'}</td>
+                  <td class="num">${it.rate!=null?'₹'+fmt(it.rate):'—'}</td>
+                  <td class="muted">${it.gstRate!=null?it.gstRate+'%':'—'}</td>
+                  <td class="num">${it.openingQty?fmt(it.openingQty)+' '+(it.unit||''):'—'}</td>
+                  <td class="num">${openVal?'₹'+fmt(openVal):'—'}</td>
+                  <td><button class="btn small secondary" data-delete-item="${it.id}" type="button">Delete</button></td>
+                </tr>`;
+              }).join('')}
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+      if(groupsHtml) return groupsHtml;
+      return q ? `<div class="empty">No items match "${escapeHtml(itemMasterSearchQuery)}".</div>` : emptyState({icon:'📦', title:'No stock items yet', text:'Create one above — items appear in the Sales/Purchase item picker once added.'});
+    })()}
   `;
 }
 
@@ -14768,13 +14857,15 @@ function viewInventory(){
   const lowStock = summaries.filter(r=> r.item.reorderLevel!=null && r.summary.closing>0 && r.summary.closing<=r.item.reorderLevel).length;
   const outOfStock = summaries.filter(r=> r.summary.closing<=0).length;
 
+  const activeCategories = STOCK_GROUPS.filter(grp=>state.items.some(it=>(it.group||'Primary')===grp)).length;
   return `
     ${masthead('Inventory Control Management','Stock, locations, batches & serials, reorder alerts, forecasting, and analytics')}
-    <div class="grid">
-      <div class="stat"><div class="label">Total Stock Value</div><div class="val ${totalValue>=0?'pos':'neg'}">₹${fmt(totalValue)}</div></div>
+    <div class="bento-grid">
+      <div class="stat bento-hero"><div class="label">Total Stock Value</div><div class="val ${totalValue>=0?'pos':'neg'}">₹${fmt(totalValue)}</div></div>
       <div class="stat"><div class="label">Total Items</div><div class="val">${state.items.length}</div></div>
       <div class="stat"><div class="label">Low Stock</div><div class="val ${lowStock>0?'neg':''}">${lowStock}</div></div>
       <div class="stat"><div class="label">Out of Stock</div><div class="val ${outOfStock>0?'neg':''}">${outOfStock}</div></div>
+      <div class="stat"><div class="label">Categories</div><div class="val">${activeCategories}</div></div>
     </div>
 
     <div class="panel">
@@ -14830,42 +14921,57 @@ function viewInventory(){
       `;
     })()}
 
-    ${STOCK_GROUPS.map(grp=>{
-      const groupItems = summaries.filter(r=>(r.item.group||'Primary')===grp);
-      if(!groupItems.length) return '';
-      return `
-      <div class="section-title">${grp}</div>
-      <div class="panel">
-        <div class="panel-body" style="padding:0;">
-          <table>
-            <tr><th>Item</th><th class="num">Opening</th><th class="num">Inward</th><th class="num">Outward</th><th class="num">Closing</th><th class="num">Rate</th><th class="num">Value</th><th>Status</th><th></th></tr>
-            ${groupItems.map(({item,summary})=>{
-              const out = summary.closing<=0;
-              const low = !out && item.reorderLevel!=null && summary.closing<=item.reorderLevel;
-              const statusBadge = out ? `<span class="pill neg">Out of Stock</span>` : low ? `<span class="pill neg">Low Stock</span>` : `<span class="pill pos">OK</span>`;
-              return `<tr>
-                <td data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div></td>
-                <td class="num">${fmt(summary.opening)}</td>
-                <td class="num">${summary.inward?fmt(summary.inward):'—'}</td>
-                <td class="num">${summary.outward?fmt(summary.outward):'—'}</td>
-                <td class="num" style="font-weight:700;">${fmt(summary.closing)} ${item.unit||''}</td>
-                <td class="num">${item.rate!=null?'₹'+fmt(item.rate):'—'}</td>
-                <td class="num">₹${fmt(summary.value)}</td>
-                <td>${statusBadge}</td>
-                <td><button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button></td>
-              </tr>`;
-            }).join('')}
-          </table>
-        </div>
-      </div>`;
-    }).join('') || emptyState({icon:'📦', title:'No stock items yet', text:'Add items in the Accounts tab first.', ctaLabel:'Go to Accounts', ctaTab:'coa'})}
+    ${summaries.length>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
+      <input type="text" id="inventorySearchInput" placeholder="Search items by name, HSN or unit…" value="${escapeAttr(inventorySearchQuery)}">
+    </div></div>` : ''}
+    ${(()=>{
+      const q = inventorySearchQuery.trim().toLowerCase();
+      const matches = item => !q || item.name.toLowerCase().includes(q) || (item.hsn||'').toLowerCase().includes(q) || (item.unit||'').toLowerCase().includes(q);
+      const groupsHtml = STOCK_GROUPS.map(grp=>{
+        const groupItems = summaries.filter(r=>(r.item.group||'Primary')===grp && matches(r.item));
+        if(!groupItems.length) return '';
+        return `
+        <div class="section-title">${grp}</div>
+        <div class="panel">
+          <div class="panel-body" style="padding:0;">
+            <table>
+              <tr><th>Item</th><th class="num">Opening</th><th class="num">Inward</th><th class="num">Outward</th><th class="num">Closing</th><th class="num">Rate</th><th class="num">Value</th><th>Status</th><th></th></tr>
+              ${groupItems.map(({item,summary})=>{
+                const out = summary.closing<=0;
+                const low = !out && item.reorderLevel!=null && summary.closing<=item.reorderLevel;
+                const statusBadge = out ? `<span class="pill neg">Out of Stock</span>` : low ? `<span class="pill neg">Low Stock</span>` : `<span class="pill pos">OK</span>`;
+                return `<tr>
+                  <td data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div></td>
+                  <td class="num">${fmt(summary.opening)}</td>
+                  <td class="num">${summary.inward?fmt(summary.inward):'—'}</td>
+                  <td class="num">${summary.outward?fmt(summary.outward):'—'}</td>
+                  <td class="num" style="font-weight:700;">${fmt(summary.closing)} ${item.unit||''}</td>
+                  <td class="num">${item.rate!=null?'₹'+fmt(item.rate):'—'}</td>
+                  <td class="num">₹${fmt(summary.value)}</td>
+                  <td>${statusBadge}</td>
+                  <td><button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button></td>
+                </tr>`;
+              }).join('')}
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+      if(groupsHtml) return groupsHtml;
+      if(q) return `<div class="empty">No items match "${escapeHtml(inventorySearchQuery)}".</div>`;
+      return emptyState({icon:'📦', title:'No stock items yet', text:'Add items in the Accounts tab first.', ctaLabel:'Go to Accounts', ctaTab:'coa'});
+    })()}
     <p class="muted" style="font-size:11px;">Closing stock = Opening Quantity + Purchases + Sales Returns (Credit Notes) − Sales − Purchase Returns (Debit Notes) ± manual adjustments. Click an item name for its full movement history.</p>
 
+    <details class="disclosure">
+      <summary>Advanced — Serial Register, Demand Forecast, Sales by Channel &amp; Inventory Analytics</summary>
+      <div class="disclosure-body">
     ${serialRegisterPanel()}
     ${demandForecastPanel()}
     ${salesByChannelPanel()}
     ${inventoryAnalyticsPanel()}
     <p class="muted" style="font-size:11px;">Every figure above is tied straight to your ledgers already — item Rate/Opening Value feed the stock-in-hand valuation used across the Balance Sheet, and Cost of Sales in the turnover ratio is the same figure the Income Statement shows. There's nothing separate to reconcile.</p>
+      </div>
+    </details>
   `;
 }
 
@@ -14980,6 +15086,7 @@ function viewReports(){
   return reportsLanding();
 }
 function reportsLanding(){
+  const integrityCount = dataIntegrityChecks().length;
   const cards = [
     {id:'trialBalance', icon:'⚖️', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.'},
     {id:'incomeStatement', icon:'📈', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.'},
@@ -14989,16 +15096,17 @@ function reportsLanding(){
     {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.'},
     {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.'},
     {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.'},
-    {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.'},
+    {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', badge: integrityCount>0 ? integrityCount : null},
   ];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
       <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Export All (Excel)</button>
     </div>
-    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
+    <div class="grid report-card-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
       ${cards.map(c=>`
-        <div class="panel" data-open-report="${c.id}" style="cursor:pointer;margin-bottom:0;">
+        <div class="panel report-card" data-open-report="${c.id}" style="cursor:pointer;margin-bottom:0;position:relative;">
+          ${c.badge ? `<span class="pill neg" style="position:absolute;top:14px;right:14px;">${c.badge} issue${c.badge===1?'':'s'}</span>` : ''}
           <div class="panel-body">
             <div style="font-size:26px;margin-bottom:8px;">${c.icon}</div>
             <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--ink);">${c.title}</div>
@@ -15767,6 +15875,13 @@ function viewGST(){
   return `
     ${masthead('GST','Output tax, input credit, and filing-ready statements')}
 
+    <div class="grid">
+      <div class="stat"><div class="label">Output Tax (Payable)</div><div class="val neg">₹${fmt(gstOutputTotal())}</div></div>
+      <div class="stat"><div class="label">Input Credit</div><div class="val pos">₹${fmt(gstInputTotal())}</div></div>
+      <div class="stat"><div class="label">Net GST ${netGST>=0?'Payable':'Refundable'}</div><div class="val ${netGST>=0?'neg':'pos'}">₹${fmt(Math.abs(netGST))}</div></div>
+      <div class="stat"><div class="label">GST Filings This Year</div><div class="val">${state.vouchers.filter(v=>(v.type==='Sales'||v.type==='Purchase') && gstBreakdownForVoucher(v).totalTax>0).length}</div></div>
+    </div>
+
     <div class="panel">
       <div class="panel-head"><h2>GST Summary</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -16014,7 +16129,7 @@ function viewReconcile(){
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>Summary — ${escapeHtml(ledger.name)}</h2><span class="pill ${!hasBalance ? '' : (summary.reconciled?'pos':'neg')}">${hasBalance ? (summary.reconciled?'✓ Reconciled':'⚠ Difference ₹'+fmt(Math.abs(summary.difference))) : 'Enter statement balance'}</span></div>
+      <div class="panel-head"><h2>Summary — ${escapeHtml(ledger.name)}</h2><span class="pill ${!hasBalance ? '' : (summary.reconciled?'pos reconciled-pop':'neg')}">${hasBalance ? (summary.reconciled?'✓ Reconciled':'⚠ Difference ₹'+fmt(Math.abs(summary.difference))) : 'Enter statement balance'}</span></div>
       <div class="panel-body" style="padding:0;">
         <table>
           <tr><td>Balance as per Bank Statement (${reconcileDateLabel(asOfDate)})</td><td class="num">₹${fmt(statementBalance)}</td></tr>
@@ -16047,15 +16162,19 @@ function viewReconcile(){
     </div>
 
     ${history.length ? `
+    <details class="disclosure" open>
+      <summary>Reconciliation History <span class="pill" style="margin-left:6px;">${history.length}</span></summary>
+      <div class="disclosure-body">
     <div class="panel">
-      <div class="panel-head"><h2>Reconciliation History</h2></div>
       <div class="panel-body" style="padding:0;">
         <table>
           <tr><th>Statement Date</th><th class="num">Statement Bal.</th><th class="num">Book Bal.</th><th class="num">Difference</th><th>Saved</th></tr>
           ${history.map(h=>`<tr><td class="muted">${h.date}</td><td class="num">₹${fmt(h.statementBalance)}</td><td class="num">₹${fmt(h.bookBalance)}</td><td class="num ${Math.abs(h.difference)<0.005?'':'neg'}">₹${fmt(h.difference)}</td><td class="muted" style="font-size:11px;">${fmtTimestamp(h.createdAt)}</td></tr>`).join('')}
         </table>
       </div>
-    </div>` : ''}
+    </div>
+      </div>
+    </details>` : ''}
   `;
 }
 
@@ -16096,8 +16215,17 @@ function assetDraftForm(){
 }
 function viewAssets(){
   const currentFY = fyLabelForDate(new Date().toISOString().slice(0,10));
+  const totalCost = state.fixedAssets.reduce((s,a)=>s+(Number(a.cost)||0),0);
+  const totalBookValue = state.fixedAssets.reduce((s,a)=>{ const l=ledgerOf(a.ledgerId); return s+(l?ledgerBalance(l.id):0); },0);
+  const dueThisFY = state.fixedAssets.filter(a=>!(a.postedFYs||[]).includes(currentFY) && assetDepreciationForFY(a,currentFY)>0).length;
   return `
     ${masthead('Fixed Asset Register',`Track assets and post depreciation for FY ${currentFY}`,'assets')}
+    <div class="grid">
+      <div class="stat"><div class="label">Total Assets</div><div class="val">${state.fixedAssets.length}</div></div>
+      <div class="stat"><div class="label">Total Cost</div><div class="val">₹${fmt(totalCost)}</div></div>
+      <div class="stat"><div class="label">Total Book Value</div><div class="val">₹${fmt(totalBookValue)}</div></div>
+      <div class="stat"><div class="label">Depreciation Due (FY ${currentFY})</div><div class="val ${dueThisFY?'neg':''}">${dueThisFY}</div></div>
+    </div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
         ${state.fixedAssets.length ? `<table>
@@ -16304,13 +16432,17 @@ function employeeDraftForm(){
           <div class="field" style="max-width:170px;"><label>Employment Type</label><select id="empType">${EMPLOYMENT_TYPES.map(t=>`<option ${d.employmentType===t?'selected':''}>${t}</option>`).join('')}</select></div>
           <div class="field" style="max-width:170px;"><label>Date of Joining</label><input type="date" id="empJoinDate" value="${d.joinDate}"></div>
         </div>
-        <div class="section-title" style="margin-top:10px;">Bank &amp; Statutory Details</div>
+        <details class="disclosure" ${(d.bankName||d.bankAccount||d.bankIFSC||d.pan)?'open':''}>
+          <summary>Bank &amp; Statutory Details</summary>
+          <div class="disclosure-body">
         <div class="row">
           <div class="field"><label>Bank Name</label><input type="text" id="empBankName" value="${escapeAttr(d.bankName)}" placeholder="e.g. HDFC Bank"></div>
           <div class="field"><label>Bank Account No.</label><input type="text" id="empBankAccount" value="${escapeAttr(d.bankAccount)}"></div>
           <div class="field" style="max-width:150px;"><label>IFSC</label><input type="text" id="empBankIFSC" value="${escapeAttr(d.bankIFSC)}"></div>
           <div class="field" style="max-width:150px;"><label>PAN</label><input type="text" id="empPAN" value="${escapeAttr(d.pan)}"></div>
         </div>
+          </div>
+        </details>
         <div class="section-title" style="margin-top:10px;">Monthly Salary Structure — Earnings</div>
         <div class="row">
           <div class="field" style="max-width:150px;"><label>Basic</label><input type="number" id="empBasic" step="0.01" value="${d.basic}"></div>
@@ -16326,12 +16458,16 @@ function employeeDraftForm(){
           <div class="field" style="max-width:130px;"><label>TDS</label><input type="number" id="empTDS" step="0.01" value="${d.tds}"></div>
           <div class="field" style="max-width:150px;"><label>Other Deductions</label><input type="number" id="empOtherDeductions" step="0.01" value="${d.otherDeductions}"></div>
         </div>
-        <div class="section-title" style="margin-top:10px;">Employer Contributions (adds to cost, not deducted from pay)</div>
+        <details class="disclosure" ${(d.employerPF||d.employerESI)?'open':''}>
+          <summary>Employer Contributions (adds to cost, not deducted from pay)</summary>
+          <div class="disclosure-body">
         <div class="row">
           <div class="field" style="max-width:150px;"><label>Employer PF</label><input type="number" id="empEmployerPF" step="0.01" value="${d.employerPF}"></div>
           <div class="field" style="max-width:150px;"><label>Employer ESI</label><input type="number" id="empEmployerESI" step="0.01" value="${d.employerESI}"></div>
           <div class="field" style="flex:2;"><label>Cost to Company (CTC) / month</label><input type="text" value="₹${fmt((Number(d.basic)||0)+(Number(d.hra)||0)+(Number(d.allowances)||0)+(Number(d.bonus)||0)+(Number(d.employerPF)||0)+(Number(d.employerESI)||0))}" disabled></div>
         </div>
+          </div>
+        </details>
         <p class="muted" style="font-size:11px;">Salaries post straight to the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger — nothing to set up per employee.</p>
         <div style="display:flex;gap:8px;margin-top:6px;">
           <button class="btn" id="saveEmployeeBtn" type="button">${editing?'Update':'Add'} Employee</button>
@@ -16434,11 +16570,12 @@ function viewPayroll(){
   })(payrollTaxReportRows(filteredPayslips));
   return `
     ${masthead('Payroll Management','Employee master, monthly salary run, payslips, advances, exits, documents & reports')}
-    <div class="grid">
+    <div class="bento-grid">
+      <div class="stat bento-hero"><div class="label">Monthly Payroll (Net)</div><div class="val">₹${fmt(totalMonthlyPayroll)}</div></div>
       <div class="stat"><div class="label">Active Employees</div><div class="val">${activeEmployees.length}</div></div>
-      <div class="stat"><div class="label">Monthly Payroll (Net)</div><div class="val">₹${fmt(totalMonthlyPayroll)}</div></div>
       <div class="stat"><div class="label">Monthly Cost to Company</div><div class="val">₹${fmt(totalMonthlyCTC)}</div></div>
       <div class="stat"><div class="label">Payslips Generated</div><div class="val">${state.salaryVouchers.length}</div></div>
+      <div class="stat"><div class="label">Resigned Employees</div><div class="val">${resignedEmployees.length}</div></div>
     </div>
 
     <div class="section-title">Employees</div>
@@ -16936,18 +17073,34 @@ function viewParties(){
   const customers = state.ledgers.filter(l=>l.partyType==='customer');
   const suppliers = state.ledgers.filter(l=>l.partyType==='supplier');
   const rowsFor = list => list.map(l=>({ ledger:l, summary: partyAgeingSummary(l.id) })).sort((a,b)=>b.summary.total-a.summary.total);
-  const custRows = rowsFor(customers);
-  const suppRows = rowsFor(suppliers);
+  let custRows = rowsFor(customers);
+  let suppRows = rowsFor(suppliers);
   const totalReceivable = r2(custRows.reduce((s,r)=>s+r.summary.total,0));
   const totalPayable = r2(suppRows.reduce((s,r)=>s+r.summary.total,0));
+  const overdueCount = custRows.filter(r=>r.summary.buckets['90+']>0).length + suppRows.filter(r=>r.summary.buckets['90+']>0).length;
+
+  if(partiesSearchQuery.trim()){
+    const q = partiesSearchQuery.trim().toLowerCase();
+    custRows = custRows.filter(r=>r.ledger.name.toLowerCase().includes(q));
+    suppRows = suppRows.filter(r=>r.ledger.name.toLowerCase().includes(q));
+  }
 
   return `
     ${masthead('Parties','Customers & suppliers — outstanding balances by age','parties')}
+    <div class="bento-grid">
+      <div class="stat bento-hero"><div class="label">Net Position (Receivable − Payable)</div><div class="val ${(totalReceivable-totalPayable)>=0?'pos':'neg'}">₹${fmt(totalReceivable-totalPayable)}</div></div>
+      <div class="stat"><div class="label">Total Receivable</div><div class="val pos">₹${fmt(totalReceivable)}</div></div>
+      <div class="stat"><div class="label">Total Payable</div><div class="val neg">₹${fmt(totalPayable)}</div></div>
+      <div class="stat"><div class="label">90+ Days Overdue</div><div class="val ${overdueCount?'neg':''}">${overdueCount}</div></div>
+    </div>
+    ${(customers.length+suppliers.length)>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
+      <input type="text" id="partiesSearchInput" placeholder="Search customers or suppliers by name…" value="${escapeAttr(partiesSearchQuery)}">
+    </div></div>` : ''}
     <div class="section-title">Receivables (Customers) — Outstanding ₹${fmt(totalReceivable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? 'No outstanding receivables — every customer invoice is settled.' : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.')}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.')}</div></div>
 
     <div class="section-title">Payables (Suppliers) — Outstanding ₹${fmt(totalPayable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? 'No outstanding payables — every supplier bill is settled.' : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.')}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? (partiesSearchQuery.trim() ? 'No suppliers match your search.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.')}</div></div>
     <p class="muted" style="font-size:11.5px;">Tag a ledger as a Customer or Supplier from the Accounts tab (click "Not a party" next to any ledger) to have it appear here. Click a row for its invoice-by-invoice breakdown. Payments are matched to the oldest outstanding invoice first (FIFO).</p>
   `;
 }
@@ -16988,6 +17141,39 @@ function attachHandlers(){
     recurringDraft = null;
     modal = 'recurring';
     render();
+  });
+
+  document.getElementById('daybookSearchInput')?.addEventListener('input', (e)=>{
+    daybookSearchQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    render();
+    const el = document.getElementById('daybookSearchInput');
+    if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+  });
+  document.getElementById('daybookTypeFilterSelect')?.addEventListener('change', e=>{
+    daybookTypeFilter = e.target.value;
+    render();
+  });
+  document.getElementById('itemMasterSearchInput')?.addEventListener('input', (e)=>{
+    itemMasterSearchQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    render();
+    const el = document.getElementById('itemMasterSearchInput');
+    if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+  });
+  document.getElementById('inventorySearchInput')?.addEventListener('input', (e)=>{
+    inventorySearchQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    render();
+    const el = document.getElementById('inventorySearchInput');
+    if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+  });
+  document.getElementById('partiesSearchInput')?.addEventListener('input', (e)=>{
+    partiesSearchQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    render();
+    const el = document.getElementById('partiesSearchInput');
+    if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
   });
 
   document.querySelectorAll('[data-open-help]').forEach(el=>{
@@ -17113,8 +17299,16 @@ function attachHandlers(){
       el.addEventListener('click', ()=>{
         ordersSubTab = el.dataset.ordersSubtab;
         oform = null;
+        ordersSearchQuery = '';
         render();
       });
+    });
+    document.getElementById('ordersSearchInput')?.addEventListener('input', (e)=>{
+      ordersSearchQuery = e.target.value;
+      const caret = e.target.selectionStart;
+      render();
+      const el = document.getElementById('ordersSearchInput');
+      if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
     });
     document.getElementById('oNewBtn')?.addEventListener('click', ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
