@@ -1815,12 +1815,20 @@ function currencyToINR(amount, currencyId){
   return r2((Number(amount)||0) * (Number(c.rate)||1));
 }
 function currencyOf(id){ return state.currencies.find(c=>c.id===id); }
+// Every company starts with one warehouse/location ("Main Warehouse") so single-location
+// businesses never have to think about this — Multi-Warehouse Management only becomes visible
+// once a second location is added under Inventory Control.
+const DEFAULT_WAREHOUSES = [ {id:'wh_main', name:'Main Warehouse', active:true} ];
+function warehouseOf(id){ return state.warehouses.find(w=>w.id===id); }
+function defaultWarehouseId(){ const active = state.warehouses.filter(w=>w.active!==false); return (active[0]||state.warehouses[0]||{}).id || null; }
 
 let state = {
   ledgers: [],
   vouchers: [],
   items: [],
   stockAdjustments: [],
+  warehouses: [], // [{id, name, active}] -- stock "locations"; item lines on Sales/Purchase/Credit/Debit Note vouchers and stock adjustments can optionally tag a warehouseId, defaulting to the first one when unset
+  stockTransfers: [], // [{id, date, itemId, qty, fromWarehouseId, toWarehouseId, remark}] -- moves quantity between warehouses; purely an inventory movement, never touches accounting ledgers
   bankClears: [],       // [{ledgerId, voucherId, clearedDate}] — which bank-ledger voucher entries have been ticked off against a bank statement
   reconciliations: [],  // [{id, ledgerId, date, statementBalance, bookBalance, difference, ...}] — saved history of past bank reconciliations
   recurringTemplates: [], // [{id, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate, lastGeneratedDate, active}]
@@ -1837,6 +1845,8 @@ let state = {
   purchaseOrders: [],
   deliveryChallans: [],
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
+  docVaultSalt: null,      // base64 random salt for the Employee Documents encryption vault (set once, on first use)
+  docVaultVerifier: null,  // base64 SHA-256(passphrase+salt) -- lets the app confirm a re-entered passphrase is correct WITHOUT ever storing the passphrase or the derived AES key anywhere persistent
 };
 let view = 'dashboard';
 // ---- Advanced UI/UX state: command palette, dashboard counter animation (darkMode is declared
@@ -1950,7 +1960,7 @@ let featureFlagsDraft = { ...DEFAULT_FEATURE_FLAGS };
 // Which sidebar tabs can be paid-gated, and the settings/featureFlags field that gates each one.
 // Single source of truth used by tab(), goToTab(), renderView() and the Admin Panel toggles below.
 const GATED_TABS = { inventory:'inventoryRequiresPaid', reconcile:'reconcileRequiresPaid', gst:'gstRequiresPaid', assets:'assetsRequiresPaid', parties:'partiesRequiresPaid', orders:'ordersRequiresPaid', payroll:'payrollRequiresPaid' };
-const GATED_TAB_LABELS = { inventory:'Inventory', reconcile:'Reconcile', gst:'GST', assets:'Assets', parties:'Parties', orders:'Orders', payroll:'Payroll' };
+const GATED_TAB_LABELS = { inventory:'Inventory Control', reconcile:'Reconcile', gst:'GST', assets:'Assets', parties:'Parties', orders:'Orders', payroll:'Payroll Management' };
 // Every feature that can be individually granted to ONE account via Feature Overrides, regardless
 // of their plan -- this is GATED_TAB_LABELS (the sidebar tabs) plus 'import', which is gated the
 // same way but lives inside Backup & Restore rather than being its own tab. Single source of truth
@@ -2026,6 +2036,9 @@ let pieChartLedgerId = null; // which ledger's pie chart to show
 let dashVizHiddenSeries = {};
 let stockDetailItemId = null;  // which item's stock movement modal to show
 let stockAdjustItemId = null;  // which item's adjust-stock modal to show
+let stockTransferDraft = null; // null = not transferring | {itemId, qty, fromWarehouseId, toWarehouseId, date, remark}
+let barcodeScanQuery = '';     // "scan or type a barcode" quick-lookup box on Inventory Control
+let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
 let reportsSelected = null; // null = Reports landing grid | 'trialBalance'|'incomeStatement'|'balanceSheet'|'ratios'|'cashFlow'
 let reconcileLedgerId = null; // which bank ledger the Reconcile tab is currently showing
@@ -2049,6 +2062,23 @@ let attachmentsVoucherId = null; // which voucher the Attachments modal is open 
 let attachmentsCache = {}; // voucherId -> [{id, filename, mimeType, size, uploadedAt, dataUrl}], lazy-loaded per voucher from its own Firestore subcollection
 let attachmentsLoading = false; // true while the current voucher's attachment list is being fetched
 let invoiceSettingsDraft = null; // null = modal closed | {template, accentColor, footerNote, logoDataUrl}
+/* ---------------- Employee Documents vault (encrypted secure document storage) ----------------
+   Reuses the same companies/{id}/attachments subcollection as voucher attachments (see that block
+   below), keyed by employeeId instead of voucherId, so no new Firestore rule is needed. Unlike
+   voucher attachments, these files are encrypted client-side (Web Crypto AES-GCM) before upload --
+   ID proofs, tax forms, and increment letters are exactly the kind of document that shouldn't sit
+   as plain base64 in the database. The AES key is derived (PBKDF2) from a passphrase the user sets
+   the first time they use this feature; only a random salt and a verifier hash are ever stored --
+   never the passphrase, never the derived key -- so the key exists only in this browser tab's
+   memory for the current session and is re-derived (by re-entering the passphrase) every time the
+   app is reloaded. Losing the passphrase means losing access to these files -- there is no reset. */
+let employeeDocumentsEmployeeId = null; // which employee the Documents modal is open for
+let employeeDocumentsCache = {}; // employeeId -> [{id, docType, filename, mimeType, size, uploadedAt, uploadedBy}], lazy-loaded per employee
+let employeeDocumentsLoading = false; // true while the current employee's document list is being fetched
+let docVaultKey = null; // the derived CryptoKey (AES-GCM) for this session only -- never persisted, cleared on reload
+let docVaultUnlockError = ''; // error text shown on the passphrase-entry form after a wrong attempt
+let employeeDocUploadType = 'ID Proof'; // doc-type dropdown selection in the upload form
+const EMPLOYEE_DOC_TYPES = ['ID Proof', 'Tax Form (PAN/Form 16 etc.)', 'Increment/Offer Letter', 'Other'];
 
 /* ---------------- AI Q&A chat widget state ---------------- */
 let qaOpen = false;      // whether the floating Q&A chat panel is expanded
@@ -3335,6 +3365,14 @@ function skDemoItems(){
     {id:'i_sk_packaging', name:'Packaging Material', group:'Packaging Materials', unit:'BOX', hsn:'4819', rate:100, gstRate:18, openingQty:800, openingRate:70, reorderLevel:100},
   ];
 }
+// A second location so the demo shows Multi-Warehouse Management (Stock by Location, transfers)
+// with something to actually look at, rather than everything sitting in one place.
+function skDemoWarehouses(){
+  return [
+    {id:'wh_main', name:'Main Warehouse (Chennai)', active:true},
+    {id:'wh_north', name:'North Depot (Delhi)', active:true},
+  ];
+}
 // Dated to match the two Plant & Machinery events actually posted in skDemoVouchers(): the
 // original plant behind the 2021-04-01 sk_fa opening balance of 1,500,000, and the 800,000
 // packaging-line machine bought on 2023-04-04 (the y===2, m===0 one-off event above).
@@ -3512,6 +3550,8 @@ async function loadState(){
     state.vouchers = Array.isArray(data.vouchers) ? data.vouchers : [];
     state.items = Array.isArray(data.items) ? data.items : [];
     state.stockAdjustments = Array.isArray(data.stockAdjustments) ? data.stockAdjustments : [];
+    state.warehouses = Array.isArray(data.warehouses) && data.warehouses.length ? data.warehouses : DEFAULT_WAREHOUSES.slice();
+    state.stockTransfers = Array.isArray(data.stockTransfers) ? data.stockTransfers : [];
     state.bankClears = Array.isArray(data.bankClears) ? data.bankClears : [];
     state.reconciliations = Array.isArray(data.reconciliations) ? data.reconciliations : [];
     state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
@@ -3528,12 +3568,16 @@ async function loadState(){
     state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
     state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
     state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
+    state.docVaultSalt = data.docVaultSalt || null;
+    state.docVaultVerifier = data.docVaultVerifier || null;
   }catch(e){
     console.error(e);
     state.ledgers = DEFAULT_LEDGERS.slice();
     state.vouchers = [];
     state.items = [];
     state.stockAdjustments = [];
+    state.warehouses = DEFAULT_WAREHOUSES.slice();
+    state.stockTransfers = [];
     state.bankClears = [];
     state.reconciliations = [];
     state.recurringTemplates = [];
@@ -3550,6 +3594,8 @@ async function loadState(){
     state.purchaseOrders = [];
     state.deliveryChallans = [];
     state.taxDeductions = [];
+    state.docVaultSalt = null;
+    state.docVaultVerifier = null;
     toast('Could not load company data');
   }
   // Safety net: if this is the shared demo company but its sample vouchers are missing (e.g. an
@@ -3561,11 +3607,13 @@ async function loadState(){
     state.items = skDemoItems();
     state.fixedAssets = skDemoFixedAssets();
     state.recurringTemplates = skDemoRecurringTemplates();
+    state.warehouses = skDemoWarehouses();
     await saveLedgers();
     await saveVouchers();
     await saveItems();
     await saveFixedAssets();
     await saveRecurringTemplates();
+    await saveWarehouses();
   }
   if(!state.ledgers.length) state.ledgers = DEFAULT_LEDGERS.slice();
   if(ensureCoreLedgers()) await saveLedgers();
@@ -3621,6 +3669,16 @@ async function saveStockAdjustments(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   try{ await db.collection('companies').doc(currentCompany.id).set({ stockAdjustments: state.stockAdjustments }, {merge:true}); }
   catch(e){ toast('Could not save stock adjustments'); }
+}
+async function saveWarehouses(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  try{ await db.collection('companies').doc(currentCompany.id).set({ warehouses: state.warehouses }, {merge:true}); }
+  catch(e){ toast('Could not save locations'); }
+}
+async function saveStockTransfers(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  try{ await db.collection('companies').doc(currentCompany.id).set({ stockTransfers: state.stockTransfers }, {merge:true}); }
+  catch(e){ toast('Could not save stock transfer'); }
 }
 async function saveBankClears(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -3701,6 +3759,11 @@ async function saveTaxDeductions(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   try{ await db.collection('companies').doc(currentCompany.id).set({ taxDeductions: state.taxDeductions }, {merge:true}); }
   catch(e){ toast('Could not save TDS/TCS records'); }
+}
+async function saveDocVault(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  try{ await db.collection('companies').doc(currentCompany.id).set({ docVaultSalt: state.docVaultSalt, docVaultVerifier: state.docVaultVerifier }, {merge:true}); }
+  catch(e){ toast('Could not save the document vault setup'); }
 }
 
 /* ---------------- Voucher Attachments (bill/receipt upload) ----------------
@@ -3789,6 +3852,180 @@ function attachmentsModal(){
             </tr>`).join('')}
           </table>` : `<div class="empty">No attachments yet.</div>`}
           <div class="field" style="margin-top:12px;"><label>Add an attachment</label><input type="file" id="attachmentFileInput" accept="image/*,.pdf"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- Employee Documents vault (encrypted secure document storage) ----------------
+   See the state-var comment near employeeDocumentsCache for the design. Short version: a random
+   salt + a PBKDF2-verifier hash live in state (companies/{id}.docVaultSalt/docVaultVerifier); the
+   actual AES-256-GCM key is derived from a user-entered passphrase and kept only in this tab's
+   memory (docVaultKey), never written anywhere. Encrypted file bytes live as their own documents in
+   the same companies/{id}/attachments subcollection voucher attachments already use, keyed by
+   employeeId instead of voucherId, so no new Firestore rule is required. */
+function b64FromBuf(buf){
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function bufFromB64(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+async function sha256B64(str){
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return b64FromBuf(digest);
+}
+async function deriveVaultKey(passphrase, saltB64){
+  const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt: bufFromB64(saltB64), iterations: 150000, hash:'SHA-256' },
+    baseKey,
+    { name:'AES-GCM', length:256 },
+    false,
+    ['encrypt','decrypt']
+  );
+}
+async function setupDocVault(passphrase){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; }
+  if(!passphrase || passphrase.length<6){ toast('Choose a passphrase of at least 6 characters'); return false; }
+  const salt = b64FromBuf(crypto.getRandomValues(new Uint8Array(16)).buffer);
+  const verifier = await sha256B64(passphrase+':'+salt);
+  state.docVaultSalt = salt;
+  state.docVaultVerifier = verifier;
+  await saveDocVault();
+  docVaultKey = await deriveVaultKey(passphrase, salt);
+  docVaultUnlockError = '';
+  toast('Documents vault created for this company');
+  return true;
+}
+async function unlockDocVault(passphrase){
+  if(!state.docVaultSalt || !state.docVaultVerifier) return false;
+  const verifier = await sha256B64(passphrase+':'+state.docVaultSalt);
+  if(verifier !== state.docVaultVerifier){
+    docVaultUnlockError = 'Incorrect passphrase.';
+    return false;
+  }
+  docVaultKey = await deriveVaultKey(passphrase, state.docVaultSalt);
+  docVaultUnlockError = '';
+  return true;
+}
+async function encryptFileForVault(file){
+  const buf = await file.arrayBuffer();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({name:'AES-GCM', iv}, docVaultKey, buf);
+  return { iv: b64FromBuf(iv.buffer), ciphertext: b64FromBuf(ciphertext) };
+}
+async function decryptDocForView(doc){
+  const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv: new Uint8Array(bufFromB64(doc.iv))}, docVaultKey, bufFromB64(doc.ciphertext));
+  return new Blob([plainBuf], {type: doc.mimeType||'application/octet-stream'});
+}
+async function loadEmployeeDocuments(employeeId){
+  employeeDocumentsLoading = true;
+  render();
+  try{
+    const snap = await attachmentsCollection().where('employeeId','==',employeeId).get();
+    const rows = [];
+    snap.forEach(doc=> rows.push({ id: doc.id, ...doc.data() }));
+    rows.sort((a,b)=> (a.uploadedAt||'').localeCompare(b.uploadedAt||''));
+    employeeDocumentsCache[employeeId] = rows;
+  }catch(e){
+    toast('Could not load documents');
+  }
+  employeeDocumentsLoading = false;
+  render();
+}
+async function uploadEmployeeDocument(employeeId, file, docType){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  if(!file) return;
+  if(!docVaultKey){ toast('Unlock the documents vault first'); return; }
+  if(file.size > ATTACHMENT_MAX_BYTES){
+    toast(`"${file.name}" is ${fmt(file.size/1024)} KB — documents are capped at ${ATTACHMENT_MAX_BYTES/1024|0} KB. Try a compressed photo or a smaller PDF.`);
+    return;
+  }
+  try{
+    const {iv, ciphertext} = await encryptFileForVault(file);
+    await attachmentsCollection().add({
+      employeeId, docType: docType||'Other', filename: file.name, mimeType: file.type||'application/octet-stream',
+      size: file.size, iv, ciphertext, encrypted:true, uploadedAt: new Date().toISOString(),
+      uploadedBy: (currentUser && currentUser.name) || '',
+    });
+    toast('Document uploaded and encrypted');
+    await loadEmployeeDocuments(employeeId);
+  }catch(e){
+    toast('Could not upload document — check your connection and try again');
+  }
+}
+async function deleteEmployeeDocument(employeeId, docId){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  try{
+    await attachmentsCollection().doc(docId).delete();
+    toast('Document removed');
+    await loadEmployeeDocuments(employeeId);
+  }catch(e){
+    toast('Could not remove document');
+  }
+}
+async function viewEmployeeDocument(employeeId, docId){
+  const doc = (employeeDocumentsCache[employeeId]||[]).find(x=>x.id===docId);
+  if(!doc) return;
+  if(!docVaultKey){ toast('Unlock the documents vault first'); return; }
+  try{
+    const blob = await decryptDocForView(doc);
+    const url = URL.createObjectURL(blob);
+    const w = window.open('');
+    if(w){
+      w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(doc.filename||'Document')}</title><meta charset="UTF-8"></head><body style="margin:0;">${doc.mimeType.startsWith('image/') ? `<img src="${url}" style="max-width:100%;">` : `<iframe src="${url}" style="width:100%;height:100vh;border:0;"></iframe>`}</body></html>`);
+      w.document.close();
+    } else {
+      toast('Please allow pop-ups to view this document.');
+    }
+  }catch(e){
+    toast('Could not decrypt this document — is the vault passphrase correct?');
+  }
+}
+function employeeDocumentsModal(){
+  const emp = state.employees.find(x=>x.id===employeeDocumentsEmployeeId);
+  const rows = employeeDocumentsCache[employeeDocumentsEmployeeId] || [];
+  const needsSetup = !state.docVaultSalt;
+  const needsUnlock = !needsSetup && !docVaultKey;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg">
+      <div class="modal-card" style="width:560px;">
+        <div class="panel-head" style="padding:16px 20px;"><h2>Documents — ${emp?escapeHtml(emp.name):''}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div style="padding:0 20px 20px;">
+          ${needsSetup ? `
+            <p class="muted" style="font-size:12px;">Set a passphrase to create an encrypted document vault for this company. ID proofs, tax forms, and increment letters will be encrypted (AES-256-GCM) with a key derived from this passphrase before they ever leave this browser — even someone with direct database access can't read them without it. <strong>There is no password reset</strong>: if this passphrase is lost, any documents stored under it can't be recovered.</p>
+            <div class="field"><label>New Vault Passphrase (min. 6 characters)</label><input type="password" id="docVaultSetupInput" autocomplete="new-password"></div>
+            <button class="btn small" id="docVaultSetupBtn" type="button">Create Vault &amp; Continue</button>
+          ` : needsUnlock ? `
+            <p class="muted" style="font-size:12px;">Enter this company's Documents Vault passphrase to view or add encrypted employee documents. The passphrase itself is never stored — only used right here, in this tab, to derive the decryption key for this session.</p>
+            <div class="field"><label>Vault Passphrase</label><input type="password" id="docVaultUnlockInput" autocomplete="current-password"></div>
+            ${docVaultUnlockError ? `<p style="color:var(--debit);font-size:12px;">${escapeHtml(docVaultUnlockError)}</p>` : ''}
+            <button class="btn small" id="docVaultUnlockBtn" type="button">Unlock</button>
+          ` : `
+            <p class="muted" style="font-size:12px;">Encrypted, per-employee document storage. Max ${ATTACHMENT_MAX_BYTES/1024|0} KB per file.</p>
+            ${employeeDocumentsLoading ? `<p class="muted">Loading…</p>` : rows.length ? `<table>
+              <tr><th>Type</th><th>File</th><th class="num">Size</th><th></th></tr>
+              ${rows.map(d=>`<tr>
+                <td class="muted">${escapeHtml(d.docType||'Other')}</td>
+                <td>${escapeHtml(d.filename)}<div class="muted" style="font-size:10.5px;">${fmtTimestamp(d.uploadedAt)}${d.uploadedBy?' · '+escapeHtml(d.uploadedBy):''}</div></td>
+                <td class="num">${fmt(d.size/1024)} KB</td>
+                <td><button class="btn small secondary" data-view-employee-doc="${d.id}" type="button">View</button> <button class="btn small secondary" data-delete-employee-doc="${d.id}" type="button">Delete</button></td>
+              </tr>`).join('')}
+            </table>` : `<div class="empty">No documents stored yet.</div>`}
+            <div class="row" style="margin-top:12px;align-items:flex-end;">
+              <div class="field" style="max-width:240px;"><label>Document type</label>
+                <select id="employeeDocTypeInput">${EMPLOYEE_DOC_TYPES.map(t=>`<option value="${escapeAttr(t)}" ${employeeDocUploadType===t?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select>
+              </div>
+              <div class="field"><label>Add a document</label><input type="file" id="employeeDocFileInput" accept="image/*,.pdf"></div>
+            </div>
+          `}
         </div>
       </div>
     </div>
@@ -3998,6 +4235,8 @@ function buildCompanyBackup(){
     vouchers: state.vouchers,
     items: state.items,
     stockAdjustments: state.stockAdjustments,
+    warehouses: state.warehouses,
+    stockTransfers: state.stockTransfers,
     bankClears: state.bankClears,
     reconciliations: state.reconciliations,
     recurringTemplates: state.recurringTemplates,
@@ -4014,6 +4253,8 @@ function buildCompanyBackup(){
     purchaseOrders: state.purchaseOrders,
     deliveryChallans: state.deliveryChallans,
     taxDeductions: state.taxDeductions,
+    docVaultSalt: state.docVaultSalt,
+    docVaultVerifier: state.docVaultVerifier,
   };
 }
 // Generic "save this object as a downloaded .json file" helper, used by the e-Invoice/e-Way Bill
@@ -4108,6 +4349,8 @@ async function restoreCompanyBackup(data){
   state.vouchers = Array.isArray(data.vouchers) ? data.vouchers : [];
   state.items = Array.isArray(data.items) ? data.items : [];
   state.stockAdjustments = Array.isArray(data.stockAdjustments) ? data.stockAdjustments : [];
+  state.warehouses = Array.isArray(data.warehouses) && data.warehouses.length ? data.warehouses : DEFAULT_WAREHOUSES.slice();
+  state.stockTransfers = Array.isArray(data.stockTransfers) ? data.stockTransfers : [];
   state.bankClears = Array.isArray(data.bankClears) ? data.bankClears : [];
   state.reconciliations = Array.isArray(data.reconciliations) ? data.reconciliations : [];
   state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
@@ -4124,12 +4367,15 @@ async function restoreCompanyBackup(data){
   state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
   state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
   state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
+  state.docVaultSalt = data.docVaultSalt || null;
+  state.docVaultVerifier = data.docVaultVerifier || null;
   await Promise.all([
     saveLedgers(), saveVouchers(), saveItems(), saveStockAdjustments(),
+    saveWarehouses(), saveStockTransfers(),
     saveBankClears(), saveReconciliations(), saveRecurringTemplates(), saveFixedAssets(),
     saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
     saveQuotations(), saveSalesOrders(), savePurchaseOrders(), saveDeliveryChallans(),
-    saveTaxDeductions(),
+    saveTaxDeductions(), saveDocVault(),
   ]);
 }
 
@@ -5145,13 +5391,13 @@ function stockMovementForItem(itemId){
     if(dir===0) continue;
     for(const it of v.items){
       if(it.itemId===itemId && it.qty>0){
-        moves.push({date:v.date, type:v.type, narration:v.narration||v.type, qty:it.qty, dir});
+        moves.push({date:v.date, type:v.type, narration:v.narration||v.type, qty:it.qty, dir, warehouseId: it.warehouseId||null, batch: it.batch||null, serial: it.serial||null});
       }
     }
   }
   for(const adj of state.stockAdjustments){
     if(adj.itemId===itemId){
-      moves.push({date:adj.date, type:'Adjustment', narration:adj.reason||'Stock adjustment', qty:Math.abs(adj.qty), dir: adj.qty>=0?1:-1});
+      moves.push({date:adj.date, type:'Adjustment', narration:adj.reason||'Stock adjustment', qty:Math.abs(adj.qty), dir: adj.qty>=0?1:-1, warehouseId: adj.warehouseId||null});
     }
   }
   moves.sort((a,b)=> a.date.localeCompare(b.date));
@@ -5170,6 +5416,75 @@ function stockSummaryForItem(item){
 }
 function stockSummaryAll(){
   return state.items.map(it=>({ item: it, summary: stockSummaryForItem(it) }));
+}
+/* ---------------- Multi-Warehouse Management ----------------
+   Every voucher item line and stock adjustment can optionally carry a warehouseId (the "Location"
+   field next to Batch No. on the item entry row). Anything from before this feature existed, or
+   left blank, is treated as sitting in the default (first active) warehouse — so single-location
+   businesses see totals identical to before, and nothing has to be back-filled. Stock Transfers
+   move quantity between locations without ever touching accounting ledgers: an item's grand total
+   closing qty (stockSummaryForItem, above) is unaffected by a transfer, only its per-location split
+   changes — the whole point of "combining stock data from different locations into one view". */
+function stockByWarehouseForItem(item){
+  const mainWh = defaultWarehouseId();
+  const byWh = {};
+  if(mainWh) byWh[mainWh] = (byWh[mainWh]||0) + (item.openingQty||0);
+  for(const m of stockMovementForItem(item.id)){
+    const wh = m.warehouseId || mainWh;
+    if(!wh) continue;
+    byWh[wh] = (byWh[wh]||0) + (m.dir>0 ? m.qty : -m.qty);
+  }
+  for(const t of state.stockTransfers){
+    if(t.itemId!==item.id) continue;
+    byWh[t.fromWarehouseId] = (byWh[t.fromWarehouseId]||0) - (Number(t.qty)||0);
+    byWh[t.toWarehouseId] = (byWh[t.toWarehouseId]||0) + (Number(t.qty)||0);
+  }
+  return state.warehouses.filter(w=>w.active!==false).map(w=>({ warehouse:w, qty: r2(byWh[w.id]||0) }));
+}
+// A unified, all-items × all-locations table -- the "combine stock data from different locations
+// into a single view" requirement. Only rendered once a second location actually exists, so a
+// single-warehouse business never sees an extra table that would just repeat the main one.
+function stockByLocationTable(){
+  const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
+  if(activeWarehouses.length<2 || !state.items.length) return '';
+  const rows = state.items.map(item=>({ item, byWh: stockByWarehouseForItem(item) }));
+  return `
+    <div class="section-title">Stock by Location</div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Item</th>${activeWarehouses.map(w=>`<th class="num">${escapeHtml(w.name)}</th>`).join('')}<th class="num">Total</th></tr>
+        ${rows.map(({item,byWh})=>{
+          const total = byWh.reduce((s,r)=>s+r.qty,0);
+          return `<tr>
+            <td>${escapeHtml(item.name)}<div class="muted" style="font-size:10.5px;">${item.unit||''}</div></td>
+            ${byWh.map(r=>`<td class="num">${fmt(r.qty)}</td>`).join('')}
+            <td class="num" style="font-weight:700;">${fmt(total)} ${item.unit||''}</td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">Tag a "Location" on a Sales/Purchase/Credit/Debit Note item line (or a stock adjustment) to move it out of the default location. Use "Transfer Stock" below to rebalance quantity between locations without affecting your ledgers.</p>
+  `;
+}
+function manageWarehousesPanel(){
+  return `
+    <div class="section-title">Locations / Warehouses</div>
+    <div class="panel"><div class="panel-body">
+      <table style="margin-bottom:12px;">
+        <tr><th>Name</th><th>Status</th><th></th></tr>
+        ${state.warehouses.map(w=>`<tr>
+          <td>${escapeHtml(w.name)}</td>
+          <td>${w.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill">Inactive</span>`}</td>
+          <td><button class="btn small secondary" data-toggle-warehouse="${w.id}" type="button">${w.active!==false?'Deactivate':'Reactivate'}</button></td>
+        </tr>`).join('')}
+      </table>
+      <div class="row">
+        <div class="field"><label>Add Location</label><input type="text" id="newWarehouseName" placeholder="e.g. Bengaluru Warehouse"></div>
+        <div style="display:flex;align-items:flex-end;"><button class="btn" id="addWarehouseBtn" type="button">Add Location</button></div>
+      </div>
+      <p class="muted" style="font-size:11px;margin-top:8px;">Add a second location to unlock the "Location" field on voucher item lines, the Stock by Location table, and stock transfers between locations.</p>
+    </div></div>
+  `;
 }
 // Batch-wise stock on hand + expiry, for items whose master has trackBatches set. Groups every
 // voucher line item that was tagged with a batch number (on Sales/Purchase/Credit/Debit Note
@@ -5200,6 +5515,117 @@ function batchRegister(){
     if(a.expiry && b.expiry) return a.expiry.localeCompare(b.expiry);
     return a.expiry ? -1 : (b.expiry ? 1 : 0);
   });
+}
+// Serial-number tracking, parallel to batchRegister() above -- for items whose master has
+// trackSerials set. Each serial is expected to move exactly once in (Purchase) and at most once
+// out (Sale) -- net qty > 0 means it's still in stock, <= 0 means it's been sold/returned-out.
+// item.warrantyMonths (optional) computes a warranty-until date from the sale date, purely as a
+// convenience for warranty-item businesses (electronics, appliances, machinery).
+function serialRegister(){
+  const groups = {}; // key: itemId::serial
+  for(const v of state.vouchers){
+    if(!v.items) continue;
+    const dir = itemVoucherDirection(v.type);
+    if(dir===0) continue;
+    for(const it of v.items){
+      if(!it.serial || !it.itemId) continue;
+      const key = it.itemId+'::'+it.serial;
+      if(!groups[key]) groups[key] = { itemId: it.itemId, serial: it.serial, qty: 0, soldDate: null, party: null };
+      groups[key].qty += dir * (Number(it.qty)||1);
+      if(dir<0){ groups[key].soldDate = v.date; const partyEntry = v.entries.find(e=>e.dr>0); groups[key].party = partyEntry ? (ledgerOf(partyEntry.ledgerId)||{}).name : null; }
+    }
+  }
+  return Object.values(groups).map(g=>{
+    const item = state.items.find(x=>x.id===g.itemId);
+    const inStock = g.qty>0;
+    let warrantyUntil = null;
+    if(!inStock && g.soldDate && item && item.warrantyMonths){
+      const d = new Date(g.soldDate);
+      d.setMonth(d.getMonth() + Number(item.warrantyMonths));
+      warrantyUntil = d.toISOString().slice(0,10);
+    }
+    return { ...g, item, inStock, warrantyUntil };
+  }).filter(g=>g.item).sort((a,b)=> (a.item.name||'').localeCompare(b.item.name||'') || a.serial.localeCompare(b.serial));
+}
+// Local-heuristic demand forecasting: no external data, no LLM -- just the same voucher history
+// every other report in this app already derives from. Trailing average monthly outward qty over
+// the last N months (default 3) projects next month's likely demand and, combined with current
+// closing stock, how many days of running room are left at that rate.
+function demandForecastForItem(item, months){
+  months = months || 3;
+  const today = new Date();
+  const cutoff = new Date(today.getFullYear(), today.getMonth()-months, today.getDate());
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  const moves = stockMovementForItem(item.id).filter(m=> m.dir<0 && m.date>=cutoffStr);
+  const totalOut = moves.reduce((s,m)=>s+m.qty,0);
+  const avgMonthly = r2(totalOut/months);
+  const avgDaily = avgMonthly/30.44;
+  const closing = stockSummaryForItem(item).closing;
+  const daysLeft = avgDaily>0 ? Math.floor(closing/avgDaily) : null;
+  return { item, avgMonthly, projectedNextMonth: avgMonthly, daysLeft, closing };
+}
+function demandForecastAll(){
+  return state.items.map(it=>demandForecastForItem(it)).filter(f=>f.avgMonthly>0).sort((a,b)=>{
+    if(a.daysLeft==null) return 1;
+    if(b.daysLeft==null) return -1;
+    return a.daysLeft-b.daysLeft;
+  });
+}
+// Which Sales vouchers came in through which channel -- purely an internal tag (set on the Sales
+// voucher form) for reporting visibility. Honest scope: this app has no live connection to any
+// online store/marketplace to sync with in real time -- tagging at least lets you see channel mix
+// and stops double-counting when you manually reconcile multiple channels into one set of books.
+const SALES_CHANNELS = ['In-Store', 'Online Store', 'Marketplace', 'Other'];
+function salesByChannelData(){
+  const byChannel = {};
+  for(const v of state.vouchers){
+    if(v.type!=='Sales') continue;
+    const ch = v.channel || 'Unspecified';
+    byChannel[ch] = (byChannel[ch]||0) + voucherAmount(v);
+  }
+  return Object.entries(byChannel).map(([channel,amount])=>({channel, amount:r2(amount)})).sort((a,b)=>b.amount-a.amount);
+}
+// Reorder Suggestions -- the automated-alerts side of reorder management: every item at/under its
+// reorder level, with a suggested replenishment qty (enough to get back to double the reorder
+// level, or the reorder level itself if that's already more) ready to become a Purchase voucher in
+// one click via reorderPrefillItemId (see the [data-reorder-purchase] handler and viewVoucher()).
+function reorderSuggestions(){
+  return stockSummaryAll()
+    .filter(r=> r.item.reorderLevel!=null && r.summary.closing<=r.item.reorderLevel)
+    .map(r=>({ ...r, suggestedQty: Math.max(Math.ceil(r.item.reorderLevel*2-r.summary.closing), Math.ceil(r.item.reorderLevel||1), 1) }))
+    .sort((a,b)=> a.summary.closing-b.summary.closing);
+}
+// Dead stock: qty currently on hand, but no outward (sale) movement at all in the trailing window
+// (default 90 days) -- capital tied up in inventory that isn't turning.
+function deadStockItems(days){
+  days = days || 90;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  return stockSummaryAll().filter(r=>{
+    if(r.summary.closing<=0) return false;
+    const recentOut = stockMovementForItem(r.item.id).some(m=>m.dir<0 && m.date>=cutoffStr);
+    return !recentOut;
+  }).sort((a,b)=>b.summary.value-a.summary.value);
+}
+// Inventory Turnover Ratio = COGS ÷ Average Inventory Value, the standard efficiency metric.
+// COGS comes from the same incomeStatementData() the Income Statement report itself uses (so this
+// never disagrees with the P&L); "average" here is opening life-to-date value vs current
+// life-to-date value, the simplest honest approximation available without a full periodic/FIFO
+// costing layer. Carrying cost is a configurable annual % (default 20%, a common rule-of-thumb)
+// applied to that same average value.
+function inventoryAnalytics(carryingCostPct){
+  carryingCostPct = carryingCostPct!=null ? carryingCostPct : 20;
+  const is = incomeStatementData();
+  const summaries = stockSummaryAll();
+  const currentValue = summaries.reduce((s,r)=>s+r.summary.value,0);
+  const openingValue = summaries.reduce((s,r)=>{
+    const rate = r.item.rate!=null ? r.item.rate : (r.item.openingRate||0);
+    return s + (r.item.openingQty||0)*rate;
+  },0);
+  const avgValue = r2((openingValue+currentValue)/2) || currentValue;
+  const turnover = avgValue>0 ? r2(is.costOfSales/avgValue) : null;
+  const carryingCost = r2(avgValue*carryingCostPct/100);
+  return { cogs: is.costOfSales, avgValue, turnover, carryingCostPct, carryingCost, deadStock: deadStockItems() };
 }
 
 function gstBreakdownForVoucher(v){
@@ -6054,10 +6480,10 @@ function commandPaletteItems(){
     ['dashboard','Dashboard','Overview & KPIs'],['voucher','Voucher','Record a transaction'],
     ['daybook','Day Book','Chronological log'],['calendar','Calendar','Dates & due items'],
     ['ledgers','Ledgers','Running balances'],['coa','Accounts','Chart of accounts'],
-    ['inventory','Inventory','Stock & valuation'],['reports','Reports','P&L, Balance Sheet…'],
+    ['inventory','Inventory Control','Stock, locations & forecasting'],['reports','Reports','P&L, Balance Sheet…'],
     ['gst','GST','Tax summaries & filing'],['reconcile','Reconcile','Bank matching'],
     ['assets','Assets','Fixed asset register'],['parties','Parties','Customers & suppliers'],
-    ['orders','Orders','Quotes & purchase orders'],['payroll','Payroll','Salaries & payslips'],
+    ['orders','Orders','Quotes & purchase orders'],['payroll','Payroll Management','Salaries, documents & reports'],
   ];
   const modules = moduleDefs.map(([id,label,sub])=>{
     const gated = isTabGated(id);
@@ -6131,7 +6557,8 @@ function commandPaletteRecordMatches(q, words){
         if(state.salaryVouchers.some(sv=>sv.voucherId===v.id)){ view='payroll'; render(); return; }
         vform = { id:v.id, type:v.type, date:v.date, narration:v.narration, entries:v.entries.map(e=>({...e})),
           gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:(v.items||[]).map(it=>({...it}))},
-          costCenterId: v.costCenterId||null };
+          costCenterId: v.costCenterId||null, channel: v.channel||'',
+          appliedItems: (v.items||[]).map(it=>({...it})) };
         view='voucher'; render();
       },
     });
@@ -6195,6 +6622,8 @@ function render(){
     state.vouchers = JSON.parse(JSON.stringify(readOnlySnapshot.vouchers));
     state.items = JSON.parse(JSON.stringify(readOnlySnapshot.items));
     state.stockAdjustments = JSON.parse(JSON.stringify(readOnlySnapshot.stockAdjustments));
+    state.warehouses = JSON.parse(JSON.stringify(readOnlySnapshot.warehouses));
+    state.stockTransfers = JSON.parse(JSON.stringify(readOnlySnapshot.stockTransfers));
     state.bankClears = JSON.parse(JSON.stringify(readOnlySnapshot.bankClears));
     state.reconciliations = JSON.parse(JSON.stringify(readOnlySnapshot.reconciliations));
     state.recurringTemplates = JSON.parse(JSON.stringify(readOnlySnapshot.recurringTemplates));
@@ -6239,14 +6668,14 @@ function render(){
         ${tab('calendar','Calendar','C')}
         ${tab('ledgers','Ledgers','L')}
         ${tab('coa','Accounts','A')}
-        ${tab('inventory','Inventory','I')}
+        ${tab('inventory','Inventory Control','I')}
         ${tab('reports','Reports','R')}
         ${tab('gst','GST','G')}
         ${tab('reconcile','Reconcile','e')}
         ${tab('assets','Assets','s')}
         ${tab('parties','Parties','p')}
         ${tab('orders','Orders','O')}
-        ${tab('payroll','Payroll','y')}
+        ${tab('payroll','Payroll Management','y')}
       </div>
       <div class="main" id="mainContent" tabindex="-1">${renderView()}</div>
     </div>
@@ -6264,6 +6693,8 @@ function render(){
     ${modal==='pieChart' ? pieChartModal() : ''}
     ${modal==='stockDetail' ? itemStockModal() : ''}
     ${modal==='stockAdjust' ? stockAdjustModal() : ''}
+    ${modal==='stockTransfer' ? stockTransferModal() : ''}
+    ${modal==='employeeDocuments' ? employeeDocumentsModal() : ''}
     ${modal==='recentVouchers' ? recentVouchersModal() : ''}
     ${modal==='import' ? importModal() : ''}
     ${modal==='balanceSheetDetail' ? balanceSheetDetailModal() : ''}
@@ -6615,7 +7046,7 @@ document.addEventListener('keydown', (e)=>{
 function viewDropdown(){
   const tabs = [
     ['dashboard','Dashboard'],['voucher','Voucher'],['daybook','Day Book'],['calendar','Calendar'],
-    ['ledgers','Ledgers'],['coa','Accounts'],['inventory','Inventory'],['reports','Reports'],['gst','GST']
+    ['ledgers','Ledgers'],['coa','Accounts'],['inventory','Inventory Control'],['reports','Reports'],['gst','GST']
   ];
   return `<div class="menu-dropdown">${tabs.map(([id,label])=>`<a data-view-jump="${id}">${label}</a>`).join('')}</div>`;
 }
@@ -6844,8 +7275,45 @@ function stockAdjustModal(){
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;">${item.name} — current stock: <strong style="color:var(--ink);">${fmt(summary.closing)} ${item.unit||''}</strong></p>
           <div class="field"><label>Adjustment Quantity (+ to add, − to remove)</label><input type="number" id="stockAdjQty" step="0.01" placeholder="e.g. -5 or 10"></div>
+          ${state.warehouses.filter(w=>w.active!==false).length>1 ? `<div class="field"><label>Location</label><select id="stockAdjWarehouse">${state.warehouses.filter(w=>w.active!==false).map(w=>`<option value="${w.id}" ${w.id===defaultWarehouseId()?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}</select></div>` : ''}
           <div class="field"><label>Reason</label><input type="text" id="stockAdjReason" placeholder="e.g. Physical count correction, damage"></div>
           <button class="btn" id="saveStockAdjBtn" type="button" style="width:100%;">Save Adjustment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function stockTransferModal(){
+  if(!stockTransferDraft) return '';
+  const d = stockTransferDraft;
+  const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
+  const item = state.items.find(i=>i.id===d.itemId);
+  const available = item ? stockByWarehouseForItem(item).find(r=>r.warehouse.id===d.fromWarehouseId) : null;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg">
+      <div class="modal-card" style="width:440px;">
+        <div class="panel-head"><h2>Transfer Stock Between Locations</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <div class="field"><label>Item</label>
+            <select id="stockTransferItem">${state.items.map(it=>`<option value="${it.id}" ${it.id===d.itemId?'selected':''}>${escapeHtml(it.name)}</option>`).join('')}</select>
+          </div>
+          <div class="row">
+            <div class="field"><label>From</label>
+              <select id="stockTransferFrom">${activeWarehouses.map(w=>`<option value="${w.id}" ${w.id===d.fromWarehouseId?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}</select>
+            </div>
+            <div class="field"><label>To</label>
+              <select id="stockTransferTo">${activeWarehouses.map(w=>`<option value="${w.id}" ${w.id===d.toWarehouseId?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}</select>
+            </div>
+          </div>
+          ${item ? `<p class="muted" style="font-size:11.5px;">Available at source: <strong style="color:var(--ink);">${fmt(available?available.qty:0)} ${item.unit||''}</strong></p>` : ''}
+          <div class="row">
+            <div class="field" style="max-width:170px;"><label>Quantity</label><input type="number" id="stockTransferQty" step="0.01" min="0" value="${d.qty||''}"></div>
+            <div class="field" style="max-width:170px;"><label>Date</label><input type="date" id="stockTransferDate" value="${d.date}"></div>
+          </div>
+          <div class="field"><label>Remark (optional)</label><input type="text" id="stockTransferRemark" placeholder="e.g. Rebalancing ahead of festival demand" value="${escapeAttr(d.remark||'')}"></div>
+          <button class="btn" id="saveStockTransferBtn" type="button" style="width:100%;" ${d.fromWarehouseId===d.toWarehouseId?'disabled':''}>Transfer</button>
+          ${d.fromWarehouseId===d.toWarehouseId ? `<p class="muted" style="font-size:11px;margin-top:6px;">Pick two different locations.</p>` : ''}
+          <p class="muted" style="font-size:11px;margin-top:8px;">A transfer only moves quantity between locations — it never posts to your accounting ledgers.</p>
         </div>
       </div>
     </div>
@@ -7460,7 +7928,7 @@ const LANDING_FEATURES = [
   { icon:'ledgers', title:'Ledgers & Financial Reports', body:'Running balances on every account, plus Trial Balance, Income Statement, Balance Sheet, Cash Flow and Ratio Analysis — exportable to Excel.' },
   { icon:'gst', title:'GST, Built In', body:'CGST / SGST / IGST tracked automatically, printable tax invoices, and a downloadable, filing-ready GST statement.' },
   { icon:'companies', title:'Multi-Company', body:'Run every business — or every client\'s books — from one account, each fully separate and secure.' },
-  { icon:'inventory', title:'Inventory & Fixed Assets', body:'Stock tracking with valuation, plus a Fixed Asset Register with depreciation, handled automatically.' },
+  { icon:'inventory', title:'Inventory Control & Fixed Assets', body:'Multi-location stock control with batch/serial tracking, reorder alerts and demand forecasting, plus a Fixed Asset Register with depreciation, handled automatically.' },
   { icon:'importbackup', title:'Smart Import & Backup', body:'Bring in bank statements or spreadsheets pre-mapped to vouchers, and back up or restore a company\'s entire books in one click.' },
   { icon:'dashboards', title:'Dashboards That Mean Something', body:'Live, interactive visuals for cash position, profit, ratios and cash flow — not just static numbers.' },
   { icon:'security', title:'Real Accounts, Real Security', body:'Email-verified accounts, an admin panel, and a full audit log — zero installs, runs entirely in your browser.' },
@@ -10186,8 +10654,12 @@ service cloud.firestore {
       function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
       // Same visibility and write access as the company document itself (owner, admin, or a fellow
       // group member/administering Support user) — this subcollection holds voucher attachments
-      // (scanned bills/receipts) as individual documents, kept off the main company document
-      // specifically so a handful of them can never blow past Firestore's 1 MiB document cap.
+      // (scanned bills/receipts) AND encrypted employee documents (ID proofs, tax forms, increment
+      // letters — see docVaultKey/employeeDocumentsModal) as individual documents, kept off the main
+      // company document specifically so a handful of them can never blow past Firestore's 1 MiB cap.
+      // Employee documents are additionally encrypted client-side before they ever reach this
+      // collection, so even someone with direct rules-bypassing database access (a leaked service
+      // account, a raw export) gets ciphertext, not the document itself.
       allow get, list: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
         (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
@@ -10229,7 +10701,7 @@ function adminSettingsTab(){
     <div class="section-title" style="margin-top:0;">Feature Flags</div>
     <p class="muted" style="font-size:12px;margin-top:0;">Gate a feature so only Paid/Lifetime accounts can use it. Free-plan users see an upgrade notice instead.</p>
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:10px;">
-      <input type="checkbox" id="flagInventory" style="width:auto;" ${featureFlagsDraft.inventoryRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Inventory</strong>
+      <input type="checkbox" id="flagInventory" style="width:auto;" ${featureFlagsDraft.inventoryRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Inventory Control</strong>
     </label>
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
       <input type="checkbox" id="flagImport" style="width:auto;" ${featureFlagsDraft.importRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Import Accounting Data</strong>
@@ -10250,7 +10722,7 @@ function adminSettingsTab(){
       <input type="checkbox" id="flagOrders" style="width:auto;" ${featureFlagsDraft.ordersRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Orders</strong>
     </label>
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
-      <input type="checkbox" id="flagPayroll" style="width:auto;" ${featureFlagsDraft.payrollRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Payroll</strong>
+      <input type="checkbox" id="flagPayroll" style="width:auto;" ${featureFlagsDraft.payrollRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Payroll Management</strong>
     </label>
     <button class="btn secondary small" id="saveFeatureFlagsBtn" type="button" style="margin-top:10px;" ${isFullAdmin()?'':'disabled'}>Save Feature Flags</button>
 
@@ -10867,7 +11339,7 @@ function groupAdminFeatureAccessTab(){
   );
   const selected = groupFeatureAccessUserId ? groupMembers.find(x=>x.id===groupFeatureAccessUserId) : null;
   return `
-    <p class="muted" style="font-size:12.5px;margin-top:0;">Grant or remove access to individual gated features (GST, Assets, Parties, Orders, Payroll, Inventory, Reconcile, Import) for one of your group's users — regardless of their plan.</p>
+    <p class="muted" style="font-size:12.5px;margin-top:0;">Grant or remove access to individual gated features (GST, Assets, Parties, Orders, Payroll Management, Inventory Control, Reconcile, Import) for one of your group's users — regardless of their plan.</p>
     <div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;">
       <div style="flex:1;min-width:260px;">
         <div class="section-title" style="margin-top:0;">1. Select a user</div>
@@ -11292,6 +11764,7 @@ function viewDashboard(){
   const profit = netProfit();
   const overdue = overdueInvoices();
   const overdueTotal = overdue.reduce((s,r)=>s+r.invoice.remaining,0);
+  const lowStockCount = reorderSuggestions().length;
 
   return `
     ${masthead('Dashboard','Overview of the books')}
@@ -11299,6 +11772,11 @@ function viewDashboard(){
     <div style="background:#FBE7E7;border:1px solid var(--debit);color:#7a1f1f;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
       <span>⚠ ${overdue.length} invoice${overdue.length===1?'':'s'} overdue, ₹${fmt(overdueTotal)} outstanding past due date</span>
       <button class="btn secondary small" data-open-kpi="overdue" type="button" style="background:#fff;color:#7a1f1f;">View Overdue Invoices</button>
+    </div>` : ''}
+    ${lowStockCount ? `
+    <div style="background:#FFF4E0;border:1px solid var(--gold,#F2A900);color:#7a4f00;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+      <span>📦 ${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level</span>
+      <button class="btn secondary small" data-dashboard-goto-inventory type="button" style="background:#fff;color:#7a4f00;">View Reorder Suggestions</button>
     </div>` : ''}
     <div class="grid">
       <div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>
@@ -12740,6 +13218,17 @@ function rememberedPairForType(type){
 function viewVoucher(){
   if(!vform){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
+    if(reorderPrefillItemId){
+      const item = state.items.find(i=>i.id===reorderPrefillItemId);
+      if(item){
+        const closing = stockSummaryForItem(item).closing;
+        const suggestedQty = Math.max(Math.ceil((item.reorderLevel||0)*2 - closing), Math.ceil(item.reorderLevel||1), 1);
+        vform.type = 'Purchase';
+        vform.gst.items = [{itemId:item.id, name:item.name, qty:suggestedQty, rate:item.rate||item.openingRate||0, disc:0}];
+        toast(`Pre-filled a Purchase voucher for "${item.name}" (reorder suggestion) — pick the party/purchase ledger, review, and Save`);
+      }
+      reorderPrefillItemId = null;
+    }
   }
   if(!vform.mode) vform.mode = 'double';
   if(!vform.single) vform.single = { ledgerA:'', ledgerB:'', amount:'' };
@@ -12821,6 +13310,13 @@ function viewVoucher(){
           <input type="text" id="vnarr" placeholder="e.g. Paid office rent for August" value="${escapeAttr(vform.narration)}">
           <div class="narr-suggest" id="vnarrSuggest"></div>
         </div>
+        ${vform.type==='Sales' ? `<div class="field" style="max-width:220px;">
+          <label>Sales Channel (optional)</label>
+          <select id="vchannel">
+            <option value="">— Not set —</option>
+            ${SALES_CHANNELS.map(c=>`<option value="${c}" ${vform.channel===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>` : ''}
 
         <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn" id="saveVoucher" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
@@ -13584,6 +14080,9 @@ function itemRow(it,i){
   const isCustom = !it.itemId || it.itemId==='__custom__';
   const catalogItem = !isCustom ? state.items.find(m=>m.id===it.itemId) : null;
   const needsBatch = catalogItem && catalogItem.trackBatches;
+  const needsSerial = catalogItem && catalogItem.trackSerials;
+  const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
+  const showLocation = activeWarehouses.length>1;
   return `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;" data-item-idx="${i}">
     <div>
       <select class="item-select" data-i="${i}">
@@ -13601,6 +14100,16 @@ function itemRow(it,i){
     <div></div>
     <input type="text" class="item-batch" data-i="${i}" placeholder="Batch no." value="${escapeAttr(it.batch||'')}" style="grid-column:span 2;">
     <input type="date" class="item-expiry" data-i="${i}" placeholder="Expiry" value="${it.expiry||''}" style="grid-column:span 2;" title="Expiry date">
+    <div></div>
+  </div>` : ''}${needsSerial ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
+    <div></div>
+    <input type="text" class="item-serial" data-i="${i}" placeholder="Serial no." value="${escapeAttr(it.serial||'')}" style="grid-column:span 4;">
+    <div></div>
+  </div>` : ''}${showLocation ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
+    <div></div>
+    <select class="item-warehouse" data-i="${i}" style="grid-column:span 4;" title="Location">
+      ${activeWarehouses.map(w=>`<option value="${w.id}" ${(it.warehouseId||defaultWarehouseId())===w.id?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}
+    </select>
     <div></div>
   </div>` : ''}`;
 }
@@ -13818,6 +14327,10 @@ function stockItemForm(){
           <div class="field"><label>Barcode (optional)</label><input type="text" id="newItemBarcode" placeholder="Scan or type a barcode/SKU"></div>
         </div>
         <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackBatches" style="width:auto;">Track batch number &amp; expiry date for this item</label></div>
+        <div class="row">
+          <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackSerials" style="width:auto;">Track individual serial numbers for this item</label></div>
+          <div class="field" style="max-width:200px;"><label>Warranty (months, optional)</label><input type="number" id="newItemWarrantyMonths" step="1" min="0" placeholder="e.g. 12"></div>
+        </div>
         <button class="btn" id="addItemBtn" style="margin-top:4px;">Create Item</button>
       </div>
     </div>
@@ -13836,6 +14349,8 @@ function attachStockItemFormHandlers(){
     const reorderRaw = document.getElementById('newItemReorderLevel').value;
     const barcode = document.getElementById('newItemBarcode')?.value.trim();
     const trackBatches = !!document.getElementById('newItemTrackBatches')?.checked;
+    const trackSerials = !!document.getElementById('newItemTrackSerials')?.checked;
+    const warrantyRaw = document.getElementById('newItemWarrantyMonths')?.value;
     if(!name){ toast('Enter an item name'); return; }
     const item = { id: uid('it'), name, group, unit };
     if(hsn) item.hsn = hsn;
@@ -13846,6 +14361,8 @@ function attachStockItemFormHandlers(){
     if(reorderRaw !== '') item.reorderLevel = Number(reorderRaw);
     if(barcode) item.barcode = barcode;
     if(trackBatches) item.trackBatches = true;
+    if(trackSerials) item.trackSerials = true;
+    if(warrantyRaw) item.warrantyMonths = Number(warrantyRaw);
     state.items.push(item);
     await saveItems();
     toast('Stock item created — it will now show up in Sales/Purchase voucher item pickers');
@@ -14088,6 +14605,106 @@ function viewCOA(){
   `;
 }
 
+// Automated reorder alerts -- the panel version, shown on Inventory Control itself (the Dashboard
+// banner is the "notification"; this is the "purchase order" quick action).
+function reorderSuggestionsPanel(){
+  const rows = reorderSuggestions();
+  if(!rows.length) return '';
+  return `
+    <div class="section-title">Reorder Suggestions <span class="pill neg" style="margin-left:6px;">${rows.length}</span></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Item</th><th class="num">On Hand</th><th class="num">Reorder Level</th><th class="num">Suggested Qty</th><th></th></tr>
+        ${rows.map(r=>`<tr>
+          <td>${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
+          <td class="num ${r.summary.closing<=0?'neg':''}">${fmt(r.summary.closing)} ${r.item.unit||''}</td>
+          <td class="num muted">${fmt(r.item.reorderLevel)}</td>
+          <td class="num" style="font-weight:700;">${fmt(r.suggestedQty)} ${r.item.unit||''}</td>
+          <td><button class="btn small secondary" data-reorder-purchase="${r.item.id}" type="button">Create Purchase Voucher</button></td>
+        </tr>`).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">Suggested Qty brings stock back up to roughly double the reorder level. "Create Purchase Voucher" pre-fills a new Purchase voucher with this item and quantity — pick the supplier/purchase ledger and Save.</p>
+  `;
+}
+function serialRegisterPanel(){
+  const rows = serialRegister();
+  if(!rows.length) return '';
+  const inStockCount = rows.filter(r=>r.inStock).length;
+  return `
+    <div class="section-title">Serial Number Register <span class="pill" style="margin-left:6px;">${inStockCount} in stock</span></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Item</th><th>Serial No.</th><th>Status</th><th>Sold Date</th><th>Sold To</th><th>Warranty Until</th></tr>
+        ${rows.map(r=>`<tr>
+          <td>${escapeHtml(r.item.name)}</td>
+          <td>${escapeHtml(r.serial)}</td>
+          <td>${r.inStock ? `<span class="pill pos">In Stock</span>` : `<span class="pill">Sold</span>`}</td>
+          <td class="muted">${r.inStock ? '—' : (r.soldDate||'—')}</td>
+          <td class="muted">${r.inStock ? '—' : (r.party||'—')}</td>
+          <td class="muted">${r.warrantyUntil||'—'}</td>
+        </tr>`).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">Serials are created by entering a Serial No. on a voucher's item line, for any item with "Track individual serial numbers" enabled. Set a Warranty (months) on the item to auto-compute Warranty Until from the sale date.</p>
+  `;
+}
+function demandForecastPanel(){
+  const rows = demandForecastAll();
+  if(!rows.length) return '';
+  return `
+    <div class="section-title">Demand Forecast</div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Item</th><th class="num">Avg Monthly Sales (last 3mo)</th><th class="num">On Hand</th><th class="num">Days of Stock Left</th></tr>
+        ${rows.map(r=>{
+          const risk = r.daysLeft!=null && r.daysLeft<=30;
+          return `<tr>
+          <td>${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
+          <td class="num">${fmt(r.avgMonthly)} ${r.item.unit||''}</td>
+          <td class="num">${fmt(r.closing)} ${r.item.unit||''}</td>
+          <td class="num ${risk?'neg':''}" style="font-weight:${risk?'700':'400'};">${r.daysLeft==null?'—':fmt(r.daysLeft)+' days'}${risk?' ⚠':''}</td>
+        </tr>`;}).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">A local heuristic, not a prediction service: it simply projects the trailing 3-month average sales rate forward — no external data, no AI model, no cost. Treat "Days of Stock Left" as a rough early-warning signal, not a guarantee.</p>
+  `;
+}
+function salesByChannelPanel(){
+  const rows = salesByChannelData();
+  if(rows.length<2) return ''; // not worth a table when everything is one channel (or untagged)
+  const total = rows.reduce((s,r)=>s+r.amount,0) || 1;
+  return `
+    <div class="section-title">Sales by Channel</div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Channel</th><th class="num">Sales Value</th><th class="num">% of Total</th></tr>
+        ${rows.map(r=>`<tr><td>${escapeHtml(r.channel)}</td><td class="num">₹${fmt(r.amount)}</td><td class="num muted">${(r.amount/total*100).toFixed(1)}%</td></tr>`).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">Set a "Sales Channel" on a Sales voucher to track it here. This is an internal tag for reporting only — this app has no live connection to any online store or marketplace to sync stock with in real time.</p>
+  `;
+}
+function inventoryAnalyticsPanel(){
+  const a = inventoryAnalytics();
+  return `
+    <div class="section-title">Inventory Analytics</div>
+    <div class="grid">
+      <div class="stat"><div class="label">Inventory Turnover</div><div class="val">${a.turnover!=null?fmtRatio(a.turnover)+'×':'—'}</div></div>
+      <div class="stat"><div class="label">Average Inventory Value</div><div class="val">₹${fmt(a.avgValue)}</div></div>
+      <div class="stat"><div class="label">Est. Annual Carrying Cost</div><div class="val">₹${fmt(a.carryingCost)}</div></div>
+      <div class="stat"><div class="label">Dead Stock Items (90d)</div><div class="val ${a.deadStock.length?'neg':''}">${a.deadStock.length}</div></div>
+    </div>
+    ${a.deadStock.length ? `
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Item</th><th class="num">On Hand</th><th class="num">Value Tied Up</th></tr>
+        ${a.deadStock.map(r=>`<tr><td>${escapeHtml(r.item.name)}</td><td class="num">${fmt(r.summary.closing)} ${r.item.unit||''}</td><td class="num">₹${fmt(r.summary.value)}</td></tr>`).join('')}
+      </table>
+    </div></div>` : ''}
+    <p class="muted" style="font-size:11px;">Turnover = Cost of Sales (from the Income Statement) ÷ average inventory value (opening vs current life-to-date value) — higher generally means stock moves faster. Carrying cost is an estimate at ${a.carryingCostPct}%/year of average inventory value (storage, insurance, obsolescence, capital cost) — a common rule-of-thumb, not a figure posted to your ledgers. Dead stock = items with quantity on hand but no sale in the last 90 days.</p>
+  `;
+}
 function viewInventory(){
   const summaries = stockSummaryAll();
   const totalValue = summaries.reduce((s,r)=>s+r.summary.value,0);
@@ -14095,13 +14712,35 @@ function viewInventory(){
   const outOfStock = summaries.filter(r=> r.summary.closing<=0).length;
 
   return `
-    ${masthead('Inventory','Stock summary, movement history, and adjustments')}
+    ${masthead('Inventory Control Management','Stock, locations, batches & serials, reorder alerts, forecasting, and analytics')}
     <div class="grid">
       <div class="stat"><div class="label">Total Stock Value</div><div class="val ${totalValue>=0?'pos':'neg'}">₹${fmt(totalValue)}</div></div>
       <div class="stat"><div class="label">Total Items</div><div class="val">${state.items.length}</div></div>
       <div class="stat"><div class="label">Low Stock</div><div class="val ${lowStock>0?'neg':''}">${lowStock}</div></div>
       <div class="stat"><div class="label">Out of Stock</div><div class="val ${outOfStock>0?'neg':''}">${outOfStock}</div></div>
     </div>
+
+    <div class="panel">
+      <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="field" style="flex:1;min-width:220px;margin-bottom:0;"><label>Scan or Type a Barcode</label><input type="text" id="barcodeScanInput" placeholder="Focus here, then scan — or type a barcode/SKU and press Enter" value="${escapeAttr(barcodeScanQuery)}" autocomplete="off"></div>
+        <div style="display:flex;align-items:flex-end;gap:8px;">
+          ${state.warehouses.filter(w=>w.active!==false).length>1 ? `<button class="btn secondary" id="openStockTransferBtn" type="button">🔁 Transfer Stock</button>` : ''}
+        </div>
+      </div>
+      ${barcodeScanQuery ? (()=>{
+        const match = state.items.find(it=>it.barcode && it.barcode.toLowerCase()===barcodeScanQuery.trim().toLowerCase());
+        if(match){
+          const s = stockSummaryForItem(match);
+          return `<div class="panel-body" style="padding-top:0;"><p class="muted" style="font-size:12.5px;">Found: <strong style="color:var(--ink);">${escapeHtml(match.name)}</strong> — on hand ${fmt(s.closing)} ${match.unit||''}. <button class="btn small secondary" data-stock-detail="${match.id}" type="button" style="margin-left:6px;">View Movement</button></p></div>`;
+        }
+        return `<div class="panel-body" style="padding-top:0;"><p class="muted" style="font-size:12.5px;">No item with barcode "${escapeHtml(barcodeScanQuery)}" — set one under Item Master (Accounts tab) to enable scan lookup.</p></div>`;
+      })() : ''}
+    </div>
+
+    ${reorderSuggestionsPanel()}
+
+    ${manageWarehousesPanel()}
+    ${stockByLocationTable()}
 
     <div class="section-title">Add New Item</div>
     ${stockItemForm()}
@@ -14164,6 +14803,12 @@ function viewInventory(){
       </div>`;
     }).join('') || emptyState({icon:'📦', title:'No stock items yet', text:'Add items in the Accounts tab first.', ctaLabel:'Go to Accounts', ctaTab:'coa'})}
     <p class="muted" style="font-size:11px;">Closing stock = Opening Quantity + Purchases + Sales Returns (Credit Notes) − Sales − Purchase Returns (Debit Notes) ± manual adjustments. Click an item name for its full movement history.</p>
+
+    ${serialRegisterPanel()}
+    ${demandForecastPanel()}
+    ${salesByChannelPanel()}
+    ${inventoryAnalyticsPanel()}
+    <p class="muted" style="font-size:11px;">Every figure above is tied straight to your ledgers already — item Rate/Opening Value feed the stock-in-hand valuation used across the Balance Sheet, and Cost of Sales in the turnover ratio is the same figure the Income Statement shows. There's nothing separate to reconcile.</p>
   `;
 }
 
@@ -15722,8 +16367,16 @@ function viewPayroll(){
   const monthsWithPayroll = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
   const totalDaysThisMonth = daysInPayrollMonth(payrollMonth);
   const resignedEmployees = state.employees.filter(e=>e.active===false);
+  const salariesLedgerId = (state.ledgers.find(l=>l.name===EMPLOYEE_SALARY_LEDGER_NAME)||{}).id;
+  const payrollReportLabel = payslipYearFilter==='all' ? 'All Years' : payslipYearFilter;
+  const deptCostSummary = departmentalCostSummaryFromVouchers(filteredPayslips);
+  const taxReportTotals = (function(rows){
+    const t = {pf:0,employerPF:0,esi:0,employerESI:0,pt:0,tds:0};
+    rows.forEach(r=>{ t.pf+=r.pf; t.employerPF+=r.employerPF; t.esi+=r.esi; t.employerESI+=r.employerESI; t.pt+=r.pt; t.tds+=r.tds; });
+    return t;
+  })(payrollTaxReportRows(filteredPayslips));
   return `
-    ${masthead('Payroll','Employee master, monthly salary run, payslips, advances, and exits')}
+    ${masthead('Payroll Management','Employee master, monthly salary run, payslips, advances, exits, documents & reports')}
     <div class="grid">
       <div class="stat"><div class="label">Active Employees</div><div class="val">${activeEmployees.length}</div></div>
       <div class="stat"><div class="label">Monthly Payroll (Net)</div><div class="val">₹${fmt(totalMonthlyPayroll)}</div></div>
@@ -15750,6 +16403,7 @@ function viewPayroll(){
             <td>${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}${settled?` <span class="pill pos">F&amp;F Settled</span>`:''}</td>
             <td>
               <button class="btn small secondary" data-edit-employee="${e.id}" type="button">Edit</button>
+              <button class="btn small secondary" data-employee-documents="${e.id}" type="button">📁 Documents${(employeeDocumentsCache[e.id]||[]).length?` (${employeeDocumentsCache[e.id].length})`:''}</button>
               <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Resign':'Reactivate'}</button>
               ${e.active===false && !settled ? `<button class="btn small secondary" data-run-fnf="${e.id}" type="button">Run F&amp;F</button>` : ''}
               ${settled ? `<button class="btn small secondary" data-print-fnf="${state.fnfSettlements.find(f=>f.employeeId===e.id).id}" type="button">🖨 Settlement</button>` : ''}
@@ -15866,20 +16520,66 @@ function viewPayroll(){
       </div>
       <div class="panel-body" style="padding:0;">
         ${recentPayslips.length ? `<table>
-          <tr><th>Month</th><th>Employee</th><th class="num">Net Pay</th><th></th></tr>
+          <tr><th>Month</th><th>Employee</th><th class="num">Net Pay</th><th>Paid Via</th><th>Status</th><th></th></tr>
           ${recentPayslips.map(sv=>{
             const e = state.employees.find(x=>x.id===sv.employeeId);
+            const payFromLedger = sv.payFromLedgerId ? ledgerOf(sv.payFromLedgerId) : null;
             return `<tr>
               <td class="muted">${sv.month}</td>
               <td>${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
               <td class="num">₹${fmt(sv.netPay)}</td>
-              <td><button class="btn small secondary" data-print-payslip="${sv.id}" type="button">🖨 Payslip</button> <button class="btn small secondary" data-void-payslip="${sv.id}" type="button" style="color:var(--debit);">Void</button></td>
+              <td class="muted">${payFromLedger?escapeHtml(payFromLedger.name):'—'}</td>
+              <td><span class="pill pos">Paid</span></td>
+              <td><button class="btn small secondary" data-print-payslip="${sv.id}" type="button">🖨 Payslip</button> <button class="btn small secondary" data-ledger-detail="${salariesLedgerId||''}" type="button">View in Salary Ledger</button> <button class="btn small secondary" data-void-payslip="${sv.id}" type="button" style="color:var(--debit);">Void</button></td>
             </tr>`;
           }).join('')}
         </table>` : emptyState({icon:'💰', title:'No payroll run yet', text:'Run payroll above to see settlements here.'})}
       </div>
     </div>
     <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher per employee for the month: the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger (Indirect Expenses) is debited with that employee's gross pay, the chosen Pay From ledger is credited with their take-home pay, "${SALARY_DEDUCTIONS_LEDGER_NAME}" is credited with anything withheld (PF/ESI/PT/TDS/other), and "${EMPLOYEE_LOAN_LEDGER_NAME}" is credited with any loan EMI recovered. If Employer PF/ESI apply, "${EMPLOYER_CONTRIB_LEDGER_NAME}" is also debited and "${EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME}" credited for the company's own contribution. Every employee's name and amount shows as its own line in these ledgers' statements, and all reports (P&amp;L, Trial Balance, Cash/Bank Book) pick it up automatically. Use "Void" on a payslip to reverse just that employee's entry for the month — it deletes the linked voucher and restores any loan balance it had recovered. The Bank Transfer File is a plain CSV (Beneficiary Name, Account Number, IFSC, Bank Name, Amount, Narration) for the month's take-home pay, ready to upload to most banks' bulk NEFT/RTGS portals — employees missing bank details are skipped and listed in a warning.</p>
+
+    <div class="section-title">Reports &amp; Analytics <span class="muted" style="font-weight:400;font-size:11px;">— ${escapeHtml(payrollReportLabel)}${years.length>1?' (use the "All years"/year selector above to change this)':''}</span></div>
+    <div class="panel">
+      <div class="panel-head"><h2>Departmental Cost Summary</h2>
+        <button class="btn small secondary" id="downloadDeptCostBtn" type="button" ${deptCostSummary.length?'':'disabled'}>⬇ Export</button>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        ${deptCostSummary.length ? `<table>
+          <tr><th>Department</th><th class="num">Headcount</th><th class="num">Gross Pay</th><th class="num">Deductions</th><th class="num">Employer Contrib.</th><th class="num">Cost to Company</th><th class="num">Net Pay</th></tr>
+          ${deptCostSummary.map(d=>`<tr>
+            <td>${escapeHtml(d.department)}</td>
+            <td class="num">${d.headcount}</td>
+            <td class="num">₹${fmt(d.gross)}</td>
+            <td class="num">₹${fmt(d.deductions)}</td>
+            <td class="num">₹${fmt(d.employerContrib)}</td>
+            <td class="num" style="font-weight:700;">₹${fmt(d.ctc)}</td>
+            <td class="num">₹${fmt(d.netPay)}</td>
+          </tr>`).join('')}
+          <tr style="font-weight:700;"><td colspan="5">Total</td><td class="num">₹${fmt(deptCostSummary.reduce((s,d)=>s+d.ctc,0))}</td><td class="num">₹${fmt(deptCostSummary.reduce((s,d)=>s+d.netPay,0))}</td></tr>
+        </table>` : emptyState({icon:'🏷️', title:'No payroll data for this range', text:'Run payroll, or add a department to your employees, to see cost broken down by department.'})}
+      </div>
+      <p class="muted" style="font-size:11px;padding:0 16px 12px;">Groups every payslip in the selected range by each employee's Department field (set on the employee's record); employees with no department set are grouped as "Unassigned". Cost to Company includes employer PF/ESI on top of gross pay.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Statutory Tax Report (PF / ESI / PT / TDS)</h2>
+        <button class="btn small secondary" id="downloadTaxReportBtn" type="button" ${filteredPayslips.length?'':'disabled'}>⬇ Export</button>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        ${filteredPayslips.length ? `<table>
+          <tr><th class="num">PF Withheld</th><th class="num">Employer PF</th><th class="num">ESI Withheld</th><th class="num">Employer ESI</th><th class="num">Professional Tax</th><th class="num">TDS</th></tr>
+          <tr style="font-weight:700;">
+            <td class="num">₹${fmt(taxReportTotals.pf)}</td>
+            <td class="num">₹${fmt(taxReportTotals.employerPF)}</td>
+            <td class="num">₹${fmt(taxReportTotals.esi)}</td>
+            <td class="num">₹${fmt(taxReportTotals.employerESI)}</td>
+            <td class="num">₹${fmt(taxReportTotals.pt)}</td>
+            <td class="num">₹${fmt(taxReportTotals.tds)}</td>
+          </tr>
+        </table>` : emptyState({icon:'🧾', title:'No payroll data for this range', text:'Run payroll to see statutory deductions summarized here.'})}
+      </div>
+      <p class="muted" style="font-size:11px;padding:0 16px 12px;">Export gets the full per-employee, per-month breakup (with PAN) for filing — this on-screen summary is just the totals. This report only covers the fields already tracked per employee (PF/ESI/PT/TDS/PAN); it doesn't hold UAN, ESIC IP, or TAN details, so it's a starting worksheet for your filing, not a ready-to-submit government form.</p>
+    </div>
   `;
 }
 function printPayslip(salaryVoucherId){
@@ -15977,6 +16677,79 @@ function downloadPayrollRegister(month){
   const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
   XLSX.writeFile(wb, `${safeName}_Payroll_Register_${month}.xlsx`);
   toast(`Payroll register for ${month} exported`);
+}
+/* ---------------- Payroll reporting & analytics: Departmental Cost Summary + Tax Report ----------------
+   Both reuse whatever set of salaryVouchers the Payslips table above is already scoped to (i.e. they
+   respect the same "year" filter as that table) so there's exactly one place that decides "which
+   payroll runs are we looking at" per screen, rather than a second, independently-filterable control. */
+function departmentalCostSummaryFromVouchers(svs){
+  const byDept = {};
+  svs.forEach(sv=>{
+    const e = state.employees.find(x=>x.id===sv.employeeId);
+    const dept = (e && e.department) ? e.department : 'Unassigned';
+    const gross = r2((sv.basic||0)+(sv.hra||0)+(sv.allowances||0)+(sv.bonus||0));
+    const ded = r2((sv.pf||0)+(sv.esi||0)+(sv.pt||0)+(sv.tds||0)+(sv.otherDeductions||0)+(sv.loanDeduction||0));
+    const employerContrib = r2((sv.employerPF||0)+(sv.employerESI||0));
+    const ctc = r2(gross+employerContrib);
+    if(!byDept[dept]) byDept[dept] = { department:dept, headcount:new Set(), gross:0, deductions:0, employerContrib:0, ctc:0, netPay:0 };
+    const row = byDept[dept];
+    row.headcount.add(sv.employeeId);
+    row.gross += gross; row.deductions += ded; row.employerContrib += employerContrib; row.ctc += ctc; row.netPay += (sv.netPay||0);
+  });
+  return Object.values(byDept)
+    .map(r=>({ ...r, headcount:r.headcount.size, gross:r2(r.gross), deductions:r2(r.deductions), employerContrib:r2(r.employerContrib), ctc:r2(r.ctc), netPay:r2(r.netPay) }))
+    .sort((a,b)=> b.ctc-a.ctc);
+}
+function buildDepartmentalCostSummarySheet(svs, label){
+  const rows = [[`Departmental Cost Summary — ${label}`],[]];
+  rows.push(['Department','Headcount (paid)','Gross Pay','Total Deductions','Employer Contributions','Cost to Company','Net Pay']);
+  const dept = departmentalCostSummaryFromVouchers(svs);
+  let totCTC=0, totNet=0;
+  dept.forEach(d=>{ rows.push([d.department, d.headcount, d.gross, d.deductions, d.employerContrib, d.ctc, d.netPay]); totCTC+=d.ctc; totNet+=d.netPay; });
+  rows.push([]);
+  rows.push(['Total','','','','',r2(totCTC),r2(totNet)]);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+function payrollTaxReportRows(svs){
+  return svs.map(sv=>{
+    const e = state.employees.find(x=>x.id===sv.employeeId);
+    return {
+      month: sv.month, name: e?e.name:'Former employee', code: e?(e.code||''):'', pan: e?(e.pan||''):'',
+      pf: sv.pf||0, employerPF: sv.employerPF||0, esi: sv.esi||0, employerESI: sv.employerESI||0,
+      pt: sv.pt||0, tds: sv.tds||0,
+    };
+  }).sort((a,b)=> a.month.localeCompare(b.month) || a.name.localeCompare(b.name));
+}
+function buildPayrollTaxReportSheet(svs, label){
+  const rows = [[`Statutory Tax Report — ${label}`],[`PF/ESI/PT/TDS withheld and employer contributions, by employee and month`],[]];
+  rows.push(['Month','Employee Code','Employee Name','PAN','PF (Employee)','PF (Employer)','ESI (Employee)','ESI (Employer)','Professional Tax','TDS']);
+  const tr = payrollTaxReportRows(svs);
+  let t = {pf:0,employerPF:0,esi:0,employerESI:0,pt:0,tds:0};
+  tr.forEach(r=>{
+    rows.push([r.month, r.code, r.name, r.pan, r.pf, r.employerPF, r.esi, r.employerESI, r.pt, r.tds]);
+    t.pf+=r.pf; t.employerPF+=r.employerPF; t.esi+=r.esi; t.employerESI+=r.employerESI; t.pt+=r.pt; t.tds+=r.tds;
+  });
+  rows.push([]);
+  rows.push(['','','Total','',r2(t.pf),r2(t.employerPF),r2(t.esi),r2(t.employerESI),r2(t.pt),r2(t.tds)]);
+  return XLSX.utils.aoa_to_sheet(rows);
+}
+function downloadDepartmentalCostSummary(svs, label){
+  if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  if(!svs.length){ toast('No payroll runs in this range yet'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildDepartmentalCostSummarySheet(svs, label), 'Dept Cost Summary');
+  const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
+  XLSX.writeFile(wb, `${safeName}_Departmental_Cost_Summary_${label}.xlsx`.replace(/\s+/g,'_'));
+  toast('Departmental cost summary exported');
+}
+function downloadPayrollTaxReport(svs, label){
+  if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  if(!svs.length){ toast('No payroll runs in this range yet'); return; }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildPayrollTaxReportSheet(svs, label), 'Tax Report');
+  const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
+  XLSX.writeFile(wb, `${safeName}_Statutory_Tax_Report_${label}.xlsx`.replace(/\s+/g,'_'));
+  toast('Statutory tax report exported');
 }
 // Reverses exactly one employee's payroll entry for a month: deletes the Journal voucher it posted
 // and its salaryVoucher record, and restores any loan/advance EMI it had recovered -- so the books,
@@ -16627,6 +17400,16 @@ function attachHandlers(){
       const month = document.getElementById('payrollDownloadMonth').value;
       downloadBankTransferFile(month);
     });
+    document.getElementById('downloadDeptCostBtn')?.addEventListener('click', ()=>{
+      const label = payslipYearFilter==='all' ? 'All_Years' : payslipYearFilter;
+      const svs = state.salaryVouchers.filter(sv=> payslipYearFilter==='all' || sv.month.startsWith(payslipYearFilter));
+      downloadDepartmentalCostSummary(svs, label);
+    });
+    document.getElementById('downloadTaxReportBtn')?.addEventListener('click', ()=>{
+      const label = payslipYearFilter==='all' ? 'All_Years' : payslipYearFilter;
+      const svs = state.salaryVouchers.filter(sv=> payslipYearFilter==='all' || sv.month.startsWith(payslipYearFilter));
+      downloadPayrollTaxReport(svs, label);
+    });
     document.getElementById('generatePayrollBtn')?.addEventListener('click', async ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
       if(!payrollPayFromLedgerId){ toast('Add a Bank or Cash ledger first (Accounts tab).'); return; }
@@ -16687,6 +17470,7 @@ function attachHandlers(){
           employerPF: r2(employerContrib.pf*p.ratio), employerESI: r2(employerContrib.esi*p.ratio), loanDeduction: loanEmi,
           lopDays, payableDays, totalDaysInMonth: totalDaysThisMonth,
           netPay: takeHome, voucherId: v.id, generatedAt: now,
+          payFromLedgerId: payrollPayFromLedgerId,
         });
       });
       payrollLopDays = {};
@@ -16806,6 +17590,48 @@ function attachHandlers(){
     });
   }
 
+  document.querySelectorAll('[data-employee-documents]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      employeeDocumentsEmployeeId = b.dataset.employeeDocuments;
+      modal = 'employeeDocuments';
+      docVaultUnlockError = '';
+      render();
+      if(state.docVaultSalt && docVaultKey) loadEmployeeDocuments(employeeDocumentsEmployeeId);
+    });
+  });
+  if(modal==='employeeDocuments'){
+    document.getElementById('docVaultSetupBtn')?.addEventListener('click', async ()=>{
+      const val = document.getElementById('docVaultSetupInput')?.value || '';
+      const ok = await setupDocVault(val);
+      render();
+      if(ok) loadEmployeeDocuments(employeeDocumentsEmployeeId);
+    });
+    document.getElementById('docVaultUnlockBtn')?.addEventListener('click', async ()=>{
+      const val = document.getElementById('docVaultUnlockInput')?.value || '';
+      const ok = await unlockDocVault(val);
+      render();
+      if(ok) loadEmployeeDocuments(employeeDocumentsEmployeeId);
+    });
+    document.getElementById('employeeDocTypeInput')?.addEventListener('change', e=>{
+      employeeDocUploadType = e.target.value;
+    });
+    document.getElementById('employeeDocFileInput')?.addEventListener('change', e=>{
+      const file = e.target.files[0];
+      if(file) uploadEmployeeDocument(employeeDocumentsEmployeeId, file, employeeDocUploadType);
+    });
+    document.querySelectorAll('[data-view-employee-doc]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        viewEmployeeDocument(employeeDocumentsEmployeeId, el.dataset.viewEmployeeDoc);
+      });
+    });
+    document.querySelectorAll('[data-delete-employee-doc]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        if(!window.confirm('Delete this document? This cannot be undone.')) return;
+        deleteEmployeeDocument(employeeDocumentsEmployeeId, el.dataset.deleteEmployeeDoc);
+      });
+    });
+  }
+
   document.querySelectorAll('[data-delete-voucher]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       const id = b.dataset.deleteVoucher;
@@ -16873,6 +17699,8 @@ function attachHandlers(){
         entries: v.entries.map(e=>({...e})),
         gst: {party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items: (v.items||[]).map(it=>({...it}))},
         costCenterId: v.costCenterId || null,
+        channel: v.channel || '',
+        appliedItems: (v.items||[]).map(it=>({...it})), // preserved as-is unless the GST Calculator's "Add to Voucher" is used again
       };
       modal = null;
       view = 'voucher';
@@ -16929,6 +17757,9 @@ function attachHandlers(){
         render();
       });
     });
+    document.querySelectorAll('[data-dashboard-goto-inventory]').forEach(el=>{
+      el.addEventListener('click', ()=>{ goToTab('inventory'); });
+    });
     document.querySelectorAll('[data-insight-action]').forEach(el=>{
       el.addEventListener('click', ()=>{
         modal = KPI_MODALS[el.dataset.insightAction] || null;
@@ -16968,6 +17799,7 @@ function attachHandlers(){
     });
     document.getElementById('vdate').addEventListener('input', e=> vform.date = e.target.value);
     document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); });
+    document.getElementById('vchannel')?.addEventListener('change', e=>{ vform.channel = e.target.value; });
     updateNarrationSuggestion(); // show a suggestion immediately if editing a voucher that already has a narration
     document.getElementById('vCurrency')?.addEventListener('change', e=>{
       vform.currency = e.target.value;
@@ -17102,6 +17934,12 @@ function attachHandlers(){
     document.querySelectorAll('.item-expiry').forEach(el=>{
       el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].expiry = e.target.value; });
     });
+    document.querySelectorAll('.item-serial').forEach(el=>{
+      el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].serial = e.target.value; });
+    });
+    document.querySelectorAll('.item-warehouse').forEach(el=>{
+      el.addEventListener('change', e=>{ vform.gst.items[+e.target.dataset.i].warehouseId = e.target.value; });
+    });
     document.querySelectorAll('[data-item-rm]').forEach(el=>{
       el.addEventListener('click', ()=>{
         vform.gst.items.splice(+el.dataset.itemRm,1);
@@ -17163,6 +18001,8 @@ function attachHandlers(){
         const applied = {itemId: (it.itemId && it.itemId!=='__custom__') ? it.itemId : null, name:it.name, qty:Number(it.qty)||0, rate:Number(it.rate)||0, disc:Number(it.disc)||0};
         if(it.batch) applied.batch = it.batch;
         if(it.expiry) applied.expiry = it.expiry;
+        if(it.serial) applied.serial = it.serial;
+        if(it.warehouseId) applied.warehouseId = it.warehouseId;
         return applied;
       });
       toast('GST entries added — review below and Save');
@@ -17255,6 +18095,7 @@ function attachHandlers(){
           if(appliedItems) state.vouchers[idx].items = appliedItems;
           if(foreignTotal!=null){ state.vouchers[idx].currency = vform.currency; state.vouchers[idx].fxRate = fx; state.vouchers[idx].foreignAmount = foreignTotal; }
           if(vform.costCenterId) state.vouchers[idx].costCenterId = vform.costCenterId;
+          if(vform.type==='Sales' && vform.channel) state.vouchers[idx].channel = vform.channel;
         }
         await saveVouchers();
         toast('Voucher updated');
@@ -17264,6 +18105,7 @@ function attachHandlers(){
         if(appliedItems) v.items = appliedItems;
         if(foreignTotal!=null){ v.currency = vform.currency; v.fxRate = fx; v.foreignAmount = foreignTotal; }
         if(vform.costCenterId) v.costCenterId = vform.costCenterId;
+        if(vform.type==='Sales' && vform.channel) v.channel = vform.channel;
         state.vouchers.push(v);
         savedVoucherId = v.id;
         await saveVouchers();
@@ -17584,6 +18426,13 @@ function attachHandlers(){
 
   if(view==='inventory'){
     attachStockItemFormHandlers();
+    const barcodeInput = document.getElementById('barcodeScanInput');
+    if(barcodeInput){
+      barcodeInput.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){ barcodeScanQuery = e.target.value; render(); }
+      });
+      barcodeInput.addEventListener('blur', e=>{ if(e.target.value.trim()!==barcodeScanQuery) { barcodeScanQuery = e.target.value; render(); } });
+    }
     document.querySelectorAll('[data-stock-detail]').forEach(el=>{
       el.addEventListener('click', ()=>{
         stockDetailItemId = el.dataset.stockDetail;
@@ -17598,6 +18447,68 @@ function attachHandlers(){
         render();
       });
     });
+    document.getElementById('openStockTransferBtn')?.addEventListener('click', ()=>{
+      const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
+      stockTransferDraft = {
+        itemId: state.items[0]?state.items[0].id:'',
+        qty: '',
+        fromWarehouseId: activeWarehouses[0]?activeWarehouses[0].id:'',
+        toWarehouseId: activeWarehouses[1]?activeWarehouses[1].id:(activeWarehouses[0]?activeWarehouses[0].id:''),
+        date: new Date().toISOString().slice(0,10),
+        remark: '',
+      };
+      modal = 'stockTransfer';
+      render();
+    });
+    document.getElementById('addWarehouseBtn')?.addEventListener('click', async ()=>{
+      const name = document.getElementById('newWarehouseName').value.trim();
+      if(!name){ toast('Enter a location name'); return; }
+      state.warehouses.push({ id: uid('wh'), name, active:true });
+      await saveWarehouses();
+      toast(`"${name}" added — you can now tag it on voucher item lines and stock adjustments`);
+      render();
+    });
+    document.querySelectorAll('[data-toggle-warehouse]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const w = state.warehouses.find(x=>x.id===el.dataset.toggleWarehouse);
+        if(!w) return;
+        w.active = w.active===false ? true : false;
+        await saveWarehouses();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-reorder-purchase]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        reorderPrefillItemId = el.dataset.reorderPurchase;
+        vform = null;
+        modal = null;
+        goToTab('voucher');
+      });
+    });
+  }
+  if(modal==='stockTransfer'){
+    document.getElementById('stockTransferItem')?.addEventListener('change', e=>{ stockTransferDraft.itemId = e.target.value; render(); });
+    document.getElementById('stockTransferFrom')?.addEventListener('change', e=>{ stockTransferDraft.fromWarehouseId = e.target.value; render(); });
+    document.getElementById('stockTransferTo')?.addEventListener('change', e=>{ stockTransferDraft.toWarehouseId = e.target.value; render(); });
+    document.getElementById('stockTransferQty')?.addEventListener('input', e=>{ stockTransferDraft.qty = e.target.value; });
+    document.getElementById('stockTransferDate')?.addEventListener('change', e=>{ stockTransferDraft.date = e.target.value; });
+    document.getElementById('stockTransferRemark')?.addEventListener('input', e=>{ stockTransferDraft.remark = e.target.value; });
+    document.getElementById('saveStockTransferBtn')?.addEventListener('click', async ()=>{
+      const d = stockTransferDraft;
+      const qty = Number(d.qty);
+      if(!d.itemId){ toast('Choose an item'); return; }
+      if(!qty || qty<=0){ toast('Enter a quantity greater than zero'); return; }
+      if(d.fromWarehouseId===d.toWarehouseId){ toast('Pick two different locations'); return; }
+      const item = state.items.find(i=>i.id===d.itemId);
+      const available = item ? stockByWarehouseForItem(item).find(r=>r.warehouse.id===d.fromWarehouseId) : null;
+      if(available && qty>available.qty && !confirm(`Only ${fmt(available.qty)} ${item.unit||''} available at the source location. Transfer anyway?`)) return;
+      state.stockTransfers.push({ id: uid('xfer'), date:d.date, itemId:d.itemId, qty:r2(qty), fromWarehouseId:d.fromWarehouseId, toWarehouseId:d.toWarehouseId, remark:d.remark||'' });
+      await saveStockTransfers();
+      toast('Stock transferred');
+      stockTransferDraft = null;
+      modal = null;
+      render();
+    });
   }
   if(modal==='stockAdjust'){
     document.getElementById('saveStockAdjBtn')?.addEventListener('click', async ()=>{
@@ -17605,12 +18516,14 @@ function attachHandlers(){
       const reason = document.getElementById('stockAdjReason').value.trim();
       const qty = Number(qtyRaw);
       if(!qtyRaw || qty===0 || isNaN(qty)){ toast('Enter a non-zero adjustment quantity'); return; }
+      const adjWarehouseId = document.getElementById('stockAdjWarehouse')?.value || defaultWarehouseId();
       state.stockAdjustments.push({
         id: uid('adj'),
         itemId: stockAdjustItemId,
         date: new Date().toISOString().slice(0,10),
         qty,
         reason,
+        warehouseId: adjWarehouseId,
         createdAt: new Date().toISOString(),
       });
       await saveStockAdjustments();
