@@ -2011,6 +2011,13 @@ let pieChartLedgerId = null; // which ledger's pie chart to show
 // 'new' when it's open in create mode, or a ledger id when it's open in edit mode for that ledger.
 let ledgerSearchQuery = '';
 let alterLedgerId = null;
+// Deleting a ledger is restricted to Admin/Support accounts (see isReadOnlyMode-style guards
+// elsewhere) and gated behind re-entering the signed-in user's own login password, since it's the
+// one irreversible action in the Ledgers tab. ledgerDeleteConfirmId is the ledger id the password
+// modal is open for; the error/busy fields drive that modal's own feedback.
+let ledgerDeleteConfirmId = null;
+let ledgerDeletePasswordError = '';
+let ledgerDeletePasswordBusy = false;
 // Which series are hidden (clicked off) in the new interactive Dashboard trend visuals — keyed by
 // a series key like 'revenue'/'cogs'/'margin'. Persists only for the session (like every other
 // piece of UI draft state in this app), reset is not needed since it's just a display toggle.
@@ -6542,6 +6549,7 @@ function render(){
     ${modal==='cfBucketDetail' ? cashFlowBucketDetailModal() : ''}
     ${modal==='quickAddLedger' ? quickAddLedgerModal() : ''}
     ${modal==='alterLedger' ? alterLedgerModal() : ''}
+    ${modal==='deleteLedgerPassword' ? deleteLedgerPasswordModal() : ''}
     ${modal==='reconcileHelp' ? reconcileHelpModal() : ''}
     ${modal==='recurring' ? recurringModal() : ''}
     ${modal==='backup' ? backupModal() : ''}
@@ -13311,6 +13319,30 @@ function alterLedgerModal(){
     </div>
   `;
 }
+// Confirms a ledger deletion by re-checking the signed-in Admin/Support user's own login password
+// against Firebase Auth (reauthenticateWithCredential) before the delete actually runs -- this is
+// the one irreversible action on the Ledgers tab, so it gets its own step-up-auth prompt rather
+// than a plain window.confirm().
+function deleteLedgerPasswordModal(){
+  const l = ledgerOf(ledgerDeleteConfirmId);
+  if(!l) return '';
+  return `
+    <div class="modal-overlay" id="modalOverlayBg">
+      <div class="modal-card" style="width:420px;">
+        <div class="panel-head"><h2>Confirm Deletion</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p style="margin-top:0;">You're about to permanently delete <strong>${escapeHtml(l.name)}</strong>. Enter your login password to confirm — this action is limited to Admin/Support accounts.</p>
+          <div class="field"><label>Your Password</label><input type="password" id="deleteLedgerPasswordInput" autocomplete="current-password" placeholder="Login password" autofocus></div>
+          ${ledgerDeletePasswordError ? `<p style="color:var(--debit,#B3261E);font-size:12.5px;margin:2px 0 8px;">${escapeHtml(ledgerDeletePasswordError)}</p>` : ''}
+          <div style="display:flex;gap:8px;">
+            <button class="btn danger" id="deleteLedgerPasswordSubmit" type="button" ${ledgerDeletePasswordBusy?'disabled':''}>${ledgerDeletePasswordBusy?'Checking…':'Delete Ledger'}</button>
+            <button class="btn secondary" id="deleteLedgerPasswordCancel" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -14133,7 +14165,7 @@ function ledgerStatement(ledgerId){
         <div style="display:flex;align-items:center;gap:8px;">
           <button class="btn small secondary" data-open-pie="${ledgerId}" type="button">📊 Pie Chart</button>
           <button class="btn small secondary" data-open-alter-ledger="${ledgerId}" type="button">✎ Alter</button>
-          <button class="btn small danger" data-delete-ledger="${ledgerId}" type="button">Delete</button>
+          ${currentUser && currentUser.isAdmin ? `<button class="btn small danger" data-delete-ledger="${ledgerId}" type="button" title="Admin/Support only — asks for your login password">Delete</button>` : ''}
           <span class="pill ${bal>=0?'pos':'neg'}">${fmt(bal)} ${balanceLabel(bal)}</span>
         </div>
       </div>
@@ -18022,10 +18054,14 @@ function attachHandlers(){
       });
     });
     document.querySelectorAll('[data-delete-ledger]').forEach(el=>{
-      el.addEventListener('click', async ()=>{
+      el.addEventListener('click', ()=>{
         const id = el.dataset.deleteLedger;
         const l = ledgerOf(id);
         if(!l) return;
+        if(!currentUser || !currentUser.isAdmin){
+          toast('Deleting a ledger is limited to Admin/Support accounts.');
+          return;
+        }
         if(DEFAULT_LEDGERS.some(d=>d.id===id)){
           toast("This is a core ledger the app relies on and can't be deleted.");
           return;
@@ -18039,19 +18075,65 @@ function attachHandlers(){
           toast('This ledger has a non-zero opening balance — Alter it to zero first, then delete.');
           return;
         }
-        if(!window.confirm(`Delete "${l.name}"? This can't be undone from here.`)) return;
-        const idx = state.ledgers.findIndex(x=>x.id===id);
-        state.ledgers = state.ledgers.filter(x=>x.id!==id);
-        if(window._selectedLedger===id) window._selectedLedger = state.ledgers[0] && state.ledgers[0].id;
-        await saveLedgers();
+        ledgerDeleteConfirmId = id;
+        ledgerDeletePasswordError = '';
+        ledgerDeletePasswordBusy = false;
+        modal = 'deleteLedgerPassword';
         render();
-        toast(`"${l.name}" deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
-          state.ledgers.splice(Math.min(idx, state.ledgers.length), 0, l);
-          await saveLedgers();
-          toast('Ledger restored', {type:'success'});
-          render();
-        }}});
       });
+    });
+  }
+  if(modal==='deleteLedgerPassword'){
+    const submitDelete = async ()=>{
+      const id = ledgerDeleteConfirmId;
+      const l = ledgerOf(id);
+      if(!l){ modal = null; render(); return; }
+      const pwInput = document.getElementById('deleteLedgerPasswordInput');
+      const pw = pwInput ? pwInput.value : '';
+      if(!pw){ ledgerDeletePasswordError = 'Enter your login password'; render(); return; }
+      if(!currentUser || !currentUser.isAdmin){
+        toast('Deleting a ledger is limited to Admin/Support accounts.');
+        modal = null; render(); return;
+      }
+      ledgerDeletePasswordBusy = true;
+      ledgerDeletePasswordError = '';
+      render();
+      try{
+        const email = usernameToEmail(currentUser.username);
+        const credential = firebase.auth.EmailAuthProvider.credential(email, pw);
+        await fbAuth.currentUser.reauthenticateWithCredential(credential);
+      }catch(e){
+        ledgerDeletePasswordBusy = false;
+        ledgerDeletePasswordError = 'Incorrect password — try again.';
+        render();
+        return;
+      }
+      const idx = state.ledgers.findIndex(x=>x.id===id);
+      state.ledgers = state.ledgers.filter(x=>x.id!==id);
+      if(window._selectedLedger===id) window._selectedLedger = state.ledgers[0] && state.ledgers[0].id;
+      await saveLedgers();
+      ledgerDeleteConfirmId = null;
+      ledgerDeletePasswordError = '';
+      ledgerDeletePasswordBusy = false;
+      modal = null;
+      render();
+      toast(`"${l.name}" deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+        state.ledgers.splice(Math.min(idx, state.ledgers.length), 0, l);
+        await saveLedgers();
+        toast('Ledger restored', {type:'success'});
+        render();
+      }}});
+    };
+    document.getElementById('deleteLedgerPasswordSubmit')?.addEventListener('click', submitDelete);
+    document.getElementById('deleteLedgerPasswordInput')?.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter') submitDelete();
+    });
+    document.getElementById('deleteLedgerPasswordCancel')?.addEventListener('click', ()=>{
+      ledgerDeleteConfirmId = null;
+      ledgerDeletePasswordError = '';
+      ledgerDeletePasswordBusy = false;
+      modal = null;
+      render();
     });
   }
   if(modal==='alterLedger'){
