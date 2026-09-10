@@ -840,6 +840,34 @@
   /* ---- Company cards: staggered entrance on first paint (animation-delay set per-card inline) ---- */
   @keyframes cardEnter{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
   .company-card{animation:cardEnter .45s ease backwards;}
+
+  /* ================= Login + Tour + Admin panel — advanced UI/UX pass =================
+     Same tokens/keyframes as the Landing + Gateway pass above (aurora-orb, auroraDrift1/2) —
+     nothing new is introduced, just extended to the remaining pre-app and admin screens. */
+
+  /* ---- Login card: sits on the same .rb-bg as the Gateway (so it already inherits that dark-mode
+     fix), gets a branded top accent, a subtle glowing logo, and a gentle entrance on first paint. ---- */
+  .login-card{overflow:hidden;animation:loginCardIn .5s cubic-bezier(.22,1,.36,1);}
+  @keyframes loginCardIn{from{opacity:0;transform:translateY(18px) scale(.98);}to{opacity:1;transform:none;}}
+  .login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent1),var(--gold));}
+  .login-logo{animation:loginLogoGlow 2.6s ease-in-out infinite;}
+  @keyframes loginLogoGlow{0%,100%{box-shadow:0 8px 20px rgba(44,160,28,0.28);}50%{box-shadow:0 8px 26px rgba(44,160,28,0.5);}}
+  .rb-bg > .aurora-orb{position:absolute;z-index:1;}
+
+  /* ---- Onboarding tour: a glass tooltip card with a gentle entrance, and a pulsing ring around
+     the spotlighted element so first-run guidance reads as alive rather than static. ---- */
+  .tour-tip{background:color-mix(in srgb, var(--surface) 92%, transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:tourTipIn .28s cubic-bezier(.22,1,.36,1);}
+  @keyframes tourTipIn{from{opacity:0;transform:translateY(8px) scale(.97);}to{opacity:1;transform:none;}}
+  .tour-highlight::after{content:'';position:absolute;inset:0;border-radius:10px;border:2px solid var(--accent1);animation:tourPulse 1.8s ease-out infinite;}
+  @keyframes tourPulse{0%{box-shadow:0 0 0 0 rgba(44,160,28,0.5);}100%{box-shadow:0 0 0 10px rgba(44,160,28,0);}}
+
+  /* ---- Admin panel + Group admin header: drifting aurora accents, echoing the Gateway hero;
+     shared by adminPanelModal() and groupAdminModal() since both use .admin-modal-head. ---- */
+  .admin-modal-head{isolation:isolate;}
+  .admin-modal-head .aurora-orb{position:absolute;z-index:0;}
+  .admin-modal-head .amh-icon{position:relative;z-index:1;}
+  .amh-aurora-1{width:200px;height:200px;top:-90px;right:10%;background:radial-gradient(circle,rgba(255,222,158,0.45),transparent 70%);animation:auroraDrift1 10s ease-in-out infinite;}
+  .amh-aurora-2{width:160px;height:160px;bottom:-90px;left:20%;background:radial-gradient(circle,rgba(255,255,255,0.14),transparent 70%);animation:auroraDrift2 12s ease-in-out infinite;}
 </style>
 </head>
 <body>
@@ -8110,6 +8138,8 @@ function renderLogin(){
     <div class="rb-bg">
       <span class="rb-letter rb-letter-r">R</span>
       <span class="rb-letter rb-letter-b">B</span>
+      <div class="aurora-orb" style="width:260px;height:260px;top:8%;right:6%;background:radial-gradient(circle,rgba(46,125,50,0.4),transparent 70%);animation:auroraDrift1 11s ease-in-out infinite;"></div>
+      <div class="aurora-orb" style="width:220px;height:220px;bottom:6%;left:4%;background:radial-gradient(circle,rgba(242,169,0,0.3),transparent 70%);animation:auroraDrift2 13s ease-in-out infinite;"></div>
       <div class="rb-content">
         <div class="titlebar">
           <span id="backToLandingLink" style="cursor:pointer;">← The Reckoning Books by SKm</span>
@@ -10440,7 +10470,7 @@ function adminPanelModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
-        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="admin-modal-head"><div class="aurora-orb amh-aurora-1"></div><div class="aurora-orb amh-aurora-2"></div><div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:relative;z-index:1;">✕</button></div>
         <div class="modern-tabbar">
           ${adminTabBtn('overview','Overview')}
           ${adminTabBtn('users','Users')}
@@ -10482,14 +10512,18 @@ function adminOverviewTab(){
     </label>
     <button class="btn secondary small" id="saveAnnouncementBtn" type="button" style="margin-top:8px;" ${isFullAdmin()?'':'disabled'}>Save Announcement</button>
 
-    <div class="section-title">Orphaned Companies</div>
-    <p class="muted" style="font-size:12px;margin-top:0;">Companies whose owner account no longer exists.</p>
-    ${orphans.length ? `
-    <table>
-      <tr><th>Company</th><th></th></tr>
-      ${orphans.map(c=>`<tr><td>${escapeHtml(c.name)}</td><td><button class="btn secondary small" data-delete-orphan="${escapeAttr(c.id)}" type="button" style="color:var(--debit);" ${isFullAdmin()?'':'disabled'}>Delete</button></td></tr>`).join('')}
-    </table>
-    ` : `<div class="empty">None found — everything is tidy.</div>`}
+    <details class="disclosure" ${orphans.length?'open':''}>
+      <summary>Orphaned Companies <span class="pill ${orphans.length?'neg':''}" style="margin-left:6px;">${orphans.length}</span></summary>
+      <div class="disclosure-body">
+        <p class="muted" style="font-size:12px;margin-top:0;">Companies whose owner account no longer exists.</p>
+        ${orphans.length ? `
+        <table>
+          <tr><th>Company</th><th></th></tr>
+          ${orphans.map(c=>`<tr><td>${escapeHtml(c.name)}</td><td><button class="btn secondary small" data-delete-orphan="${escapeAttr(c.id)}" type="button" style="color:var(--debit);" ${isFullAdmin()?'':'disabled'}>Delete</button></td></tr>`).join('')}
+        </table>
+        ` : `<div class="empty">None found — everything is tidy.</div>`}
+      </div>
+    </details>
   `;
 }
 const ADMIN_RANGE_LABELS = { 7:'7 days', 30:'30 days', 90:'90 days', 365:'365 days' };
@@ -10805,16 +10839,20 @@ function adminSettingsTab(){
     </div>
     ` : `<div class="empty">No client errors recorded — clean bill of health.</div>`}
 
-    <div class="section-title">Recommended Firestore Security Rules</div>
-    <p class="muted" style="font-size:12px;margin-top:0;">
-      Reference only — this app talks to Firestore straight from the browser (the client SDK), which
-      cannot deploy security rules. Copy these into the <strong>Rules</strong> tab of the Firebase
-      Console for this project yourself.
-    </p>
-    <div style="position:relative;">
-      <button class="btn secondary small" id="copyFirestoreRulesBtn" type="button" style="position:absolute;top:8px;right:8px;">Copy</button>
-      <pre id="firestoreRulesBlock" style="background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;line-height:1.5;overflow-x:auto;margin-top:8px;white-space:pre;">${escapeHtml(RECOMMENDED_FIRESTORE_RULES)}</pre>
-    </div>
+    <details class="disclosure">
+      <summary>Recommended Firestore Security Rules</summary>
+      <div class="disclosure-body">
+        <p class="muted" style="font-size:12px;margin-top:0;">
+          Reference only — this app talks to Firestore straight from the browser (the client SDK), which
+          cannot deploy security rules. Copy these into the <strong>Rules</strong> tab of the Firebase
+          Console for this project yourself.
+        </p>
+        <div style="position:relative;">
+          <button class="btn secondary small" id="copyFirestoreRulesBtn" type="button" style="position:absolute;top:8px;right:8px;">Copy</button>
+          <pre id="firestoreRulesBlock" style="background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;line-height:1.5;overflow-x:auto;margin-top:8px;white-space:pre;">${escapeHtml(RECOMMENDED_FIRESTORE_RULES)}</pre>
+        </div>
+      </div>
+    </details>
   `;
 }
 function adminFilteredSortedUsers(){
@@ -11254,7 +11292,7 @@ function groupAdminModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
-        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="admin-modal-head"><div class="aurora-orb amh-aurora-1"></div><div class="aurora-orb amh-aurora-2"></div><div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:relative;z-index:1;">✕</button></div>
         <div class="modern-tabbar">
           ${groupAdminTabBtn('overview','Overview')}
           ${groupAdminTabBtn('users','Users')}
