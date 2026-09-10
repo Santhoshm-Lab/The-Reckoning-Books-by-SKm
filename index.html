@@ -56,6 +56,7 @@
   .navtab{font-family:inherit;font-size:12.5px;font-weight:700;padding:10px 14px;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:all .15s;display:flex;align-items:center;gap:10px;width:100%;text-align:left;}
   .navtab:hover:not(.active){background:var(--surface-strong);color:var(--ink);}
   .navtab.active{background:var(--accent1);color:#fff;border-color:var(--accent1);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
+  .btn.secondary.active{background:var(--accent1);color:#fff;border-color:var(--accent1);}
   .navtab b{font-weight:900;text-decoration:underline;text-underline-offset:2px;}
   .tab-icon{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
@@ -102,12 +103,18 @@
   .panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 12px rgba(20,30,25,0.06);}
   .panel-head{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, rgba(44,160,28,0.035), rgba(44,160,28,0));}
   .panel-head h2{font-family:inherit;font-size:14.5px;font-weight:800;margin:0;letter-spacing:-.01em;color:var(--ink);}
-  .panel-body{padding:18px 20px;}
+  .panel-body{padding:18px 20px;overflow-x:auto;}
 
   /* ---------------- Interactive dashboard visuals (Power BI–style charts) ---------------- */
   .viz-grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:12px;}
   .viz-panel .panel-head{gap:10px;}
   .viz-panel .panel-head .viz-sub{font-size:10.5px;color:var(--ink-faint);font-weight:600;}
+  .viz-pin-wrap{position:relative;}
+  .viz-pin-btn{position:absolute;top:10px;right:14px;z-index:2;width:28px;height:28px;border-radius:8px;
+    background:var(--surface);border:1px solid var(--border);font-size:13px;line-height:1;cursor:pointer;
+    opacity:.4;filter:grayscale(1);transition:opacity .15s,filter .15s,background .15s,border-color .15s;}
+  .viz-pin-wrap:hover .viz-pin-btn, .viz-pin-btn:focus-visible{opacity:1;filter:grayscale(.4);}
+  .viz-pin-btn.pinned{opacity:1;filter:none;background:rgba(242,169,0,0.14);border-color:var(--gold,#F2A900);}
   .viz-mark{cursor:pointer;transition:opacity .12s,filter .12s;}
   .viz-mark:hover{opacity:.82;filter:brightness(0.96);}
   .viz-mark:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
@@ -157,6 +164,10 @@
   .btn:active:not(:disabled){transform:translateY(0);box-shadow:0 2px 6px rgba(44,160,28,0.3);}
   .btn.secondary{background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);box-shadow:none;}
   .btn.secondary:hover:not(:disabled){background:var(--surface-strong);border-color:var(--ink-soft);transform:translateY(-1px);box-shadow:0 3px 10px rgba(20,30,25,0.08);}
+  .btn.danger{background:var(--debit-bg);color:var(--debit);border:1px solid var(--debit);box-shadow:none;}
+  .btn.danger:hover:not(:disabled){background:var(--debit);color:#fff;}
+  .bulk-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface-strong);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;animation:mainFadeIn .15s ease;}
+  .bulk-count{font-weight:700;font-size:12.5px;color:var(--ink);margin-right:4px;}
   .btn.small{padding:6px 13px;font-size:11.5px;}
   .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none;}
 
@@ -183,8 +194,18 @@
   .totals-line.balanced{color:var(--credit);}
   .totals-line.unbalanced{color:var(--debit);}
 
-  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#1B2420;color:#fff;box-shadow:0 12px 28px rgba(0,0,0,0.25);padding:11px 22px;border-radius:999px;font-size:12.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:50;}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+  .toast-host{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none;}
+  .toast-item{display:flex;align-items:center;gap:10px;background:#1B2420;color:#fff;box-shadow:0 12px 28px rgba(0,0,0,0.25);padding:10px 12px 10px 16px;border-radius:999px;font-size:12.5px;font-weight:600;pointer-events:auto;border-left:3px solid var(--ink-faint);animation:toastIn .22s ease;white-space:nowrap;}
+  .toast-item.info{border-left-color:#8FA398;}
+  .toast-item.success{border-left-color:var(--credit);}
+  .toast-item.error{border-left-color:var(--debit);}
+  @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .toast-msg{max-width:340px;overflow:hidden;text-overflow:ellipsis;}
+  .toast-action{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.28);color:#fff;border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .toast-action:hover{background:rgba(255,255,255,0.24);}
+  .toast-close{background:transparent;border:none;color:rgba(255,255,255,0.55);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0;line-height:1;}
+  .toast-close:hover{color:#fff;}
+  @media (prefers-reduced-motion: reduce){ .toast-item{animation:none;} }
 
   .section-title{font-family:inherit;font-size:11.5px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 9px;}
   .section-title:first-child{margin-top:0;}
@@ -350,6 +371,16 @@
   .modal-card .panel-head{padding:14px 18px;}
   .modal-card .panel-body{padding:18px;}
 
+  /* Tablet: keep the sidebar as a vertical rail (still useful at this width, unlike on a phone)
+     but collapse it to icons-only so it stops eating a third of a 768-1024px screen; the tooltip
+     (title attr, already on every .navtab) still names each tab on hover/long-press. */
+  @media (max-width:1024px) and (min-width:761px){
+    .tabstrip{width:64px;padding:14px 8px;}
+    .navtab{justify-content:center;padding:10px 0;}
+    .navtab span{display:none;}
+    .grid{grid-template-columns:repeat(3,1fr);}
+    .cmdk-trigger .cmdk-label{display:none;}
+  }
   @media (max-width:760px){
     .grid{grid-template-columns:1fr 1fr;}
     .main{padding:14px;}
@@ -361,6 +392,9 @@
     .body-shell{flex-direction:column;}
     .tabstrip{flex-direction:row;flex-wrap:wrap;width:auto;gap:6px;padding:12px 14px 8px;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible;}
     .navtab{width:auto;border-radius:999px;}
+    .navtab span{display:none;}
+    .cmdpal{width:94vw;}
+    .cmdk-trigger{display:none;}
   }
 
   /* ---------------- Landing / intro page (renderLanding()) — shown on a fresh visit, before
@@ -537,7 +571,7 @@
   /* A touch of glass on the top chrome, current-SaaS style, still riding on the existing surface color. */
   .menubar{position:sticky;top:0;z-index:40;background:color-mix(in srgb, var(--surface) 88%, transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
 
-  .toast{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:color-mix(in srgb, var(--ink) 92%, transparent);}
+  .toast-item{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);background:color-mix(in srgb, var(--ink) 92%, transparent);}
 
   /* Respect the OS-level "reduce motion" preference — every hover-lift/keyframe above steps aside. */
   @media (prefers-reduced-motion: reduce){
@@ -630,13 +664,46 @@
 
   /* ---- Animated dashboard counters: value starts at 0 and counts up on first paint ---- */
   .stat .val{transition:color .2s;}
+
+  /* ---- Accessibility: visible keyboard focus + a skip-to-content link ---- */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+  [role="button"]:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent1); outline-offset: 2px; border-radius: 4px;
+  }
+  .skip-link{position:fixed;top:-60px;left:10px;z-index:1000;background:var(--ink);color:#fff;padding:10px 16px;
+    border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;transition:top .15s ease;}
+  .skip-link:focus{top:10px;}
+
+  /* ---- First-run guided tour: a spotlight rect (via an oversized box-shadow, so it darkens
+     everything else without needing an SVG mask) plus a small tooltip card pointing at it. ---- */
+  .tour-highlight{position:fixed;z-index:900;border-radius:10px;box-shadow:0 0 0 9999px rgba(10,16,12,0.62);
+    transition:top .25s ease,left .25s ease,width .25s ease,height .25s ease;pointer-events:none;}
+  .tour-tip{position:fixed;z-index:901;background:var(--surface);border:1px solid var(--border-strong);
+    border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,0.35);padding:16px 18px;width:280px;
+    transition:top .25s ease,left .25s ease;}
+  .tour-tip .step{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--accent1);text-transform:uppercase;margin-bottom:6px;}
+  .tour-tip h4{margin:0 0 6px;font-size:15px;font-weight:800;color:var(--ink);}
+  .tour-tip p{margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);line-height:1.45;}
+  .tour-tip-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+
+  /* ---- Friendlier empty states for a handful of first-run "you have no X yet" screens — an
+     icon + a short next-step instead of a bare line of muted text. Left as its own class rather
+     than restyling the existing .empty so the many small <td class="empty"> table-cell messages
+     (a different, deliberately minimal use of that class) are untouched. ---- */
+  .empty-state{padding:40px 28px;text-align:center;border:1.5px dashed var(--border-strong);
+    border-radius:var(--radius);margin:6px 0;background:var(--surface-strong);}
+  .empty-state-icon{font-size:32px;margin-bottom:10px;opacity:.9;}
+  .empty-state-title{font-size:14.5px;font-weight:800;color:var(--ink);margin-bottom:6px;}
+  .empty-state-text{font-size:12.5px;color:var(--ink-faint);max-width:380px;margin:0 auto;line-height:1.55;}
+  .empty-state-cta{margin-top:16px;}
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <div class="loading">Opening the books…</div>
 </div>
-<div class="toast" id="toast"></div>
+<div id="tourHost"></div>
+<div class="toast-host" id="toastHost"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1777,6 +1844,10 @@ let view = 'dashboard';
 let cmdQuery = '';       // command palette search text (modal==='commandPalette')
 let cmdActiveIndex = 0;  // highlighted row in the command palette results
 let dashCountersAnimated = false; // only count-up the stat tiles once per company session, not on every render
+let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
+let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
+let pinnedTiles = (function(){ try{ return JSON.parse(localStorage.getItem('rb_pinnedTiles')||'[]'); }catch(e){ return []; } })(); // dashboard viz-card ids pinned to the top "Pinned" section
+let gstShowMonthCompare = false; // toggles the "Compare to Last Month" panel on the GST tab
 let activeFY = null; // FY label (e.g. '2025-26') the user has chosen to view for the open company; null = "All Years" (no filter, the original all-time behaviour)
 let vform = null; // active voucher form draft
 let quickLedgerFocus = null; // remembers which ledger field to fill after creating a ledger from within the voucher form: {type:'entry', index} | {type:'single', which:'A'|'B'}
@@ -2726,12 +2797,48 @@ async function markMyTicketsSeen(){
   }catch(err){ /* best-effort */ }
 }
 
-function toast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toast._h);
-  toast._h = setTimeout(()=>t.classList.remove('show'), 2200);
+// Toast stack: a small queue of transient messages rendered imperatively into #toastHost, kept
+// outside the main render() cycle so a toast never disrupts whatever input/focus state is on
+// screen. opts.type is 'info'|'success'|'error'; opts.action = {label, run} adds a button (used
+// for "Undo" on deletes); opts.duration overrides the auto-dismiss time (ms).
+let toastStack = [];
+let toastSeq = 0;
+function toast(msg, opts){
+  opts = opts || {};
+  const id = 'ts'+(++toastSeq);
+  const item = { id, msg, type: opts.type || 'info', action: opts.action || null };
+  toastStack.push(item);
+  renderToastHost();
+  const duration = opts.duration || (item.action ? 5200 : 2600);
+  item.timer = setTimeout(()=> dismissToast(id), duration);
+}
+function dismissToast(id){
+  const idx = toastStack.findIndex(t=>t.id===id);
+  if(idx<0) return;
+  clearTimeout(toastStack[idx].timer);
+  toastStack.splice(idx,1);
+  renderToastHost();
+}
+function renderToastHost(){
+  const host = document.getElementById('toastHost');
+  if(!host) return;
+  host.innerHTML = toastStack.map(t=>`
+    <div class="toast-item ${t.type}" data-toast-id="${t.id}">
+      <span class="toast-msg">${escapeHtml(t.msg)}</span>
+      ${t.action ? `<button type="button" class="toast-action" data-toast-action="${t.id}">${escapeHtml(t.action.label)}</button>` : ''}
+      <button type="button" class="toast-close" data-toast-close="${t.id}" aria-label="Dismiss">✕</button>
+    </div>
+  `).join('');
+  host.querySelectorAll('[data-toast-action]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const t = toastStack.find(x=>x.id===b.dataset.toastAction);
+      dismissToast(b.dataset.toastAction);
+      if(t && t.action) t.action.run();
+    });
+  });
+  host.querySelectorAll('[data-toast-close]').forEach(b=>{
+    b.addEventListener('click', ()=> dismissToast(b.dataset.toastClose));
+  });
 }
 
 /* ---------------- browser Back/Forward support ----------------
@@ -3481,6 +3588,10 @@ async function enterCompanyApp(company, opts={}){
   view = 'dashboard';
   screen = 'app';
   modal = distinctFYsInVouchers().length > 1 ? 'fyPicker' : null;
+  // Offer the first-run tour only when nothing else needs the user's attention first (the FY
+  // picker, when it shows, takes priority — the tour is still reachable afterward from the
+  // command palette's "Take the Tour" action).
+  if(!modal && shouldOfferTour()) tourStep = 0;
   render();
   pushHistory();
 }
@@ -3666,7 +3777,7 @@ function attachmentsModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:520px;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>Attachments</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>Attachments</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;">
           <p class="muted" style="font-size:12px;">${v?`${v.type} dated ${v.date}${v.narration?' — '+escapeHtml(v.narration):''}`:''} — bills, receipts, or supporting documents for this voucher. Max ${ATTACHMENT_MAX_BYTES/1024|0} KB per file.</p>
           ${attachmentsLoading ? `<p class="muted">Loading…</p>` : rows.length ? `<table>
@@ -5293,7 +5404,7 @@ function invoiceSettingsModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:480px;">
-        <div class="panel-head"><h2>Invoice Template</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Invoice Template</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
           <p class="muted" style="font-size:12px;margin-top:0;">Applies to every printed Sales invoice (Day Book → 🖨 Invoice).</p>
           <div class="field"><label>Template</label>
@@ -5321,7 +5432,7 @@ function eInvoiceModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:700px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>e-Invoice / e-Way Bill JSON</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>e-Invoice / e-Way Bill JSON</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
           <p class="muted" style="font-size:12px;">This app can't reach the government's IRP/e-Way Bill systems directly (that needs registered GSP credentials), so it builds the JSON payload those systems expect from each Sales voucher — download it, fill in anything marked <code>FILL_…</code>, then upload it through your GSP's tool or the e-Way Bill portal's bulk-JSON option.</p>
           ${rows.length ? `<table>
@@ -5345,7 +5456,7 @@ function eWayBillTransportModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:420px;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>e-Way Bill — Transport Details</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>e-Way Bill — Transport Details</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;">
           <p class="muted" style="font-size:12px;">These aren't tracked elsewhere in the app, so enter them here — they're only used for this JSON.</p>
           <div class="field"><label>Mode of Transport</label>
@@ -5536,7 +5647,7 @@ function netProfit(){
    Reports tab, and asks Claude to answer using only that data. See functions/index.js. */
 function qaWidget(){
   return `
-    <div id="qaFab" title="Ask a question about your books" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">💬</div>
+    <div id="qaFab" title="Ask a question about your books" role="button" tabindex="0" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">💬</div>
     ${qaOpen ? `
     <div id="qaPanel" style="position:fixed;right:22px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:440px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:500;">
       <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;background:var(--accent1,#2CA01C);color:#fff;">
@@ -5809,8 +5920,102 @@ function askQA(question){
   if(el) el.scrollTop = el.scrollHeight;
   document.getElementById('qaInputBox')?.focus();
 }
+// A handful of shared-chrome controls (theme toggle, command palette trigger, the Ask Your Books
+// bubble) are styled as <span>/<div>, not <button>, so browsers don't fire a click on Enter/Space
+// for them the way they would for a real button. This makes those three keyboard-activatable
+// without changing their markup/CSS.
+// ---------------- First-run guided tour ----------------
+// A short, dismissible spotlight tour shown once per browser (localStorage flag, same pattern as
+// darkMode) to a signed-in user opening their own company for the first time. Never shown for the
+// shared read-only demo — that already has its own explanatory banner. Re-runnable anytime via the
+// command palette's "Take the Tour" quick action.
+let tourStep = -1; // -1 = not running
+const TOUR_STEPS = [
+  { tab:'dashboard', selector:'[data-tab="dashboard"]', title:'Your Dashboard', text:'Live KPIs and Smart Insights, computed from your own entries — no setup required.' },
+  { tab:'voucher', selector:'[data-tab="voucher"]', title:'Record a Voucher', text:'Every transaction — sale, purchase, payment, receipt — starts here. Debits must equal credits before it saves.' },
+  { tab:'reports', selector:'[data-tab="reports"]', title:'Reports', text:'Trial Balance, P&L, Balance Sheet and more — generated live from your entries, never a static template.' },
+  { selector:'#openCmdPaletteBtn', title:'Command Palette', text:'Press Ctrl/Cmd+K anytime to jump to any module, search your ledgers and vouchers, or run a quick action.' },
+];
+function shouldOfferTour(){
+  if(isReadOnlyMode()) return false;
+  try{ return localStorage.getItem('rb_tourDone')!=='1'; }catch(e){ return false; }
+}
+function startTour(){
+  tourStep = 0;
+  if(TOUR_STEPS[0].tab) view = TOUR_STEPS[0].tab;
+  render();
+}
+function endTour(markDone){
+  tourStep = -1;
+  if(markDone){ try{ localStorage.setItem('rb_tourDone','1'); }catch(e){} }
+  render();
+}
+function tourNext(){
+  const next = tourStep+1;
+  if(next>=TOUR_STEPS.length){ endTour(true); return; }
+  tourStep = next;
+  if(TOUR_STEPS[tourStep].tab) view = TOUR_STEPS[tourStep].tab;
+  render();
+}
+function tourBack(){
+  if(tourStep<=0) return;
+  tourStep--;
+  if(TOUR_STEPS[tourStep].tab) view = TOUR_STEPS[tourStep].tab;
+  render();
+}
+// Positions the spotlight + tooltip against the current step's real, on-screen element. Runs after
+// every render() (see the render() wrapper below) since the target's position depends on whatever
+// just painted.
+function renderTour(){
+  const host = document.getElementById('tourHost');
+  if(!host) return;
+  if(tourStep<0 || tourStep>=TOUR_STEPS.length || screen!=='app'){ host.innerHTML = ''; return; }
+  const step = TOUR_STEPS[tourStep];
+  const target = document.querySelector(step.selector);
+  if(!target){ host.innerHTML = ''; return; }
+  const r = target.getBoundingClientRect();
+  const pad = 6;
+  const hlTop = r.top-pad, hlLeft = r.left-pad, hlW = r.width+pad*2, hlH = r.height+pad*2;
+  const tipWidth = 280;
+  let tipTop = hlTop+hlH+12;
+  let tipLeft = Math.min(Math.max(hlLeft, 12), window.innerWidth-tipWidth-24);
+  if(tipTop + 170 > window.innerHeight) tipTop = Math.max(12, hlTop-170);
+  host.innerHTML = `
+    <div class="tour-highlight" style="top:${hlTop}px;left:${hlLeft}px;width:${hlW}px;height:${hlH}px;"></div>
+    <div class="tour-tip" style="top:${tipTop}px;left:${tipLeft}px;">
+      <div class="step">Step ${tourStep+1} of ${TOUR_STEPS.length}</div>
+      <h4>${escapeHtml(step.title)}</h4>
+      <p>${escapeHtml(step.text)}</p>
+      <div class="tour-tip-actions">
+        <button type="button" class="btn secondary small" id="tourSkipBtn">Skip tour</button>
+        <div style="display:flex;gap:6px;">
+          ${tourStep>0?`<button type="button" class="btn secondary small" id="tourBackBtn">Back</button>`:''}
+          <button type="button" class="btn small" id="tourNextBtn">${tourStep===TOUR_STEPS.length-1?'Done':'Next'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('tourSkipBtn')?.addEventListener('click', ()=> endTour(true));
+  document.getElementById('tourNextBtn')?.addEventListener('click', tourNext);
+  document.getElementById('tourBackBtn')?.addEventListener('click', tourBack);
+}
+// render() is declared once, much further down (and hoisted, so this reassignment is safe to place
+// here) — wrapping it rather than editing its body keeps the tour's positioning logic out of an
+// already very long function, and guarantees renderTour() runs after every single repaint.
+{
+  const _renderBeforeTour = render;
+  render = function(){ _renderBeforeTour(); renderTour(); };
+}
+function wireKeyActivate(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); el.click(); }
+  });
+}
 function wireQAWidget(){
   document.getElementById('qaFab')?.addEventListener('click', ()=>{ qaOpen = !qaOpen; render(); });
+  wireKeyActivate('qaFab');
   document.getElementById('qaCloseBtn')?.addEventListener('click', ()=>{ qaOpen = false; render(); });
   const input = document.getElementById('qaInputBox');
   const send = ()=>{ const v = input?.value||''; if(input) input.value=''; askQA(v); };
@@ -5873,18 +6078,78 @@ function commandPaletteItems(){
       run: ()=>{ modal='recentVouchers'; render(); } },
     { group:'Quick actions', label: darkMode?'Switch to Light Mode':'Switch to Dark Mode', sub:'Toggle the app theme', icon:cmdIcon('theme'),
       run: ()=>{ modal=null; toggleTheme(); render(); } },
+    { group:'Quick actions', label:'Take the Tour', sub:'A quick walkthrough of Dashboard, Voucher, Reports & search', icon:cmdIcon('spark'),
+      run: ()=>{ modal=null; startTour(); } },
   ];
   return [...modules, ...actions];
+}
+// Beyond navigating modules, the palette searches your own real records — ledgers, tagged
+// parties, and vouchers — so typing a name or narration jumps straight to that record instead of
+// just to its module. Purely local string matching against state already in memory: no API, no
+// network call. Capped per group so a broad query doesn't flood the list.
+function commandPaletteRecordMatches(q, words){
+  const results = [];
+  const MAX_PER_GROUP = 5;
+  const hit = (hay)=> words.every(w=>hay.includes(w));
+
+  for(const l of state.ledgers){
+    if(results.filter(r=>r.group==='Ledgers').length>=MAX_PER_GROUP) break;
+    if(!hit(l.name.toLowerCase())) continue;
+    const isParty = l.partyType==='customer' || l.partyType==='supplier';
+    results.push({
+      group:'Ledgers', label:l.name,
+      sub:(isParty ? (l.partyType==='customer'?'Customer · ':'Supplier · ') : '')+`Balance ₹${fmt(ledgerBalance(l.id))}`,
+      icon:tabIcon('ledgers'),
+      run: ()=>{ modal=null; ledgerDetailId=l.id; modal='ledgerDetail'; render(); },
+    });
+  }
+
+  const parties = state.ledgers.filter(l=>l.partyType==='customer'||l.partyType==='supplier');
+  for(const l of parties){
+    if(results.filter(r=>r.group==='Parties').length>=MAX_PER_GROUP) break;
+    if(!hit(l.name.toLowerCase())) continue;
+    results.push({
+      group:'Parties', label:l.name, sub:`${l.partyType==='customer'?'Customer':'Supplier'} · Outstanding ageing`,
+      icon:tabIcon('parties'),
+      run: ()=>{ modal=null; partyDetailLedgerId=l.id; modal='partyDetail'; render(); },
+    });
+  }
+
+  const qAmount = q.replace(/[,₹\s]/g,'');
+  const looksLikeAmount = /^\d+(\.\d+)?$/.test(qAmount) && qAmount.length>=3;
+  for(const v of state.vouchers){
+    if(results.filter(r=>r.group==='Vouchers').length>=MAX_PER_GROUP) break;
+    const amt = voucherAmount(v);
+    const amountMatch = looksLikeAmount && String(Math.round(amt)).includes(qAmount);
+    const textMatch = hit(((v.narration||'')+' '+v.type).toLowerCase());
+    if(!amountMatch && !textMatch) continue;
+    results.push({
+      group:'Vouchers', label:`${v.type} · ₹${fmt(amt)}`, sub:`${v.date}${v.narration?' — '+v.narration:''}`,
+      icon:tabIcon('voucher'),
+      run: ()=>{
+        modal=null;
+        if(state.salaryVouchers.some(sv=>sv.voucherId===v.id)){ view='payroll'; render(); return; }
+        vform = { id:v.id, type:v.type, date:v.date, narration:v.narration, entries:v.entries.map(e=>({...e})),
+          gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:(v.items||[]).map(it=>({...it}))},
+          costCenterId: v.costCenterId||null };
+        view='voucher'; render();
+      },
+    });
+  }
+
+  return results;
 }
 function commandPaletteFiltered(){
   const items = commandPaletteItems();
   const q = cmdQuery.trim().toLowerCase();
   if(!q) return items;
   const words = q.split(/\s+/).filter(Boolean);
-  return items.filter(it=>{
+  const matched = items.filter(it=>{
     const hay = (it.label+' '+(it.sub||'')).toLowerCase();
     return words.every(w=>hay.includes(w));
   });
+  const records = commandPaletteRecordMatches(q, words);
+  return [...records, ...matched];
 }
 function commandPaletteModal(){
   const items = commandPaletteFiltered();
@@ -5903,7 +6168,7 @@ function commandPaletteModal(){
       <div class="cmdpal">
         <div class="cmdpal-input-wrap">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="cmdpalInput" class="cmdpal-input" placeholder="Jump to a module or run a quick action…" value="${escapeAttr(cmdQuery)}" autocomplete="off">
+          <input type="text" id="cmdpalInput" class="cmdpal-input" placeholder="Search ledgers, parties, vouchers, or jump to a module…" value="${escapeAttr(cmdQuery)}" autocomplete="off">
           <span class="cmdpal-hint">Esc</span>
         </div>
         <div class="cmdpal-list" id="cmdpalList">
@@ -5937,6 +6202,7 @@ function render(){
   }
   const app = document.getElementById('app');
   app.innerHTML = `
+    <a href="#mainContent" class="skip-link">Skip to main content</a>
     <div class="titlebar">
       <span>The Reckoning Books by SKm — [Company: ${currentCompany.name}]</span>
       <span class="winbtns"><span>_</span><span>▢</span><span>✕</span></span>
@@ -5950,8 +6216,8 @@ function render(){
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
       ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-        <span class="cmdk-trigger" id="openCmdPaletteBtn" title="Command palette"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Quick jump <kbd>${navigator.platform&&navigator.platform.toLowerCase().includes('mac')?'⌘':'Ctrl'}K</kbd></span>
-        <span class="theme-toggle" id="themeToggleBtn" title="${darkMode?'Switch to light mode':'Switch to dark mode'}">${darkMode?'☀️':'🌙'}</span>
+        <span class="cmdk-trigger" id="openCmdPaletteBtn" title="Command palette" role="button" tabindex="0" aria-label="Open command palette"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="cmdk-label">Quick jump <kbd>${navigator.platform&&navigator.platform.toLowerCase().includes('mac')?'⌘':'Ctrl'}K</kbd></span></span>
+        <span class="theme-toggle" id="themeToggleBtn" title="${darkMode?'Switch to light mode':'Switch to dark mode'}" role="button" tabindex="0" aria-label="${darkMode?'Switch to light mode':'Switch to dark mode'}">${darkMode?'☀️':'🌙'}</span>
       </span>
     </div>
     ${adminViewOnlyCompanyId===currentCompany.id ? `
@@ -5982,7 +6248,7 @@ function render(){
         ${tab('orders','Orders','O')}
         ${tab('payroll','Payroll','y')}
       </div>
-      <div class="main">${renderView()}</div>
+      <div class="main" id="mainContent" tabindex="-1">${renderView()}</div>
     </div>
     <div class="statusbar">
       <span>Ready</span>
@@ -6103,7 +6369,9 @@ function render(){
   document.getElementById('openCmdPaletteBtn')?.addEventListener('click', ()=>{
     cmdQuery = ''; cmdActiveIndex = 0; modal = 'commandPalette'; render();
   });
+  wireKeyActivate('openCmdPaletteBtn');
   document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
+  wireKeyActivate('themeToggleBtn');
   document.getElementById('menuHelp').addEventListener('click', async ()=>{
     modal = 'help';
     helpTab = 'info';
@@ -6355,7 +6623,7 @@ function editCompanyModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:460px;">
-        <div class="panel-head"><h2>Edit Company</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Edit Company</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
           <div class="field"><label>Company Name</label><input type="text" id="editCoName" value="${escapeAttr(editCoDraft.name)}"></div>
           <div class="field"><label>Directory</label><input type="text" id="editCoDirectory" value="${escapeAttr(editCoDraft.directory)}"></div>
@@ -6447,7 +6715,7 @@ function incomeDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:440px;">
-        <div class="panel-head"><h2>${d.label}</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>${d.label}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="padding:0;">
           <table>
             <tr><th>Ledger</th><th class="num">Amount</th></tr>
@@ -6464,7 +6732,7 @@ function ledgerDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:560px;position:relative;">
-        <button class="btn secondary small" id="modalClose" type="button" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div style="padding:18px;max-height:75vh;overflow-y:auto;">
           ${ledgerStatement(ledgerDetailId)}
         </div>
@@ -6514,7 +6782,7 @@ function pieChartModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:420px;">
-        <div class="panel-head"><h2>${l.name} — Activity Breakdown</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>${l.name} — Activity Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           ${grandTotal>0 ? `
             <div style="display:flex;justify-content:center;margin-bottom:16px;">
@@ -6544,7 +6812,7 @@ function itemStockModal(){
       <div class="modal-card" style="width:560px;">
         <div class="panel-head">
           <h2>${item.name} — Stock Movement</h2>
-          <button class="btn secondary small" id="modalClose" type="button">✕</button>
+          <button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button>
         </div>
         <div class="panel-body" style="padding:0;max-height:70vh;overflow-y:auto;">
           <table>
@@ -6572,7 +6840,7 @@ function stockAdjustModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:400px;">
-        <div class="panel-head"><h2>Adjust Stock</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Adjust Stock</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;">${item.name} — current stock: <strong style="color:var(--ink);">${fmt(summary.closing)} ${item.unit||''}</strong></p>
           <div class="field"><label>Adjustment Quantity (+ to add, − to remove)</label><input type="number" id="stockAdjQty" step="0.01" placeholder="e.g. -5 or 10"></div>
@@ -6592,7 +6860,7 @@ function cashBankDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:440px;">
-        <div class="panel-head"><h2>Cash &amp; Bank — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Cash &amp; Bank — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           <table>
             <tr><th>Ledger</th><th class="num">Balance</th></tr>
@@ -6611,7 +6879,7 @@ function totalAssetsDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:460px;">
-        <div class="panel-head"><h2>Total Assets — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Total Assets — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           <table>
             <tr><th colspan="2">Non-current Assets</th></tr>
@@ -6634,7 +6902,7 @@ function liabCapitalDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:460px;">
-        <div class="panel-head"><h2>Liabilities + Capital — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Liabilities + Capital — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           <table>
             <tr><th colspan="2">Equity / Capital</th></tr>
@@ -6661,7 +6929,7 @@ function balanceSheetDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:520px;">
-        <div class="panel-head"><h2>Balance Sheet — Statement of Financial Position</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Balance Sheet — Statement of Financial Position</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           <table>
             <tr><th colspan="2">Non-current Assets</th></tr>
@@ -6693,7 +6961,7 @@ function overdueInvoicesDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:640px;">
-        <div class="panel-head"><h2>Overdue Invoices</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Overdue Invoices</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           ${rows.length ? `<table>
             <tr><th>Customer</th><th>Invoice Date</th><th>Due Date</th><th class="num">Days Overdue</th><th class="num">Outstanding</th></tr>
@@ -6717,7 +6985,7 @@ function incomeStatementDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:520px;">
-        <div class="panel-head"><h2>Income Statement — Statement of Profit or Loss</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Income Statement — Statement of Profit or Loss</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           <table>
             <tr><th colspan="2">Revenue</th></tr>
@@ -6762,7 +7030,7 @@ function cashFlowBucketDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:560px;">
-        <div class="panel-head"><h2>Cash Flow — ${labels[bucket]}</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Cash Flow — ${labels[bucket]}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           <table>
             <tr><th>Date</th><th>Voucher</th><th>Ledger</th><th class="num">Amount</th></tr>
@@ -6781,7 +7049,7 @@ function fyPickerModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:440px;">
-        <div class="panel-head"><h2>Select Financial Year</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Select Financial Year</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;line-height:1.7;margin-top:0;">
             <strong style="color:var(--ink);">${escapeHtml(currentCompany.name)}</strong> has vouchers across ${fys.length} financial years. Which one would you like to see the Day Book and Reports for? You can change this any time from the badge next to the date.
@@ -6812,7 +7080,7 @@ function helpModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:640px;max-height:88vh;display:flex;flex-direction:column;">
-        <div class="panel-head"><h2>Help</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Help</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         ${showTickets ? `
         <div style="display:flex;gap:6px;padding:10px 18px 0;border-bottom:1px solid var(--border);">
           ${helpTabBtn('info','Info')}
@@ -6882,7 +7150,7 @@ function reconcileHelpModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:560px;">
-        <div class="panel-head"><h2>How Bank Reconciliation works</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>How Bank Reconciliation works</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;line-height:1.75;">
             Pick a <strong style="color:var(--ink);">bank ledger</strong>, then enter the <strong style="color:var(--ink);">statement date</strong> and the <strong style="color:var(--ink);">closing balance</strong> printed on your actual bank statement for that date.<br><br>
@@ -6908,7 +7176,7 @@ function assetsHelpModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:560px;">
-        <div class="panel-head"><h2>How the Fixed Asset Register works</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>How the Fixed Asset Register works</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;line-height:1.75;">
             Click <strong style="color:var(--ink);">+ Add Fixed Asset</strong> and fill in the <strong style="color:var(--ink);">Cost</strong>, <strong style="color:var(--ink);">Salvage Value</strong> (what it'll be worth at the end of its life, if anything), <strong style="color:var(--ink);">Purchase Date</strong> and <strong style="color:var(--ink);">Useful Life</strong> in years. You also link it to a ledger under the "Fixed Assets" group — that ledger's balance IS the asset's book value, so make sure the asset was originally recorded there (e.g. via a Purchase or Payment voucher) before you register it here.<br><br>
@@ -6929,7 +7197,7 @@ function partiesHelpModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:560px;">
-        <div class="panel-head"><h2>How Parties &amp; Ageing works</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>How Parties &amp; Ageing works</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;line-height:1.75;">
             First, tag a ledger as a <strong style="color:var(--ink);">Customer</strong> or <strong style="color:var(--ink);">Supplier</strong> — go to the Accounts tab and click the party badge next to any ledger to cycle it (Not a party → Customer → Supplier). Once tagged, it shows up here automatically.<br><br>
@@ -6948,7 +7216,7 @@ function recurringModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:660px;position:relative;">
-        <button class="btn secondary small" id="modalClose" type="button" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>Recurring Vouchers</h2></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
@@ -7022,7 +7290,7 @@ function backupModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:520px;position:relative;">
-        <button class="btn secondary small" id="modalClose" type="button" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>Backup &amp; Restore</h2></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;line-height:1.7;">
@@ -9649,7 +9917,7 @@ function adminPanelModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
-        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="modern-tabbar">
           ${adminTabBtn('overview','Overview')}
           ${adminTabBtn('users','Users')}
@@ -10459,7 +10727,7 @@ function groupAdminModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
-        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="admin-modal-head"><div style="display:flex;align-items:center;gap:12px;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="modern-tabbar">
           ${groupAdminTabBtn('overview','Overview')}
           ${groupAdminTabBtn('users','Users')}
@@ -10871,6 +11139,34 @@ function masthead(title, sub, helpKey){
    Dashboard (the same monthly-trend, expense-breakdown and overdue-invoice helpers the charts and
    the "Ask Your Books" widget use) — no API, no guessing, just numbers pulled live from the books
    and phrased as sentences. */
+// "Why did this change" for the expense trend: compares each expense ledger's this-month vs
+// last-month movement and returns the single biggest mover, so the dashboard can name a driver
+// instead of just a percentage. Purely local aggregation over state.vouchers — no API.
+function dashboardExpenseDriver(){
+  const now = new Date();
+  const thisMonth = now.toISOString().slice(0,7);
+  const prevMonth = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,7);
+  const perLedger = {};
+  for(const v of state.vouchers){
+    if(!v.date) continue;
+    const month = v.date.slice(0,7);
+    if(month!==thisMonth && month!==prevMonth) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || !['purch','dexp','iexp'].includes(bucketOf(l))) continue;
+      const net = (e.dr||0)-(e.cr||0);
+      if(!perLedger[l.id]) perLedger[l.id] = { name:l.name, cur:0, prev:0 };
+      if(month===thisMonth) perLedger[l.id].cur += net; else perLedger[l.id].prev += net;
+    }
+  }
+  let top = null;
+  for(const id in perLedger){
+    const d = perLedger[id];
+    const delta = r2(d.cur - d.prev);
+    if(!top || Math.abs(delta) > Math.abs(top.delta)) top = { name:d.name, delta };
+  }
+  return top;
+}
 function dashboardInsights(){
   const insights = [];
   const trend = qaMonthlyTrend(2);
@@ -10882,7 +11178,14 @@ function dashboardInsights(){
     }
     if(Math.abs(prev.expenses)>0){
       const pct = r2(((cur.expenses-prev.expenses)/Math.abs(prev.expenses))*100);
-      if(Math.abs(pct)>=1) insights.push({ tone: pct<=0?'up':'down', text: `Expenses are ${pct>=0?'up':'down'} <b>${Math.abs(pct)}%</b> vs last month.` });
+      if(Math.abs(pct)>=1){
+        const totalDelta = Math.abs(cur.expenses-prev.expenses);
+        const driver = dashboardExpenseDriver();
+        const driverText = (driver && totalDelta>0 && Math.abs(driver.delta) >= totalDelta*0.25)
+          ? ` — mainly <b>${escapeHtml(driver.name)}</b> (${driver.delta>=0?'+':'−'}₹${fmt(Math.abs(driver.delta))})`
+          : '';
+        insights.push({ tone: pct<=0?'up':'down', text: `Expenses are ${pct>=0?'up':'down'} <b>${Math.abs(pct)}%</b> vs last month${driverText}.` });
+      }
     }
   }
   const is = incomeStatementData();
@@ -10945,6 +11248,42 @@ function animateDashboardCounters(){
     requestAnimationFrame(frame);
   });
 }
+// ---- Pinnable dashboard tiles: any viz card below can be pinned to a "Pinned" section at the
+// top of the Dashboard, so a user's favourite charts don't require scrolling past everything
+// else every time. Pin state is a plain array of tile ids, persisted to localStorage (per
+// browser, like the theme/tour flags), and every card function stays untouched — pinnableTile()
+// wraps its already-rendered HTML with a small overlay button rather than editing each card.
+function isTilePinned(id){ return pinnedTiles.includes(id); }
+function toggleTilePin(id){
+  pinnedTiles = isTilePinned(id) ? pinnedTiles.filter(x=>x!==id) : pinnedTiles.concat([id]);
+  try{ localStorage.setItem('rb_pinnedTiles', JSON.stringify(pinnedTiles)); }catch(e){}
+}
+function pinnableTile(id, label, html){
+  const pinned = isTilePinned(id);
+  return `<div class="viz-pin-wrap">
+    <button class="viz-pin-btn ${pinned?'pinned':''}" data-viz-pin="${id}" type="button" title="${pinned?`Unpin "${escapeHtml(label)}"`:`Pin "${escapeHtml(label)}" to the top`}" aria-label="${pinned?'Unpin':'Pin'} ${escapeHtml(label)}">📌</button>
+    ${html}
+  </div>`;
+}
+const DASHBOARD_TILES = {
+  incomeWaterfall: {label:'Profit Bridge', render: ()=>incomeWaterfallCard()},
+  incomeTrend: {label:'Revenue, COGS & Margin Trend', render: ()=>incomeTrendCard()},
+  incomeCombo: {label:'Revenue vs Margin', render: ()=>incomeComboCard()},
+  expenseTreemap: {label:'Expense Breakdown', render: ()=>expenseTreemapCard()},
+  balanceSheetStacked: {label:'Balance Sheet Stacked', render: ()=>balanceSheetStackedCard()},
+  assetDonut: {label:'Asset Mix', render: ()=>assetDonutCard()},
+  balanceSheetKPIGauge: {label:'Balance Sheet KPIs', render: ()=>balanceSheetKPIGaugeCard()},
+};
+function pinnedTilesSection(){
+  const ids = pinnedTiles.filter(id=>DASHBOARD_TILES[id]);
+  if(!ids.length) return '';
+  return `
+    <div class="section-title">📌 Pinned</div>
+    <div class="viz-grid">
+      ${ids.map(id=>pinnableTile(id, DASHBOARD_TILES[id].label, DASHBOARD_TILES[id].render())).join('')}
+    </div>
+  `;
+}
 function viewDashboard(){
   const cash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank')
     .reduce((s,l)=>s+ledgerBalance(l.id),0);
@@ -10971,6 +11310,8 @@ function viewDashboard(){
 
     ${dashboardInsightsCard()}
 
+    ${pinnedTilesSection()}
+
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
       <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
       <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
@@ -10981,19 +11322,19 @@ function viewDashboard(){
       <div style="flex:1;">${incomeStatementVisualCard()}</div>
     </div>
 
-    <div class="section-title">Income Statement Visuals</div>
+    <div class="section-title">Income Statement Visuals <span class="muted" style="font-weight:500;font-size:11px;">— hover a card and click 📌 to pin it above</span></div>
     <div class="viz-grid">
-      ${incomeWaterfallCard()}
-      ${incomeTrendCard()}
-      ${incomeComboCard()}
-      ${expenseTreemapCard()}
+      ${pinnableTile('incomeWaterfall', DASHBOARD_TILES.incomeWaterfall.label, incomeWaterfallCard())}
+      ${pinnableTile('incomeTrend', DASHBOARD_TILES.incomeTrend.label, incomeTrendCard())}
+      ${pinnableTile('incomeCombo', DASHBOARD_TILES.incomeCombo.label, incomeComboCard())}
+      ${pinnableTile('expenseTreemap', DASHBOARD_TILES.expenseTreemap.label, expenseTreemapCard())}
     </div>
 
     <div class="section-title">Balance Sheet Visuals</div>
     <div class="viz-grid">
-      ${balanceSheetStackedCard()}
-      ${assetDonutCard()}
-      ${balanceSheetKPIGaugeCard()}
+      ${pinnableTile('balanceSheetStacked', DASHBOARD_TILES.balanceSheetStacked.label, balanceSheetStackedCard())}
+      ${pinnableTile('assetDonut', DASHBOARD_TILES.assetDonut.label, assetDonutCard())}
+      ${pinnableTile('balanceSheetKPIGauge', DASHBOARD_TILES.balanceSheetKPIGauge.label, balanceSheetKPIGaugeCard())}
     </div>
   `;
 }
@@ -11155,6 +11496,13 @@ function wireVizInteractivity(){
     el.addEventListener('click', ()=>{
       const key = el.dataset.vizToggle;
       dashVizHiddenSeries[key] = !dashVizHiddenSeries[key];
+      render();
+    });
+  });
+  document.querySelectorAll('[data-viz-pin]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation(); // the card underneath may itself be clickable (data-open-visual etc.)
+      toggleTilePin(el.dataset.vizPin);
       render();
     });
   });
@@ -11779,7 +12127,7 @@ function recentVouchersModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:640px;">
-        <div class="panel-head"><h2>Recent Vouchers</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Recent Vouchers</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           ${recent.length ? `<table>
             <tr><th>Date</th><th>Type</th><th>Narration</th><th class="num">Amount</th><th>Action</th></tr>
@@ -11790,7 +12138,7 @@ function recentVouchersModal(){
               <td class="num">₹${fmt(voucherAmount(v))}</td>
               <td><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button></td>
             </tr>`).join('')}
-          </table>` : `<div class="empty">No vouchers yet. Head to <strong>Voucher</strong> to record your first entry.</div>`}
+          </table>` : emptyState({icon:'🧾', title:'No vouchers yet', text:'Record your first entry to see it here.', ctaLabel:'Go to Voucher', ctaTab:'voucher'})}
         </div>
       </div>
     </div>
@@ -12086,7 +12434,7 @@ function importModal(){
     return `
       <div class="modal-overlay" id="modalOverlayBg">
         <div class="modal-card" style="width:680px;">
-          <div class="panel-head"><h2>Preview Import</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+          <div class="panel-head"><h2>Preview Import</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
           <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
             <div style="padding:14px 18px 0;">
               <p class="muted" style="font-size:12px;margin:0 0 10px;">${importState.transactions.length} transaction(s) will be imported as vouchers against <strong style="color:var(--ink);">${escapeHtml(primaryLedger)}</strong>. Review the ledger assigned to each narration below — matches are pre-filled, unmatched rows default to a Suspense Account you can reclassify later.</p>
@@ -12120,7 +12468,7 @@ function importModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:580px;">
-        <div class="panel-head"><h2>Import Accounting Data</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>Import Accounting Data</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           ${!importState.headers.length ? `
             <p class="muted" style="font-size:12.5px;margin-top:0;">Import a bank statement or transaction spreadsheet (.xlsx, .xls or .csv). Each row is read and entered as a Payment or Receipt voucher automatically.</p>
@@ -12313,6 +12661,41 @@ function suggestLedgerForNarration(text, excludeLedgerIds){
   for(const id in tally){ if(!best || tally[id].count>best.count) best = {ledgerId:id, name:tally[id].name, count:tally[id].count}; }
   return (best && best.count>=2) ? best : null;
 }
+// Same word-overlap heuristic as the narration suggestion above, applied to Chart of Accounts:
+// suggests which Group a brand-new ledger name most resembles, based on the groups your existing
+// ledgers with similar-sounding names already live under. Local only, no API.
+function suggestGroupForLedgerName(name){
+  const words = (name||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !QA_STOPWORDS.has(w));
+  if(words.length<1) return null;
+  const tally = {}; // groupId -> {count, name}
+  for(const l of state.ledgers){
+    const lw = l.name.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2);
+    const overlap = words.filter(w=>lw.includes(w)).length;
+    if(overlap<1) continue;
+    const g = groupOf(l.group);
+    if(!g) continue;
+    tally[g.id] = tally[g.id] || {count:0, name:g.name};
+    tally[g.id].count += overlap;
+  }
+  let best = null;
+  for(const id in tally){ if(!best || tally[id].count>best.count) best = { groupId:id, name:tally[id].name, count:tally[id].count }; }
+  return best;
+}
+// Mirrors updateNarrationSuggestion(): rewrites just the chip under the new-ledger name field so
+// typing never loses focus/caret.
+function updateLedgerGroupSuggestion(){
+  const holder = document.getElementById('newLedgerGroupSuggest');
+  const nameEl = document.getElementById('newLedgerName');
+  const groupSel = document.getElementById('newLedgerGroup');
+  if(!holder || !nameEl || !groupSel) return;
+  const sug = suggestGroupForLedgerName(nameEl.value);
+  if(!sug || sug.groupId===groupSel.value){ holder.innerHTML = ''; return; }
+  holder.innerHTML = `<span class="narr-suggest-chip" id="newLedgerGroupChip">💡 Looks like <b>${escapeHtml(sug.name)}</b> — click to use</span>`;
+  document.getElementById('newLedgerGroupChip')?.addEventListener('click', ()=>{
+    groupSel.value = sug.groupId;
+    holder.innerHTML = '';
+  });
+}
 // Re-renders just the suggestion chip under the narration field, without a full render() — keeps
 // the caret and keyboard focus exactly where the user is typing.
 function updateNarrationSuggestion(){
@@ -12336,6 +12719,24 @@ function updateNarrationSuggestion(){
   });
 }
 
+// Remembers the ledger pair you use most often for a given voucher type (e.g. "Salary Expense +
+// Bank Account" for Payment) from your own voucher history, so a fresh voucher of that type can
+// start pre-filled instead of blank. Only looks at simple two-line vouchers, and only returns a
+// pair that has actually recurred (count >= 2) — a one-off entry shouldn't become "the usual".
+function rememberedPairForType(type){
+  const tally = {};
+  for(const v of state.vouchers){
+    if(v.type!==type) continue;
+    const ids = (v.entries||[]).map(e=>e.ledgerId).filter(Boolean);
+    if(ids.length!==2) continue;
+    const key = ids.slice().sort().join('|');
+    if(!tally[key]) tally[key] = { count:0, a:ids[0], b:ids[1] };
+    tally[key].count++;
+  }
+  let best = null;
+  for(const k in tally){ if(!best || tally[k].count>best.count) best = tally[k]; }
+  return (best && best.count>=2) ? best : null;
+}
 function viewVoucher(){
   if(!vform){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
@@ -12531,7 +12932,7 @@ function quickAddLedgerModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:520px;">
-        <div class="panel-head"><h2>New Ledger</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head"><h2>New Ledger</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;margin-top:0;">Create a ledger without leaving this voucher — it'll be picked automatically for the field you came from.</p>
           <div class="field"><label>Ledger Name</label><input type="text" id="quickLedgerName" placeholder="e.g. Electricity Expense"></div>
@@ -13329,7 +13730,7 @@ function viewLedgers(){
         </div>
       </div>
       <div style="flex:1;">
-        ${sel ? ledgerStatement(sel) : `<div class="empty">Select a ledger</div>`}
+        ${sel ? ledgerStatement(sel) : emptyState({icon:'📒', title:'Select a ledger', text:'Choose a ledger from the list to see its statement.'})}
       </div>
     </div>
   `;
@@ -13451,6 +13852,31 @@ function attachStockItemFormHandlers(){
     render();
   });
 }
+// A friendlier "nothing here yet" block — icon, short title, one line of guidance, and an optional
+// jump-to-the-right-tab button — for the handful of first-run empty states most likely to be a
+// brand-new company's very first screen in a given module.
+function emptyState({icon, title, text, ctaLabel, ctaTab}){
+  return `
+    <div class="empty-state">
+      <div class="empty-state-icon">${icon||'📭'}</div>
+      ${title?`<div class="empty-state-title">${escapeHtml(title)}</div>`:''}
+      <div class="empty-state-text">${text}</div>
+      ${ctaLabel && ctaTab ? `<div class="empty-state-cta"><button type="button" class="btn small" data-empty-cta-tab="${ctaTab}">${escapeHtml(ctaLabel)}</button></div>` : ''}
+    </div>
+  `;
+}
+// A small contextual action bar shown above a table once at least one row is checked — shared by
+// the Accounts ledger table (bulk party tagging) and the Item Master table (bulk delete).
+function bulkActionBar(kind, count, actions){
+  if(!count) return '';
+  return `
+    <div class="bulk-bar">
+      <span class="bulk-count">${count} selected</span>
+      ${actions.map(a=>`<button type="button" class="btn small ${a.danger?'danger':'secondary'}" data-bulk-action="${a.action}" data-bulk-kind="${kind}">${escapeHtml(a.label)}</button>`).join('')}
+      <button type="button" class="btn small secondary" data-bulk-clear="${kind}">Cancel</button>
+    </div>
+  `;
+}
 function viewCOA(){
   const byCat = {};
   for(const g of GROUPS){ byCat[g.cat] = byCat[g.cat]||[]; byCat[g.cat].push(g); }
@@ -13460,7 +13886,9 @@ function viewCOA(){
       <div class="panel-head"><h2>Add Ledger</h2></div>
       <div class="panel-body">
         <div class="row">
-          <div class="field"><label>Ledger Name</label><input type="text" id="newLedgerName" placeholder="e.g. Electricity Expense"></div>
+          <div class="field"><label>Ledger Name</label><input type="text" id="newLedgerName" placeholder="e.g. Electricity Expense">
+            <div id="newLedgerGroupSuggest"></div>
+          </div>
           <div class="field"><label>Under Group</label>
             <select id="newLedgerGroup">${groupOptionsHtml()}</select>
           </div>
@@ -13499,20 +13927,25 @@ function viewCOA(){
         <button class="btn" id="addLedgerBtn">Add Ledger</button>
       </div>
     </div>
+    ${bulkActionBar('ledger', bulkLedgerSelection.size, [
+      {action:'tag-customer', label:'Tag as Customer'},
+      {action:'tag-supplier', label:'Tag as Supplier'},
+      {action:'untag', label:'Clear tag'},
+    ])}
     ${Object.keys(byCat).map(cat=>`
       <div class="section-title">${cat}</div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
           <table>
-            <tr><th>Ledger</th><th>Group</th><th>GST</th><th>MSME</th><th>Party</th><th class="num">Balance</th></tr>
+            <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="ledger-${escapeAttr(cat)}" aria-label="Select all ledgers in ${escapeAttr(cat)}"></th><th>Ledger</th><th>Group</th><th>GST</th><th>MSME</th><th>Party</th><th class="num">Balance</th></tr>
             ${state.ledgers.filter(l=>groupOf(l.group).cat===cat).map(l=>{
               const b = ledgerBalance(l.id);
               const msmeCell = bucketOf(l)==='curl'
                 ? `<span data-toggle-msme="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${l.isMSME?'✓ MSME':'Mark MSME'}</span>`
                 : '—';
               const partyLabel = l.partyType==='customer' ? '✓ Customer' : l.partyType==='supplier' ? '✓ Supplier' : 'Not a party';
-              return `<tr><td>${l.name}</td><td class="muted">${groupOf(l.group).name}</td><td class="muted">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted">${msmeCell}</td><td class="muted"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ${b>=0?'pos':'neg'}">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
-            }).join('') || `<tr><td colspan="6" class="empty">No ledgers in this category yet.</td></tr>`}
+              return `<tr><td><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td>${l.name}</td><td class="muted">${groupOf(l.group).name}</td><td class="muted">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted">${msmeCell}</td><td class="muted"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ${b>=0?'pos':'neg'}">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
+            }).join('') || `<tr><td colspan="7" class="empty">No ledgers in this category yet.</td></tr>`}
           </table>
         </div>
       </div>
@@ -13622,6 +14055,9 @@ function viewCOA(){
     <div class="section-title">Item Master (Stock Items)</div>
     ${stockItemForm()}
 
+    ${bulkActionBar('item', bulkItemSelection.size, [
+      {action:'delete', label:'Delete selected', danger:true},
+    ])}
     ${STOCK_GROUPS.map(grp=>{
       const groupItems = state.items.filter(it=>(it.group||'Primary')===grp);
       if(!groupItems.length) return '';
@@ -13630,10 +14066,11 @@ function viewCOA(){
       <div class="panel">
         <div class="panel-body" style="padding:0;">
           <table>
-            <tr><th>Item</th><th>Unit</th><th>HSN</th><th class="num">Rate</th><th>GST</th><th class="num">Opening Qty</th><th class="num">Opening Value</th><th></th></tr>
+            <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="item-${escapeAttr(grp)}" aria-label="Select all items in ${escapeAttr(grp)}"></th><th>Item</th><th>Unit</th><th>HSN</th><th class="num">Rate</th><th>GST</th><th class="num">Opening Qty</th><th class="num">Opening Value</th><th></th></tr>
             ${groupItems.map(it=>{
               const openVal = (Number(it.openingQty)||0)*(Number(it.openingRate)||0);
               return `<tr>
+                <td><input type="checkbox" class="bulk-check" data-bulk-item="${it.id}" data-bulk-cat="item-${escapeAttr(grp)}" ${bulkItemSelection.has(it.id)?'checked':''} aria-label="Select ${escapeAttr(it.name)}"></td>
                 <td>${it.name}</td>
                 <td class="muted">${it.unit||'—'}</td>
                 <td class="muted">${it.hsn||'—'}</td>
@@ -13647,7 +14084,7 @@ function viewCOA(){
           </table>
         </div>
       </div>`;
-    }).join('') || `<div class="empty">No stock items yet — create one above. Items appear in the Sales/Purchase item picker once added.</div>`}
+    }).join('') || emptyState({icon:'📦', title:'No stock items yet', text:'Create one above — items appear in the Sales/Purchase item picker once added.'})}
   `;
 }
 
@@ -13725,7 +14162,7 @@ function viewInventory(){
           </table>
         </div>
       </div>`;
-    }).join('') || `<div class="empty">No stock items yet. Add items in the <strong>Accounts</strong> tab first.</div>`}
+    }).join('') || emptyState({icon:'📦', title:'No stock items yet', text:'Add items in the Accounts tab first.', ctaLabel:'Go to Accounts', ctaTab:'coa'})}
     <p class="muted" style="font-size:11px;">Closing stock = Opening Quantity + Purchases + Sales Returns (Credit Notes) − Sales − Purchase Returns (Debit Notes) ± manual adjustments. Click an item name for its full movement history.</p>
   `;
 }
@@ -14572,6 +15009,54 @@ function reportDataIntegrity(){
   `;
 }
 
+// Sums taxable value + tax collected/paid for one voucher type within a date range (inclusive),
+// for the Month-over-Month comparison panel below — same gstBreakdownForVoucher() the main GST
+// tables use, just bucketed by month instead of shown as an all-time ledger balance.
+function gstSumFor(type, fromISO, toISO){
+  let taxable=0, tax=0;
+  state.vouchers.filter(v=>v.type===type && v.date>=fromISO && v.date<=toISO).forEach(v=>{
+    const g = gstBreakdownForVoucher(v);
+    if(g.totalTax>0){ const amt = voucherAmount(v); taxable += amt-g.totalTax; tax += g.totalTax; }
+  });
+  return {taxable:r2(taxable), tax:r2(tax)};
+}
+function gstMonthCompareData(){
+  const now = new Date();
+  const iso = d => d.toISOString().slice(0,10);
+  const thisStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastStart = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const lastEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  return {
+    thisLabel: thisStart.toLocaleString('en-IN', {month:'short', year:'numeric'}),
+    lastLabel: lastStart.toLocaleString('en-IN', {month:'short', year:'numeric'}),
+    salesThis: gstSumFor('Sales', iso(thisStart), iso(now)),
+    salesLast: gstSumFor('Sales', iso(lastStart), iso(lastEnd)),
+    purchThis: gstSumFor('Purchase', iso(thisStart), iso(now)),
+    purchLast: gstSumFor('Purchase', iso(lastStart), iso(lastEnd)),
+  };
+}
+function gstMonthCompareCard(){
+  const d = gstMonthCompareData();
+  const row = (label, prev, cur) => {
+    const delta = r2(cur-prev);
+    const pct = prev ? (delta/Math.abs(prev))*100 : (cur?100:0);
+    return `<tr><td>${label}</td><td class="num">₹${fmt(prev)}</td><td class="num">₹${fmt(cur)}</td><td class="num ${delta>=0?'pos':'neg'}">${delta>=0?'+':''}₹${fmt(delta)} (${pct>=0?'+':''}${pct.toFixed(0)}%)</td></tr>`;
+  };
+  return `
+    <div class="panel">
+      <div class="panel-head"><h2>Month-over-Month Comparison</h2><span class="viz-sub">${d.lastLabel} vs ${d.thisLabel}</span></div>
+      <div class="panel-body" style="padding:0;">
+        <table>
+          <tr><th>Metric</th><th class="num">${d.lastLabel}</th><th class="num">${d.thisLabel}</th><th class="num">Change</th></tr>
+          ${row('Sales — Taxable Value', d.salesLast.taxable, d.salesThis.taxable)}
+          ${row('Sales — GST Collected', d.salesLast.tax, d.salesThis.tax)}
+          ${row('Purchase — Taxable Value', d.purchLast.taxable, d.purchThis.taxable)}
+          ${row('Purchase — GST Paid', d.purchLast.tax, d.purchThis.tax)}
+        </table>
+      </div>
+    </div>
+  `;
+}
 function viewGST(){
   const netGST = gstOutputTotal() - gstInputTotal();
   const outward = state.vouchers.filter(v=>v.type==='Sales').map(v=>({v, g:gstBreakdownForVoucher(v)})).filter(r=>r.g.totalTax>0);
@@ -14582,7 +15067,8 @@ function viewGST(){
 
     <div class="panel">
       <div class="panel-head"><h2>GST Summary</h2>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn secondary small ${gstShowMonthCompare?'active':''}" id="gstCompareToggleBtn" type="button">📊 ${gstShowMonthCompare?'Hide':'Compare to Last Month'}</button>
           <button class="btn secondary small" id="viewGSTFormatsBtn" type="button">📋 GST Format</button>
           <button class="btn secondary small" id="openEInvoiceBtn" type="button">📄 e-Invoice / e-Way Bill</button>
           <button class="btn secondary small" id="openInvSettingsBtn" type="button">🎨 Invoice Template</button>
@@ -14604,28 +15090,30 @@ function viewGST(){
       </div>
     </div>
 
-    <div class="section-title">Outward Supplies (Sales)</div>
+    ${gstShowMonthCompare ? gstMonthCompareCard() : ''}
+
+    <div class="section-title">Outward Supplies (Sales) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
       ${outward.length ? `<table>
         <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
         ${outward.map(({v,g})=>{
           const invoice = voucherAmount(v);
           const taxable = invoice - g.totalTax;
-          return `<tr><td class="muted">${v.date}</td><td>${v.narration||'—'}</td><td class="num">₹${fmt(taxable)}</td><td class="num">₹${fmt(g.cgst)}</td><td class="num">₹${fmt(g.sgst)}</td><td class="num">₹${fmt(g.igst)}</td><td class="num">₹${fmt(invoice)}</td></tr>`;
+          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted">${v.date}</td><td>${v.narration||'—'}</td><td class="num">₹${fmt(taxable)}</td><td class="num">₹${fmt(g.cgst)}</td><td class="num">₹${fmt(g.sgst)}</td><td class="num">₹${fmt(g.igst)}</td><td class="num">₹${fmt(invoice)}</td></tr>`;
         }).join('')}
-      </table>` : `<div class="empty">No GST sales vouchers recorded yet.</div>`}
+      </table>` : emptyState({icon:'🧾', title:'No GST sales vouchers recorded yet', text:'Apply GST to a Sales voucher to see it here.'})}
     </div></div>
 
-    <div class="section-title">Inward Supplies (Purchase)</div>
+    <div class="section-title">Inward Supplies (Purchase) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
       ${inward.length ? `<table>
         <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
         ${inward.map(({v,g})=>{
           const invoice = voucherAmount(v);
           const taxable = invoice - g.totalTax;
-          return `<tr><td class="muted">${v.date}</td><td>${v.narration||'—'}</td><td class="num">₹${fmt(taxable)}</td><td class="num">₹${fmt(g.cgst)}</td><td class="num">₹${fmt(g.sgst)}</td><td class="num">₹${fmt(g.igst)}</td><td class="num">₹${fmt(invoice)}</td></tr>`;
+          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted">${v.date}</td><td>${v.narration||'—'}</td><td class="num">₹${fmt(taxable)}</td><td class="num">₹${fmt(g.cgst)}</td><td class="num">₹${fmt(g.sgst)}</td><td class="num">₹${fmt(g.igst)}</td><td class="num">₹${fmt(invoice)}</td></tr>`;
         }).join('')}
-      </table>` : `<div class="empty">No GST purchase vouchers recorded yet.</div>`}
+      </table>` : emptyState({icon:'🧾', title:'No GST purchase vouchers recorded yet', text:'Apply GST to a Purchase voucher to see it here.'})}
     </div></div>
     <p class="muted" style="font-size:11.5px;">Note: only Sales/Purchase vouchers where GST was applied via the GST Calculator appear here. Use the Voucher tab to record a taxable sale or purchase.</p>
   `;
@@ -14640,7 +15128,7 @@ function gstFormatsModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:660px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>GST Return Formats</h2><button class="btn secondary small" id="modalClose" type="button">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>GST Return Formats</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="fmt-chips">
           ${GST_FORMS.map((x,i)=>`<button type="button" class="fmt-chip ${i===gstFormatIndex?'active':''}" data-fmt-jump="${i}">${x.code}</button>`).join('')}
         </div>
@@ -14791,7 +15279,7 @@ function viewReconcile(){
   if(!bankLedgers.length){
     return `
       ${masthead('Bank Reconciliation','Match your books against the bank statement, account by account')}
-      <div class="panel"><div class="panel-body"><div class="empty">No bank ledgers yet. Add one from Accounts under the "Bank Accounts" group, then come back here to reconcile it.</div></div></div>
+      <div class="panel"><div class="panel-body">${emptyState({icon:'🏦', title:'No bank ledgers yet', text:'Add one from Accounts under the "Bank Accounts" group, then come back here to reconcile it.', ctaLabel:'Go to Accounts', ctaTab:'coa'})}</div></div>
     `;
   }
   if(!reconcileLedgerId || !bankLedgers.find(l=>l.id===reconcileLedgerId)) reconcileLedgerId = bankLedgers[0].id;
@@ -14931,7 +15419,7 @@ function viewAssets(){
               </td>
             </tr>`;
           }).join('')}
-        </table>` : `<div class="empty">No fixed assets registered yet.</div>`}
+        </table>` : emptyState({icon:'🏢', title:'No fixed assets registered yet', text:'Add one above to start tracking depreciation.'})}
       </div>
     </div>
     <div class="panel"><div class="panel-body">
@@ -15268,7 +15756,7 @@ function viewPayroll(){
               <button class="btn small secondary" data-delete-employee="${e.id}" type="button" style="color:var(--debit);" title="${hasHistory?'Has payroll/loan/settlement history — admin or override password required':''}">${hasHistory?'🔒 Delete':'Delete'}</button>
             </td>
           </tr>`;}).join('')}
-        </table>` : `<div class="empty">No employees yet — add one below.</div>`}
+        </table>` : emptyState({icon:'🧑‍💼', title:'No employees yet', text:'Add one below to start running payroll.'})}
       </div>
     </div>
     <div class="panel"><div class="panel-body">
@@ -15388,7 +15876,7 @@ function viewPayroll(){
               <td><button class="btn small secondary" data-print-payslip="${sv.id}" type="button">🖨 Payslip</button> <button class="btn small secondary" data-void-payslip="${sv.id}" type="button" style="color:var(--debit);">Void</button></td>
             </tr>`;
           }).join('')}
-        </table>` : `<div class="empty">No payroll run yet.</div>`}
+        </table>` : emptyState({icon:'💰', title:'No payroll run yet', text:'Run payroll above to see settlements here.'})}
       </div>
     </div>
     <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher per employee for the month: the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger (Indirect Expenses) is debited with that employee's gross pay, the chosen Pay From ledger is credited with their take-home pay, "${SALARY_DEDUCTIONS_LEDGER_NAME}" is credited with anything withheld (PF/ESI/PT/TDS/other), and "${EMPLOYEE_LOAN_LEDGER_NAME}" is credited with any loan EMI recovered. If Employer PF/ESI apply, "${EMPLOYER_CONTRIB_LEDGER_NAME}" is also debited and "${EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME}" credited for the company's own contribution. Every employee's name and amount shows as its own line in these ledgers' statements, and all reports (P&amp;L, Trial Balance, Cash/Bank Book) pick it up automatically. Use "Void" on a payslip to reverse just that employee's entry for the month — it deletes the linked voucher and restores any loan balance it had recovered. The Bank Transfer File is a plain CSV (Beneficiary Name, Account Number, IFSC, Bank Name, Amount, Narration) for the month's take-home pay, ready to upload to most banks' bulk NEFT/RTGS portals — employees missing bank details are skipped and listed in a warning.</p>
@@ -15642,7 +16130,7 @@ function partyDetailModal(){
   return `
     <div class="modal-overlay" id="modalOverlayBg">
       <div class="modal-card" style="width:620px;position:relative;">
-        <button class="btn secondary small" id="modalClose" type="button" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>${escapeHtml(l.name)} — Outstanding</h2></div>
         <div class="panel-body" style="max-height:72vh;overflow-y:auto;">
           ${rows.length ? `<table>
@@ -16324,30 +16812,47 @@ function attachHandlers(){
       const v = state.vouchers.find(x=>x.id===id);
       if(!v) return;
       const linkedPayslip = state.salaryVouchers.find(sv=>sv.voucherId===id);
-      const confirmMsg = linkedPayslip
-        ? `This is a payroll voucher dated ${v.date} for ₹${fmt(voucherAmount(v))}. Deleting it will also remove that payslip record (and restore any loan EMI it recovered).\n\nThis cannot be undone.`
-        : `Delete this ${v.type} voucher dated ${v.date} for ₹${fmt(voucherAmount(v))}?\n\nThis cannot be undone.`;
-      const ok = window.confirm(confirmMsg);
-      if(!ok) return;
-      state.vouchers = state.vouchers.filter(x=>x.id!==id);
-      await saveVouchers();
-      if(state.taxDeductions.some(t=>t.voucherId===id)){
-        state.taxDeductions = state.taxDeductions.filter(t=>t.voucherId!==id);
-        await saveTaxDeductions();
-      }
-      // Keep payroll in sync: a deleted payroll voucher can't leave an orphaned payslip record behind
-      // (it would wrongly block re-running that employee's salary for the month, and any loan EMI it
-      // had recovered needs to go back onto the loan balance).
       if(linkedPayslip){
+        // Payroll deletes cascade into payslip + loan-EMI reversal — safer to keep the explicit
+        // confirm here rather than promise a one-click undo across all three records.
+        const ok = window.confirm(`This is a payroll voucher dated ${v.date} for ₹${fmt(voucherAmount(v))}. Deleting it will also remove that payslip record (and restore any loan EMI it recovered).\n\nThis cannot be undone.`);
+        if(!ok) return;
+        state.vouchers = state.vouchers.filter(x=>x.id!==id);
+        await saveVouchers();
+        if(state.taxDeductions.some(t=>t.voucherId===id)){
+          state.taxDeductions = state.taxDeductions.filter(t=>t.voucherId!==id);
+          await saveTaxDeductions();
+        }
         if(linkedPayslip.loanDeduction>0){
           reverseLoanRecovery(linkedPayslip.employeeId, linkedPayslip.loanDeduction);
           await saveEmployeeLoans();
         }
         state.salaryVouchers = state.salaryVouchers.filter(sv=>sv.id!==linkedPayslip.id);
         await saveSalaryVouchers();
+        toast('Payroll voucher deleted', {type:'success'});
+        render();
+        return;
       }
-      toast('Voucher deleted');
+      // Plain vouchers restore cleanly (no cascading records), so skip the confirm dialog and offer
+      // a one-click Undo instead — the modern pattern is faster and just as safe.
+      const idx = state.vouchers.findIndex(x=>x.id===id);
+      const removed = state.vouchers[idx];
+      state.vouchers = state.vouchers.filter(x=>x.id!==id);
+      await saveVouchers();
+      let removedTax = [];
+      if(state.taxDeductions.some(t=>t.voucherId===id)){
+        removedTax = state.taxDeductions.filter(t=>t.voucherId===id);
+        state.taxDeductions = state.taxDeductions.filter(t=>t.voucherId!==id);
+        await saveTaxDeductions();
+      }
       render();
+      toast(`${v.type} voucher deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+        state.vouchers.splice(Math.min(idx, state.vouchers.length), 0, removed);
+        if(removedTax.length){ state.taxDeductions = state.taxDeductions.concat(removedTax); await saveTaxDeductions(); }
+        await saveVouchers();
+        toast('Voucher restored', {type:'success'});
+        render();
+      }}});
     });
   });
 
@@ -16381,6 +16886,10 @@ function attachHandlers(){
       modal = 'pieChart';
       render();
     });
+  });
+
+  document.querySelectorAll('[data-empty-cta-tab]').forEach(el=>{
+    el.addEventListener('click', ()=>{ modal = null; goToTab(el.dataset.emptyCtaTab); });
   });
 
   if(view==='dashboard'){
@@ -16436,6 +16945,24 @@ function attachHandlers(){
       b.addEventListener('click',()=>{
         vform.type = b.dataset.vtype;
         vform.tax = { enabled:false, sectionCode:'', rate:'' }; // TDS/TCS sections are type-specific — start fresh on a type switch
+        // Pre-fill the usual ledger pair for this type on a brand-new, still-blank voucher only —
+        // never overwrite an edit in progress or an existing voucher being changed.
+        if(!vform.id){
+          const blank = vform.mode==='single'
+            ? (!vform.single.ledgerA && !vform.single.ledgerB)
+            : vform.entries.every(e=>!e.ledgerId);
+          if(blank){
+            const pair = rememberedPairForType(vform.type);
+            if(pair){
+              if(vform.mode==='single' && ['Payment','Receipt','Contra'].includes(vform.type)){
+                vform.single.ledgerA = pair.a; vform.single.ledgerB = pair.b;
+              } else {
+                vform.entries = [{ledgerId:pair.a, dr:0, cr:0}, {ledgerId:pair.b, dr:0, cr:0}];
+              }
+              toast(`Pre-filled with your usual ${vform.type} ledgers`, {type:'info'});
+            }
+          }
+        }
         render();
       });
     });
@@ -16822,6 +17349,79 @@ function attachHandlers(){
   }
 
   if(view==='coa'){
+    document.getElementById('newLedgerName')?.addEventListener('input', updateLedgerGroupSuggestion);
+
+    // Bulk selection: per-row checkboxes toggle membership in the shared Set, "select all" checks
+    // every row within its own table only (each STOCK_GROUPS/category table is its own batch), and
+    // the bulk bar's actions apply to whichever kind of row is currently checked.
+    document.querySelectorAll('[data-bulk-ledger]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const id = cb.dataset.bulkLedger;
+        if(cb.checked) bulkLedgerSelection.add(id); else bulkLedgerSelection.delete(id);
+        render();
+      });
+    });
+    document.querySelectorAll('[data-bulk-item]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const id = cb.dataset.bulkItem;
+        if(cb.checked) bulkItemSelection.add(id); else bulkItemSelection.delete(id);
+        render();
+      });
+    });
+    document.querySelectorAll('[data-bulk-select-all]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const catKey = cb.dataset.bulkSelectAll;
+        document.querySelectorAll(`[data-bulk-cat="${CSS.escape(catKey)}"]`).forEach(rowCb=>{
+          const isLedger = rowCb.hasAttribute('data-bulk-ledger');
+          const id = isLedger ? rowCb.dataset.bulkLedger : rowCb.dataset.bulkItem;
+          const set = isLedger ? bulkLedgerSelection : bulkItemSelection;
+          if(cb.checked) set.add(id); else set.delete(id);
+        });
+        render();
+      });
+    });
+    document.querySelectorAll('[data-bulk-clear]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        if(b.dataset.bulkClear==='ledger') bulkLedgerSelection.clear(); else bulkItemSelection.clear();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-bulk-action]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const action = b.dataset.bulkAction;
+        const kind = b.dataset.bulkKind;
+        if(kind==='ledger'){
+          const ids = Array.from(bulkLedgerSelection);
+          if(!ids.length) return;
+          for(const id of ids){
+            const l = state.ledgers.find(x=>x.id===id);
+            if(!l) continue;
+            if(action==='tag-customer') l.partyType = 'customer';
+            else if(action==='tag-supplier') l.partyType = 'supplier';
+            else if(action==='untag') delete l.partyType;
+          }
+          await saveLedgers();
+          toast(`Updated ${ids.length} ledger${ids.length===1?'':'s'}`, {type:'success'});
+          bulkLedgerSelection.clear();
+          render();
+        } else if(kind==='item'){
+          const ids = Array.from(bulkItemSelection);
+          if(!ids.length || action!=='delete') return;
+          const removed = state.items.filter(x=>ids.includes(x.id));
+          state.items = state.items.filter(x=>!ids.includes(x.id));
+          await saveItems();
+          bulkItemSelection.clear();
+          render();
+          toast(`${removed.length} item${removed.length===1?'':'s'} deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+            state.items = state.items.concat(removed);
+            await saveItems();
+            toast('Items restored', {type:'success'});
+            render();
+          }}});
+        }
+      });
+    });
+
     const addBtn = document.getElementById('addLedgerBtn');
     if(addBtn) addBtn.addEventListener('click', async ()=>{
       const name = document.getElementById('newLedgerName').value.trim();
@@ -16874,12 +17474,16 @@ function attachHandlers(){
         const id = b.dataset.deleteItem;
         const it = state.items.find(x=>x.id===id);
         if(!it) return;
-        const ok = window.confirm(`Delete item "${it.name}"?\n\nThis won't affect items already used on saved vouchers.`);
-        if(!ok) return;
+        const idx = state.items.findIndex(x=>x.id===id);
         state.items = state.items.filter(x=>x.id!==id);
         await saveItems();
-        toast('Item deleted');
         render();
+        toast(`"${it.name}" deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+          state.items.splice(Math.min(idx, state.items.length), 0, it);
+          await saveItems();
+          toast('Item restored', {type:'success'});
+          render();
+        }}});
       });
     });
     document.querySelectorAll('.currency-rate').forEach(el=>{
@@ -17130,6 +17734,10 @@ function attachHandlers(){
   }
 
   if(view==='gst'){
+    document.getElementById('gstCompareToggleBtn')?.addEventListener('click', ()=>{
+      gstShowMonthCompare = !gstShowMonthCompare;
+      render();
+    });
     document.getElementById('downloadGSTBtn')?.addEventListener('click', downloadGSTStatement);
     document.getElementById('viewGSTFormatsBtn')?.addEventListener('click', ()=>{
       gstFormatIndex = 0;
