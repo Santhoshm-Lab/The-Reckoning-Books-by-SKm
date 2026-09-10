@@ -386,12 +386,20 @@
     .entry-row{grid-template-columns:1fr;}
     .row{flex-direction:column;}
     .viz-kpi-row.cols4{grid-template-columns:repeat(2,1fr);}
+    /* .viz-grid's 2-column layout uses minmax(320px,1fr) per column, which never fits side-by-side
+       on a phone screen — without this override the grid stays 2 columns and the second chart card
+       is simply clipped off the right edge of the viewport instead of stacking. */
+    .viz-grid{grid-template-columns:1fr;}
     /* Below tablet width, drop the sidebar back to a horizontal, wrapping strip along the top —
        a vertical column of 9 items eats too much width on a phone screen. */
     .body-shell{flex-direction:column;}
     .tabstrip{flex-direction:row;flex-wrap:wrap;width:auto;gap:6px;padding:12px 14px 8px;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible;}
     .navtab{width:auto;border-radius:999px;}
     .navtab span{display:none;}
+    /* The menubar's own items (Company/Edit/View/.../Delete Company) plus the right-aligned
+       Refresh + theme toggle group can together exceed a phone's width. Let the group wrap to its
+       own line rather than forcing the whole page to scroll horizontally. */
+    .menubar{flex-wrap:wrap;row-gap:6px;}
   }
 
   /* ---------------- Landing / intro page (renderLanding()) — shown on a fresh visit, before
