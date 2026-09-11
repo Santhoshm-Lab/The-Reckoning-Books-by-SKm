@@ -544,6 +544,11 @@
   .landing-hero-ctas .btn{padding:13px 22px;font-size:13.5px;box-shadow:0 10px 26px rgba(44,160,28,0.35);}
   .landing-hero-ctas .btn.secondary{background:transparent;border-color:rgba(255,255,255,0.35);color:#fff;}
   .landing-hero-ctas .btn.secondary:hover{background:rgba(255,255,255,0.1);}
+  .landing-social-row{display:flex;gap:12px;margin:16px 0 2px;}
+  .landing-social-btn{width:48px;height:48px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(0,0,0,0.28);transition:transform .16s ease,box-shadow .16s ease;}
+  .landing-social-btn:hover{transform:translateY(-3px);box-shadow:0 16px 32px rgba(0,0,0,0.36);}
+  .landing-social-btn:focus-visible{outline:2px solid #F2A900;outline-offset:3px;}
+  .landing-social-btn svg{width:26px;height:26px;display:block;}
   .landing-hero-note{font-size:11.5px;color:rgba(255,255,255,0.55);}
   .landing-hero-art{position:relative;display:flex;align-items:center;justify-content:center;}
   .landing-hero-art svg{width:100%;height:auto;max-width:460px;filter:drop-shadow(0 30px 50px rgba(0,0,0,0.35));}
@@ -8066,6 +8071,14 @@ function renderLanding(){
                 <button class="btn secondary" id="landingInstallBtnHero" type="button">⭳ Install Desktop App</button>
                 <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
               </div>
+            </div>
+            <div class="landing-social-row">
+              <a class="landing-social-btn" href="https://youtube.com/@thereckoningbooksbyskm?si=uA1Db-nLqUVnc_hw" target="_blank" rel="noopener noreferrer" aria-label="The Reckoning Books on YouTube" title="The Reckoning Books on YouTube">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="4.5" width="22" height="15" rx="4.2" fill="#FF0000"/><path d="M10 8.6v6.8l6-3.4-6-3.4z" fill="#fff"/></svg>
+              </a>
+              <a class="landing-social-btn" href="https://www.linkedin.com/company/thereckoningbooks" target="_blank" rel="noopener noreferrer" aria-label="The Reckoning Books on LinkedIn" title="The Reckoning Books on LinkedIn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="4.5" fill="#0A66C2"/><path d="M7.4 9.6h2.7v8.1H7.4V9.6zm1.35-1.15a1.57 1.57 0 1 1 0-3.14 1.57 1.57 0 0 1 0 3.14zM12.2 9.6h2.6v1.1h.04c.36-.66 1.24-1.35 2.55-1.35 2.73 0 3.23 1.75 3.23 4.03v4.32h-2.7v-3.83c0-.91-.02-2.09-1.31-2.09-1.31 0-1.51 1-1.51 2.03v3.89h-2.7V9.6z" fill="#fff"/></svg>
+              </a>
             </div>
             <div class="landing-hero-note">Free to start · No credit card · Or explore the Sk Enterprises demo company first, no sign-up needed</div>
           </div>
