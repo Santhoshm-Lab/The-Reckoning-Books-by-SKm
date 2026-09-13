@@ -3011,7 +3011,10 @@ function stopForceLogoutPoll(){
    looked, toasts it once, and keeps the "Raise a Ticket" tab badged until they actually view it. */
 let ticketUpdatePollHandle = null;
 async function checkTicketUpdatesOnce(){
-  if(!currentUser || currentUser.isAdmin) return;
+  // Support accounts raise tickets about themselves too (e.g. submitSeatIncreaseRequest) and need to
+  // be notified of replies just like any other ticket owner — only a full Administrator, who answers
+  // tickets rather than raising them, is excluded here.
+  if(!currentUser || currentUser.role==='admin') return;
   try{
     const snap = await db.collection('supportTickets').where('userId','==',currentUser.id).where('seenByUser','==', false).get();
     const updated = snap.docs.map(d=>d.data());
@@ -6892,7 +6895,10 @@ function render(){
   document.getElementById('menuHelp').addEventListener('click', async ()=>{
     modal = 'help';
     helpTab = 'info';
-    if(currentUser && !currentUser.isAdmin){
+    // A Support account is also a ticket-raiser in its own right (seat-increase requests etc.), so
+    // it gets the "Raise a Ticket" tab too — only a full Administrator, who answers tickets rather
+    // than raising them, is excluded.
+    if(currentUser && currentUser.role!=='admin'){
       await refreshMyTickets();
       if(myTickets.some(t=>t.seenByUser===false)) helpTab = 'tickets';
     }
@@ -7591,7 +7597,10 @@ function helpTabBtn(id, label){
   return `<button class="btn ${active?'':'secondary'} small" data-help-tab="${id}" type="button" style="border-radius:8px 8px 0 0;">${label}</button>`;
 }
 function helpModal(){
-  const showTickets = currentUser && !currentUser.isAdmin;
+  // Support accounts raise tickets about themselves too (e.g. a seat-limit increase request), and
+  // need to see the "Raise a Ticket" tab and any reply just like a regular user — only a full
+  // Administrator, who answers tickets from here rather than raising them, is excluded.
+  const showTickets = currentUser && currentUser.role!=='admin';
   const unseenCount = showTickets ? myTickets.filter(t=>t.seenByUser===false).length : 0;
   const activeTab = showTickets ? helpTab : 'info';
   return `
@@ -9011,7 +9020,10 @@ function renderGateway(){
     servicesMenuOpen = false;
     modal = 'help';
     helpTab = 'info';
-    if(currentUser && !currentUser.isAdmin){
+    // Support accounts raise tickets about themselves too (e.g. a seat-limit increase request), and
+    // need to see the "Raise a Ticket" tab and any reply just like a regular user — only a full
+    // Administrator, who answers tickets from here rather than raising them, is excluded.
+    if(currentUser && currentUser.role!=='admin'){
       await refreshMyTickets();
       if(myTickets.some(t=>t.seenByUser===false)) helpTab = 'tickets';
     }
@@ -10545,6 +10557,29 @@ function adminAnalyticsTab(){
     ${topCompanyItems.length ? svgHBarChart(topCompanyItems, {width:560, labelWidth:200}) : `<div class="empty">No companies yet.</div>`}
   `;
 }
+// Who a ticket belongs to and who should be the one to actually answer it, purely from data already
+// loaded into `users` (the full account list, loaded whenever the full Administrator opens the
+// Admin Panel — see loadAdminPanelData()) — no extra reads needed.
+//   - Raised by a member of a Support user's group  -> that Support user should answer it first;
+//     the full Admin only needs to step in once it's explicitly escalated.
+//   - Raised by an independent account (no group) OR by a Support account raising a ticket about
+//     themselves (e.g. a seat-limit request) -> there's no group admin above them, so it comes
+//     straight to the full Administrator.
+function ticketAssignment(t){
+  const raiser = users.find(u=>u.id===t.userId);
+  if(t.escalated){
+    return { kind:'escalated', label:'Escalated to you', title:'A group admin handed this ticket to you directly.' };
+  }
+  if(raiser && raiser.groupOwnerId){
+    const owner = users.find(u=>u.id===raiser.groupOwnerId);
+    const ownerName = owner ? owner.name : 'their group admin';
+    return { kind:'group', label: `🔗 ${ownerName}'s group`, title: `${raiser.name||'This user'} belongs to ${ownerName}'s group — ${ownerName} (Support) should address this first. It'll show up here as "Escalated" if they hand it up to you.` };
+  }
+  if(raiser && raiser.role==='support'){
+    return { kind:'individual', label:'Support account — you', title:'Raised by a Support (group admin) account about themselves — there is no group admin above them, so this is yours to answer.' };
+  }
+  return { kind:'individual', label:'Individual — you', title:'This account is not part of any group, so this is yours to answer.' };
+}
 function adminSupportTab(){
   let filtered = ticketStatusFilter==='all' ? supportTickets : supportTickets.filter(t=>t.status===ticketStatusFilter);
   if(ticketEscalatedOnly) filtered = filtered.filter(t=>t.escalated);
@@ -10571,19 +10606,20 @@ function adminSupportTab(){
     ${filtered.length ? `
     <div style="overflow-x:auto;">
     <table>
-      <tr><th>When</th><th>From</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr>
-      ${filtered.map(t=>`<tr>
+      <tr><th>When</th><th>From</th><th>Assigned</th><th>Subject</th><th>Message</th><th>Status</th><th>Actions</th></tr>
+      ${filtered.map(t=>{ const a = ticketAssignment(t); return `<tr>
         <td class="muted" style="font-size:11px;white-space:nowrap;">${fmtTimestamp(t.createdAt)}</td>
         <td>${escapeHtml(t.userName||'—')}${t.username?`<div class="muted" style="font-size:10px;">@${escapeHtml(t.username)}</div>`:''}</td>
+        <td><span class="pill ${a.kind==='group'?'':'neg'}" title="${escapeAttr(a.title)}">${escapeHtml(a.label)}</span></td>
         <td>${escapeHtml(t.subject||'—')}${t.escalated?` <span class="pill neg" title="${t.escalatedBy?('Escalated by '+escapeAttr(t.escalatedBy)+(t.escalatedAt?(' · '+fmtTimestamp(t.escalatedAt)):'')):''}">Escalated</span>`:''}</td>
         <td class="muted" style="font-size:11.5px;max-width:260px;">${escapeHtml(t.message||'')}
           ${editingTicketId===t.id ? `
-            <textarea data-ticket-note="${escapeAttr(t.id)}" rows="2" placeholder="Internal note (not sent to the user)" style="margin-top:6px;font-size:11px;">${escapeHtml(ticketNoteDraft)}</textarea>
+            <textarea data-ticket-note="${escapeAttr(t.id)}" rows="2" placeholder="Reply — the ticket's owner will see this" style="margin-top:6px;font-size:11px;">${escapeHtml(ticketNoteDraft)}</textarea>
             <div style="margin-top:4px;display:flex;gap:4px;">
-              <button class="btn small" data-save-ticket-note="${escapeAttr(t.id)}" type="button">Save Note</button>
+              <button class="btn small" data-save-ticket-note="${escapeAttr(t.id)}" type="button">Save Reply</button>
               <button class="btn secondary small" id="cancelTicketNoteBtn" type="button">Cancel</button>
             </div>
-          ` : (t.adminNote ? `<div class="muted" style="margin-top:6px;font-size:10.5px;border-top:1px dashed var(--border);padding-top:4px;"><strong>Note:</strong> ${escapeHtml(t.adminNote)}</div>` : '')}
+          ` : (t.adminNote ? `<div class="muted" style="margin-top:6px;font-size:10.5px;border-top:1px dashed var(--border);padding-top:4px;"><strong>Reply:</strong> ${escapeHtml(t.adminNote)}</div>` : '')}
         </td>
         <td>
           <select data-ticket-status="${escapeAttr(t.id)}">
@@ -10592,8 +10628,8 @@ function adminSupportTab(){
             <option value="resolved" ${t.status==='resolved'?'selected':''}>Resolved</option>
           </select>
         </td>
-        <td>${editingTicketId===t.id ? '' : `<button class="btn secondary small" data-edit-ticket-note="${escapeAttr(t.id)}" type="button">${t.adminNote?'Edit Note':'Add Note'}</button>`}</td>
-      </tr>`).join('')}
+        <td>${editingTicketId===t.id ? '' : `<button class="btn secondary small" data-edit-ticket-note="${escapeAttr(t.id)}" type="button">${t.adminNote?'Edit Reply':'Add Reply'}</button>`}</td>
+      </tr>`;}).join('')}
     </table>
     </div>
     ` : `<div class="empty">No support tickets${ticketStatusFilter!=='all'?' with this status':''} yet.</div>`}
@@ -10765,7 +10801,12 @@ service cloud.firestore {
     match /supportTickets/{ticketId} {
       // A Support user may read tickets raised by one of their own group members.
       allow get:    if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid);
-      allow list:   if isAdmin() || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid);
+      // NOTE: a collection query (e.g. "my tickets" — .where('userId','==',myUid).get()) is
+      // evaluated against "list", not "get" — so without the self-clause below, an ordinary user
+      // (or a Support user checking their OWN raised tickets) could never actually query their own
+      // tickets back, even though "get" already allows reading one by its own id. This is what makes
+      // refreshMyTickets()/checkTicketUpdatesOnce() (which both query, not get-by-id) work at all.
+      allow list:   if isAdmin() || (isSupport() && groupOwnerOf(resource.data.userId) == request.auth.uid) || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       // A Support user may update (status, admin note, escalate) tickets from their own group; the
       // ticket's own author may still only flip seenByUser to dismiss the "updated" badge — every
@@ -11580,12 +11621,12 @@ function groupAdminSupportTab(){
         <td>${escapeHtml(t.subject||'—')}</td>
         <td class="muted" style="font-size:11.5px;max-width:260px;">${escapeHtml(t.message||'')}
           ${groupEditingTicketId===t.id ? `
-            <textarea data-group-ticket-note="${escapeAttr(t.id)}" rows="2" placeholder="Internal note (not sent to the user)" style="margin-top:6px;font-size:11px;">${escapeHtml(groupTicketNoteDraft)}</textarea>
+            <textarea data-group-ticket-note="${escapeAttr(t.id)}" rows="2" placeholder="Reply — the ticket's owner will see this" style="margin-top:6px;font-size:11px;">${escapeHtml(groupTicketNoteDraft)}</textarea>
             <div style="margin-top:4px;display:flex;gap:4px;">
-              <button class="btn small" data-group-save-ticket-note="${escapeAttr(t.id)}" type="button">Save Note</button>
+              <button class="btn small" data-group-save-ticket-note="${escapeAttr(t.id)}" type="button">Save Reply</button>
               <button class="btn secondary small" id="cancelGroupTicketNoteBtn" type="button">Cancel</button>
             </div>
-          ` : (t.adminNote ? `<div class="muted" style="margin-top:6px;font-size:10.5px;border-top:1px dashed var(--border);padding-top:4px;"><strong>Note:</strong> ${escapeHtml(t.adminNote)}</div>` : '')}
+          ` : (t.adminNote ? `<div class="muted" style="margin-top:6px;font-size:10.5px;border-top:1px dashed var(--border);padding-top:4px;"><strong>Reply:</strong> ${escapeHtml(t.adminNote)}</div>` : '')}
         </td>
         <td>
           <select data-group-ticket-status="${escapeAttr(t.id)}">
@@ -11596,7 +11637,7 @@ function groupAdminSupportTab(){
         </td>
         <td>
           <div style="display:flex;flex-wrap:wrap;gap:4px;">
-            ${groupEditingTicketId===t.id ? '' : `<button class="btn secondary small" data-group-edit-ticket-note="${escapeAttr(t.id)}" type="button">${t.adminNote?'Edit Note':'Add Note'}</button>`}
+            ${groupEditingTicketId===t.id ? '' : `<button class="btn secondary small" data-group-edit-ticket-note="${escapeAttr(t.id)}" type="button">${t.adminNote?'Edit Reply':'Add Reply'}</button>`}
             ${t.escalated
               ? `<span class="pill neg" title="${t.escalatedAt?('Escalated '+fmtTimestamp(t.escalatedAt)):''}">Escalated</span>`
               : `<button class="btn secondary small" data-group-escalate-ticket="${escapeAttr(t.id)}" type="button" title="Hand this ticket to a full Administrator">Escalate to Admin</button>`}
