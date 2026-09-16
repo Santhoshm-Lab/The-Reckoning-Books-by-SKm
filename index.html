@@ -16339,10 +16339,17 @@ function finPerfCommonSizeInterpretation(cur, prev){
 // already uses (ratioLiquidityLeverageTrendCard, ratioProfitabilityTrendCard, ratioLiquidityGaugeCard
 // — all defined above, near reportRatioAnalysis()) rather than duplicating that chart code.
 function finPerfRatioSection(ratios, series){
+  // ratioLiquidityLeverageTrendCard()/ratioProfitabilityTrendCard() were written for
+  // ratioFYSeries()'s flat shape ({fy, currentRatio, grossMargin, ...}), but `series` here is
+  // financialPerformanceFYSeries()'s output, which nests the same figures under `s.ratios`
+  // instead of spreading them — so passing it straight through left every line on both trend
+  // charts reading undefined (`s.currentRatio||0`) and flatlining at zero. Flatten it the same
+  // way ratioFYSeries() does before handing it to those two chart functions.
+  const flatSeries = series.map(s=>({ fy: s.fy, ...s.ratios }));
   return `
     <div class="viz-grid">
-      ${ratioLiquidityLeverageTrendCard(series)}
-      ${ratioProfitabilityTrendCard(series)}
+      ${ratioLiquidityLeverageTrendCard(flatSeries)}
+      ${ratioProfitabilityTrendCard(flatSeries)}
     </div>
     ${ratioLiquidityGaugeCard(ratios)}
   `;
