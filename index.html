@@ -1052,6 +1052,23 @@ async function handleEmailLinkReturn(){
     verifyLinkError = authErrorMessage(err, true);
   }
 }
+// Runs once at startup when the URL shows we're back from a clicked password-reset link
+// (?mode=resetPassword&oobCode=... — see init()). Confirms the code is still valid with Firebase
+// and, if so, records the email it belongs to so renderPasswordResetCard() can show its
+// "create your new password" form; an invalid/expired code instead shows that card's error state.
+async function handlePasswordResetLink(oobCode){
+  try{
+    const email = await fbAuth.verifyPasswordResetCode(oobCode);
+    passwordResetCode = oobCode;
+    passwordResetEmail = email;
+    passwordResetError = '';
+  }catch(err){
+    passwordResetCode = null;
+    passwordResetEmail = '';
+    passwordResetError = authErrorMessage(err, true) || 'This link is no longer valid — please request a new one.';
+  }
+  authMode = 'login';
+}
 
 /* ---------------------------------------------------------------
    DATA MODEL
@@ -2091,6 +2108,19 @@ let verifyLinkSending = false;     // true while the link is being (re)sent
 let verifyLinkCooldownUntil = 0;   // Date.now() timestamp before which the Verify/Resend button stays disabled
 let verifyLinkNotice = '';         // inline success/status message on the sign-up form
 let verifyLinkError = '';          // inline error message on the sign-up form
+/* Password reset (Forgot Password, or an admin's "Reset Password" button) now stays in-app too,
+   the same way sign-up verification already did: sendPasswordResetEmail() is sent with
+   handleCodeInApp:true + url:signupLinkUrl(), so the emailed link reloads THIS app (with
+   ?mode=resetPassword&oobCode=... in the query string) instead of opening Firebase's generic,
+   unbranded hosted "reset password" page. init() detects that query string, verifies the code, and
+   renderLogin() shows a themed "create your new password" card in its place — see
+   handlePasswordResetLink()/renderPasswordResetCard() below. */
+let passwordResetCode = null;      // the verified oobCode, once verifyPasswordResetCode() has confirmed it's valid
+let passwordResetEmail = '';       // the email address that code belongs to (returned by verifyPasswordResetCode)
+let passwordResetError = '';       // invalid/expired-code message, or an inline error while setting the new password
+let passwordResetBusy = false;     // true while confirmPasswordReset() is in flight
+let passwordResetDone = false;     // true once the new password has been set successfully
+let resetShowPassword = false;     // show/hide toggle state for this card's own password fields (kept separate from authShowPassword)
 let coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
 let modal = null;          // null | 'editCompany' | 'help' | 'isDetail'
@@ -2238,6 +2268,13 @@ let barcodeScanQuery = '';     // "scan or type a barcode" quick-lookup box on I
 let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
 let reportsSelected = null; // null = Reports landing grid | 'trialBalance'|'incomeStatement'|'balanceSheet'|'ratios'|'cashFlow'
+// User-entered benchmark values for the Financial Performance Report's Benchmarking/Peer Comparison
+// section — {ratioKey: numericValue}. Deliberately session-only (not persisted): this app has no
+// real industry-average data source, so rather than fabricate one, the user types in whatever
+// figure they want to compare against (a target, a competitor's published number, last year's own
+// figure) and it redraws immediately; it simply resets next session rather than risking a stale or
+// made-up "industry benchmark" being mistaken for real data later.
+let finPerfBenchmarks = {};
 let reconcileLedgerId = null; // which bank ledger the Reconcile tab is currently showing
 let reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' }; // Reconcile tab's statement-date/balance inputs
 let recurringDraft = null; // null = not adding/editing a recurring template | {id?, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate}
@@ -4533,6 +4570,59 @@ function printHTMLDocument(html){
   document.body.appendChild(iframe);
   iframe.srcdoc = html;
 }
+// Rasterizes one already-rendered, still-attached inline <svg> chart (as produced by this app's
+// svgWaterfallChart/svgMultiLineChart/svgClusteredColumnChart/svgStackedBar/svgHBarChart etc.) to a
+// PNG data URL, for the Financial Performance Report's Word export — Word's HTML renderer doesn't
+// reliably render a live <svg>, so every chart in that document is a picture instead (the same
+// picture, reused for the PDF export too — see buildFinPerfExportDom()). Walks the REAL, attached
+// element so getComputedStyle resolves every var(--token) color/font this app's charts are styled
+// with (both inline `fill="var(--x)"` attributes and class-based rules like .viz-gridline) to its
+// literal computed value on a plain clone, since a standalone serialized SVG has no stylesheet
+// context of its own once handed to an offscreen Image.
+function resolveSvgNodeForRaster(srcEl){
+  const clone = srcEl.cloneNode(false);
+  if(srcEl.nodeType===1){
+    const cs = window.getComputedStyle(srcEl);
+    ['fill','stroke','stop-color','opacity','font-family','font-size','font-weight','stroke-width','stroke-dasharray','text-anchor'].forEach(prop=>{
+      const val = cs.getPropertyValue(prop);
+      if(val) clone.style.setProperty(prop, val);
+    });
+  }
+  Array.from(srcEl.childNodes).forEach(child=>{
+    clone.appendChild(child.nodeType===1 ? resolveSvgNodeForRaster(child) : child.cloneNode(true));
+  });
+  return clone;
+}
+function svgToPngDataUrl(svgEl, opts){
+  opts = opts||{};
+  const scale = opts.scale || 2;
+  const rect = svgEl.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width)) || 620;
+  const h = Math.max(1, Math.round(rect.height)) || 260;
+  const resolved = resolveSvgNodeForRaster(svgEl);
+  resolved.setAttribute('width', w);
+  resolved.setAttribute('height', h);
+  resolved.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const svgString = new XMLSerializer().serializeToString(resolved);
+  const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = w*scale; canvas.height = h*scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; // exported documents are always white/light-themed, regardless of the app's current theme
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/png'));
+      }catch(e){ reject(e); }
+    };
+    img.onerror = reject;
+    img.src = svgDataUrl;
+  });
+}
 function downloadJSON(obj, filename){
   const json = JSON.stringify(obj, null, 2);
   const blob = new Blob([json], {type:'application/json'});
@@ -5262,6 +5352,45 @@ function ratioFYSeries(maxYears){
     const ratios = ratioAnalysisData(is, bs, b.end);
     return { fy, ...ratios };
   });
+}
+// Up to maxYears financial years (oldest → newest) of the FULL Income Statement + Balance Sheet +
+// Ratio Analysis figures — mirrors ratioFYSeries() exactly (same FY list, same single-FY fallback)
+// but keeps the whole `is`/`bs` objects too, since the Financial Performance Report's Trend,
+// Comparative, Common-Size and DuPont sections all need individual line items ratioFYSeries()
+// itself doesn't carry. `equityMultiplier` (Total Assets ÷ Total Equity) is the one figure none of
+// the existing data functions compute — it only exists for the DuPont decomposition.
+function financialPerformanceFYSeries(maxYears){
+  maxYears = maxYears || 6;
+  const fys = distinctFYsInVouchers().slice().reverse(); // oldest → newest
+  const todayFY = fyLabelForDate(new Date().toISOString().slice(0,10));
+  const list = fys.length ? fys.slice(-maxYears) : [todayFY];
+  return list.map(fy=>{
+    const b = fyBoundsForLabel(fy);
+    const is = incomeStatementDataForPeriod(b.start, b.end);
+    const cumulativeProfit = incomeStatementDataForPeriod(null, b.end).profitForPeriod;
+    const bs = balanceSheetIFRSDataAsOf(cumulativeProfit, b.end);
+    const ratios = ratioAnalysisData(is, bs, b.end);
+    const equityMultiplier = bs.totalEquity ? bs.totalAssets/bs.totalEquity : null;
+    const totalExpenses = is.costOfSales + is.distributionCosts + is.adminExpenses + is.financeCosts;
+    return { fy, from:b.start, to:b.end, is, bs, ratios, equityMultiplier, totalExpenses };
+  });
+}
+// Cost-Volume-Profit / break-even split for one Income Statement: Cost of Sales (Purchases of
+// Stock-in-Trade) is treated as the variable cost — it moves with revenue — and every other expense
+// bucket (Distribution, Administrative, Finance Costs) as fixed. This is the standard simplifying
+// assumption for a ledger-based system with no per-unit sales-quantity data to split costs by
+// behaviour more precisely (see the report's own note on this). Break-even Revenue = Fixed Costs ÷
+// Contribution Margin Ratio; Margin of Safety = how far current revenue sits above that point.
+function cvpBreakdown(is){
+  const variableCosts = is.costOfSales;
+  const fixedCosts = is.distributionCosts + is.adminExpenses + is.financeCosts;
+  const revenue = is.revenue;
+  const contributionMargin = revenue - variableCosts;
+  const contributionMarginRatio = revenue ? contributionMargin/revenue : null;
+  const breakEvenRevenue = (contributionMarginRatio && contributionMarginRatio>0) ? fixedCosts/contributionMarginRatio : null;
+  const marginOfSafety = breakEvenRevenue!=null ? revenue-breakEvenRevenue : null;
+  const marginOfSafetyPct = (marginOfSafety!=null && revenue) ? marginOfSafety/revenue*100 : null;
+  return { variableCosts, fixedCosts, revenue, contributionMargin, contributionMarginRatio, breakEvenRevenue, marginOfSafety, marginOfSafetyPct };
 }
 
 function buildIncomeStatementSheet(is){
@@ -8118,9 +8247,43 @@ function renderLanding(){
 }
 
 /* ---------------- Login — welcome screen shown before Company Info ---------------- */
+// The card shown when this page load is a password-reset link return (see init()'s mode=resetPassword
+// check and handlePasswordResetLink()) — replaces the normal login/signup form entirely while active.
+function renderPasswordResetCard(){
+  const pwType = resetShowPassword ? 'text' : 'password';
+  if(passwordResetDone){
+    return `
+    <p class="login-tagline">Your password has been updated.</p>
+    <div class="muted" style="font-size:12.5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+      You can now log in with your new password.
+    </div>
+    <button class="btn" id="resetGoToLoginBtn" type="button" style="width:100%;margin-top:16px;">Go to Log In →</button>
+    `;
+  }
+  if(!passwordResetCode){
+    return `
+    <p class="login-tagline">This password reset link is invalid or has expired.</p>
+    ${passwordResetError ? `<p class="auth-error">${escapeHtml(passwordResetError)}</p>` : ''}
+    <button class="btn" id="resetGoToLoginBtn" type="button" style="width:100%;margin-top:16px;">Back to Log In →</button>
+    `;
+  }
+  return `
+  <p class="login-tagline">Create your new password${passwordResetEmail ? ` for <strong>${escapeHtml(passwordResetEmail)}</strong>` : ''}.</p>
+  <label>New Password</label>
+  <div class="pw-field-wrap">
+    <input type="${pwType}" id="resetNewPassword" placeholder="New password" autocomplete="new-password">
+    <button type="button" class="pw-toggle" id="resetTogglePw">${resetShowPassword?'Hide':'Show'}</button>
+  </div>
+  <label style="margin-top:12px;">Confirm New Password</label>
+  <input type="${pwType}" id="resetConfirmPassword" placeholder="Re-enter new password" autocomplete="new-password">
+  ${passwordResetError ? `<p class="auth-error">${escapeHtml(passwordResetError)}</p>` : ''}
+  <button class="btn" id="resetSubmitBtn" type="button" style="width:100%;margin-top:16px;" ${passwordResetBusy?'disabled':''}>${passwordResetBusy?'Updating…':'Set New Password →'}</button>
+  `;
+}
 function renderLogin(){
   const app = document.getElementById('app');
   const isSignup = authMode==='signup';
+  const inPasswordReset = !!(passwordResetCode || passwordResetDone || passwordResetError);
   const pwType = authShowPassword ? 'text' : 'password';
   const verifyLinkCooldownActive = Date.now() < verifyLinkCooldownUntil;
   const verifyBtnLabel = verifyLinkSending ? 'Sending…' : (verifyLinkAwaiting ? (verifyLinkCooldownActive ? 'Sent ✓' : 'Resend Link') : 'Verify Email');
@@ -8158,6 +8321,7 @@ function renderLogin(){
             <div class="login-logo">RB</div>
             <h1>The Reckoning Books</h1>
             <div class="login-by">by SKm</div>
+            ${inPasswordReset ? renderPasswordResetCard() : `
             <p class="login-tagline">${googleAuthUser ? 'Almost there — just a couple of details left.' : (isSignup ? 'Create your account to start keeping the books.' : 'Log in to continue.')}</p>
 
             ${googleAuthUser ? `
@@ -8259,6 +8423,7 @@ function renderLogin(){
             `}
 
             <p class="auth-toggle-line">${isSignup ? 'Already have an account?' : 'New here?'} <a id="authToggleModeLink">${isSignup?'Log in':'Create one'}</a></p>
+            `}
             `}
           </div>
           <div class="login-footer">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
@@ -8643,6 +8808,48 @@ function renderLogin(){
     e.target.value = e.target.value.replace(/\D/g,'').slice(0,10);
   });
 
+  // --- Password reset card (renderPasswordResetCard()) — only present in the DOM when inPasswordReset ---
+  document.getElementById('resetTogglePw')?.addEventListener('click', ()=>{
+    resetShowPassword = !resetShowPassword;
+    const newType = resetShowPassword ? 'text' : 'password';
+    const btn = document.getElementById('resetTogglePw');
+    if(btn) btn.textContent = resetShowPassword ? 'Hide' : 'Show';
+    ['resetNewPassword','resetConfirmPassword'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.type = newType;
+    });
+  });
+  document.getElementById('resetGoToLoginBtn')?.addEventListener('click', ()=>{
+    passwordResetCode = null; passwordResetEmail = ''; passwordResetError = '';
+    passwordResetDone = false; passwordResetBusy = false; resetShowPassword = false;
+    authMode = 'login';
+    renderLogin();
+  });
+  const submitPasswordReset = async ()=>{
+    passwordResetError = '';
+    const pw = (document.getElementById('resetNewPassword').value||'');
+    const confirm = (document.getElementById('resetConfirmPassword').value||'');
+    if(!pw){ passwordResetError = 'Please enter a new password.'; renderLogin(); return; }
+    if(pw.length<6){ passwordResetError = 'Password must be at least 6 characters.'; renderLogin(); return; }
+    if(pw!==confirm){ passwordResetError = 'Passwords do not match.'; renderLogin(); return; }
+    passwordResetBusy = true;
+    renderLogin();
+    try{
+      await fbAuth.confirmPasswordReset(passwordResetCode, pw);
+      passwordResetDone = true;
+      passwordResetBusy = false;
+      renderLogin();
+    }catch(err){
+      passwordResetBusy = false;
+      passwordResetError = authErrorMessage(err, true);
+      renderLogin();
+    }
+  };
+  document.getElementById('resetSubmitBtn')?.addEventListener('click', submitPasswordReset);
+  ['resetNewPassword','resetConfirmPassword'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitPasswordReset(); });
+  });
+
   document.getElementById('forgotPasswordLink')?.addEventListener('click', ()=>{
     forgotPasswordOpen = true;
     forgotPasswordError = '';
@@ -8668,7 +8875,7 @@ function renderLogin(){
     try{
       const doc = await db.collection('usernames').doc(username.toLowerCase()).get();
       if(doc.exists){
-        try{ await fbAuth.sendPasswordResetEmail(doc.data().email); }catch(e){}
+        try{ await fbAuth.sendPasswordResetEmail(doc.data().email, { url: signupLinkUrl(), handleCodeInApp: true }); }catch(e){}
       }
       // Same message whether or not the username exists, so this can't be used to check
       // which usernames are registered.
@@ -9245,7 +9452,7 @@ function renderGateway(){
         if(!u || !u.email) return;
         el.disabled = true;
         try{
-          await fbAuth.sendPasswordResetEmail(u.email);
+          await fbAuth.sendPasswordResetEmail(u.email, { url: signupLinkUrl(), handleCodeInApp: true });
           await logAudit('password_reset_sent', `Sent a password reset email to ${u.email}`, uid, u.name);
           toast('Password reset email sent to ' + u.email);
         }catch(err){
@@ -10108,7 +10315,7 @@ function renderGateway(){
         if(!u || !u.email) return;
         el.disabled = true;
         try{
-          await fbAuth.sendPasswordResetEmail(u.email);
+          await fbAuth.sendPasswordResetEmail(u.email, { url: signupLinkUrl(), handleCodeInApp: true });
           await logAudit('password_reset_sent', `Sent a password reset email to ${u.email}`, uid, u.name);
           toast('Password reset email sent to ' + u.email);
         }catch(err){
@@ -15368,6 +15575,7 @@ function viewReports(){
   if(reportsSelected==='budgetVsActual') return reportBudgetVsActual();
   if(reportsSelected==='tdsTcs') return reportTdsTcs();
   if(reportsSelected==='dataIntegrity') return reportDataIntegrity();
+  if(reportsSelected==='financialPerformance') return reportFinancialPerformance();
   return reportsLanding();
 }
 function reportsLanding(){
@@ -15382,6 +15590,7 @@ function reportsLanding(){
     {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.'},
     {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.'},
     {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', badge: integrityCount>0 ? integrityCount : null},
+    {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size, Ratio, DuPont, Cash Flow, Variance, Break-even and Benchmarking analysis, with interpretation — downloadable as PDF or Word.'},
   ];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
@@ -15958,6 +16167,548 @@ function reportBudgetVsActual(){
     </div></div>
     <p class="muted" style="font-size:11px;">For Income ledgers, a positive variance (actual above budget) is favourable; for Expense ledgers, a negative variance (actual below budget) is favourable — shown in green either way. Actuals are computed within FY ${budgetReportFY}'s date range only.</p>
   `;
+}
+
+/* =================================================================================================
+   FINANCIAL PERFORMANCE REPORT — nine standard analysis techniques (Trend, Comparative/Horizontal,
+   Common-Size, Ratio, DuPont, Cash Flow, Variance/Budget-vs-Actual, Break-even/CVP, Benchmarking),
+   each with an interactive visual (reusing this app's existing inline-SVG chart library wherever a
+   technique already has one — Ratio Analysis and Cash Flow simply embed their existing cards rather
+   than duplicating ~150 lines of already-working chart code) and an auto-generated, plain-language
+   interpretation grounded in the company's own posted figures. Downloadable as PDF (native browser
+   print of the live charts, via the same printHTMLDocument() the rest of the app already uses) and
+   as Word (charts rasterized to PNG via svgToPngDataUrl(), since Word's HTML renderer doesn't
+   reliably draw a live <svg>) — see buildFinPerfExportDom() below, which drives both.
+   ================================================================================================= */
+
+// 1. Trend Analysis (Time Series) — Revenue / Net Profit / Total Expenses, one line each, across
+// every FY financialPerformanceFYSeries() found.
+function finPerfTrendCard(series){
+  const categories = series.map(s=>({key:s.fy, label:'FY '+s.fy}));
+  const lines = [
+    {key:'fpTrendRevenue', label:'Revenue', color:VIZ_COLORS[0], values:Object.fromEntries(series.map(s=>[s.fy, s.is.revenue])), fmt:v=>'₹'+fmt(v)},
+    {key:'fpTrendProfit', label:'Net Profit', color:VIZ_COLORS[1], values:Object.fromEntries(series.map(s=>[s.fy, s.is.profitForPeriod])), fmt:v=>'₹'+fmt(v)},
+    {key:'fpTrendExpenses', label:'Total Expenses', color:VIZ_COLORS[4], values:Object.fromEntries(series.map(s=>[s.fy, s.totalExpenses])), fmt:v=>'₹'+fmt(v)},
+  ];
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Revenue, Profit &amp; Expenses Trend</h2><span class="viz-sub">Line · ${series.length>1?`Last ${series.length} FYs`:'Current FY'}</span></div>
+      <div class="panel-body">
+        ${svgMultiLineChart(categories, lines, {axisFmt:v=>'₹'+fmtShort(v), hiddenKey:k=>dashVizHiddenSeries[k]})}
+        ${vizLegend(lines.map(l=>({key:l.key,label:l.label,color:l.color})))}
+      </div>
+    </div>
+  `;
+}
+function finPerfTrendInterpretation(series){
+  const notes = [];
+  if(series.length<2){
+    notes.push(`Only one financial year of data exists so far (FY ${series[0].fy}), so a genuine multi-year trend can't be read yet — this fills in as more financial years are posted.`);
+    return notes;
+  }
+  const first = series[0], last = series[series.length-1];
+  const pctChange = (a,b) => a ? (b-a)/Math.abs(a)*100 : null;
+  const revChange = pctChange(first.is.revenue, last.is.revenue);
+  const profitChange = pctChange(first.is.profitForPeriod, last.is.profitForPeriod);
+  const expChange = pctChange(first.totalExpenses, last.totalExpenses);
+  if(revChange!=null) notes.push(`Revenue moved from ₹${fmt(first.is.revenue)} in FY ${first.fy} to ₹${fmt(last.is.revenue)} in FY ${last.fy} — a ${revChange>=0?'growth':'decline'} of ${Math.abs(revChange).toFixed(1)}% over ${series.length-1} financial year${series.length-1===1?'':'s'}.`);
+  if(profitChange!=null){
+    let tail = '.';
+    if(revChange!=null) tail = profitChange>revChange ? ', outpacing revenue growth — a sign of improving cost control or operating leverage.' : (profitChange<revChange ? ', growing more slowly than revenue — worth checking whether costs are creeping up faster than sales.' : '.');
+    notes.push(`Net Profit ${profitChange>=0?'grew':'fell'} ${Math.abs(profitChange).toFixed(1)}% over the same span (₹${fmt(first.is.profitForPeriod)} → ₹${fmt(last.is.profitForPeriod)})${tail}`);
+  }
+  if(expChange!=null){
+    const tail = revChange!=null ? (expChange>revChange ? ', a faster pace than revenue — margins are under pressure from the cost side.' : ' — a slower pace than revenue growth, which is generally a healthy sign.') : '.';
+    notes.push(`Total Expenses ${expChange>=0?'rose':'fell'} ${Math.abs(expChange).toFixed(1)}% over the period${tail}`);
+  }
+  let biggestMove = null;
+  for(let i=1;i<series.length;i++){
+    const chg = pctChange(series[i-1].is.profitForPeriod, series[i].is.profitForPeriod);
+    if(chg!=null && (biggestMove==null || Math.abs(chg)>Math.abs(biggestMove.chg))) biggestMove = {fy:series[i].fy, prevFy:series[i-1].fy, chg};
+  }
+  if(biggestMove) notes.push(`The sharpest single-year swing in Net Profit was between FY ${biggestMove.prevFy} and FY ${biggestMove.fy} (${biggestMove.chg>=0?'+':''}${biggestMove.chg.toFixed(1)}%) — worth a closer look at what changed that year.`);
+  return notes;
+}
+
+// 2. Comparative / Horizontal Analysis — current vs prior FY, clustered column for the headline
+// lines plus a waterfall bridging prior-year Net Profit to current-year Net Profit by driver.
+function finPerfComparativeCard(cur, prev){
+  const items = [
+    {key:'revenue', label:'Revenue'},
+    {key:'grossProfit', label:'Gross Profit'},
+    {key:'operatingProfit', label:'Operating Profit'},
+    {key:'profitForPeriod', label:'Net Profit'},
+  ];
+  const categories = items.map(it=>({key:it.key, label:it.label}));
+  const series = [
+    {key:'fpCompPrev', label:'FY '+prev.fy, color:VIZ_COLORS[3], values:Object.fromEntries(items.map(it=>[it.key, prev.is[it.key]]))},
+    {key:'fpCompCur', label:'FY '+cur.fy, color:VIZ_COLORS[0], values:Object.fromEntries(items.map(it=>[it.key, cur.is[it.key]]))},
+  ];
+  const steps = [
+    {label:`FY ${prev.fy} Net Profit`, value: prev.is.profitForPeriod, kind:'total'},
+    {label:'Δ Revenue', value: cur.is.revenue-prev.is.revenue, kind:'flow'},
+    {label:'Δ Cost of Sales', value: -(cur.is.costOfSales-prev.is.costOfSales), kind:'flow'},
+    {label:'Δ Distribution', value: -(cur.is.distributionCosts-prev.is.distributionCosts), kind:'flow'},
+    {label:'Δ Admin', value: -(cur.is.adminExpenses-prev.is.adminExpenses), kind:'flow'},
+    {label:'Δ Finance Costs', value: -(cur.is.financeCosts-prev.is.financeCosts), kind:'flow'},
+    {label:`FY ${cur.fy} Net Profit`, value: cur.is.profitForPeriod, kind:'total'},
+  ];
+  return `
+    <div class="viz-grid">
+      <div class="panel viz-panel">
+        <div class="panel-head"><h2>Period Comparison</h2><span class="viz-sub">Clustered Column · FY ${prev.fy} vs FY ${cur.fy}</span></div>
+        <div class="panel-body">
+          ${svgClusteredColumnChart(categories, series, {hiddenKey:k=>dashVizHiddenSeries[k]})}
+          ${vizLegend(series.map(s=>({key:s.key,label:s.label,color:s.color})))}
+        </div>
+      </div>
+      <div class="panel viz-panel">
+        <div class="panel-head"><h2>What Drove the Change in Net Profit</h2><span class="viz-sub">Waterfall · FY ${prev.fy} → FY ${cur.fy}</span></div>
+        <div class="panel-body">
+          ${svgWaterfallChart(steps, {tipSubFlow:'Change vs the prior financial year', tipSubTotal:'Net Profit for that financial year'})}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function finPerfComparativeInterpretation(cur, prev){
+  const notes = [];
+  const pct = (a,b)=> a ? (b-a)/Math.abs(a)*100 : null;
+  const items = [['Revenue','revenue'],['Gross Profit','grossProfit'],['Operating Profit','operatingProfit'],['Net Profit','profitForPeriod']];
+  items.forEach(([label,key])=>{
+    const chg = pct(prev.is[key], cur.is[key]);
+    if(chg!=null) notes.push(`${label} ${chg>=0?'increased':'decreased'} ${Math.abs(chg).toFixed(1)}% from FY ${prev.fy} to FY ${cur.fy} (₹${fmt(prev.is[key])} → ₹${fmt(cur.is[key])}).`);
+  });
+  const drivers = [
+    {label:'Cost of Sales', delta: -(cur.is.costOfSales-prev.is.costOfSales)},
+    {label:'Distribution Costs', delta: -(cur.is.distributionCosts-prev.is.distributionCosts)},
+    {label:'Administrative Expenses', delta: -(cur.is.adminExpenses-prev.is.adminExpenses)},
+    {label:'Finance Costs', delta: -(cur.is.financeCosts-prev.is.financeCosts)},
+  ].sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  const revDelta = cur.is.revenue - prev.is.revenue;
+  const topDriver = drivers[0];
+  if(Math.abs(revDelta) >= Math.abs(topDriver.delta)) notes.push(`Revenue was the largest single driver of the change in Net Profit (₹${fmt(Math.abs(revDelta))} ${revDelta>=0?'higher':'lower'}), ahead of any individual cost line.`);
+  else notes.push(`${topDriver.label} was the largest single driver of the change in Net Profit — it moved profit by ₹${fmt(Math.abs(topDriver.delta))} (${topDriver.delta>=0?'a tailwind':'a headwind'}), more than any other line item.`);
+  return notes;
+}
+
+// 3. Common-Size (Vertical) Analysis — every Income Statement line as a % of Revenue, one 100%
+// stacked bar per FY (svgStackedBar already normalizes its segments to 100% of their own total).
+function finPerfCommonSizeCard(series){
+  const rows = series.slice(-4); // keep the visual readable — most recent up to 4 FYs
+  const bars = rows.map(s=>{
+    const is = s.is;
+    const segs = [
+      {label:'Cost of Sales', value: Math.max(0,is.costOfSales), color:VIZ_COLORS[4]},
+      {label:'Distribution', value: Math.max(0,is.distributionCosts), color:VIZ_COLORS[2]},
+      {label:'Admin', value: Math.max(0,is.adminExpenses), color:VIZ_COLORS[3]},
+      {label:'Finance Costs', value: Math.max(0,is.financeCosts), color:VIZ_COLORS[1]},
+      {label:'Net Profit', value: Math.max(0,is.profitForPeriod), color:VIZ_COLORS[0]},
+    ];
+    return `<div style="margin-bottom:14px;"><div style="font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">FY ${s.fy} <span class="muted" style="font-weight:500;">(Revenue = 100%)</span></div>${svgStackedBar(segs)}</div>`;
+  }).join('');
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Common-Size Income Statement</h2><span class="viz-sub">100% Stacked · every line item as a % of Revenue</span></div>
+      <div class="panel-body">${bars || `<div class="empty">No data yet.</div>`}</div>
+    </div>
+  `;
+}
+function finPerfCommonSizeInterpretation(cur, prev){
+  const notes = [];
+  const pctOf = (v, base) => base ? (v/base*100) : null;
+  const cogsPct = pctOf(cur.is.costOfSales, cur.is.revenue);
+  const distPct = pctOf(cur.is.distributionCosts, cur.is.revenue);
+  const adminPct = pctOf(cur.is.adminExpenses, cur.is.revenue);
+  const financePct = pctOf(cur.is.financeCosts, cur.is.revenue);
+  const netPct = pctOf(cur.is.profitForPeriod, cur.is.revenue);
+  if(cogsPct!=null) notes.push(`In FY ${cur.fy}, Cost of Sales consumes ${cogsPct.toFixed(1)}% of Revenue, leaving a gross margin of ${(100-cogsPct).toFixed(1)}%.`);
+  if(distPct!=null && adminPct!=null) notes.push(`Distribution and Administrative expenses together take up ${(distPct+adminPct).toFixed(1)}% of Revenue (${distPct.toFixed(1)}% + ${adminPct.toFixed(1)}%), with Finance Costs a further ${financePct!=null?financePct.toFixed(1):'0.0'}%.`);
+  if(netPct!=null) notes.push(`After every cost, ${netPct.toFixed(1)}% of each ₹1 of Revenue reaches Net Profit${netPct<0?' — the company is currently spending more than it earns.':'.'}`);
+  if(prev){
+    const prevCogsPct = pctOf(prev.is.costOfSales, prev.is.revenue);
+    if(cogsPct!=null && prevCogsPct!=null){
+      const diff = cogsPct-prevCogsPct;
+      if(Math.abs(diff)>=0.5) notes.push(`Cost of Sales as a share of Revenue ${diff>0?'widened':'narrowed'} from ${prevCogsPct.toFixed(1)}% in FY ${prev.fy} to ${cogsPct.toFixed(1)}% in FY ${cur.fy} — cost structure is ${diff>0?'getting heavier':'improving'} relative to sales.`);
+    }
+  }
+  return notes;
+}
+
+// 4. Ratio Analysis — embeds the SAME trend/gauge cards the standalone Ratio Analysis report
+// already uses (ratioLiquidityLeverageTrendCard, ratioProfitabilityTrendCard, ratioLiquidityGaugeCard
+// — all defined above, near reportRatioAnalysis()) rather than duplicating that chart code.
+function finPerfRatioSection(ratios, series){
+  return `
+    <div class="viz-grid">
+      ${ratioLiquidityLeverageTrendCard(series)}
+      ${ratioProfitabilityTrendCard(series)}
+    </div>
+    ${ratioLiquidityGaugeCard(ratios)}
+  `;
+}
+function finPerfRatioInterpretation(ratios){
+  const notes = [];
+  if(ratios.currentRatio!=null) notes.push(`Current Ratio stands at ${fmtRatio(ratios.currentRatio)}× — ${ratios.currentRatio>=2?'a strong liquidity buffer':ratios.currentRatio>=1?'an acceptable, if unspectacular, liquidity position':'a sign of possible short-term liquidity strain'}.`);
+  if(ratios.netMargin!=null) notes.push(`Net Profit Margin is ${fmtPct(ratios.netMargin)}, Return on Equity is ${fmtPct(ratios.roe)} — the profitability engine behind every ratio here.`);
+  if(ratios.debtToEquity!=null) notes.push(`Debt-to-Equity of ${fmtRatio(ratios.debtToEquity)}× shows a ${ratios.debtToEquity<0.5?'conservatively':ratios.debtToEquity<=1?'moderately':'fairly heavily'} leveraged capital structure.`);
+  if(ratios.receivablesTurnover!=null) notes.push(`Receivables turn over ${fmtRatio(ratios.receivablesTurnover)}× a year — about ${fmtDays(ratios.dso)} of sales tied up in receivables at any time.`);
+  return notes;
+}
+
+// 5. DuPont Analysis — ROE = Net Margin × Asset Turnover × Equity Multiplier, as a simple
+// left-to-right decomposition flow rather than a chart (the three factors have three different
+// units — %, ×, × — so a bar/line chart would obscure the multiplication rather than clarify it).
+function finPerfDuPontCard(cur, prev){
+  const r = cur.ratios;
+  const box = (label, val, sub) => `
+    <div style="flex:1;min-width:140px;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:6px;">${label}</div>
+      <div style="font-size:19px;font-weight:800;color:var(--ink);">${val}</div>
+      <div class="muted" style="font-size:10px;margin-top:4px;">${sub}</div>
+    </div>`;
+  const op = sym => `<div style="font-size:22px;font-weight:800;color:var(--ink-faint);align-self:center;padding:0 4px;">${sym}</div>`;
+  return `
+    <div class="panel">
+      <div class="panel-head"><h2>DuPont Decomposition — FY ${cur.fy}</h2></div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:stretch;gap:4px;flex-wrap:wrap;">
+          ${box('Net Profit Margin', fmtPct(r.netMargin), 'Net Profit ÷ Revenue')}
+          ${op('×')}
+          ${box('Asset Turnover', fmtRatio(r.assetTurnover)+'×', 'Revenue ÷ Total Assets')}
+          ${op('×')}
+          ${box('Equity Multiplier', fmtRatio(cur.equityMultiplier)+'×', 'Total Assets ÷ Total Equity')}
+          ${op('=')}
+          ${box('Return on Equity', fmtPct(r.roe), 'Net Profit ÷ Total Equity')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function finPerfDuPontInterpretation(cur, prev){
+  const notes = [];
+  const r = cur.ratios;
+  if(r.roe!=null) notes.push(`FY ${cur.fy}'s Return on Equity of ${fmtPct(r.roe)} breaks down into a Net Margin of ${fmtPct(r.netMargin)}, an Asset Turnover of ${fmtRatio(r.assetTurnover)}×, and an Equity Multiplier (financial leverage) of ${fmtRatio(cur.equityMultiplier)}×.`);
+  if(prev && prev.ratios.roe!=null && r.roe!=null){
+    const dMargin = (r.netMargin||0)-(prev.ratios.netMargin||0);
+    const dTurn = (r.assetTurnover||0)-(prev.ratios.assetTurnover||0);
+    const dLev = (cur.equityMultiplier||0)-(prev.equityMultiplier||0);
+    const drivers = [
+      {label:'profitability (Net Margin)', d:Math.abs(dMargin), dir:dMargin},
+      {label:'efficiency (Asset Turnover)', d:Math.abs(dTurn), dir:dTurn},
+      {label:'leverage (Equity Multiplier)', d:Math.abs(dLev), dir:dLev},
+    ].sort((a,b)=>b.d-a.d);
+    const top = drivers[0];
+    notes.push(`ROE ${r.roe>=prev.ratios.roe?'improved':'declined'} from ${fmtPct(prev.ratios.roe)} in FY ${prev.fy} to ${fmtPct(r.roe)} in FY ${cur.fy}, driven mainly by a change in ${top.label} (${top.dir>=0?'up':'down'}).`);
+  }
+  return notes;
+}
+
+// 6. Cash Flow Analysis — embeds the SAME Cash Flow report cards used elsewhere (all defined above,
+// near reportCashFlow()) — Operating/Investing/Financing waterfall, cash-in-vs-out, operating trend.
+function finPerfCashFlowInterpretation(cf){
+  const notes = [];
+  notes.push(`Operating activities generated ₹${fmt(cf.operating)} in net cash life-to-date${cf.operating<0?' — worth flagging, since core operations should normally be the primary source of cash.':'.'}`);
+  notes.push(`Investing activities used ₹${fmt(Math.abs(cf.investing))} net${cf.investing<0?' (typical for a business investing in assets)':''}, and Financing activities ${cf.financing>=0?'contributed':'used'} ₹${fmt(Math.abs(cf.financing))} net.`);
+  return notes;
+}
+
+// 7. Variance Analysis (Budget vs Actual) — the clustered-column half of a combo chart (bars) plus
+// a variance-% table alongside it, for whichever FY currently has budgets set (falling back to the
+// most recent FY that has any, same "closest useful default" approach reportBudgetVsActual() uses).
+function finPerfVarianceData(){
+  const todayFy = fyLabelForDate(new Date().toISOString().slice(0,10));
+  const budgetFys = Array.from(new Set(state.budgets.map(b=>b.fy)));
+  const fy = budgetFys.includes(todayFy) ? todayFy : (budgetFys.slice().sort().reverse()[0] || todayFy);
+  return { fy, rows: budgetVsActualData(fy) };
+}
+function finPerfVarianceCard(data){
+  const { fy, rows } = data;
+  if(!rows.length) return `<div class="panel"><div class="panel-body"><div class="empty">No budgets set for FY ${fy} yet — set one on the Accounts tab under Budgets to see Variance Analysis here.</div></div></div>`;
+  const top = rows.slice().sort((a,b)=>b.budgetAmt-a.budgetAmt).slice(0,8);
+  const categories = top.map(r=>({key:r.ledger.id, label:shortenLabel(r.ledger.name,14)}));
+  const series = [
+    {key:'fpVarBudget', label:'Budget', color:VIZ_COLORS[3], values:Object.fromEntries(top.map(r=>[r.ledger.id, r.budgetAmt]))},
+    {key:'fpVarActual', label:'Actual', color:VIZ_COLORS[0], values:Object.fromEntries(top.map(r=>[r.ledger.id, r.actual]))},
+  ];
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Budget vs Actual — FY ${fy}</h2><span class="viz-sub">Clustered Column · top ${top.length} by budget size</span></div>
+      <div class="panel-body">
+        ${svgClusteredColumnChart(categories, series, {hiddenKey:k=>dashVizHiddenSeries[k]})}
+        ${vizLegend(series.map(s=>({key:s.key,label:s.label,color:s.color})))}
+        <table style="margin-top:12px;">
+          <tr><th>Ledger</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Variance %</th></tr>
+          ${top.map(r=>{
+            const favourable = r.isIncome ? r.variance>=0 : r.variance<=0;
+            return `<tr><td>${escapeHtml(r.ledger.name)}</td><td class="num">₹${fmt(r.budgetAmt)}</td><td class="num">₹${fmt(r.actual)}</td><td class="num ${favourable?'pos':'neg'}">${r.pct!=null?(r.pct-100).toFixed(1)+'%':'—'}</td></tr>`;
+          }).join('')}
+        </table>
+      </div>
+    </div>
+  `;
+}
+function finPerfVarianceInterpretation(data){
+  const notes = [];
+  const { fy, rows } = data;
+  if(!rows.length){ notes.push(`No budgets have been set for FY ${fy} yet, so variance can't be measured.`); return notes; }
+  const worst = rows.slice().filter(r=>r.budgetAmt).sort((a,b)=> Math.abs(b.variance)-Math.abs(a.variance))[0];
+  if(worst){
+    const favourable = worst.isIncome ? worst.variance>=0 : worst.variance<=0;
+    notes.push(`${escapeHtml(worst.ledger.name)} shows the largest variance in FY ${fy}: ${worst.variance>=0?'+':''}₹${fmt(worst.variance)} versus budget (${favourable?'favourable':'unfavourable'}).`);
+  }
+  const totalBudget = rows.reduce((s,r)=>s+r.budgetAmt,0);
+  const totalActual = rows.reduce((s,r)=>s+r.actual,0);
+  if(totalBudget) notes.push(`Across all ${rows.length} budgeted ledger${rows.length===1?'':'s'}, actuals total ₹${fmt(totalActual)} against a combined budget of ₹${fmt(totalBudget)} — ${((totalActual/totalBudget-1)*100).toFixed(1)}% ${totalActual>=totalBudget?'over':'under'} budget overall.`);
+  return notes;
+}
+
+// 8. Break-even / Cost-Volume-Profit Analysis — see cvpBreakdown() above for the cost split; this
+// draws Fixed Cost / Total Cost / Revenue against revenue LEVELS (as a % of the current FY's actual
+// revenue), since this system tracks ledger amounts, not per-unit sales quantities.
+function finPerfCvpCard(cvp){
+  if(cvp.contributionMarginRatio==null || cvp.contributionMarginRatio<=0){
+    return `<div class="panel"><div class="panel-body"><div class="empty">Variable costs consume all (or more than) revenue this year, so contribution margin is zero or negative — no finite break-even point exists on the current cost structure.</div></div></div>`;
+  }
+  const levels = [0, 0.5, 1, 1.5, 2];
+  const categories = levels.map(l=>({key:String(l), label:(l*100).toFixed(0)+'%'+(l===1?' (Current)':'')}));
+  const lines = [
+    {key:'fpCvpFixed', label:'Fixed Cost', color:VIZ_COLORS[3], dashed:true, values:Object.fromEntries(levels.map(l=>[String(l), cvp.fixedCosts])), fmt:v=>'₹'+fmt(v)},
+    {key:'fpCvpTotal', label:'Total Cost', color:VIZ_COLORS[4], values:Object.fromEntries(levels.map(l=>[String(l), cvp.fixedCosts + cvp.variableCosts*l])), fmt:v=>'₹'+fmt(v)},
+    {key:'fpCvpRevenue', label:'Revenue', color:VIZ_COLORS[0], values:Object.fromEntries(levels.map(l=>[String(l), cvp.revenue*l])), fmt:v=>'₹'+fmt(v)},
+  ];
+  return `
+    <div class="viz-kpi-row cols4">
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Break-even Revenue</div><div class="viz-kpi-val">₹${fmt(cvp.breakEvenRevenue)}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Contribution Margin Ratio</div><div class="viz-kpi-val">${(cvp.contributionMarginRatio*100).toFixed(1)}%</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Fixed Costs</div><div class="viz-kpi-val">₹${fmt(cvp.fixedCosts)}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Margin of Safety</div><div class="viz-kpi-val ${(cvp.marginOfSafety||0)>=0?'pos':'neg'}">${cvp.marginOfSafetyPct!=null?cvp.marginOfSafetyPct.toFixed(1)+'%':'—'}</div></div>
+    </div>
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Break-even Analysis (CVP)</h2><span class="viz-sub">Line · Revenue level (% of current) vs ₹</span></div>
+      <div class="panel-body">
+        ${svgMultiLineChart(categories, lines, {axisFmt:v=>'₹'+fmtShort(v), hiddenKey:k=>dashVizHiddenSeries[k]})}
+        ${vizLegend(lines.map(l=>({key:l.key,label:l.label,color:l.color,dashed:l.dashed})))}
+        <p class="muted" style="font-size:10.5px;margin:8px 0 0;">Where the Total Cost and Revenue lines cross is the break-even point. Revenue levels are shown as a % of the current financial year's actual revenue (100%), since this system tracks amounts rather than unit sales.</p>
+      </div>
+    </div>
+  `;
+}
+function finPerfCvpInterpretation(cvp){
+  const notes = [];
+  if(cvp.contributionMarginRatio==null || cvp.contributionMarginRatio<=0){
+    notes.push(`Variable costs currently consume all (or more than) revenue, so contribution margin is zero or negative — no break-even point exists until the cost structure or pricing changes.`);
+    return notes;
+  }
+  notes.push(`Every ₹1 of Revenue contributes ₹${cvp.contributionMarginRatio.toFixed(2)} towards covering Fixed Costs (a Contribution Margin Ratio of ${(cvp.contributionMarginRatio*100).toFixed(1)}%) — Fixed Costs of ₹${fmt(cvp.fixedCosts)} are covered once Revenue reaches ₹${fmt(cvp.breakEvenRevenue)}.`);
+  if(cvp.marginOfSafetyPct!=null){
+    if(cvp.marginOfSafetyPct>=0) notes.push(`Current Revenue of ₹${fmt(cvp.revenue)} sits ${cvp.marginOfSafetyPct.toFixed(1)}% above break-even — that Margin of Safety is the cushion Revenue could fall by before the business tips into a loss.`);
+    else notes.push(`Current Revenue of ₹${fmt(cvp.revenue)} is actually ${Math.abs(cvp.marginOfSafetyPct).toFixed(1)}% BELOW the break-even point — on the current cost structure, Revenue needs to grow just to reach break-even.`);
+  }
+  return notes;
+}
+
+// 9. Benchmarking / Peer Comparison — bullet-style bars (svgHBarChart already supports a dashed
+// benchmark line + label) against whatever figure the user types in. This system has no real
+// industry-average data source of its own, so rather than fabricate one, finPerfBenchmarks (a
+// session-only in-memory object — see its declaration near reportsSelected) holds whatever the user
+// enters and the chart redraws immediately; nothing here is persisted or presented as real
+// third-party data.
+function finPerfBenchmarkCard(ratios){
+  const defs = [
+    {key:'currentRatio', label:'Current Ratio', value: ratios.currentRatio, display: v=>fmtRatio(v)+'×', color:VIZ_COLORS[0]},
+    {key:'netMargin', label:'Net Profit Margin', value: ratios.netMargin, display: v=>fmtPct(v), color:VIZ_COLORS[1]},
+    {key:'roe', label:'Return on Equity', value: ratios.roe, display: v=>fmtPct(v), color:VIZ_COLORS[2]},
+    {key:'debtToEquity', label:'Debt-to-Equity', value: ratios.debtToEquity, display: v=>fmtRatio(v)+'×', color:VIZ_COLORS[3]},
+  ];
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Benchmarking / Peer Comparison</h2><span class="viz-sub">Bullet-style · vs a target you enter</span></div>
+      <div class="panel-body">
+        <p class="muted" style="font-size:11px;margin-top:0;">This system doesn't hold industry-average data, so enter whatever you want to compare against — a target, last year's own figure, or a competitor's published number — and the chart updates immediately.</p>
+        <div class="row" style="gap:14px;flex-wrap:wrap;">
+          ${defs.map(d=>`
+            <div style="flex:1;min-width:220px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <label style="font-size:11.5px;font-weight:600;margin:0;">${d.label}</label>
+                <input type="number" step="0.01" data-benchmark-key="${d.key}" value="${finPerfBenchmarks[d.key]!=null?finPerfBenchmarks[d.key]:''}" placeholder="Benchmark" style="width:90px;padding:4px 6px;font-size:12px;">
+              </div>
+              ${svgHBarChart([{label:d.label, value: d.value||0, display: d.display(d.value), color:d.color}], finPerfBenchmarks[d.key]!=null && finPerfBenchmarks[d.key]!=='' ? {benchmark:Number(finPerfBenchmarks[d.key]), benchmarkLabel:'Target', width:400} : {width:400})}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function finPerfBenchmarkInterpretation(ratios){
+  const notes = [];
+  const defs = [
+    {key:'currentRatio', label:'Current Ratio', value: ratios.currentRatio, higherIsBetter:true, unit:'×'},
+    {key:'netMargin', label:'Net Profit Margin', value: ratios.netMargin, higherIsBetter:true, unit:'%'},
+    {key:'roe', label:'Return on Equity', value: ratios.roe, higherIsBetter:true, unit:'%'},
+    {key:'debtToEquity', label:'Debt-to-Equity', value: ratios.debtToEquity, higherIsBetter:false, unit:'×'},
+  ];
+  const withBenchmarks = defs.filter(d=>finPerfBenchmarks[d.key]!=null && finPerfBenchmarks[d.key]!=='');
+  if(!withBenchmarks.length){ notes.push('Enter a benchmark value next to any ratio above to see how it compares here.'); return notes; }
+  withBenchmarks.forEach(d=>{
+    const bm = Number(finPerfBenchmarks[d.key]);
+    const val = d.value||0;
+    const ahead = d.higherIsBetter ? val>=bm : val<=bm;
+    notes.push(`${d.label} is ${val.toFixed(2)}${d.unit} against a benchmark of ${bm.toFixed(2)}${d.unit} — ${ahead?'at or ahead of':'behind'} target.`);
+  });
+  return notes;
+}
+
+// Assembles all nine sections into one page. `finPerfReportBody`'s id is the anchor
+// buildFinPerfExportDom() clones from for the Word/PDF exports below.
+function reportFinancialPerformance(){
+  const series = financialPerformanceFYSeries(6);
+  const cur = series[series.length-1];
+  const prev = series.length>1 ? series[series.length-2] : null;
+  const cf = cashFlowData();
+  const monthly = cashFlowMonthlySeries(12);
+  const cvp = cvpBreakdown(cur.is);
+  const varianceData = finPerfVarianceData();
+
+  const section = (num, title, sub, bodyHtml, notes) => `
+    <div class="section-title" style="margin-top:26px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+      <span>${num}. ${title}</span>${sub?`<span class="muted" style="font-size:11px;font-weight:500;">${sub}</span>`:''}
+    </div>
+    ${bodyHtml}
+    ${notes && notes.length ? `
+    <div class="panel" style="background:var(--surface-strong);">
+      <div class="panel-body">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);margin-bottom:8px;">Interpretation</div>
+        ${notes.map(n=>`<p style="font-size:12.5px;line-height:1.65;color:var(--ink);margin:0 0 8px;">${n}</p>`).join('')}
+      </div>
+    </div>` : ''}
+  `;
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <button class="btn secondary small" id="reportsBackBtn" type="button" style="margin-bottom:10px;">← Back to Reports</button>
+        <h1 style="font-family:inherit;font-weight:800;font-size:19px;margin:0;letter-spacing:-.02em;color:var(--ink);">Financial Performance Report</h1>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn secondary small" id="exportFinPerfPdfBtn" type="button">⬇ Download PDF</button>
+        <button class="btn secondary small" id="exportFinPerfWordBtn" type="button">⬇ Download Word</button>
+      </div>
+    </div>
+    <p class="muted" style="font-size:11.5px;margin-top:-2px;">A multi-technique read of financial performance built from your own posted financial statements — ${series.length>1?`FY ${series[0].fy} through FY ${cur.fy}`:`FY ${cur.fy} (only one financial year of data so far)`}.</p>
+
+    <div id="finPerfReportBody">
+      ${section(1, 'Trend Analysis (Time Series)', 'How Revenue, Profit and Expenses have moved over time', finPerfTrendCard(series), finPerfTrendInterpretation(series))}
+      ${prev ? section(2, 'Comparative / Horizontal Analysis', `FY ${prev.fy} vs FY ${cur.fy}`, finPerfComparativeCard(cur, prev), finPerfComparativeInterpretation(cur, prev)) : section(2, 'Comparative / Horizontal Analysis', null, `<div class="panel"><div class="panel-body"><div class="empty">Needs at least two financial years of data to compare — only FY ${cur.fy} exists so far.</div></div></div>`, [])}
+      ${section(3, 'Common-Size (Vertical) Analysis', 'Every Income Statement line as a % of Revenue', finPerfCommonSizeCard(series), finPerfCommonSizeInterpretation(cur, prev))}
+      ${section(4, 'Ratio Analysis', 'Liquidity, profitability, solvency and efficiency, at a glance', finPerfRatioSection(cur.ratios, series), finPerfRatioInterpretation(cur.ratios))}
+      ${section(5, 'DuPont Analysis', 'Decomposing Return on Equity', finPerfDuPontCard(cur, prev), finPerfDuPontInterpretation(cur, prev))}
+      ${section(6, 'Cash Flow Analysis', 'Operating, Investing and Financing cash flows', `
+        <div class="viz-grid">
+          ${cashFlowClusteredColumnCard(monthly)}
+          ${cashFlowOperatingTrendCard(monthly)}
+        </div>
+        ${cashFlowWaterfallCard(cf)}
+      `, finPerfCashFlowInterpretation(cf))}
+      ${section(7, 'Variance Analysis (Budget vs Actual)', null, finPerfVarianceCard(varianceData), finPerfVarianceInterpretation(varianceData))}
+      ${section(8, 'Break-even / Cost-Volume-Profit Analysis', `FY ${cur.fy}`, finPerfCvpCard(cvp), finPerfCvpInterpretation(cvp))}
+      ${section(9, 'Benchmarking / Peer Comparison', null, finPerfBenchmarkCard(cur.ratios), finPerfBenchmarkInterpretation(cur.ratios))}
+    </div>
+    <p class="muted" style="font-size:10.5px;margin-top:18px;">Cost of Sales is treated as the variable cost and every other expense bucket as fixed for the Break-even analysis — the standard simplifying assumption for a ledger-based system with no per-unit sales-quantity data. Benchmarking figures are whatever you type in above — this system holds no industry-average data of its own.</p>
+  `;
+}
+
+/* ---- Financial Performance Report exports (PDF + Word) ----
+   Both share one export DOM (buildFinPerfExportDom()): clone #finPerfReportBody, rasterize every
+   live chart <svg> to a PNG via svgToPngDataUrl() (so the same picture works in both), swap each
+   benchmark <input> for its typed value as plain text, and drop buttons. PDF reuses
+   printHTMLDocument() (a real browser print of that HTML, via a hidden iframe); Word is the
+   HTML-served-as-.doc trick (Word opens HTML content directly under an .msword MIME type/extension)
+   — both need their own compact, self-contained stylesheet since neither a print iframe nor Word
+   has access to this app's own <style> block (var(--token) colors chief among them). */
+const FIN_PERF_EXPORT_CSS = `
+  body{font-family:'Calibri','Segoe UI',Arial,sans-serif;color:#1B2420;margin:24px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  h2{font-size:14px;margin:0;display:inline;}
+  .section-title{font-size:14px;font-weight:700;margin:22px 0 10px;color:#1B2420;}
+  .panel{border:1px solid #C7D2CB;border-radius:6px;margin-bottom:14px;}
+  .panel-head{padding:10px 14px;border-bottom:1px solid #E1E7E3;background:#EEF3EF;}
+  .panel-body{padding:12px 14px;}
+  .viz-sub{font-size:10px;color:#8B978F;font-weight:600;float:right;}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  th,td{padding:6px 8px;border-bottom:1px solid #E1E7E3;text-align:left;}
+  th{background:#EEF3EF;font-weight:700;}
+  td.num, th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .pos{color:#2CA01C;} .neg{color:#D64545;}
+  .muted{color:#5C6B62;}
+  .empty{color:#8B978F;font-style:italic;padding:10px 0;}
+  .viz-kpi-row{margin:0 0 10px;}
+  .viz-kpi{display:inline-block;width:22%;min-width:150px;vertical-align:top;margin:0 8px 10px 0;border:1px solid #E1E7E3;border-radius:6px;padding:10px 12px;background:#EEF3EF;}
+  .viz-kpi-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:#8B978F;font-weight:700;margin-bottom:4px;}
+  .viz-kpi-val{font-size:15px;font-weight:800;}
+  .viz-legend{margin-top:8px;font-size:10.5px;}
+  .viz-legend-item{display:inline-block;margin-right:16px;}
+  .viz-legend-swatch{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;}
+  img{max-width:100%;}
+  @media print{ .panel{page-break-inside:avoid;} }
+`;
+async function buildFinPerfExportDom(){
+  const src = document.getElementById('finPerfReportBody');
+  if(!src) return null;
+  const clone = src.cloneNode(true);
+  const liveSvgs = Array.from(src.querySelectorAll('svg'));
+  const cloneSvgs = Array.from(clone.querySelectorAll('svg'));
+  for(let i=0;i<liveSvgs.length;i++){
+    try{
+      const dataUrl = await svgToPngDataUrl(liveSvgs[i]);
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      cloneSvgs[i].replaceWith(img);
+    }catch(e){ /* leave the live svg markup in the clone as a fallback if rasterizing ever fails */ }
+  }
+  clone.querySelectorAll('input[data-benchmark-key]').forEach(el=>{
+    const span = document.createElement('span');
+    span.textContent = el.value ? el.value : '(not set)';
+    span.style.fontWeight = '700';
+    el.replaceWith(span);
+  });
+  clone.querySelectorAll('button').forEach(el=>el.remove());
+  return clone;
+}
+function finPerfExportDocumentHtml(bodyHtml){
+  return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Financial Performance Report</title><style>${FIN_PERF_EXPORT_CSS}</style></head><body>
+    <h1>Financial Performance Report</h1>
+    <p class="muted" style="margin-top:-2px;">${escapeHtml(currentCompany?currentCompany.name:'')} · Generated ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</p>
+    ${bodyHtml}
+  </body></html>`;
+}
+async function exportFinancialPerformanceToPdf(){
+  const btn = document.getElementById('exportFinPerfPdfBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const clone = await buildFinPerfExportDom();
+    if(!clone){ toast('Could not prepare the report for export.'); return; }
+    printHTMLDocument(finPerfExportDocumentHtml(clone.innerHTML));
+  } finally { if(btn) btn.disabled = false; }
+}
+async function exportFinancialPerformanceToWord(){
+  const btn = document.getElementById('exportFinPerfWordBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const clone = await buildFinPerfExportDom();
+    if(!clone){ toast('Could not prepare the report for export.'); return; }
+    const html = finPerfExportDocumentHtml(clone.innerHTML);
+    const blob = new Blob(['﻿', html], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Financial Performance Report - ${((currentCompany&&currentCompany.name)||'Company').replace(/[^a-z0-9]+/gi,'_')}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  } finally { if(btn) btn.disabled = false; }
 }
 
 // Every TDS/TCS split recorded via the voucher form's TDS/TCS panel (see taxDeductionPanel() and the
@@ -19322,6 +20073,16 @@ function attachHandlers(){
     document.getElementById('exportCostCenterBtn')?.addEventListener('click', exportCostCenterToExcel);
     document.getElementById('exportBudgetBtn')?.addEventListener('click', exportBudgetVsActualToExcel);
     document.getElementById('budgetFYSelect')?.addEventListener('change', e=>{ budgetReportFY = e.target.value; render(); });
+    document.getElementById('exportFinPerfPdfBtn')?.addEventListener('click', exportFinancialPerformanceToPdf);
+    document.getElementById('exportFinPerfWordBtn')?.addEventListener('click', exportFinancialPerformanceToWord);
+    document.querySelectorAll('[data-benchmark-key]').forEach(el=>{
+      // 'change' (fires on blur/Enter), not 'input' — a full render() on every keystroke would drop
+      // focus mid-type, same class of bug as the show/hide password fix elsewhere in this file.
+      el.addEventListener('change', (e)=>{
+        finPerfBenchmarks[el.dataset.benchmarkKey] = e.target.value;
+        render();
+      });
+    });
     document.querySelectorAll('[data-open-report]').forEach(el=>{
       el.addEventListener('click', ()=>{
         reportsSelected = el.dataset.openReport;
@@ -19571,6 +20332,20 @@ function setupHistoryRoot(){
 (async function init(){
   try{ const n = await window.storage.get('lastUsername'); lastUsername = n ? n.value : ''; }catch(e){ lastUsername = ''; }
   authMode = 'login';
+
+  // A password-reset link (Forgot Password, or an admin's Reset Password button) also wins over
+  // session restore, same as the verification link below -- handled fully in-app now instead of
+  // Firebase's generic hosted action page (see handlePasswordResetLink()/renderPasswordResetCard()).
+  const urlParams = new URLSearchParams(window.location.search);
+  if(urlParams.get('mode')==='resetPassword' && urlParams.get('oobCode')){
+    sessionRestoreDone = true;
+    screen = 'login';
+    await handlePasswordResetLink(urlParams.get('oobCode'));
+    try{ window.history.replaceState({}, document.title, window.location.pathname); }catch(e){}
+    renderLogin();
+    setupHistoryRoot();
+    return;
+  }
 
   // An email-verification link click always wins over session restore -- honour it even if this
   // browser already has another session open.
