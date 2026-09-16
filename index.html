@@ -8624,8 +8624,20 @@ function renderLogin(){
     document.getElementById('authEmail')?.focus();
   });
   document.getElementById('authTogglePw')?.addEventListener('click', ()=>{
+    // Flip the type on the EXISTING input nodes directly instead of calling renderLogin() — a full
+    // re-render rebuilds authPassword (and authConfirmPassword, on the signup step) from a template
+    // that has no `value="..."` binding (submitAuth reads straight from the live DOM value instead —
+    // see below), so re-rendering silently wiped out whatever the person had already typed the
+    // moment they clicked Show. Mutating .type in place preserves the typed value, the cursor
+    // position, and focus.
     authShowPassword = !authShowPassword;
-    renderLogin();
+    const newType = authShowPassword ? 'text' : 'password';
+    const btn = document.getElementById('authTogglePw');
+    if(btn) btn.textContent = authShowPassword ? 'Hide' : 'Show';
+    ['authPassword','authConfirmPassword'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.type = newType;
+    });
   });
   document.getElementById('authMobile')?.addEventListener('input', (e)=>{
     e.target.value = e.target.value.replace(/\D/g,'').slice(0,10);
