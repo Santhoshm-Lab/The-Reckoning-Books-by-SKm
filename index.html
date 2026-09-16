@@ -2056,6 +2056,14 @@ let ledgerUsageHistory = (function(){ try{ return JSON.parse(localStorage.getIte
 let gstShowMonthCompare = false; // toggles the "Compare to Last Month" panel on the GST tab
 let activeFY = null; // FY label (e.g. '2025-26') the user has chosen to view for the open company; null = "All Years" (no filter, the original all-time behaviour)
 let vform = null; // active voucher form draft
+// POS / Quick Sale -- a single fast counter-sale screen that posts a normal Sales voucher through the
+// exact same entries/stock logic as the full Voucher form (see completePOSSale()), just without the
+// multi-step GST Calculator flow. `pos` is the in-progress cart, analogous to `vform` for the full
+// voucher form. `posHeld` is an in-memory queue of parked carts so a counter can juggle more than one
+// customer at once -- deliberately never persisted to Firestore (these are drafts, not postings), so
+// it clears on logout/refresh like any other unsaved draft.
+let pos = null; // null = POS tab not yet opened this session | {items,customerId,collectPayment,tenderLedgerId,amountTendered,supply,gstRate,search,groupFilter}
+let posHeld = [];
 let quickLedgerFocus = null; // remembers which ledger field to fill after creating a ledger from within the voucher form: {type:'entry', index} | {type:'single', which:'A'|'B'}
 let calState = { year: new Date().getFullYear(), month: new Date().getMonth(), selected: new Date().toISOString().slice(0,10) };
 let companies = [];
@@ -2161,13 +2169,13 @@ let contactSupportNotice = '';
 let helpTab = 'info';    // 'info' | 'tickets' — which section is active inside the tabbed Help modal
 let myTickets = [];      // cache of the current user's own support tickets, loaded when the Tickets tab opens
 let myTicketUpdateIds = new Set(); // "<ticketId>_<updatedAt>" keys already toasted this session — avoids re-toasting the same admin update on every 30s poll, while still catching the NEXT update to that same ticket
-const DEFAULT_FEATURE_FLAGS = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false, gstRequiresPaid:false, assetsRequiresPaid:false, partiesRequiresPaid:false, ordersRequiresPaid:false, payrollRequiresPaid:false };
+const DEFAULT_FEATURE_FLAGS = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false, gstRequiresPaid:false, assetsRequiresPaid:false, partiesRequiresPaid:false, ordersRequiresPaid:false, payrollRequiresPaid:false, posRequiresPaid:false };
 let featureFlags = { ...DEFAULT_FEATURE_FLAGS }; // settings/featureFlags doc
 let featureFlagsDraft = { ...DEFAULT_FEATURE_FLAGS };
 // Which sidebar tabs can be paid-gated, and the settings/featureFlags field that gates each one.
 // Single source of truth used by tab(), goToTab(), renderView() and the Admin Panel toggles below.
-const GATED_TABS = { inventory:'inventoryRequiresPaid', reconcile:'reconcileRequiresPaid', gst:'gstRequiresPaid', assets:'assetsRequiresPaid', parties:'partiesRequiresPaid', orders:'ordersRequiresPaid', payroll:'payrollRequiresPaid' };
-const GATED_TAB_LABELS = { inventory:'Inventory Control', reconcile:'Reconcile', gst:'GST', assets:'Assets', parties:'Parties', orders:'Orders', payroll:'Payroll Management' };
+const GATED_TABS = { inventory:'inventoryRequiresPaid', reconcile:'reconcileRequiresPaid', gst:'gstRequiresPaid', assets:'assetsRequiresPaid', parties:'partiesRequiresPaid', orders:'ordersRequiresPaid', payroll:'payrollRequiresPaid', pos:'posRequiresPaid' };
+const GATED_TAB_LABELS = { inventory:'Inventory Control', reconcile:'Reconcile', gst:'GST', assets:'Assets', parties:'Parties', orders:'Orders', payroll:'Payroll Management', pos:'POS / Quick Sale' };
 // Every feature that can be individually granted to ONE account via Feature Overrides, regardless
 // of their plan -- this is GATED_TAB_LABELS (the sidebar tabs) plus 'import', which is gated the
 // same way but lives inside Backup & Restore rather than being its own tab. Single source of truth
@@ -4377,6 +4385,22 @@ function ensureTaxLedger(kind){
   const name = kind==='TCS' ? 'TCS Payable' : 'TDS Payable';
   let l = state.ledgers.find(x=>x.name===name && bucketOf(x)==='curl');
   if(!l){ l = {id:uid('l'), name, group:'duties', opening:0}; state.ledgers.push(l); saveLedgers(); }
+  return l.id;
+}
+// Standing "Walk-in Customer" ledger for POS Quick Sale -- auto-created once per company the first
+// time it's actually needed (same find-or-create pattern as ensureTaxLedger() above), so a counter
+// sale never has to stop and ask "which customer?" before it can post.
+function ensureWalkInCustomerLedger(){
+  let l = state.ledgers.find(x=>x.name==='Walk-in Customer' && bucketOf(x)==='ca');
+  if(!l){ l = {id:uid('l'), name:'Walk-in Customer', group:'sundeb', opening:0, partyType:'customer'}; state.ledgers.push(l); saveLedgers(); }
+  return l.id;
+}
+// Standing Sales ledger POS posts against by default. Reuses any ledger the company already has
+// under the Sales Accounts group (bucket 'sales') rather than fragmenting sales reporting across two
+// ledgers -- only creates a new one if the company has never recorded a sale through any screen yet.
+function ensureDefaultSalesLedger(){
+  let l = state.ledgers.find(x=>bucketOf(x)==='sales');
+  if(!l){ l = {id:uid('l'), name:'Sales Account', group:'sales', opening:0}; state.ledgers.push(l); saveLedgers(); }
   return l.id;
 }
 async function postDepreciationForFY(assetId, fyLabel){
@@ -6898,6 +6922,7 @@ function render(){
       <div class="tabstrip">
         ${tab('dashboard','Dashboard','D')}
         ${tab('voucher','Voucher','V')}
+        ${tab('pos','POS / Quick Sale','Q')}
         ${tab('daybook','Day Book','B')}
         ${tab('calendar','Calendar','C')}
         ${tab('ledgers','Ledgers','L')}
@@ -7200,6 +7225,7 @@ function tabIcon(id){
     parties: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     orders: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
     payroll: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/><line x1="12" y1="12" x2="12" y2="12.01"/>',
+    pos: '<circle cx="9" cy="21" r="1.5"/><circle cx="19" cy="21" r="1.5"/><path d="M1 3h3l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
   };
   return `<svg class="tab-icon" viewBox="0 0 24 24">${icons[id]||''}</svg>`;
 }
@@ -7214,7 +7240,7 @@ function tab(id,label,shortcutLetter){
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
    inside a text field/dropdown, and no modal is covering the tabs. */
-const TAB_SHORTCUTS = { d:'dashboard', v:'voucher', b:'daybook', c:'calendar', l:'ledgers', a:'coa', i:'inventory', r:'reports', g:'gst', e:'reconcile', s:'assets', p:'parties', o:'orders', y:'payroll' };
+const TAB_SHORTCUTS = { d:'dashboard', v:'voucher', b:'daybook', c:'calendar', l:'ledgers', a:'coa', i:'inventory', r:'reports', g:'gst', e:'reconcile', s:'assets', p:'parties', o:'orders', y:'payroll', q:'pos' };
 function goToTab(id){
   if(!id || view===id) return;
   if(isTabGated(id)){
@@ -7224,6 +7250,7 @@ function goToTab(id){
   view = id;
   if(view==='reports') reportsSelected = null;
   if(view==='dashboard') dashCountersAnimated = false; // count up again each time you land on the Dashboard
+  if(view==='pos' && !pos) pos = newPosCart(); // fresh cart the first time POS is opened this session
   if(currentCompany){ try{ localStorage.setItem('rb_lastTab_'+currentCompany.id, id); }catch(e){} }
   render();
   pushHistory();
@@ -10083,14 +10110,15 @@ function renderGateway(){
       const partiesRequiresPaid = document.getElementById('flagParties').checked;
       const ordersRequiresPaid = document.getElementById('flagOrders').checked;
       const payrollRequiresPaid = document.getElementById('flagPayroll').checked;
+      const posRequiresPaid = document.getElementById('flagPOS').checked;
       const btn = document.getElementById('saveFeatureFlagsBtn');
       btn.disabled = true;
       try{
-        const newFlags = { inventoryRequiresPaid, importRequiresPaid, reconcileRequiresPaid, gstRequiresPaid, assetsRequiresPaid, partiesRequiresPaid, ordersRequiresPaid, payrollRequiresPaid };
+        const newFlags = { inventoryRequiresPaid, importRequiresPaid, reconcileRequiresPaid, gstRequiresPaid, assetsRequiresPaid, partiesRequiresPaid, ordersRequiresPaid, payrollRequiresPaid, posRequiresPaid };
         await db.collection('settings').doc('featureFlags').set({ ...newFlags, updatedAt: new Date().toISOString() }, {merge:true});
         featureFlags = { ...newFlags };
         featureFlagsDraft = { ...featureFlags };
-        await logAudit('feature_flags_updated', `Inventory:${inventoryRequiresPaid} Import:${importRequiresPaid} Reconcile:${reconcileRequiresPaid} GST:${gstRequiresPaid} Assets:${assetsRequiresPaid} Parties:${partiesRequiresPaid} Orders:${ordersRequiresPaid} Payroll:${payrollRequiresPaid}`);
+        await logAudit('feature_flags_updated', `Inventory:${inventoryRequiresPaid} Import:${importRequiresPaid} Reconcile:${reconcileRequiresPaid} GST:${gstRequiresPaid} Assets:${assetsRequiresPaid} Parties:${partiesRequiresPaid} Orders:${ordersRequiresPaid} Payroll:${payrollRequiresPaid} POS:${posRequiresPaid}`);
         toast('Feature flags saved');
         renderGateway();
       }catch(err){
@@ -11083,6 +11111,9 @@ function adminSettingsTab(){
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
       <input type="checkbox" id="flagPayroll" style="width:auto;" ${featureFlagsDraft.payrollRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>Payroll Management</strong>
     </label>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:8px;">
+      <input type="checkbox" id="flagPOS" style="width:auto;" ${featureFlagsDraft.posRequiresPaid?'checked':''} ${isFullAdmin()?'':'disabled'}> Require a Paid/Lifetime plan for <strong>POS / Quick Sale</strong>
+    </label>
     <button class="btn secondary small" id="saveFeatureFlagsBtn" type="button" style="margin-top:10px;" ${isFullAdmin()?'':'disabled'}>Save Feature Flags</button>
 
     <div class="section-title">Per-User Feature Access</div>
@@ -11946,6 +11977,7 @@ function renderView(){
     case 'parties': return viewParties();
     case 'orders': return viewOrders();
     case 'payroll': return viewPayroll();
+    case 'pos': return viewPOS();
     default: return '';
   }
 }
@@ -14644,6 +14676,262 @@ function itemLineAmount(it){
 function itemsSubtotal(items){
   return (items||[]).reduce((s,it)=> s + itemLineAmount(it), 0);
 }
+/* ---------------- POS / Quick Sale ----------------
+   A fast, single-screen counter-sale flow. It deliberately does NOT introduce a new voucher type or
+   a parallel posting engine -- completePOSSale() below builds exactly the same kind of Sales voucher
+   (same entries shape, same v.items shape) that the full Voucher form's GST Calculator produces via
+   its "Add to Voucher" button (see the applyGST click handler), so Day Book, GST reports, stock
+   movement and the Financial Performance Report all keep working unmodified. What's new is only the
+   UI: an item grid/search instead of row-by-row item entry, a walk-in-customer default, and a
+   tender/change panel. */
+function newPosCart(){
+  return {
+    items: [],            // [{itemId, name, qty, rate, disc}] -- same shape as vform.gst.items / v.items
+    customerId: null,     // null = Walk-in Customer (ledger resolved lazily on Complete Sale)
+    collectPayment: true, // false = sell on account -- posts to the customer's ledger instead of Cash/Bank
+    tenderLedgerId: 'l_cash',
+    amountTendered: '',
+    supply: 'intra',      // 'intra' (CGST+SGST) | 'inter' (IGST)
+    gstRate: 18,
+    search: '',
+    groupFilter: '',
+  };
+}
+function posAddItemToCart(itemId){
+  if(!pos) pos = newPosCart();
+  const item = state.items.find(x=>x.id===itemId);
+  if(!item) return;
+  const existing = pos.items.find(l=>l.itemId===itemId);
+  if(existing){ existing.qty = (Number(existing.qty)||0) + 1; }
+  else { pos.items.push({itemId:item.id, name:item.name, qty:1, rate: item.rate!=null?item.rate:(item.openingRate||0), disc:0}); }
+}
+function posCartTotals(){
+  const subtotal = itemsSubtotal(pos.items);
+  const rate = Number(pos.gstRate)||0;
+  const taxVal = r2(subtotal*rate/100);
+  const total = r2(subtotal+taxVal);
+  return { subtotal, rate, taxVal, total };
+}
+// Re-renders just the cart's totals/change-due DOM after a qty or amount-tendered keystroke, so
+// typing a number doesn't lose input focus the way a full render() would -- same convention
+// updateItemsTotals()/renderTotalsOnly() use for the regular Voucher form's own numeric fields.
+function updatePosTotals(){
+  if(!pos) return;
+  document.querySelectorAll('#posCartLines .pos-line-amount').forEach((el,i)=>{
+    const it = pos.items[i];
+    if(it) el.textContent = '₹'+fmt(itemLineAmount(it));
+  });
+  const { subtotal, rate, taxVal, total } = posCartTotals();
+  const subEl = document.getElementById('posSubtotal'); if(subEl) subEl.textContent = '₹'+fmt(subtotal);
+  const taxEl = document.getElementById('posTaxLine');
+  if(taxEl) taxEl.innerHTML = taxVal>0 ? `<span class="muted">${pos.supply==='intra'?`CGST+SGST @ ${rate}%`:`IGST @ ${rate}%`}</span><span>₹${fmt(taxVal)}</span>` : '';
+  const grandEl = document.getElementById('posGrandTotal'); if(grandEl) grandEl.textContent = '₹'+fmt(total);
+  const tenderedInput = document.getElementById('posAmountTendered');
+  const tendered = tenderedInput ? (Number(tenderedInput.value)||0) : 0;
+  const changeEl = document.getElementById('posChangeLine');
+  if(changeEl){
+    changeEl.className = 'totals-line ' + (tendered>=total ? 'balanced' : 'unbalanced');
+    changeEl.innerHTML = `<span>${tendered>=total?'Change Due':'Amount Due'}</span><span>₹${fmt(Math.abs(r2(tendered-total)))}</span>`;
+  }
+  const completeBtn = document.getElementById('posCompleteSale');
+  if(completeBtn) completeBtn.disabled = !pos.items.length || isReadOnlyMode();
+}
+function posHoldCurrentSale(){
+  if(!pos || !pos.items.length) return;
+  posHeld.push(pos);
+  pos = newPosCart();
+  toast('Sale held — pick it up again from the Held Sales row');
+  render();
+}
+function posRecallHeldSale(idx){
+  const held = posHeld[idx];
+  if(!held) return;
+  if(pos && pos.items.length){ posHeld.push(pos); } // don't lose whatever was already on the counter
+  posHeld.splice(idx,1);
+  pos = held;
+  render();
+}
+
+function viewPOS(){
+  if(!pos) pos = newPosCart();
+  const itemGroups = Array.from(new Set(state.items.map(it=>it.group).filter(Boolean))).sort();
+  const q = (pos.search||'').trim().toLowerCase();
+  const filteredItems = state.items.filter(it=>
+    (!pos.groupFilter || it.group===pos.groupFilter) &&
+    (!q || it.name.toLowerCase().includes(q) || (it.barcode && it.barcode.toLowerCase().includes(q)) || (it.hsn && it.hsn.toLowerCase().includes(q)))
+  );
+  const { subtotal, rate, taxVal, total } = posCartTotals();
+  const tendered = Number(pos.amountTendered)||0;
+  const customerLedgers = state.ledgers.filter(l=>l.partyType==='customer' && l.name!=='Walk-in Customer');
+
+  return `
+    ${masthead('POS / Quick Sale', 'Ring up a counter sale — pick items, take payment, print the bill')}
+    ${posHeld.length ? `
+    <div class="panel" style="border-color:var(--gold);margin-bottom:14px;">
+      <div class="panel-body" style="padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <strong style="font-size:12px;">⏸ Held Sales</strong>
+        ${posHeld.map((h,i)=>`<button class="btn secondary small" data-pos-recall="${i}" type="button">${h.items.length} item${h.items.length===1?'':'s'} — ₹${fmt(itemsSubtotal(h.items))}</button>`).join('')}
+      </div>
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start;">
+      <div>
+        <div class="field"><input type="text" id="posSearchInput" placeholder="Scan a barcode, or search items by name…" value="${escapeAttr(pos.search)}" autocomplete="off"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px;">
+          <button class="btn ${pos.groupFilter?'secondary':''} small" data-pos-group-filter="" type="button">All</button>
+          ${itemGroups.map(g=>`<button class="btn ${pos.groupFilter===g?'':'secondary'} small" data-pos-group-filter="${escapeAttr(g)}" type="button">${escapeHtml(g)}</button>`).join('')}
+        </div>
+        ${filteredItems.length ? `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+          ${filteredItems.map(it=>{
+            const stock = stockSummaryForItem(it).closing;
+            const out = stock<=0;
+            return `<button class="btn secondary" data-pos-add-item="${it.id}" type="button" style="height:auto;padding:12px;text-align:left;display:flex;flex-direction:column;gap:5px;align-items:flex-start;${out?'opacity:.6;':''}">
+              <span style="font-weight:700;font-size:12.5px;">${escapeHtml(it.name)}</span>
+              <span class="muted" style="font-size:11px;">₹${fmt(it.rate!=null?it.rate:(it.openingRate||0))}${it.unit?' / '+escapeHtml(it.unit):''}</span>
+              <span class="pill ${out?'neg':'pos'}" style="font-size:10px;">${out?'Out of stock':fmt(stock)+' in stock'}</span>
+            </button>`;
+          }).join('')}
+        </div>` : emptyState({icon:'🔍', title:'No items match', text:'Try a different search, or add items under Accounts → Item Master.'})}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Cart</h2><span class="muted" style="font-size:11.5px;">${pos.items.length} line${pos.items.length===1?'':'s'}</span></div>
+        <div class="panel-body">
+          <div id="posCartLines">
+            ${pos.items.length ? pos.items.map((it,i)=>`
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(it.name)}</div>
+                  <div class="muted" style="font-size:10.5px;">₹${fmt(it.rate)} each</div>
+                </div>
+                <button class="btn secondary small" data-pos-qty-dec="${i}" type="button" style="padding:2px 8px;">−</button>
+                <input type="number" class="pos-qty-input" data-i="${i}" value="${it.qty}" min="1" step="1" style="width:46px;text-align:center;padding:4px;">
+                <button class="btn secondary small" data-pos-qty-inc="${i}" type="button" style="padding:2px 8px;">+</button>
+                <div class="pos-line-amount" style="width:76px;text-align:right;font-weight:700;font-size:12.5px;">₹${fmt(itemLineAmount(it))}</div>
+                <button class="btn secondary small" data-pos-remove-item="${i}" type="button" style="color:var(--debit);padding:2px 8px;" title="Remove">✕</button>
+              </div>`).join('') : `<p class="muted" style="font-size:12.5px;margin:6px 0;">Tap an item to add it to the cart.</p>`}
+          </div>
+
+          <details class="disclosure" style="margin-top:10px;">
+            <summary>GST — ${rate}%, ${pos.supply==='intra'?'Intrastate':'Interstate'}</summary>
+            <div class="disclosure-body row">
+              <div class="field" style="max-width:110px;"><label>GST Rate</label>
+                <select id="posGstRate">${[0,5,12,18,28].map(r=>`<option value="${r}" ${Number(pos.gstRate)===r?'selected':''}>${r}%</option>`).join('')}</select>
+              </div>
+              <div class="field" style="max-width:190px;"><label>Supply Type</label>
+                <select id="posSupply">
+                  <option value="intra" ${pos.supply==='intra'?'selected':''}>Intrastate (CGST+SGST)</option>
+                  <option value="inter" ${pos.supply==='inter'?'selected':''}>Interstate (IGST)</option>
+                </select>
+              </div>
+            </div>
+          </details>
+
+          <div class="totals-line" style="justify-content:space-between;margin-top:10px;"><span class="muted">Subtotal</span><span id="posSubtotal">₹${fmt(subtotal)}</span></div>
+          <div class="totals-line" id="posTaxLine" style="justify-content:space-between;">${taxVal>0 ? `<span class="muted">${pos.supply==='intra'?`CGST+SGST @ ${rate}%`:`IGST @ ${rate}%`}</span><span>₹${fmt(taxVal)}</span>` : ''}</div>
+          <div class="totals-line balanced" style="justify-content:space-between;font-size:16px;font-weight:700;"><span>Grand Total</span><span id="posGrandTotal">₹${fmt(total)}</span></div>
+
+          <div class="field" style="margin-top:12px;"><label>Customer</label>
+            <select id="posCustomer">
+              <option value="">Walk-in Customer</option>
+              ${customerLedgers.map(l=>`<option value="${l.id}" ${pos.customerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+            </select>
+          </div>
+
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;font-weight:500;margin:10px 0;">
+            <input type="checkbox" id="posCollectPayment" style="width:auto;" ${pos.collectPayment?'checked':''}> Collect payment now
+          </label>
+
+          ${pos.collectPayment ? `
+          <div class="row">
+            <div class="field"><label>Tender</label>
+              <select id="posTenderLedger">
+                ${state.ledgers.filter(l=>['cash','bank'].includes(bucketOf(l))).map(l=>`<option value="${l.id}" ${pos.tenderLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field" style="max-width:150px;"><label>Amount Tendered</label><input type="number" id="posAmountTendered" value="${pos.amountTendered}" step="0.01" placeholder="${fmt(total)}"></div>
+          </div>
+          <div class="totals-line ${tendered>=total?'balanced':'unbalanced'}" id="posChangeLine" style="justify-content:space-between;">
+            <span>${tendered>=total?'Change Due':'Amount Due'}</span><span>₹${fmt(Math.abs(r2(tendered-total)))}</span>
+          </div>` : `<p class="muted" style="font-size:11.5px;">Posts the full amount to the customer's ledger as a receivable — no Cash/Bank movement recorded now.</p>`}
+
+          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:11.5px;font-weight:500;margin-top:10px;">
+            <input type="checkbox" id="posAlwaysPrint" style="width:auto;" ${currentCompany.posAlwaysPrint!==false?'checked':''}> Print invoice automatically after each sale
+          </label>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+            <button class="btn" id="posCompleteSale" type="button" ${(pos.items.length && !isReadOnlyMode())?'':'disabled'}>✅ Complete Sale</button>
+            <button class="btn secondary" id="posHoldSale" type="button" ${pos.items.length?'':'disabled'}>⏸ Hold</button>
+            <button class="btn secondary" id="posClearCart" type="button" ${pos.items.length?'':'disabled'}>Clear</button>
+          </div>
+          ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:8px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Posts the cart as a normal Sales voucher -- same entries/items shape the GST Calculator's "Add to
+// Voucher" button builds (see the applyGST click handler above the regular Voucher form), so
+// everything downstream (Day Book, GST reports, stock movement, the Financial Performance Report)
+// treats it exactly like any other Sales voucher. Only the source differs: a cart built from the POS
+// item grid instead of the row-by-row GST Calculator.
+async function completePOSSale(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  if(!pos) return;
+  const lines = pos.items.filter(it=>it.itemId && (Number(it.qty)||0)>0);
+  if(!lines.length){ toast('Add at least one item to the cart'); return; }
+  const dateStr = new Date().toISOString().slice(0,10);
+  if(currentCompany.lockDate && dateStr <= currentCompany.lockDate){
+    toast(`Vouchers dated on or before ${currentCompany.lockDate} are locked. Change the lock date from Edit Company.`);
+    return;
+  }
+  const customerId = pos.customerId || ensureWalkInCustomerLedger();
+  const salesLedgerId = ensureDefaultSalesLedger();
+  const { subtotal, taxVal, total } = posCartTotals();
+
+  const stockWarning = stockWarningFor('Sales', lines, null);
+  if(stockWarning && !confirm(stockWarning + '\n\nComplete the sale anyway?')) return;
+
+  // Always post a standard Sales voucher -- Dr the customer ledger for the full total, Cr Sales + GST
+  // output -- identical in shape to what the GST Calculator's "Add to Voucher" button produces (see
+  // the applyGST handler), so voucherAmount()/gstBreakdownForVoucher()/printInvoiceForVoucher() (which
+  // reads the Dr-side entry as the invoice's "Bill To" party) all work on it unmodified. Collecting
+  // payment immediately is recorded as a SEPARATE Receipt voucher (Dr Cash/Bank, Cr customer) rather
+  // than folded into the same voucher: every report that reads a voucher's total via voucherAmount()
+  // sums ALL of its Dr entries, so combining "invoice" and "payment" into one voucher would silently
+  // double the sale total everywhere from the Dashboard to the GST reports. Two same-day vouchers is
+  // exactly what a cashier manually entering Sales + Receipt would produce anyway, and it keeps the
+  // customer ledger's own FIFO invoice/payment matching (partyOutstandingInvoices()) correct too.
+  const salesEntries = [{ledgerId:customerId, dr:total, cr:0}, {ledgerId:salesLedgerId, dr:0, cr:subtotal}];
+  if(pos.supply==='intra' && taxVal>0){
+    salesEntries.push({ledgerId:'l_ocgst', dr:0, cr:r2(taxVal/2)});
+    salesEntries.push({ledgerId:'l_osgst', dr:0, cr:r2(taxVal/2)});
+  } else if(taxVal>0){
+    salesEntries.push({ledgerId:'l_oigst', dr:0, cr:taxVal});
+  }
+  const appliedItems = lines.map(it=>({itemId:it.itemId, name:it.name, qty:Number(it.qty)||0, rate:Number(it.rate)||0, disc:Number(it.disc)||0}));
+  const now = new Date().toISOString();
+  const saleVoucher = { id: uid('v'), date: dateStr, type:'Sales', narration:'POS Quick Sale', channel:'In-Store', entries: salesEntries, items: appliedItems, createdAt: now };
+  state.vouchers.push(saleVoucher);
+
+  let receiptVoucher = null;
+  if(pos.collectPayment){
+    const tenderLedgerId = pos.tenderLedgerId || 'l_cash';
+    receiptVoucher = { id: uid('v'), date: dateStr, type:'Receipt', narration:'POS Quick Sale — payment received', entries:[{ledgerId:tenderLedgerId, dr:total, cr:0},{ledgerId:customerId, dr:0, cr:total}], createdAt: new Date().toISOString() };
+    state.vouchers.push(receiptVoucher);
+  }
+
+  await saveVouchers();
+  salesEntries.forEach(e=> trackLedgerUsage('Sales', e.ledgerId));
+  if(receiptVoucher) receiptVoucher.entries.forEach(e=> trackLedgerUsage('Receipt', e.ledgerId));
+
+  const shouldPrint = currentCompany.posAlwaysPrint !== false;
+  toast(`Sale completed — ₹${fmt(total)}`);
+  pos = newPosCart();
+  render();
+  if(shouldPrint) printInvoiceForVoucher(saleVoucher.id);
+}
+
 function itemRow(it,i){
   const isCustom = !it.itemId || it.itemId==='__custom__';
   const catalogItem = !isCustom ? state.items.find(m=>m.id===it.itemId) : null;
@@ -19471,6 +19759,82 @@ function attachHandlers(){
       vform = null;
       view = 'daybook';
       render();
+    });
+  }
+
+  if(view==='pos'){
+    const searchInput = document.getElementById('posSearchInput');
+    if(searchInput){
+      searchInput.addEventListener('input', e=>{
+        pos.search = e.target.value;
+        const caret = e.target.selectionStart;
+        render();
+        const el = document.getElementById('posSearchInput');
+        if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+      });
+      // Enter first tries an exact barcode match (scanner behaviour), then falls back to adding the
+      // single remaining item when the typed text has already narrowed the grid down to just one.
+      searchInput.addEventListener('keydown', e=>{
+        if(e.key!=='Enter') return;
+        e.preventDefault();
+        const q = searchInput.value.trim().toLowerCase();
+        if(!q) return;
+        const byBarcode = state.items.find(it=>it.barcode && it.barcode.toLowerCase()===q);
+        if(byBarcode){ posAddItemToCart(byBarcode.id); pos.search=''; render(); return; }
+        const matches = state.items.filter(it=>it.name.toLowerCase().includes(q));
+        if(matches.length===1){ posAddItemToCart(matches[0].id); pos.search=''; render(); }
+      });
+    }
+    document.querySelectorAll('[data-pos-group-filter]').forEach(el=>{
+      el.addEventListener('click', ()=>{ pos.groupFilter = el.dataset.posGroupFilter; render(); });
+    });
+    document.querySelectorAll('[data-pos-add-item]').forEach(el=>{
+      el.addEventListener('click', ()=>{ posAddItemToCart(el.dataset.posAddItem); render(); });
+    });
+    document.querySelectorAll('[data-pos-qty-inc]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = +el.dataset.posQtyInc;
+        if(pos.items[i]) pos.items[i].qty = (Number(pos.items[i].qty)||0) + 1;
+        render();
+      });
+    });
+    document.querySelectorAll('[data-pos-qty-dec]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = +el.dataset.posQtyDec;
+        if(!pos.items[i]) return;
+        const q = (Number(pos.items[i].qty)||0) - 1;
+        if(q<=0) pos.items.splice(i,1); else pos.items[i].qty = q;
+        render();
+      });
+    });
+    document.querySelectorAll('.pos-qty-input').forEach(el=>{
+      el.addEventListener('input', e=>{
+        const i = +e.target.dataset.i;
+        if(!pos.items[i]) return;
+        pos.items[i].qty = Math.max(1, Number(e.target.value)||1);
+        updatePosTotals();
+      });
+    });
+    document.querySelectorAll('[data-pos-remove-item]').forEach(el=>{
+      el.addEventListener('click', ()=>{ pos.items.splice(+el.dataset.posRemoveItem,1); render(); });
+    });
+    document.getElementById('posGstRate')?.addEventListener('change', e=>{ pos.gstRate = e.target.value; render(); });
+    document.getElementById('posSupply')?.addEventListener('change', e=>{ pos.supply = e.target.value; render(); });
+    document.getElementById('posCustomer')?.addEventListener('change', e=>{ pos.customerId = e.target.value || null; });
+    document.getElementById('posCollectPayment')?.addEventListener('change', e=>{ pos.collectPayment = e.target.checked; render(); });
+    document.getElementById('posTenderLedger')?.addEventListener('change', e=>{ pos.tenderLedgerId = e.target.value; });
+    document.getElementById('posAmountTendered')?.addEventListener('input', e=>{ pos.amountTendered = e.target.value; updatePosTotals(); });
+    document.getElementById('posAlwaysPrint')?.addEventListener('change', async e=>{
+      currentCompany.posAlwaysPrint = e.target.checked;
+      const idx = companies.findIndex(c=>c.id===currentCompany.id);
+      if(idx>-1) companies[idx] = currentCompany;
+      await saveCompanyMeta(currentCompany);
+    });
+    document.getElementById('posCompleteSale')?.addEventListener('click', completePOSSale);
+    document.getElementById('posHoldSale')?.addEventListener('click', posHoldCurrentSale);
+    document.getElementById('posClearCart')?.addEventListener('click', ()=>{ pos = newPosCart(); render(); });
+    document.querySelectorAll('[data-pos-recall]').forEach(el=>{
+      el.addEventListener('click', ()=>{ posRecallHeldSale(+el.dataset.posRecall); });
     });
   }
 
