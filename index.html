@@ -4543,15 +4543,20 @@ function buildCompanyBackup(){
 function printHTMLDocument(html){
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
+  // A 0x0 iframe can make Chrome lay the document out at a 0-width viewport before it switches to
+  // print media, which produces exactly the symptom reported: the print dialog shows the correct
+  // page count but every page renders blank. Give the iframe a real, page-sized box so the content
+  // inside gets a normal layout width, and push it off-screen with a large negative offset instead
+  // of collapsing it to zero size.
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '900px';
+  iframe.style.height = '1200px';
   iframe.style.border = '0';
   iframe.setAttribute('aria-hidden', 'true');
   let printed = false;
   const cleanup = ()=> setTimeout(()=>{ if(iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 1500);
-  iframe.onload = ()=>{
+  const doPrint = ()=>{
     if(printed) return; // avoid double-firing if the browser triggers onload more than once
     printed = true;
     try{
@@ -4566,6 +4571,13 @@ function printHTMLDocument(html){
       }catch(e2){ toast('Printing is blocked in this browser/embed.'); }
     }
     cleanup();
+  };
+  iframe.onload = ()=>{
+    // Wait for a couple of animation frames after `load` so the iframe has actually PAINTED its
+    // content (including any inlined <img> chart pictures) at least once before the print snapshot
+    // is taken -- calling print() synchronously inside `onload` was the other half of the blank-page
+    // bug, since `load` only guarantees the document parsed/decoded, not that a frame was painted.
+    requestAnimationFrame(()=>requestAnimationFrame(doPrint));
   };
   document.body.appendChild(iframe);
   iframe.srcdoc = html;
@@ -16635,6 +16647,24 @@ function reportFinancialPerformance(){
    — both need their own compact, self-contained stylesheet since neither a print iframe nor Word
    has access to this app's own <style> block (var(--token) colors chief among them). */
 const FIN_PERF_EXPORT_CSS = `
+  /* The report body is cloned straight from the live app, and several of its inline styles (in
+     reportFinancialPerformance()'s section() helper, the ratio/gauge cards, etc.) reference this
+     app's var(--token) design tokens directly -- e.g. style="color:var(--ink)". Neither a print
+     iframe's srcdoc document nor Word's HTML renderer has access to this app's own <style>/:root
+     block, so without redefining the same tokens here those var() references fail to resolve
+     (invalid at computed-value time) and silently drop backgrounds/text colors -- the cause of the
+     "alignment"/missing-styling Word export bug. Values match the app's light theme exactly, since
+     exported documents are always white/light-themed regardless of the app's current theme. */
+  :root{
+    --surface-strong:#EEF3EF;
+    --border:#E1E7E3;
+    --ink:#1B2420;
+    --ink-soft:#5C6B62;
+    --ink-faint:#8B978F;
+    --credit:#2CA01C;
+    --debit:#D64545;
+    --radius-sm:10px;
+  }
   body{font-family:'Calibri','Segoe UI',Arial,sans-serif;color:#1B2420;margin:24px;}
   h1{font-size:20px;margin:0 0 4px;}
   h2{font-size:14px;margin:0;display:inline;}
