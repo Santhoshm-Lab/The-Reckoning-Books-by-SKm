@@ -13808,7 +13808,34 @@ function viewVoucher(){
       <div class="panel-body">
         <div class="field" style="max-width:220px;"><label>Date</label><input type="date" id="vdate" value="${vform.date}"></div>
 
-        ${effectiveMode==='single' ? singleEntryFields() + (['Payment','Receipt'].includes(vform.type) ? taxDeductionPanel() : '') + (showSinglePaymentItems ? paymentPurchaseItemsPanel() : '') : `
+        ${effectiveMode==='single' ? singleEntryFields() + (['Payment','Receipt'].includes(vform.type) ? taxDeductionPanel() : '') + (showSinglePaymentItems ? paymentPurchaseItemsPanel() : '') : showGST ? `
+        <div class="section-title">Voucher Entries</div>
+        <p class="muted" style="font-size:12px;margin:0 0 8px;">The GST Calculator above is this voucher's entry screen — add the party, ledger and items there and click "Add to Voucher". The resulting ledger postings show here for review; there's nothing to fill in on this part of the form.</p>
+        ${(()=>{
+          const posted = vform.entries.filter(e=>e.ledgerId && ((Number(e.dr)||0) + (Number(e.cr)||0) > 0));
+          if(!posted.length) return `<p class="muted" style="font-size:12.5px;">No entries yet — use the GST Calculator above, then "Add to Voucher".</p>`;
+          return `
+          <div class="entry-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:2px;padding:0 2px;">
+            <span>Ledger</span><span>Debit</span><span>Credit</span><span></span>
+          </div>
+          <div id="entryRows">
+            ${posted.map(e=>{
+              const l = ledgerOf(e.ledgerId);
+              const side = entrySide(e);
+              return `<div class="entry-row">
+                <span>${l?escapeHtml(l.name):'—'}</span>
+                <span>${side==='dr'?'₹'+fmt(Number(e.dr)||0):''}</span>
+                <span>${side==='cr'?'₹'+fmt(Number(e.cr)||0):''}</span>
+                <span></span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        })()}
+        <div class="totals-line ${balanced?'balanced':'unbalanced'}">
+          <span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span>
+          <span>${balanced?'Balanced ✓':'Not balanced'}</span>
+        </div>
+        ` : `
         <div class="section-title">Entries</div>
         <div class="entry-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:2px;padding:0 2px;">
           <span>Ledger</span><span>Debit</span><span>Credit</span><span></span>
