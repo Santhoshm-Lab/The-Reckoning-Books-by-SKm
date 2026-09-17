@@ -6980,6 +6980,7 @@ function render(){
     ${modal==='liabCapitalDetail' ? liabCapitalDetailModal() : ''}
     ${modal==='cfBucketDetail' ? cashFlowBucketDetailModal() : ''}
     ${modal==='quickAddLedger' ? quickAddLedgerModal() : ''}
+    ${modal==='quickAddItem' ? quickAddItemModal() : ''}
     ${modal==='alterLedger' ? alterLedgerModal() : ''}
     ${modal==='deleteLedgerPassword' ? deleteLedgerPasswordModal() : ''}
     ${modal==='reconcileHelp' ? reconcileHelpModal() : ''}
@@ -14033,6 +14034,52 @@ function quickAddLedgerModal(){
     </div>
   `;
 }
+// "Create Item" from inside a voucher's item panel (the GST Calculator, or paymentPurchaseItemsPanel()
+// on a Payment voucher debiting a Purchase Accounts ledger) -- so a brand-new item being bought or sold
+// doesn't need a separate trip to Inventory Control first. Deliberately lighter than the full "Create
+// Stock Item" screen (stockItemForm()) -- name/group/unit/GST/rate/opening qty&rate only, no HSN,
+// barcode, reorder level, or batch/serial tracking -- those can be added later by editing the item in
+// Inventory Control if needed. On submit, the new item is pushed to state.items (so it's immediately
+// selectable everywhere else -- other vouchers, Inventory Control, and the POS/Quick Sale item grid,
+// which all read state.items directly) AND appended as a new row on the voucher's item list already
+// pointing at it, instead of just sitting in the catalog waiting to be picked.
+function quickAddItemModal(){
+  return `
+    <div class="modal-overlay" id="modalOverlayBg">
+      <div class="modal-card" style="width:520px;">
+        <div class="panel-head"><h2>Create Item</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12.5px;margin-top:0;">Create a stock item without leaving this voucher — it's added to Inventory and to this item list right away.</p>
+          <div class="field"><label>Item Name</label><input type="text" id="quickItemName" placeholder="e.g. Widget A"></div>
+          <div class="row">
+            <div class="field"><label>Under (Stock Group)</label>
+              <select id="quickItemGroup">${STOCK_GROUPS.map(g=>`<option value="${g}">${g}</option>`).join('')}</select>
+            </div>
+            <div class="field" style="max-width:120px;"><label>Units</label>
+              <select id="quickItemUnit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
+            </div>
+            <div class="field" style="max-width:140px;"><label>GST Rate</label>
+              <select id="quickItemGST">
+                <option value="">— None —</option>
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="12">12%</option>
+                <option value="18">18%</option>
+                <option value="28">28%</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Standard Selling Rate</label><input type="number" id="quickItemRate" step="0.01" placeholder="0.00"></div>
+            <div class="field"><label>Opening Quantity</label><input type="number" id="quickItemOpeningQty" step="0.01" placeholder="0"></div>
+            <div class="field"><label>Opening Rate</label><input type="number" id="quickItemOpeningRate" step="0.01" placeholder="0.00"></div>
+          </div>
+          <button class="btn" id="quickAddItemSubmit" type="button" style="margin-top:6px;">Create Item</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 // Shared "New Ledger" / "Alter Ledger" modal for the Ledgers tab. alterLedgerId===‘new’ renders it
 // in create mode (blank fields); any other ledger id renders it in edit mode, prefilled from that
 // ledger and able to rename it or move it to a different group -- the two things the Chart of
@@ -14729,6 +14776,7 @@ function gstCalculator(){
         </div>
         <div id="gstItemRows">${g.items.map((it,i)=>itemRow(it,i)).join('') || `<p class="muted" style="font-size:12px;margin:6px 0;">No items yet — add one below.</p>`}</div>
         <button class="btn secondary small" id="addItemRow" type="button">+ Add item</button>
+        <button class="btn secondary small" id="quickAddItemBtn" type="button">+ Create Item</button>
         <div class="totals-line" style="justify-content:space-between;">
           <span class="muted">${isReturn?'Return Value (auto)':'Taxable Value (auto)'}</span>
           <span id="gstItemsTotal">₹${fmt(itemsSubtotal(g.items))}</span>
@@ -14780,6 +14828,7 @@ function paymentPurchaseItemsPanel(){
         </div>
         <div id="gstItemRows">${g.items.map((it,i)=>itemRow(it,i)).join('') || `<p class="muted" style="font-size:12px;margin:6px 0;">No items yet — add one below.</p>`}</div>
         <button class="btn secondary small" id="addItemRow" type="button">+ Add item</button>
+        <button class="btn secondary small" id="quickAddItemBtn" type="button">+ Create Item</button>
         <div class="totals-line" style="justify-content:space-between;">
           <span class="muted">Items Value (auto)</span>
           <span id="gstItemsTotal">₹${fmt(itemsSubtotal(g.items))}</span>
@@ -19750,6 +19799,10 @@ function attachHandlers(){
       vform.gst.items.push({itemId:'__custom__', name:'', qty:1, rate:0, disc:0});
       render();
     });
+    document.getElementById('quickAddItemBtn')?.addEventListener('click', ()=>{
+      modal = 'quickAddItem';
+      render();
+    });
     document.querySelectorAll('.item-select').forEach(el=>{
       el.addEventListener('change', e=>{
         const i = +e.target.dataset.i;
@@ -20371,6 +20424,35 @@ function attachHandlers(){
       quickLedgerFocus = null;
       modal = null;
       toast('Ledger added');
+      render();
+    });
+  }
+
+  if(modal==='quickAddItem'){
+    document.getElementById('quickAddItemSubmit')?.addEventListener('click', async ()=>{
+      const name = document.getElementById('quickItemName').value.trim();
+      const group = document.getElementById('quickItemGroup').value;
+      const unit = document.getElementById('quickItemUnit').value;
+      const gstRaw = document.getElementById('quickItemGST').value;
+      const rateRaw = document.getElementById('quickItemRate').value;
+      const openQtyRaw = document.getElementById('quickItemOpeningQty').value;
+      const openRateRaw = document.getElementById('quickItemOpeningRate').value;
+      if(!name){ toast('Enter an item name'); return; }
+      const item = { id: uid('it'), name, group, unit };
+      if(gstRaw !== '') item.gstRate = Number(gstRaw);
+      if(rateRaw !== '') item.rate = Number(rateRaw);
+      if(openQtyRaw !== '') item.openingQty = Number(openQtyRaw);
+      if(openRateRaw !== '') item.openingRate = Number(openRateRaw);
+      state.items.push(item);
+      await saveItems();
+      // Also drop it straight onto this voucher's item list, already pointing at the new catalog
+      // entry -- the same shape a normal catalog pick would produce (see the .item-select handler).
+      if(vform){
+        vform.gst.items = vform.gst.items || [];
+        vform.gst.items.push({itemId:item.id, name:item.name, qty:1, rate:item.rate||0, disc:0});
+      }
+      modal = null;
+      toast('Item created — added to Inventory and to this voucher');
       render();
     });
   }
