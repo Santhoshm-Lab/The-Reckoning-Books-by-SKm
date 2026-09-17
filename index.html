@@ -2158,7 +2158,7 @@ let announcement = { message:'', active:false };      // last-saved announcement
 let announcementDraft = { message:'', active:false }; // editable draft on the Overview tab
 let announcementDismissed = false; // whether the banner was dismissed in THIS browser session (not persisted)
 let adminViewOnlyCompanyId = null; // set while an admin is "viewing" a user's company read-only — every save/delete function checks this first
-let isDemoUser = false; // true for the whole session once someone enters via the landing page's "Try Demo" button — a plain-user Firebase account with no companies of its own, restricted to viewing the shared Sk Enterprises demo company and blocked from creating a company (see isReadOnlyMode() / demoLogin())
+let isDemoUser = false; // true for the whole session once someone enters via the landing page's "Try Demo" button — a plain-user Firebase account with no companies of its own, restricted to viewing the shared SKm Group of Companies demo company and blocked from creating a company (see isReadOnlyMode() / demoLogin())
 let readOnlySnapshot = null; // pristine deep copy of `state` taken the moment a read-only company (admin view-only, or the shared demo company opened by anyone but the admin) is opened — render() re-applies it on every paint so no local edit ever sticks, even for the instant before its blocked save() call returns
 /* ---- Admin Panel additions: Analytics, Support, Settings (feature flags, error log, export) ---- */
 let supportTickets = [];        // cache of support tickets, loaded when the Support tab opens
@@ -3221,11 +3221,11 @@ window.addEventListener('popstate', (e)=>{ restoreHistorySnapshot(e.state); });
    `companies` array is enough to know whether a given company is accessible. */
 function canAccessCompany(c){
   if(!c) return false;
-  if(isDemoUser) return c.id===SK_DEMO_COMPANY_ID; // a demo session can only ever open Sk Enterprises
+  if(isDemoUser) return c.id===SK_DEMO_COMPANY_ID; // a demo session can only ever open SKm Group of Companies
   return companies.some(x=>x.id===c.id);
 }
 function visibleCompanies(){
-  if(isDemoUser) return companies.filter(c=>c.id===SK_DEMO_COMPANY_ID); // only Sk Enterprises shows in the company list — see canAccessCompany() for the matching entry guard
+  if(isDemoUser) return companies.filter(c=>c.id===SK_DEMO_COMPANY_ID); // only SKm Group of Companies shows in the company list — see canAccessCompany() for the matching entry guard
   return companies;
 }
 async function loadCompanies(){
@@ -3354,13 +3354,19 @@ async function deleteGroupMemberById(uid){
    only because that delete call needs it; it's deliberately absent from SHARED_DEMO_COMPANY_IDS
    below so nothing else in the app treats it as a live shared company any more. */
 const DEMO_COMPANY_ID = 'co_demo';
-// "Sk Enterprises - Demo" — the one remaining shared, ownerless demo company — built to showcase
+// "SKm Group of Companies" — the one remaining shared, ownerless demo company — built to showcase
 // every single one of the 28 Tally-standard ledger groups (all 15 Primary Groups and all 13
-// Sub-Groups) at once, plus stock items, a Fixed Asset Register, and a recurring voucher template.
-// Visible to every user via the ownerId:null + SHARED_DEMO_COMPANY_IDS mechanism below — see
-// ensureSkDemoCompany() further down.
+// Sub-Groups) at once, plus stock items across two warehouses, a Fixed Asset Register, a Payroll
+// module with a small resident team, a recurring voucher template, Cost Centers & Budgets, and the
+// Quotation/Sales Order/Purchase Order/Delivery Challan document flow — nine-plus full financial
+// years of history (April 2017 to date) so there's always a real, richly populated company for the
+// Administrator to demo the software from. Visible to every user via the ownerId:null +
+// SHARED_DEMO_COMPANY_IDS mechanism below — see ensureSkDemoCompany() further down. Internal ledger/
+// voucher ids keep the historical "sk_"/"co_skdemo" prefix from this company's original "Sk
+// Enterprises" name — renaming those would mean migrating every existing installation's stored
+// data for no user-visible benefit, so only the display name changed.
 const SK_DEMO_COMPANY_ID = 'co_skdemo';
-const SK_DEMO_DATA_VERSION = 2; // bumped: five years of history + a large cumulative profit
+const SK_DEMO_DATA_VERSION = 3; // bumped: renamed to SKm Group of Companies, nine-plus years of history (Apr 2017 to date), Payroll/Warehouses/Cost Centers/Budgets/Orders modules added
 // Every company id that is shared/ownerless and must stay visible to all users (not just its
 // creator). Anywhere the app used to special-case a single id (visibility, the "Sample" pill,
 // owner-reassignment being disabled, admin stats excluding it, etc.) now checks membership in this
@@ -3369,10 +3375,10 @@ const SHARED_DEMO_COMPANY_IDS = [SK_DEMO_COMPANY_ID];
 function isSharedDemoId(id){ return SHARED_DEMO_COMPANY_IDS.includes(id); }
 // The single choke point every save/delete function (and the read-only banner) checks. True when:
 //  - an admin is "viewing" another user's company read-only (the pre-existing admin-panel feature), or
-//  - the company currently open is a shared/ownerless demo company (Sk Enterprises) and the person
+//  - the company currently open is a shared/ownerless demo company (SKm Group of Companies) and the person
 //    looking at it is not a full Administrator — this covers both the dedicated "Try Demo" login
 //    (a plain 'user' account) AND any regular signed-up user who simply opens the shared company from
-//    their own company list, so Sk Enterprises can only ever be edited by the Administrator, from
+//    their own company list, so SKm Group of Companies can only ever be edited by the Administrator, from
 //    anywhere it's reached.
 function isReadOnlyMode(){
   if(adminViewOnlyCompanyId) return true;
@@ -3383,7 +3389,7 @@ function readOnlyToastMessage(){
   if(adminViewOnlyCompanyId) return "You're viewing this company in read-only mode — changes aren't saved.";
   return "This is a shared demo company — only the administrator can make changes here.";
 }
-/* ---------------- "Sk Enterprises - Demo" — the shared demo company ----------------
+/* ---------------- "SKm Group of Companies" — the shared demo company ----------------
    Built to showcase every one of the 28 Tally-standard ledger groups (all 15 Primary Groups and
    all 13 Sub-Groups) in a single company, spanning five complete past financial years plus the
    current year to date, with a steady growth story that lands on a large cumulative profit — plus
@@ -3439,11 +3445,20 @@ function skDemoLedgers(){
     {id:'sk_iexp_interest', name:'Interest on Term Loan',         group:'iexp', opening:0},
     {id:'sk_iexp_prof',     name:'Professional & Consultancy Fees', group:'iexp', opening:0},
     {id:'sk_dexp_wages',    name:'Direct Wages',                  group:'dexp', opening:0},
+    // ---- Payroll module ledgers (see skDemoEmployees()/skDemoPayrollData() below) — pre-created
+    // here with the exact names ensureLedgerByName() would create them under on a live payroll run,
+    // so the synthetic payroll history below can post straight into them. ----
+    {id:'sk_esal',       name:EMPLOYEE_SALARY_LEDGER_NAME,           group:'iexp',    opening:0},
+    {id:'sk_saldedpay',  name:SALARY_DEDUCTIONS_LEDGER_NAME,         group:'curl',    opening:0},
+    {id:'sk_emppfesi',   name:EMPLOYER_CONTRIB_LEDGER_NAME,          group:'iexp',    opening:0},
+    {id:'sk_emppfesipay',name:EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME,  group:'curl',    opening:0},
+    {id:'sk_emploans',   name:EMPLOYEE_LOAN_LEDGER_NAME,             group:'loanadv', opening:0},
+    {id:'sk_fnf',        name:FNF_SETTLEMENT_LEDGER_NAME,            group:'iexp',    opening:0},
   ];
 }
-// Generates five complete past financial years (2021-22 through 2025-26) plus the current year to
-// date (2026-27, April through August — "today" in this system is 2026-08-28): a repeatable
-// monthly pattern of sales, purchases and overheads, scaled up year over year, rather than ~65
+// Generates nine complete past financial years (2017-18 through 2025-26) plus the current year to
+// date (2026-27, April through September — "today" in this system is 2026-09-17): a repeatable
+// monthly pattern of sales, purchases and overheads, scaled up year over year, rather than ~115
 // months of hand-written entries. Every running tracker below (outstanding balances, GST payable/
 // credit, fixed-asset book value, loan balance) only ever moves by amounts the code itself just
 // posted, so every voucher balances by construction and no tracker can go negative — verified
@@ -3458,8 +3473,8 @@ function skDemoVouchers(){
   };
   const r100 = n => Math.round(n/100)*100; // keeps every figure a tidy multiple of ₹100
 
-  const FY_START_YEARS = [2021, 2022, 2023, 2024, 2025, 2026];
-  const CURRENT_YEAR_MONTHS = 5; // Apr, May, Jun, Jul, Aug 2026
+  const FY_START_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+  const CURRENT_YEAR_MONTHS = 6; // Apr, May, Jun, Jul, Aug, Sep 2026
 
   // Trade receivable/payable trackers — start at the ledgers' own opening balances above, then
   // move exactly in step with the sales/purchases/receipts/payments generated below.
@@ -3651,13 +3666,14 @@ function skDemoWarehouses(){
   ];
 }
 // Dated to match the two Plant & Machinery events actually posted in skDemoVouchers(): the
-// original plant behind the 2021-04-01 sk_fa opening balance of 1,500,000, and the 800,000
-// packaging-line machine bought on 2023-04-04 (the y===2, m===0 one-off event above).
+// original plant behind the earliest sk_fa opening balance of 1,500,000 (as at the very first FY
+// start, 2017-04-01), and the 800,000 packaging-line machine bought on 2019-04-04 (the y===2, m===0
+// one-off event above, which lands on FY_START_YEARS[2]).
 function skDemoFixedAssets(){
   const now = new Date().toISOString();
   return [
-    {id:'fa_sk_1', name:'CNC Machine Unit', ledgerId:'sk_fa', cost:1500000, purchaseDate:'2021-04-01', usefulLifeYears:10, method:'SLM', salvageValue:150000, postedFYs:[], active:true, createdAt:now},
-    {id:'fa_sk_2', name:'Packaging Line Equipment', ledgerId:'sk_fa', cost:800000, purchaseDate:'2023-04-04', usefulLifeYears:8, method:'WDV', salvageValue:80000, postedFYs:[], active:true, createdAt:now},
+    {id:'fa_sk_1', name:'CNC Machine Unit', ledgerId:'sk_fa', cost:1500000, purchaseDate:'2017-04-01', usefulLifeYears:10, method:'SLM', salvageValue:150000, postedFYs:[], active:true, createdAt:now},
+    {id:'fa_sk_2', name:'Packaging Line Equipment', ledgerId:'sk_fa', cost:800000, purchaseDate:'2019-04-04', usefulLifeYears:8, method:'WDV', salvageValue:80000, postedFYs:[], active:true, createdAt:now},
   ];
 }
 function skDemoRecurringTemplates(){
@@ -3666,21 +3682,231 @@ function skDemoRecurringTemplates(){
     {id:'rtpl_sk_1', name:'Monthly Office Rent', type:'Payment', ledgerA:'l_bank', ledgerB:'sk_iexp_rent', amount:77000, narration:'Office Rent (Recurring)', frequency:'Monthly', nextDueDate:'2026-09-01', lastGeneratedDate:null, active:true, createdAt:now},
   ];
 }
-/* Called right after any successful login (regular, signup, or admin) — creates the shared "Sk
-   Enterprises - Demo" document in Firestore the first time ever anyone signs in, and reseeds its
+// ---------------------------------------------------------------------------
+// Payroll module demo data: a small team hired in step with the company's own growth story above
+// (skDemoVouchers()), paid in full every month from their join date through the current month (or
+// their resign month if earlier) -- no LOP/proration here, this is historical seed data rather than
+// a live payroll run. Posted with the exact same Dr/Cr shape the real "Generate Payroll" button
+// builds (see the generatePayrollBtn click handler further down), straight into the payroll ledgers
+// pre-created in skDemoLedgers() above, so every payroll report (Register, Bank Transfer File, Tax
+// Report) just works unmodified. Suresh (EMP-004) carries a staff loan recovered EMI-by-EMI exactly
+// like a live loan would be; Meena (EMP-003) resigns partway through and gets one Full & Final
+// Settlement voucher on her exit date.
+function skDemoEmployeeRoster(){
+  return [
+    { code:'EMP-001', name:'Anitha Raman', designation:'Operations Manager', department:'Operations', employmentType:'Full-time', joinDate:'2017-05-01', resignDate:null, bankName:'HDFC Bank', bankAccount:'50100011122233', bankIFSC:'HDFC0000123', pan:'AAAPA1234A',
+      salary:{basic:45000, hra:18000, allowances:7000, bonus:0, pf:1800, esi:0, pt:200, tds:1200, otherDeductions:0, employerPF:1800, employerESI:0} },
+    { code:'EMP-002', name:'Karthik Subramanian', designation:'Senior Accountant', department:'Finance', employmentType:'Full-time', joinDate:'2018-01-15', resignDate:null, bankName:'HDFC Bank', bankAccount:'50100022233344', bankIFSC:'HDFC0000123', pan:'AAAPK2345B',
+      salary:{basic:38000, hra:15200, allowances:5000, bonus:0, pf:1600, esi:0, pt:200, tds:900, otherDeductions:0, employerPF:1600, employerESI:0} },
+    { code:'EMP-003', name:'Meena Iyer', designation:'Store Supervisor', department:'Warehouse', employmentType:'Full-time', joinDate:'2018-09-01', resignDate:'2022-06-30', bankName:'ICICI Bank', bankAccount:'60200033344455', bankIFSC:'ICIC0000456', pan:'AAAPM3456C',
+      salary:{basic:22000, hra:8800, allowances:2200, bonus:0, pf:1200, esi:0, pt:200, tds:0, otherDeductions:0, employerPF:1200, employerESI:0} },
+    { code:'EMP-004', name:'Suresh Babu', designation:'Warehouse Assistant', department:'Warehouse', employmentType:'Full-time', joinDate:'2020-02-01', resignDate:null, bankName:'State Bank of India', bankAccount:'70300044455566', bankIFSC:'SBIN0000789', pan:'AAAPS4567D',
+      salary:{basic:12000, hra:4800, allowances:1200, bonus:0, pf:1440, esi:135, pt:0, tds:0, otherDeductions:0, employerPF:1440, employerESI:585} },
+    { code:'EMP-005', name:'Divya Krishnan', designation:'Sales Executive', department:'Sales', employmentType:'Full-time', joinDate:'2021-08-01', resignDate:null, bankName:'HDFC Bank', bankAccount:'50100055566677', bankIFSC:'HDFC0000123', pan:'AAAPD5678E',
+      salary:{basic:26000, hra:10400, allowances:3600, bonus:0, pf:3120, esi:0, pt:200, tds:500, otherDeductions:0, employerPF:3120, employerESI:0} },
+    { code:'EMP-006', name:'Naveen Reddy', designation:'Junior Accounts Executive', department:'Finance', employmentType:'Full-time', joinDate:'2023-03-01', resignDate:null, bankName:'ICICI Bank', bankAccount:'60200066677788', bankIFSC:'ICIC0000456', pan:'AAAPN6789F',
+      salary:{basic:20000, hra:8000, allowances:2000, bonus:0, pf:2400, esi:0, pt:200, tds:0, otherDeductions:0, employerPF:2400, employerESI:0} },
+    { code:'EMP-007', name:'Sanjana Pillai', designation:'Marketing Associate', department:'Marketing', employmentType:'Full-time', joinDate:'2025-02-01', resignDate:null, bankName:'State Bank of India', bankAccount:'70300077788899', bankIFSC:'SBIN0000789', pan:'AAAPS7890G',
+      salary:{basic:18000, hra:7200, allowances:1800, bonus:0, pf:2160, esi:0, pt:200, tds:0, otherDeductions:0, employerPF:2160, employerESI:0} },
+  ];
+}
+function skDemoEmployees(){
+  const now = new Date().toISOString();
+  return skDemoEmployeeRoster().map((e,i)=>({
+    id:'emp_sk_'+(i+1), code:e.code, name:e.name, designation:e.designation, department:e.department,
+    employmentType:e.employmentType, joinDate:e.joinDate, resignDate:e.resignDate,
+    pan:e.pan, bankName:e.bankName, bankAccount:e.bankAccount, bankIFSC:e.bankIFSC,
+    active: !e.resignDate, salary:{...e.salary}, createdAt:now,
+  }));
+}
+function skDemoPayrollData(employees, throughYYYYMM){
+  const vouchers = [];
+  const salaryVouchers = [];
+  const fnfSettlements = [];
+  const push = (type,date,narration,entries) => { const v = {id:uid('v'), type, date, narration, entries}; vouchers.push(v); return v; };
+  const payFromId = 'l_bank';
+  const [throughY, throughM] = throughYYYYMM.split('-').map(Number);
+
+  // Suresh's staff loan -- disbursed a little over a year after he joined, recovered ₹3,000/month
+  // until it's paid off, exactly like applyLoanRecovery() does on a live payroll run.
+  const loanByEmployee = {
+    'emp_sk_4': { id:'eloan_sk_1', principal:60000, emiAmount:3000, disbursedDate:'2021-05-01', outstanding:60000, active:true },
+  };
+  Object.entries(loanByEmployee).forEach(([empId, loan])=>{
+    const emp = employees.find(e=>e.id===empId);
+    push('Journal', loan.disbursedDate, `Staff loan disbursed - ${emp.name} (${emp.code})`, [
+      {ledgerId:'sk_emploans', dr:loan.principal, cr:0},
+      {ledgerId:payFromId, dr:0, cr:loan.principal},
+    ]);
+  });
+
+  employees.forEach(emp=>{
+    const [jy, jm] = emp.joinDate.split('-').map(Number);
+    const resignYM = emp.resignDate ? emp.resignDate.slice(0,7) : null;
+    const loan = loanByEmployee[emp.id];
+    let y = jy, m = jm;
+    while(y < throughY || (y===throughY && m<=throughM)){
+      const ym = `${y}-${String(m).padStart(2,'0')}`;
+      if(resignYM && ym > resignYM) break;
+      const totalDays = daysInPayrollMonth(ym);
+      const voucherDate = new Date(y, m, 0).toISOString().slice(0,10); // last day of this month
+      const s = emp.salary;
+      const gross = r2(s.basic+s.hra+s.allowances+s.bonus);
+      const totalDed = r2(s.pf+s.esi+s.pt+s.tds+s.otherDeductions);
+      const netPay = r2(gross-totalDed);
+      let loanEmi = 0;
+      if(loan && loan.outstanding>0 && ym >= loan.disbursedDate.slice(0,7)){
+        loanEmi = Math.min(loan.emiAmount, loan.outstanding, netPay);
+      }
+      const takeHome = r2(netPay-loanEmi);
+      const employerContribTotal = r2((s.employerPF||0)+(s.employerESI||0));
+      const entries = [
+        {ledgerId:'sk_esal', dr:gross, cr:0},
+        {ledgerId:payFromId, dr:0, cr:takeHome},
+      ];
+      if(totalDed>0) entries.push({ledgerId:'sk_saldedpay', dr:0, cr:totalDed});
+      if(loanEmi>0){
+        entries.push({ledgerId:'sk_emploans', dr:0, cr:loanEmi});
+        loan.outstanding = r2(loan.outstanding-loanEmi);
+        if(loan.outstanding<=0.001){ loan.outstanding=0; loan.active=false; }
+      }
+      if(employerContribTotal>0){
+        entries.push({ledgerId:'sk_emppfesi', dr:employerContribTotal, cr:0});
+        entries.push({ledgerId:'sk_emppfesipay', dr:0, cr:employerContribTotal});
+      }
+      const v = push('Journal', voucherDate, `Salary - ${emp.name} (${emp.code}) - ${ym}`, entries);
+      salaryVouchers.push({
+        id:uid('sal'), employeeId:emp.id, month:ym,
+        basic:s.basic, hra:s.hra, allowances:s.allowances, bonus:s.bonus,
+        pf:s.pf, esi:s.esi, pt:s.pt, tds:s.tds, otherDeductions:s.otherDeductions,
+        employerPF:s.employerPF||0, employerESI:s.employerESI||0, loanDeduction:loanEmi,
+        lopDays:0, payableDays:totalDays, totalDaysInMonth:totalDays,
+        netPay:takeHome, voucherId:v.id, generatedAt:new Date().toISOString(),
+        payFromLedgerId:payFromId,
+      });
+      m++; if(m>12){ m=1; y++; }
+    }
+    if(emp.resignDate){
+      const leaveEncashment = 15000, otherDues = 5000;
+      const grossSettlement = r2(leaveEncashment+otherDues);
+      const loanOutstanding = loan ? loan.outstanding : 0;
+      const loanRecovered = Math.min(loanOutstanding, grossSettlement);
+      const netPayable = r2(grossSettlement-loanRecovered);
+      const entries = [{ledgerId:'sk_fnf', dr:grossSettlement, cr:0}];
+      if(loanRecovered>0) entries.push({ledgerId:'sk_emploans', dr:0, cr:loanRecovered});
+      if(netPayable>0) entries.push({ledgerId:payFromId, dr:0, cr:netPayable});
+      const v = push('Journal', emp.resignDate, `Full & Final Settlement - ${emp.name} (${emp.code})`, entries);
+      if(loan && loanRecovered>0){
+        loan.outstanding = r2(loan.outstanding-loanRecovered);
+        if(loan.outstanding<=0.001){ loan.outstanding=0; loan.active=false; }
+      }
+      fnfSettlements.push({ id:uid('fnf'), employeeId:emp.id, date:emp.resignDate, leaveEncashment, otherDues, loanRecovered, netPayable, voucherId:v.id, generatedAt:new Date().toISOString() });
+    }
+  });
+
+  const employeeLoans = Object.entries(loanByEmployee).map(([empId, loan])=>({
+    id:loan.id, employeeId:empId, principal:loan.principal, emiAmount:loan.emiAmount,
+    outstanding:loan.outstanding, disbursedDate:loan.disbursedDate, disburseVoucherId:null, active:loan.active,
+  }));
+  return { vouchers, salaryVouchers, employeeLoans, fnfSettlements };
+}
+// ---------------------------------------------------------------------------
+// Light coverage for the remaining modules (Multi-Warehouse stock movement, Cost Centers & Budgets,
+// and the Quotation -> Sales Order -> Delivery Challan / Purchase Order document flow) so none of
+// these screens sit empty in the demo -- a handful of realistic records each, dated in the current
+// financial year, rather than a full historical replay (that level of depth lives in the ledgers/
+// vouchers/payroll data above, which already spans the full nine-plus years).
+function skDemoStockTransfers(){
+  return [
+    {id:'sxfer_sk_1', date:'2025-05-10', itemId:'i_sk_widgetA', qty:40, fromWarehouseId:'wh_main', toWarehouseId:'wh_north', remark:'Stock rebalancing to North Depot'},
+    {id:'sxfer_sk_2', date:'2025-09-14', itemId:'i_sk_packaging', qty:120, fromWarehouseId:'wh_main', toWarehouseId:'wh_north', remark:'Packaging stock for North Depot dispatches'},
+    {id:'sxfer_sk_3', date:'2026-02-20', itemId:'i_sk_widgetB', qty:15, fromWarehouseId:'wh_main', toWarehouseId:'wh_north', remark:'Stock rebalancing to North Depot'},
+    {id:'sxfer_sk_4', date:'2026-06-05', itemId:'i_sk_rawmat', qty:100, fromWarehouseId:'wh_north', toWarehouseId:'wh_main', remark:'Raw material consolidated back to Main Warehouse'},
+  ];
+}
+function skDemoCostCenters(){
+  return [
+    {id:'cc_sk_1', name:'Chennai - Main Warehouse', active:true},
+    {id:'cc_sk_2', name:'Delhi - North Depot', active:true},
+    {id:'cc_sk_3', name:'Corporate / Admin', active:true},
+  ];
+}
+function skDemoBudgets(){
+  return [
+    {id:'bud_sk_1', ledgerId:'sk_iexp_rent', fy:'2026-27', amount:950000},
+    {id:'bud_sk_2', ledgerId:'sk_iexp_salaries', fy:'2026-27', amount:1800000},
+    {id:'bud_sk_3', ledgerId:'sk_dexp', fy:'2026-27', amount:250000},
+    {id:'bud_sk_4', ledgerId:'sk_iexp_prof', fy:'2026-27', amount:180000},
+  ];
+}
+function skDemoQuotations(){
+  return [
+    {id:'qtn_sk_1', docType:'quotation', no:1, date:'2026-07-08', partyLedgerId:'sk_sundeb1', items:[{itemId:'i_sk_widgetA', name:'Widget A', qty:20, rate:800, disc:0},{itemId:'i_sk_widgetB', name:'Widget B', qty:5, rate:1500, disc:0}], narration:'Quotation for bulk widget order', status:'open', convertedVoucherId:null},
+    {id:'qtn_sk_2', docType:'quotation', no:2, date:'2026-08-20', partyLedgerId:'sk_sundeb2', items:[{itemId:'i_sk_packaging', name:'Packaging Material', qty:200, rate:100, disc:5}], narration:'Quotation for packaging supplies', status:'open', convertedVoucherId:null},
+  ];
+}
+function skDemoSalesOrders(){
+  return [
+    {id:'so_sk_1', docType:'salesOrder', no:1, date:'2026-07-10', partyLedgerId:'sk_sundeb1', items:[{itemId:'i_sk_widgetA', name:'Widget A', qty:20, rate:800, disc:0},{itemId:'i_sk_widgetB', name:'Widget B', qty:5, rate:1500, disc:0}], narration:'Confirmed order following Quotation QTN-1', status:'open', convertedVoucherId:null},
+    {id:'so_sk_2', docType:'salesOrder', no:2, date:'2026-09-02', partyLedgerId:'sk_sundeb2', items:[{itemId:'i_sk_widgetA', name:'Widget A', qty:12, rate:800, disc:0}], narration:'Repeat order', status:'open', convertedVoucherId:null},
+  ];
+}
+function skDemoPurchaseOrders(){
+  return [
+    {id:'po_sk_1', docType:'purchaseOrder', no:1, date:'2026-06-15', partyLedgerId:'sk_sundcr1', items:[{itemId:'i_sk_rawmat', name:'Raw Material Roll', qty:300, rate:200, disc:0}], narration:'Raw material replenishment', status:'open', convertedVoucherId:null},
+    {id:'po_sk_2', docType:'purchaseOrder', no:2, date:'2026-08-28', partyLedgerId:'sk_sundcr2', items:[{itemId:'i_sk_packaging', name:'Packaging Material', qty:250, rate:70, disc:0}], narration:'Packaging stock top-up', status:'open', convertedVoucherId:null},
+  ];
+}
+function skDemoDeliveryChallans(){
+  return [
+    {id:'dc_sk_1', docType:'deliveryChallan', no:1, date:'2026-07-14', partyLedgerId:'sk_sundeb1', items:[{itemId:'i_sk_widgetA', name:'Widget A', qty:20, rate:800, disc:0},{itemId:'i_sk_widgetB', name:'Widget B', qty:5, rate:1500, disc:0}], narration:'Dispatched against Sales Order SO-1', status:'open', convertedVoucherId:null},
+  ];
+}
+// Builds the full shared-demo-company payload from the skDemo* generators above -- one place both
+// branches of ensureSkDemoCompany() (first-create and version-bump reseed) pull from, so the two
+// can never drift apart on which modules are included. Payroll depends on employees existing first
+// (skDemoPayrollData(employees, ...) looks its roster up by id), hence the two-step build below.
+function buildSkDemoCompanyData(){
+  const employees = skDemoEmployees();
+  const payroll = skDemoPayrollData(employees, '2026-09'); // matches skDemoVouchers()'s CURRENT_YEAR_MONTHS (Apr-Sep 2026)
+  return {
+    ledgers: skDemoLedgers(),
+    vouchers: [...skDemoVouchers(), ...payroll.vouchers],
+    items: skDemoItems(),
+    warehouses: skDemoWarehouses(),
+    stockTransfers: skDemoStockTransfers(),
+    fixedAssets: skDemoFixedAssets(),
+    recurringTemplates: skDemoRecurringTemplates(),
+    costCenters: skDemoCostCenters(),
+    budgets: skDemoBudgets(),
+    employees,
+    salaryVouchers: payroll.salaryVouchers,
+    employeeLoans: payroll.employeeLoans,
+    fnfSettlements: payroll.fnfSettlements,
+    quotations: skDemoQuotations(),
+    salesOrders: skDemoSalesOrders(),
+    purchaseOrders: skDemoPurchaseOrders(),
+    deliveryChallans: skDemoDeliveryChallans(),
+  };
+}
+/* Called right after any successful login (regular, signup, or admin) — creates the shared "SKm
+   Group of Companies" document in Firestore the first time ever anyone signs in, and reseeds its
    sample data if the built-in dataset has since been updated (demoVersion bump). Idempotent, so
    it's safe to call on every login. Firestore requires a signed-in user for this, which is why it
-   can't run until after login rather than at page load. */
+   can't run until after login rather than at page load. Visible to every user (see
+   SHARED_DEMO_COMPANY_IDS/isReadOnlyMode above) but editable only by the full Administrator —
+   support and regular users, and anyone who entered via "Try Demo", only ever see it read-only, so
+   it stays intact as a stable walkthrough of every module for the admin to demo from. */
 async function ensureSkDemoCompany(){
   try{
     const ref = db.collection('companies').doc(SK_DEMO_COMPANY_ID);
     const doc = await ref.get();
     if(!doc.exists){
       const company = {
-        id: SK_DEMO_COMPANY_ID, name:'Sk Enterprises - Demo', fyStart:'2026-04-01',
+        id: SK_DEMO_COMPANY_ID, name:'SKm Group of Companies', fyStart:'2026-04-01',
         gstin:'27ABCDE5678F1Z9', demoVersion: SK_DEMO_DATA_VERSION, ownerId: null,
-        ledgers: skDemoLedgers(), vouchers: skDemoVouchers(), items: skDemoItems(), stockAdjustments: [],
-        fixedAssets: skDemoFixedAssets(), recurringTemplates: skDemoRecurringTemplates(),
+        stockAdjustments: [],
+        ...buildSkDemoCompanyData(),
       };
       await ref.set(company);
       return;
@@ -3688,8 +3914,8 @@ async function ensureSkDemoCompany(){
     const data = doc.data();
     if(data.demoVersion !== SK_DEMO_DATA_VERSION){
       await ref.set({
-        demoVersion: SK_DEMO_DATA_VERSION, ledgers: skDemoLedgers(), vouchers: skDemoVouchers(),
-        items: skDemoItems(), fixedAssets: skDemoFixedAssets(), recurringTemplates: skDemoRecurringTemplates(),
+        name:'SKm Group of Companies', demoVersion: SK_DEMO_DATA_VERSION,
+        ...buildSkDemoCompanyData(),
       }, {merge:true});
     }
   }catch(e){ console.error(e); /* not fatal — the app still works without a fresh demo reseed */ }
@@ -3709,9 +3935,9 @@ async function retireOldDemoCompany(){
 // verification email sent. Signs in via Firebase Anonymous Authentication (a real, unique Firebase
 // Auth session per visitor/browser, required for Firestore reads, with no shared password of any
 // kind involved — this replaces the old shared hardcoded-password account), marks this session as
-// isDemoUser, then drops the visitor straight into the Sk Enterprises demo company. Read-only is
+// isDemoUser, then drops the visitor straight into the SKm Group of Companies demo company. Read-only is
 // enforced by isReadOnlyMode() (this account is deliberately just a normal role:'user' account, not
-// an Administrator) — see there for why Sk Enterprises specifically can't be edited by it, and
+// an Administrator) — see there for why SKm Group of Companies specifically can't be edited by it, and
 // visibleCompanies()/the Create Company button guard for why nothing else is reachable from a demo
 // session. NOTE: Anonymous sign-in must be enabled once in Firebase Console → Authentication →
 // Sign-in method → Anonymous, or this call fails with auth/operation-not-allowed.
@@ -3732,7 +3958,7 @@ async function demoLogin(){
     const demoCo = companies.find(c=>c.id===SK_DEMO_COMPANY_ID);
     if(!demoCo){ toast('Could not load the demo company — please try again in a moment.'); screen='landing'; renderLanding(); return; }
     await enterCompanyApp(demoCo);
-    toast('Viewing the Sk Enterprises demo — read-only. Sign up for your own free account to enter real data.');
+    toast('Viewing the SKm Group of Companies demo — read-only. Sign up for your own free account to enter real data.');
   }catch(err){
     toast('Could not start the demo — please try again in a moment.');
     if(btn){ btn.disabled = false; btn.textContent = 'Try Demo →'; }
@@ -6932,7 +7158,7 @@ function render(){
     </div>
     ` : (!adminViewOnlyCompanyId && isReadOnlyMode() && currentCompany.id===SK_DEMO_COMPANY_ID) ? `
     <div style="background:#F2A900;color:#2a2200;padding:8px 18px;font-size:12.5px;font-weight:700;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <span>👁 ${isDemoUser ? "You're viewing the shared Sk Enterprises demo" : `"${escapeHtml(currentCompany.name)}" is a shared demo company`} — read-only, nothing you do here is saved. Only the Administrator can change it.</span>
+      <span>👁 ${isDemoUser ? "You're viewing the shared SKm Group of Companies demo" : `"${escapeHtml(currentCompany.name)}" is a shared demo company`} — read-only, nothing you do here is saved. Only the Administrator can change it.</span>
       ${isDemoUser ? `<button class="btn secondary small" id="demoBannerSignupBtn" type="button" style="background:#fff;color:#1B2420;">Create Your Free Account →</button>` : ''}
     </div>
     ` : ''}
@@ -8212,7 +8438,7 @@ function renderLanding(){
                 <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
               </div>
             </div>
-            <div class="landing-hero-note">Free to start · No credit card · Or explore the Sk Enterprises demo company first, no sign-up needed</div>
+            <div class="landing-hero-note">Free to start · No credit card · Or explore the SKm Group of Companies demo company first, no sign-up needed</div>
           </div>
           <div class="landing-hero-art">
             ${svgLedgerHero()}
