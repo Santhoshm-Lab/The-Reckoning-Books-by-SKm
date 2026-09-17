@@ -246,6 +246,7 @@
 
   .entry-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;}
   .entry-row .rm{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--debit);font-size:14px;padding:6px 10px;font-weight:700;}
+  .entry-row .add-side{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--credit);font-size:14px;padding:6px 10px;font-weight:700;}
   .entry-row .rm:hover{background:var(--debit-bg);border-color:var(--debit);}
   .totals-line{display:flex;justify-content:flex-end;gap:26px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;}
   .totals-line.balanced{color:var(--credit);}
@@ -13719,7 +13720,7 @@ function rememberedPairForType(type){
 }
 function viewVoucher(){
   if(!vform){
-    vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
+    vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
     if(reorderPrefillItemId){
       const item = state.items.find(i=>i.id===reorderPrefillItemId);
       if(item){
@@ -13743,12 +13744,15 @@ function viewVoucher(){
   const showGST = ['Sales','Purchase','Credit Note','Debit Note'].includes(vform.type);
   const editing = !!vform.id;
   const isForeign = vform.currency && vform.currency!=='inr';
-  // A Payment voucher's Debit row (row 0 — see entryRow()) picked a Purchase Accounts ledger: this
-  // reads as "I'm paying cash for goods right now", so offer to add the items being purchased —
-  // updates Inventory and, on Save, this voucher is recorded as a Purchase (see saveVoucher) so it
-  // shows up correctly in GST/stock reports rather than being invisible to them as a plain Payment.
-  const paymentDebitLedger = (vform.type==='Payment' && effectiveMode==='double' && vform.entries[0]) ? ledgerOf(vform.entries[0].ledgerId) : null;
-  const showPaymentItems = !!(paymentDebitLedger && bucketOf(paymentDebitLedger)==='purch');
+  // A Payment voucher has a Debit line on a Purchase Accounts ledger: this reads as "I'm paying cash
+  // for goods right now", so offer to add the items being purchased — updates Inventory and, on Save,
+  // this voucher is recorded as a Purchase (see saveVoucher) so it shows up correctly in GST/stock
+  // reports rather than being invisible to them as a plain Payment. Checked in both Double Entry (any
+  // Dr-side row, not just the first one) and Single Entry (the "Paid To (Account)" ledger) shapes.
+  const showPaymentItems = vform.type==='Payment' && effectiveMode==='double' &&
+    vform.entries.some(e=> entrySide(e)==='dr' && e.ledgerId && bucketOf(ledgerOf(e.ledgerId))==='purch');
+  const singlePaidToLedger = (vform.type==='Payment' && effectiveMode==='single' && vform.single.ledgerB) ? ledgerOf(vform.single.ledgerB) : null;
+  const showSinglePaymentItems = !!(singlePaidToLedger && bucketOf(singlePaidToLedger)==='purch');
 
   let dr=0, cr=0, balanced=false;
   if(effectiveMode==='single'){
@@ -13800,16 +13804,25 @@ function viewVoucher(){
       <div class="panel-body">
         <div class="field" style="max-width:220px;"><label>Date</label><input type="date" id="vdate" value="${vform.date}"></div>
 
-        ${effectiveMode==='single' ? singleEntryFields() + (['Payment','Receipt'].includes(vform.type) ? taxDeductionPanel() : '') : `
+        ${effectiveMode==='single' ? singleEntryFields() + (['Payment','Receipt'].includes(vform.type) ? taxDeductionPanel() : '') + (showSinglePaymentItems ? paymentPurchaseItemsPanel() : '') : `
         <div class="section-title">Entries</div>
         <div class="entry-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:2px;padding:0 2px;">
           <span>Ledger</span><span>Debit</span><span>Credit</span><span></span>
         </div>
         <div id="entryRows">
-          ${vform.entries.map((e,i)=>entryRow(e,i)).join('')}
+          ${(()=>{
+            // Dr rows first, then Cr rows -- see entryRow()'s comment. Each block's own "+" sits on
+            // its last row (isLast); every row above that gets a remove button instead.
+            const withIdx = vform.entries.map((e,i)=>({e,i}));
+            const drRows = withIdx.filter(x=>entrySide(x.e)==='dr');
+            const crRows = withIdx.filter(x=>entrySide(x.e)==='cr');
+            const lastDrI = drRows.length ? drRows[drRows.length-1].i : -1;
+            const lastCrI = crRows.length ? crRows[crRows.length-1].i : -1;
+            return drRows.map(x=>entryRow(x.e,x.i,x.i===lastDrI)).join('')
+                 + crRows.map(x=>entryRow(x.e,x.i,x.i===lastCrI)).join('');
+          })()}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn secondary small" id="addRow" type="button">+ Add row</button>
           <button class="btn secondary small" id="quickAddLedgerBtn" type="button">+ New Ledger</button>
         </div>
         <div class="totals-line ${balanced?'balanced':'unbalanced'}">
@@ -13935,32 +13948,58 @@ function taxPreviewText(){
 // (e.g. an older voucher saved with a different row order before this convention existed, or a
 // not-yet-reordered GST Calculator branch), fall back to showing both fields for that row rather than
 // silently hiding a populated amount.
-function entryRow(e,i){
-  const fixedDebitRow = i===0 && !(Number(e.cr)>0);
-  const fixedCreditRow = i===1 && !(Number(e.dr)>0);
+// Which side (Debit or Credit) a given entry belongs to, for the grouped Dr-block/Cr-block layout
+// below. An entry created through this UI carries an explicit e.side ('dr'/'cr') set at the moment
+// it's added (see the [data-add-side] handler and every place a blank double-entry form is seeded),
+// since a brand-new blank row (dr:0,cr:0) has no amount to infer a side from. An entry that predates
+// this convention (an older saved voucher, or one built by applyGST/POS/etc, none of which set .side)
+// falls back to reading whichever amount field is actually populated -- which works because every one
+// of those code paths always sets exactly one of dr/cr per entry, never both, never neither.
+function entrySide(e){
+  if(e.side==='dr' || e.side==='cr') return e.side;
+  if(Number(e.cr)>0 && !(Number(e.dr)>0)) return 'cr';
+  return 'dr';
+}
+// Double Entry rows are grouped into two blocks -- every ledger being Debited, then every ledger being
+// Credited -- matching how a compound journal entry is written by hand (list every Dr line, then every
+// Cr line, and the two totals must match) instead of exposing a Dr and a Cr box on every single row.
+// Each block ends with its own "+" button (rendered on that block's last row, via `isLast`) that
+// appends another row to THAT block only -- see the [data-add-side] click handler; every row above the
+// last one in its block gets a remove button instead, so at least one Dr row and one Cr row always
+// exist (the sole remaining row of a block can only be added to, never removed) -- the same minimum
+// the old fixed row-0/row-1 layout enforced.
+// Safety net: if an entry sitting on one side actually also has a value in the "other" field (e.g. an
+// older voucher saved before this convention existed), both Dr and Cr inputs are shown for that row
+// rather than silently hiding a populated amount.
+function entryRow(e,i,isLast){
+  const side = entrySide(e);
+  const bothPopulated = Number(e.dr)>0 && Number(e.cr)>0;
   const ledgerSelect = `<select class="e-ledger" data-i="${i}">
       <option value="">Select ledger…</option>
       ${ledgerSelectOptionsHtml(e.ledgerId, vform.type)}
     </select>`;
-  if(fixedDebitRow){
+  const trailing = isLast
+    ? `<button class="add-side" data-add-side="${side}" title="Add another ${side==='dr'?'Debit':'Credit'} line" type="button">+</button>`
+    : `<button class="rm" data-rm="${i}" title="Remove row">✕</button>`;
+  if(bothPopulated){
+    return `<div class="entry-row" data-idx="${i}">
+    ${ledgerSelect}
+    <input type="number" class="e-dr" data-i="${i}" placeholder="Debit" value="${e.dr||''}" min="0" step="0.01">
+    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit" value="${e.cr||''}" min="0" step="0.01">
+    ${trailing}
+  </div>`;
+  }
+  if(side==='dr'){
     return `<div class="entry-row" data-idx="${i}">
     ${ledgerSelect}
     <input type="number" class="e-dr" data-i="${i}" placeholder="Debit amount" value="${e.dr||''}" min="0" step="0.01" style="grid-column:span 2;">
-    <span></span>
-  </div>`;
-  }
-  if(fixedCreditRow){
-    return `<div class="entry-row" data-idx="${i}">
-    ${ledgerSelect}
-    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01" style="grid-column:span 2;" title="Press Enter here to add another row">
-    <span></span>
+    ${trailing}
   </div>`;
   }
   return `<div class="entry-row" data-idx="${i}">
     ${ledgerSelect}
-    <input type="number" class="e-dr" data-i="${i}" placeholder="Debit" value="${e.dr||''}" min="0" step="0.01">
-    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit" value="${e.cr||''}" min="0" step="0.01" title="Press Enter here to add another row">
-    <button class="rm" data-rm="${i}" title="Remove row">✕</button>
+    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01" style="grid-column:span 2;">
+    ${trailing}
   </div>`;
 }
 function quickAddLedgerModal(){
@@ -14644,7 +14683,7 @@ function convertOrderDocToVoucher(docType, id){
     type: isPurchase ? 'Purchase' : 'Sales',
     date: new Date().toISOString().slice(0,10),
     narration: `${meta.label} ${docNo}`,
-    entries: [{ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0}],
+    entries: [{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}],
     gst: { party: doc.partyLedgerId, taxableLedger:'', amount:'', rate:18, supply:'intra', items: (doc.items||[]).map(it=>({...it})) },
     mode:'double',
   };
@@ -14716,15 +14755,20 @@ function gstCalculator(){
     </div>
   `;
 }
-// Shown under a Payment voucher's Double Entry rows when row 0 (the Debit row) is a Purchase Accounts
-// ledger -- "I'm paying cash for goods right now". Reuses the exact same item-row markup/handlers as
-// the GST Calculator above (itemRow(), updateItemsTotals(), gstPreview() — all read/write vform.gst,
-// generic to voucher type) so no new item-entry plumbing is needed. "Apply Items to Voucher" fills
-// row 0's Debit amount and row 1's Credit amount from the items instead of typing them by hand, adds
-// any GST as extra Debit rows, and records the items so they land in Inventory — see the applyPayment
-// Items click handler and the saveVoucher handler's effectiveType logic (this ends up SAVED as a
-// Purchase voucher, paid immediately via whatever ledger is in row 1, so it appears correctly in GST
-// and stock reports rather than being invisible to them as a plain Payment).
+// Shown under a Payment voucher when a Debit-side line is a Purchase Accounts ledger -- "I'm paying
+// cash for goods right now". That's true in either entry mode: a Dr row picking a Purchase ledger in
+// Double Entry, or the "Paid To (Account)" ledger picking one in Single Entry (see showPaymentItems /
+// showSinglePaymentItems in viewVoucher()). Reuses the exact same item-row markup/handlers as the GST
+// Calculator above (itemRow(), updateItemsTotals(), gstPreview() — all read/write vform.gst, generic to
+// voucher type) so no new item-entry plumbing is needed. "Apply Items to Voucher" fills the Purchase
+// ledger's Debit amount and the paid-from ledger's Credit amount from the items instead of typing them
+// by hand, adds any GST as extra Debit rows, and records the items so they land in Inventory — see the
+// applyPaymentItems click handler and the saveVoucher handler's effectiveType logic (this ends up SAVED
+// as a Purchase voucher, paid immediately via whatever ledger was picked as the credit/paid-from side,
+// so it appears correctly in GST and stock reports rather than being invisible to them as a plain
+// Payment). Clicking Apply from Single Entry mode seeds Double Entry rows from the Paid To/Paid From
+// pickers and switches the form into Double Entry — Single Entry's two-ledger shape can't represent a
+// separate GST input-tax line, so any voucher with items needs the full entries list.
 function paymentPurchaseItemsPanel(){
   const g = vform.gst;
   if(!g.items) g.items = [];
@@ -14758,7 +14802,7 @@ function paymentPurchaseItemsPanel(){
         </div>
         ${gstPreview(g)}
         <button class="btn secondary small" id="applyPaymentItems" type="button">Apply Items to Voucher</button>
-        <p class="muted" style="font-size:11.5px;margin-bottom:0;">Saves as a Purchase voucher, paid immediately via whatever ledger is in the Credit row below.</p>
+        <p class="muted" style="font-size:11.5px;margin-bottom:0;">Saves as a Purchase voucher, paid immediately via the Paid From / Credit ledger.</p>
       </div>
     </div>
   `;
@@ -19557,7 +19601,7 @@ function attachHandlers(){
               if(vform.mode==='single' && ['Payment','Receipt','Contra'].includes(vform.type)){
                 vform.single.ledgerA = pair.a; vform.single.ledgerB = pair.b;
               } else {
-                vform.entries = [{ledgerId:pair.a, dr:0, cr:0}, {ledgerId:pair.b, dr:0, cr:0}];
+                vform.entries = [{ledgerId:pair.a, dr:0, cr:0, side:'dr'}, {ledgerId:pair.b, dr:0, cr:0, side:'cr'}];
               }
               toast(`Pre-filled with your usual ${vform.type} ledgers`, {type:'info'});
             }
@@ -19581,7 +19625,12 @@ function attachHandlers(){
       b.addEventListener('click', ()=>{ vform.mode = b.dataset.mode; render(); });
     });
     document.getElementById('singleA')?.addEventListener('change', e=>{ vform.single.ledgerA = e.target.value; updateSingleEntryPreview(); });
-    document.getElementById('singleB')?.addEventListener('change', e=>{ vform.single.ledgerB = e.target.value; updateSingleEntryPreview(); });
+    document.getElementById('singleB')?.addEventListener('change', e=>{
+      vform.single.ledgerB = e.target.value;
+      // A full re-render (not the lightweight preview update) on a Payment voucher, since changing
+      // "Paid To (Account)" to/from a Purchase Accounts ledger shows or hides the Items Purchased panel.
+      if(vform.type==='Payment') render(); else updateSingleEntryPreview();
+    });
     document.getElementById('singleA')?.addEventListener('focus', ()=>{ quickLedgerFocus = {type:'single', which:'A'}; });
     document.getElementById('singleB')?.addEventListener('focus', ()=>{ quickLedgerFocus = {type:'single', which:'B'}; });
     document.getElementById('singleAmount')?.addEventListener('input', e=>{ vform.single.amount = e.target.value; updateSingleEntryPreview(); });
@@ -19614,16 +19663,23 @@ function attachHandlers(){
       } else {
         if(!quickLedgerFocus || quickLedgerFocus.type!=='entry' || vform.entries[quickLedgerFocus.index]===undefined){
           let idx = vform.entries.findIndex(e=>!e.ledgerId);
-          if(idx===-1){ vform.entries.push({ledgerId:'',dr:0,cr:0}); idx = vform.entries.length-1; }
+          if(idx===-1){ vform.entries.push({ledgerId:'',dr:0,cr:0,side:'dr'}); idx = vform.entries.length-1; }
           quickLedgerFocus = { type:'entry', index: idx };
         }
       }
       modal = 'quickAddLedger';
       render();
     });
-    document.getElementById('addRow')?.addEventListener('click',()=>{
-      vform.entries.push({ledgerId:'',dr:0,cr:0});
+    // Appends a new blank row to the Dr block or the Cr block (see entryRow()'s grouped-rows comment),
+    // focuses its ledger picker, and re-renders -- shared by the per-block "+" buttons and the
+    // Enter-to-add-a-row shortcut below.
+    const addEntrySideRow = (side)=>{
+      vform.entries.push({ledgerId:'', dr:0, cr:0, side});
       render();
+      document.querySelector(`.e-ledger[data-i="${vform.entries.length-1}"]`)?.focus();
+    };
+    document.querySelectorAll('[data-add-side]').forEach(b=>{
+      b.addEventListener('click', ()=> addEntrySideRow(b.dataset.addSide));
     });
     document.getElementById('resetVoucher').addEventListener('click',()=>{
       vform = null; render();
@@ -19633,9 +19689,10 @@ function attachHandlers(){
       s.addEventListener('change', e=>{
         const i = +e.target.dataset.i;
         vform.entries[i].ledgerId = e.target.value;
-        // Row 0 is the Debit row -- on a Payment voucher, re-render so the "Items Purchased" panel
-        // shows up (or goes away) immediately based on whether a Purchase Accounts ledger was picked.
-        if(vform.type==='Payment' && i===0) render();
+        // On a Payment voucher, re-render (not just update the value) so the "Items Purchased" panel
+        // shows up or goes away immediately based on whether any Debit-side ledger is now a Purchase
+        // Accounts ledger.
+        if(vform.type==='Payment') render();
       });
       s.addEventListener('focus', e=>{ quickLedgerFocus = { type:'entry', index: +e.target.dataset.i }; });
     });
@@ -19655,24 +19712,31 @@ function attachHandlers(){
         renderTotalsOnly();
       });
     });
-    // Buttonless entry-adding: pressing Enter in the LAST row's Debit or Credit field adds a new
-    // row and focuses its ledger picker, the same intent "+ Add row" serves -- so a fast typist
-    // never has to reach for the mouse mid-voucher.
+    // Buttonless entry-adding: pressing Enter in the LAST row of a block (Dr or Cr) adds a new row to
+    // that same block and focuses its ledger picker, the same intent that block's own "+" button
+    // serves -- so a fast typist never has to reach for the mouse mid-voucher.
     document.querySelectorAll('.e-dr, .e-cr').forEach(inp=>{
       inp.addEventListener('keydown', e=>{
         if(e.key!=='Enter') return;
         e.preventDefault();
         const i = +inp.dataset.i;
-        if(i !== vform.entries.length-1) return;
-        vform.entries.push({ledgerId:'',dr:0,cr:0});
-        render();
-        document.querySelector(`.e-ledger[data-i="${vform.entries.length-1}"]`)?.focus();
+        const entry = vform.entries[i];
+        if(!entry) return;
+        const side = entrySide(entry);
+        const sideIdxs = vform.entries.map((e2,i2)=>i2).filter(i2=>entrySide(vform.entries[i2])===side);
+        if(i !== sideIdxs[sideIdxs.length-1]) return; // only the last row of this block responds to Enter
+        addEntrySideRow(side);
       });
     });
     document.querySelectorAll('[data-rm]').forEach(b=>{
       b.addEventListener('click', e=>{
         const i = +e.target.dataset.rm;
-        if(vform.entries.length>2) vform.entries.splice(i,1);
+        const entry = vform.entries[i];
+        if(entry){
+          const side = entrySide(entry);
+          const sideCount = vform.entries.filter(x=>entrySide(x)===side).length;
+          if(sideCount>1) vform.entries.splice(i,1); // never remove the last row of a block
+        }
         render();
       });
     });
@@ -19790,7 +19854,7 @@ function attachHandlers(){
           vform.entries.push({ledgerId:'l_iigst', dr:taxVal, cr:0});
         }
       }
-      if(vform.entries.length<2) vform.entries.push({ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0});
+      if(vform.entries.length<2) vform.entries.push({ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'});
       vform.appliedItems = (g.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0).map(it=>{
         const applied = {itemId: (it.itemId && it.itemId!=='__custom__') ? it.itemId : null, name:it.name, qty:Number(it.qty)||0, rate:Number(it.rate)||0, disc:Number(it.disc)||0};
         if(it.batch) applied.batch = it.batch;
@@ -19803,28 +19867,43 @@ function attachHandlers(){
       render();
     });
     // "Apply Items to Voucher" in paymentPurchaseItemsPanel() -- same items list (vform.gst.items) as
-    // the GST Calculator above, but fills the fixed Debit/Credit rows (entryRow()'s row 0/row 1)
-    // instead of the party/taxable-ledger pair, since a Payment voucher's row 0 ledger was already
-    // picked (that's what revealed this panel) and row 1 is whatever Cash/Bank the user is paying from.
+    // the GST Calculator above, but fills the Purchase ledger's Debit amount and the paid-from ledger's
+    // Credit amount instead of the party/taxable-ledger pair. In Single Entry mode there's no entries
+    // list to fill yet -- one is seeded here from the Paid To/Paid From pickers and the form switches to
+    // Double Entry, since Single Entry's two-ledger shape can't hold a separate GST input-tax line.
     document.getElementById('applyPaymentItems')?.addEventListener('click', ()=>{
       const g = vform.gst;
       const amt = itemsSubtotal(g.items);
       if(!amt){ toast('Add at least one item with qty & rate'); return; }
-      if(!vform.entries[1] || !vform.entries[1].ledgerId){ toast('Pick a Credit (Paid From) ledger first'); return; }
+      const inSingleMode = !!document.getElementById('singleA');
+      if(inSingleMode){
+        if(!vform.single.ledgerA){ toast('Pick a Paid From (Cash/Bank) ledger first'); return; }
+        vform.entries = [
+          {ledgerId: vform.single.ledgerB, dr:0, cr:0, side:'dr'},
+          {ledgerId: vform.single.ledgerA, dr:0, cr:0, side:'cr'},
+        ];
+        vform.mode = 'double';
+      }
+      const drEntry = vform.entries.find(e=> entrySide(e)==='dr' && e.ledgerId && bucketOf(ledgerOf(e.ledgerId))==='purch');
+      const crEntry = vform.entries.find(e=> entrySide(e)==='cr' && e.ledgerId);
+      if(!drEntry){ toast('Pick a Purchase Accounts ledger on a Debit row first'); return; }
+      if(!crEntry){ toast('Pick a Credit (Paid From) ledger first'); return; }
       const rate = Number(g.rate)||0;
       const taxVal = r2(amt*rate/100);
       const total = r2(amt+taxVal);
-      vform.entries = vform.entries.slice(0,2);
-      vform.entries[0].dr = amt; vform.entries[0].cr = 0;
+      // Drop any GST lines a previous "Apply Items" click added, so re-applying after editing items
+      // doesn't pile up duplicates -- everything else on the voucher (other Dr/Cr rows) is left as is.
+      vform.entries = vform.entries.filter(e=> e===drEntry || e===crEntry || !['l_icgst','l_isgst','l_iigst'].includes(e.ledgerId));
+      drEntry.dr = amt; drEntry.cr = 0;
       if(taxVal>0){
         if(g.supply==='intra'){
-          vform.entries.push({ledgerId:'l_icgst', dr:r2(taxVal/2), cr:0});
-          vform.entries.push({ledgerId:'l_isgst', dr:r2(taxVal/2), cr:0});
+          vform.entries.push({ledgerId:'l_icgst', dr:r2(taxVal/2), cr:0, side:'dr'});
+          vform.entries.push({ledgerId:'l_isgst', dr:r2(taxVal/2), cr:0, side:'dr'});
         } else {
-          vform.entries.push({ledgerId:'l_iigst', dr:taxVal, cr:0});
+          vform.entries.push({ledgerId:'l_iigst', dr:taxVal, cr:0, side:'dr'});
         }
       }
-      vform.entries[1].cr = total; vform.entries[1].dr = 0;
+      crEntry.cr = total; crEntry.dr = 0;
       vform.appliedItems = (g.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0).map(it=>{
         const applied = {itemId: (it.itemId && it.itemId!=='__custom__') ? it.itemId : null, name:it.name, qty:Number(it.qty)||0, rate:Number(it.rate)||0, disc:Number(it.disc)||0};
         if(it.batch) applied.batch = it.batch;
@@ -20265,7 +20344,7 @@ function attachHandlers(){
       el.addEventListener('click', ()=>{ calState.selected = el.dataset.calDay; render(); });
     });
     document.getElementById('calNewVoucher')?.addEventListener('click', ()=>{
-      vform = { type:'Payment', date: calState.selected, narration:'', entries:[{ledgerId:'',dr:0,cr:0},{ledgerId:'',dr:0,cr:0}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
+      vform = { type:'Payment', date: calState.selected, narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
       view = 'voucher';
       render();
     });
