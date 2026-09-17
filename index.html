@@ -2267,6 +2267,7 @@ let daybookSearchQuery = '';
 let daybookTypeFilter = '';
 let itemMasterSearchQuery = '';
 let inventorySearchQuery = '';
+let itemEditId = null; // null = "Create Stock Item" mode | a state.items id = editing that item in stockItemForm()
 let partiesSearchQuery = '';
 let ordersSearchQuery = '';
 // Which series are hidden (clicked off) in the new interactive Dashboard trend visuals — keyed by
@@ -14784,16 +14785,22 @@ function gstCalculator(){
       <div class="panel-body">
         <div class="row">
           <div class="field"><label>${salesLike?'Customer (Party) Ledger':'Supplier (Party) Ledger'}</label>
-            <select id="gstParty">
-              <option value="">Select ledger…</option>
-              ${state.ledgers.map(l=>`<option value="${l.id}" ${g.party===l.id?'selected':''}>${l.name}</option>`).join('')}
-            </select>
+            <div style="display:flex;gap:6px;">
+              <select id="gstParty" style="flex:1;">
+                <option value="">Select ledger…</option>
+                ${state.ledgers.map(l=>`<option value="${l.id}" ${g.party===l.id?'selected':''}>${l.name}</option>`).join('')}
+              </select>
+              <button class="btn secondary small" type="button" data-quick-ledger-for="party" title="Create a new ledger for this field">+ New</button>
+            </div>
           </div>
           <div class="field"><label>${taxableLabel}</label>
-            <select id="gstTaxable">
-              <option value="">Select ledger…</option>
-              ${state.ledgers.map(l=>`<option value="${l.id}" ${g.taxableLedger===l.id?'selected':''}>${l.name}${l.gstRate!=null?' ('+l.gstRate+'%)':''}</option>`).join('')}
-            </select>
+            <div style="display:flex;gap:6px;">
+              <select id="gstTaxable" style="flex:1;">
+                <option value="">Select ledger…</option>
+                ${state.ledgers.map(l=>`<option value="${l.id}" ${g.taxableLedger===l.id?'selected':''}>${l.name}${l.gstRate!=null?' ('+l.gstRate+'%)':''}</option>`).join('')}
+              </select>
+              <button class="btn secondary small" type="button" data-quick-ledger-for="taxable" title="Create a new ledger for this field">+ New</button>
+            </div>
           </div>
         </div>
 
@@ -15465,52 +15472,58 @@ function ledgerStatement(ledgerId){
   `;
 }
 
+// itemEditId===null renders this in "Create Stock Item" mode (blank fields); any other value edits
+// that state.items entry in place -- same create/edit-in-one-form pattern as alterLedgerModal() for
+// ledgers, just inline on the page instead of a modal, since both Inventory Control and the Item
+// Master screen already show this form directly in their layout.
 function stockItemForm(){
+  const editing = itemEditId ? state.items.find(i=>i.id===itemEditId) : null;
+  const d = editing || {};
   return `
     <div class="panel">
-      <div class="panel-head"><h2>Create Stock Item</h2></div>
+      <div class="panel-head"><h2>${editing?'Edit Stock Item':'Create Stock Item'}</h2></div>
       <div class="panel-body">
-        <div class="field"><label>Name</label><input type="text" id="newItemName" placeholder="e.g. Widget A"></div>
+        <div class="field"><label>Name</label><input type="text" id="newItemName" value="${escapeAttr(d.name)}" placeholder="e.g. Widget A"></div>
         <div class="row">
           <div class="field"><label>Under (Stock Group)</label>
-            <select id="newItemGroup">${STOCK_GROUPS.map(g=>`<option value="${g}">${g}</option>`).join('')}</select>
+            <select id="newItemGroup">${STOCK_GROUPS.map(g=>`<option value="${g}" ${d.group===g?'selected':''}>${g}</option>`).join('')}</select>
           </div>
           <div class="field" style="max-width:140px;"><label>Units</label>
-            <select id="newItemUnit">${UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}</select>
+            <select id="newItemUnit">${UNITS.map(u=>`<option value="${u}" ${d.unit===u?'selected':''}>${u}</option>`).join('')}</select>
           </div>
         </div>
 
         <div class="section-title" style="margin-top:18px;">GST Details</div>
         <div class="row">
-          <div class="field"><label>HSN / SAC Code</label><input type="text" id="newItemHSN" placeholder="e.g. 8471"></div>
+          <div class="field"><label>HSN / SAC Code</label><input type="text" id="newItemHSN" value="${escapeAttr(d.hsn)}" placeholder="e.g. 8471"></div>
           <div class="field" style="max-width:140px;"><label>GST Rate</label>
             <select id="newItemGST">
-              <option value="">— None —</option>
-              <option value="0">0%</option>
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18">18%</option>
-              <option value="28">28%</option>
+              <option value="" ${d.gstRate==null?'selected':''}>— None —</option>
+              ${[0,5,12,18,28].map(r=>`<option value="${r}" ${d.gstRate===r?'selected':''}>${r}%</option>`).join('')}
             </select>
           </div>
         </div>
 
         <div class="section-title" style="margin-top:18px;">Pricing &amp; Opening Balance</div>
         <div class="row">
-          <div class="field"><label>Standard Selling Rate</label><input type="number" id="newItemRate" step="0.01" placeholder="0.00"></div>
-          <div class="field"><label>Opening Quantity</label><input type="number" id="newItemOpeningQty" step="0.01" placeholder="0"></div>
-          <div class="field"><label>Opening Rate</label><input type="number" id="newItemOpeningRate" step="0.01" placeholder="0.00"></div>
+          <div class="field"><label>Standard Selling Rate</label><input type="number" id="newItemRate" step="0.01" value="${d.rate!=null?d.rate:''}" placeholder="0.00"></div>
+          <div class="field"><label>Opening Quantity</label><input type="number" id="newItemOpeningQty" step="0.01" value="${d.openingQty!=null?d.openingQty:''}" placeholder="0"></div>
+          <div class="field"><label>Opening Rate</label><input type="number" id="newItemOpeningRate" step="0.01" value="${d.openingRate!=null?d.openingRate:''}" placeholder="0.00"></div>
         </div>
+        ${editing ? `<p class="muted" style="font-size:11px;margin-top:-4px;">Opening Quantity/Rate only affect stock as of the company's FY start — changing them here does not create a stock adjustment for today. Use "Adjust" on the item's row for an in-period correction.</p>` : ''}
         <div class="row">
-          <div class="field" style="max-width:220px;"><label>Reorder Level (optional)</label><input type="number" id="newItemReorderLevel" step="0.01" placeholder="e.g. 20"></div>
-          <div class="field"><label>Barcode (optional)</label><input type="text" id="newItemBarcode" placeholder="Scan or type a barcode/SKU"></div>
+          <div class="field" style="max-width:220px;"><label>Reorder Level (optional)</label><input type="number" id="newItemReorderLevel" step="0.01" value="${d.reorderLevel!=null?d.reorderLevel:''}" placeholder="e.g. 20"></div>
+          <div class="field"><label>Barcode (optional)</label><input type="text" id="newItemBarcode" value="${escapeAttr(d.barcode)}" placeholder="Scan or type a barcode/SKU"></div>
         </div>
-        <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackBatches" style="width:auto;">Track batch number &amp; expiry date for this item</label></div>
+        <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackBatches" style="width:auto;" ${d.trackBatches?'checked':''}>Track batch number &amp; expiry date for this item</label></div>
         <div class="row">
-          <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackSerials" style="width:auto;">Track individual serial numbers for this item</label></div>
-          <div class="field" style="max-width:200px;"><label>Warranty (months, optional)</label><input type="number" id="newItemWarrantyMonths" step="1" min="0" placeholder="e.g. 12"></div>
+          <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackSerials" style="width:auto;" ${d.trackSerials?'checked':''}>Track individual serial numbers for this item</label></div>
+          <div class="field" style="max-width:200px;"><label>Warranty (months, optional)</label><input type="number" id="newItemWarrantyMonths" step="1" min="0" value="${d.warrantyMonths!=null?d.warrantyMonths:''}" placeholder="e.g. 12"></div>
         </div>
-        <button class="btn" id="addItemBtn" style="margin-top:4px;">Create Item</button>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn" id="addItemBtn">${editing?'Save Changes':'Create Item'}</button>
+          ${editing ? `<button class="btn secondary" id="cancelEditItemBtn" type="button">Cancel</button>` : ''}
+        </div>
       </div>
     </div>
   `;
@@ -15531,21 +15544,53 @@ function attachStockItemFormHandlers(){
     const trackSerials = !!document.getElementById('newItemTrackSerials')?.checked;
     const warrantyRaw = document.getElementById('newItemWarrantyMonths')?.value;
     if(!name){ toast('Enter an item name'); return; }
-    const item = { id: uid('it'), name, group, unit };
-    if(hsn) item.hsn = hsn;
-    if(rateRaw !== '') item.rate = Number(rateRaw);
-    if(gstRaw !== '') item.gstRate = Number(gstRaw);
-    if(openQtyRaw !== '') item.openingQty = Number(openQtyRaw);
-    if(openRateRaw !== '') item.openingRate = Number(openRateRaw);
-    if(reorderRaw !== '') item.reorderLevel = Number(reorderRaw);
-    if(barcode) item.barcode = barcode;
-    if(trackBatches) item.trackBatches = true;
-    if(trackSerials) item.trackSerials = true;
-    if(warrantyRaw) item.warrantyMonths = Number(warrantyRaw);
-    state.items.push(item);
+    const editingExisting = itemEditId ? state.items.find(i=>i.id===itemEditId) : null;
+    const item = editingExisting || { id: uid('it') };
+    item.name = name; item.group = group; item.unit = unit;
+    if(hsn) item.hsn = hsn; else delete item.hsn;
+    if(rateRaw !== '') item.rate = Number(rateRaw); else delete item.rate;
+    if(gstRaw !== '') item.gstRate = Number(gstRaw); else delete item.gstRate;
+    if(openQtyRaw !== '') item.openingQty = Number(openQtyRaw); else delete item.openingQty;
+    if(openRateRaw !== '') item.openingRate = Number(openRateRaw); else delete item.openingRate;
+    if(reorderRaw !== '') item.reorderLevel = Number(reorderRaw); else delete item.reorderLevel;
+    if(barcode) item.barcode = barcode; else delete item.barcode;
+    if(trackBatches) item.trackBatches = true; else delete item.trackBatches;
+    if(trackSerials) item.trackSerials = true; else delete item.trackSerials;
+    if(warrantyRaw) item.warrantyMonths = Number(warrantyRaw); else delete item.warrantyMonths;
+    if(!editingExisting) state.items.push(item);
     await saveItems();
-    toast('Stock item created — it will now show up in Sales/Purchase voucher item pickers');
+    toast(editingExisting ? `"${name}" updated` : 'Stock item created — it will now show up in Sales/Purchase voucher item pickers');
+    itemEditId = null;
     render();
+  });
+  document.getElementById('cancelEditItemBtn')?.addEventListener('click', ()=>{
+    itemEditId = null;
+    render();
+  });
+  document.querySelectorAll('[data-edit-item]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      itemEditId = b.dataset.editItem;
+      render();
+      document.getElementById('newItemName')?.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
+  document.querySelectorAll('[data-delete-item]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.deleteItem;
+      const it = state.items.find(x=>x.id===id);
+      if(!it) return;
+      const idx = state.items.findIndex(x=>x.id===id);
+      state.items = state.items.filter(x=>x.id!==id);
+      if(itemEditId===id) itemEditId = null;
+      await saveItems();
+      render();
+      toast(`"${it.name}" deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+        state.items.splice(Math.min(idx, state.items.length), 0, it);
+        await saveItems();
+        toast('Item restored', {type:'success'});
+        render();
+      }}});
+    });
   });
 }
 // A friendlier "nothing here yet" block — icon, short title, one line of guidance, and an optional
@@ -15801,7 +15846,7 @@ function viewCOA(){
                   <td class="muted">${it.gstRate!=null?it.gstRate+'%':'—'}</td>
                   <td class="num">${it.openingQty?fmt(it.openingQty)+' '+(it.unit||''):'—'}</td>
                   <td class="num">${openVal?'₹'+fmt(openVal):'—'}</td>
-                  <td><button class="btn small secondary" data-delete-item="${it.id}" type="button">Delete</button></td>
+                  <td><button class="btn small secondary" data-edit-item="${it.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-item="${it.id}" type="button">Delete</button></td>
                 </tr>`;
               }).join('')}
             </table>
@@ -16012,7 +16057,11 @@ function viewInventory(){
                   <td class="num">${item.rate!=null?'₹'+fmt(item.rate):'—'}</td>
                   <td class="num">₹${fmt(summary.value)}</td>
                   <td>${statusBadge}</td>
-                  <td><button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button></td>
+                  <td style="white-space:nowrap;">
+                    <button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button>
+                    <button class="btn small secondary" data-edit-item="${item.id}" type="button">Edit</button>
+                    <button class="btn small secondary" data-delete-item="${item.id}" type="button">Delete</button>
+                  </td>
                 </tr>`;
               }).join('')}
             </table>
@@ -19821,6 +19870,16 @@ function attachHandlers(){
       if(l && l.gstRate!=null) vform.gst.rate = l.gstRate;
       render();
     });
+    // "+ New" next to the GST Calculator's Party / Taxable ledger fields -- same quick-create modal
+    // as the rest of the voucher form (quickAddLedgerModal / quickAddLedgerSubmit), just remembering
+    // which of the two GST Calculator fields to drop the new ledger into via quickLedgerFocus.
+    document.querySelectorAll('[data-quick-ledger-for]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        quickLedgerFocus = { type:'gst', which: b.dataset.quickLedgerFor };
+        modal = 'quickAddLedger';
+        render();
+      });
+    });
     document.getElementById('addItemRow')?.addEventListener('click', ()=>{
       vform.gst.items = vform.gst.items || [];
       vform.gst.items.push({itemId:'__custom__', name:'', qty:1, rate:0, disc:0});
@@ -20446,6 +20505,12 @@ function attachHandlers(){
         } else if(quickLedgerFocus.type==='single'){
           if(quickLedgerFocus.which==='A') vform.single.ledgerA = ledger.id;
           else vform.single.ledgerB = ledger.id;
+        } else if(quickLedgerFocus.type==='gst'){
+          if(quickLedgerFocus.which==='party') vform.gst.party = ledger.id;
+          else if(quickLedgerFocus.which==='taxable'){
+            vform.gst.taxableLedger = ledger.id;
+            if(ledger.gstRate!=null) vform.gst.rate = ledger.gstRate;
+          }
         }
       }
       quickLedgerFocus = null;
@@ -20604,24 +20669,7 @@ function attachHandlers(){
         render();
       });
     });
-    attachStockItemFormHandlers();
-    document.querySelectorAll('[data-delete-item]').forEach(b=>{
-      b.addEventListener('click', async ()=>{
-        const id = b.dataset.deleteItem;
-        const it = state.items.find(x=>x.id===id);
-        if(!it) return;
-        const idx = state.items.findIndex(x=>x.id===id);
-        state.items = state.items.filter(x=>x.id!==id);
-        await saveItems();
-        render();
-        toast(`"${it.name}" deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
-          state.items.splice(Math.min(idx, state.items.length), 0, it);
-          await saveItems();
-          toast('Item restored', {type:'success'});
-          render();
-        }}});
-      });
-    });
+    attachStockItemFormHandlers(); // also attaches [data-edit-item]/[data-delete-item] on the Item Master table below
     document.querySelectorAll('.currency-rate').forEach(el=>{
       el.addEventListener('change', async e=>{
         const c = currencyOf(e.target.dataset.currency);
