@@ -14703,7 +14703,15 @@ function posAddItemToCart(itemId){
   if(!item) return;
   const existing = pos.items.find(l=>l.itemId===itemId);
   if(existing){ existing.qty = (Number(existing.qty)||0) + 1; }
-  else { pos.items.push({itemId:item.id, name:item.name, qty:1, rate: item.rate!=null?item.rate:(item.openingRate||0), disc:0}); }
+  else { pos.items.push({itemId:item.id, name:item.name, qty:1, rate: item.rate!=null?item.rate:(item.openingRate||0), disc:0, note:'', noteOpen:false}); }
+}
+// Deterministic pastel-ish color for a cart line's initial-letter avatar chip, so the same item
+// name always gets the same color across renders (purely cosmetic, no data-model change).
+function posAvatarColor(name){
+  const palette = ['#3a6ee0','#e0793a','#2ca01c','#a03ce0','#c9316e','#1c9aa0','#c98a1c','#6e5ae0'];
+  let h = 0;
+  for(let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
 }
 function posCartTotals(){
   const subtotal = itemsSubtotal(pos.items);
@@ -14720,6 +14728,10 @@ function updatePosTotals(){
   document.querySelectorAll('#posCartLines .pos-line-amount').forEach((el,i)=>{
     const it = pos.items[i];
     if(it) el.textContent = '₹'+fmt(itemLineAmount(it));
+  });
+  document.querySelectorAll('#posCartLines .pos-line-meta').forEach((el,i)=>{
+    const it = pos.items[i];
+    if(it) el.textContent = `₹${fmt(it.rate)} each${Number(it.disc)>0?` · ${it.disc}% off`:''}`;
   });
   const { subtotal, rate, taxVal, total } = posCartTotals();
   const subEl = document.getElementById('posSubtotal'); if(subEl) subEl.textContent = '₹'+fmt(subtotal);
@@ -14794,76 +14806,109 @@ function viewPOS(){
         </div>` : emptyState({icon:'🔍', title:'No items match', text:'Try a different search, or add items under Accounts → Item Master.'})}
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>Cart</h2><span class="muted" style="font-size:11.5px;">${pos.items.length} line${pos.items.length===1?'':'s'}</span></div>
-        <div class="panel-body">
-          <div id="posCartLines">
+        <div class="panel-head">
+          <h2>Cart</h2>
+          <span class="muted" style="font-size:11.5px;">${pos.items.length} line${pos.items.length===1?'':'s'}${pos.items.length?` · <strong style="color:var(--ink);">₹${fmt(total)}</strong>`:''}</span>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div id="posCartLines" style="max-height:320px;overflow-y:auto;padding:14px 16px;">
             ${pos.items.length ? pos.items.map((it,i)=>`
-              <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
-                <div style="flex:1;min-width:0;">
-                  <div style="font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(it.name)}</div>
-                  <div class="muted" style="font-size:10.5px;">₹${fmt(it.rate)} each</div>
+              <div style="padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:${posAvatarColor(it.name)};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${escapeHtml((it.name||'?').charAt(0).toUpperCase())}</div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <div style="font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">${escapeHtml(it.name)}</div>
+                      <button class="btn secondary small" data-pos-note-toggle="${i}" type="button" style="padding:2px 6px;font-size:11px;${it.note?'border-color:var(--gold);':''}" title="Add a note">📝</button>
+                      <button class="btn secondary small" data-pos-remove-item="${i}" type="button" style="color:var(--debit);padding:2px 6px;" title="Remove">✕</button>
+                    </div>
+                    <div class="muted pos-line-meta" style="font-size:10.5px;margin-top:1px;">₹${fmt(it.rate)} each${Number(it.disc)>0?` · ${it.disc}% off`:''}</div>
+                    ${it.noteOpen ? `<input type="text" class="pos-note-input" data-i="${i}" value="${escapeAttr(it.note||'')}" placeholder="Note for this line…" style="margin-top:6px;width:100%;font-size:11.5px;padding:5px 8px;">` : ''}
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                      <div style="display:flex;align-items:center;gap:4px;">
+                        <button class="btn secondary small" data-pos-qty-dec="${i}" type="button" style="padding:2px 8px;">−</button>
+                        <input type="number" class="pos-qty-input" data-i="${i}" value="${it.qty}" min="1" step="1" style="width:44px;text-align:center;padding:4px;">
+                        <button class="btn secondary small" data-pos-qty-inc="${i}" type="button" style="padding:2px 8px;">+</button>
+                      </div>
+                      <div style="display:flex;gap:3px;">
+                        ${[2,5,10].map(n=>`<button class="btn secondary small" data-pos-qty-set="${i}" data-qty="${n}" type="button" style="padding:2px 6px;font-size:10px;" title="Set quantity to ${n}">×${n}</button>`).join('')}
+                      </div>
+                      <div style="display:flex;align-items:center;gap:3px;margin-left:auto;">
+                        <label class="muted" style="font-size:10px;">Disc</label>
+                        <input type="number" class="pos-disc-input" data-i="${i}" value="${it.disc||0}" min="0" max="100" step="1" style="width:42px;text-align:center;padding:3px;font-size:11px;">
+                        <span class="muted" style="font-size:10px;">%</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <button class="btn secondary small" data-pos-qty-dec="${i}" type="button" style="padding:2px 8px;">−</button>
-                <input type="number" class="pos-qty-input" data-i="${i}" value="${it.qty}" min="1" step="1" style="width:46px;text-align:center;padding:4px;">
-                <button class="btn secondary small" data-pos-qty-inc="${i}" type="button" style="padding:2px 8px;">+</button>
-                <div class="pos-line-amount" style="width:76px;text-align:right;font-weight:700;font-size:12.5px;">₹${fmt(itemLineAmount(it))}</div>
-                <button class="btn secondary small" data-pos-remove-item="${i}" type="button" style="color:var(--debit);padding:2px 8px;" title="Remove">✕</button>
+                <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+                  <div class="pos-line-amount" style="font-weight:700;font-size:13px;">₹${fmt(itemLineAmount(it))}</div>
+                </div>
               </div>`).join('') : `<p class="muted" style="font-size:12.5px;margin:6px 0;">Tap an item to add it to the cart.</p>`}
           </div>
 
-          <details class="disclosure" style="margin-top:10px;">
-            <summary>GST — ${rate}%, ${pos.supply==='intra'?'Intrastate':'Interstate'}</summary>
-            <div class="disclosure-body row">
-              <div class="field" style="max-width:110px;"><label>GST Rate</label>
-                <select id="posGstRate">${[0,5,12,18,28].map(r=>`<option value="${r}" ${Number(pos.gstRate)===r?'selected':''}>${r}%</option>`).join('')}</select>
+          <div style="padding:14px 16px 16px;border-top:1px solid var(--border);">
+            <details class="disclosure">
+              <summary>GST — ${rate}%, ${pos.supply==='intra'?'Intrastate':'Interstate'}</summary>
+              <div class="disclosure-body row">
+                <div class="field" style="max-width:110px;"><label>GST Rate</label>
+                  <select id="posGstRate">${[0,5,12,18,28].map(r=>`<option value="${r}" ${Number(pos.gstRate)===r?'selected':''}>${r}%</option>`).join('')}</select>
+                </div>
+                <div class="field" style="max-width:190px;"><label>Supply Type</label>
+                  <select id="posSupply">
+                    <option value="intra" ${pos.supply==='intra'?'selected':''}>Intrastate (CGST+SGST)</option>
+                    <option value="inter" ${pos.supply==='inter'?'selected':''}>Interstate (IGST)</option>
+                  </select>
+                </div>
               </div>
-              <div class="field" style="max-width:190px;"><label>Supply Type</label>
-                <select id="posSupply">
-                  <option value="intra" ${pos.supply==='intra'?'selected':''}>Intrastate (CGST+SGST)</option>
-                  <option value="inter" ${pos.supply==='inter'?'selected':''}>Interstate (IGST)</option>
-                </select>
-              </div>
-            </div>
-          </details>
+            </details>
 
-          <div class="totals-line" style="justify-content:space-between;margin-top:10px;"><span class="muted">Subtotal</span><span id="posSubtotal">₹${fmt(subtotal)}</span></div>
-          <div class="totals-line" id="posTaxLine" style="justify-content:space-between;">${taxVal>0 ? `<span class="muted">${pos.supply==='intra'?`CGST+SGST @ ${rate}%`:`IGST @ ${rate}%`}</span><span>₹${fmt(taxVal)}</span>` : ''}</div>
-          <div class="totals-line balanced" style="justify-content:space-between;font-size:16px;font-weight:700;"><span>Grand Total</span><span id="posGrandTotal">₹${fmt(total)}</span></div>
+            <div class="totals-line" style="justify-content:space-between;margin-top:10px;"><span class="muted">Subtotal</span><span id="posSubtotal">₹${fmt(subtotal)}</span></div>
+            <div class="totals-line" id="posTaxLine" style="justify-content:space-between;">${taxVal>0 ? `<span class="muted">${pos.supply==='intra'?`CGST+SGST @ ${rate}%`:`IGST @ ${rate}%`}</span><span>₹${fmt(taxVal)}</span>` : ''}</div>
 
-          <div class="field" style="margin-top:12px;"><label>Customer</label>
-            <select id="posCustomer">
-              <option value="">Walk-in Customer</option>
-              ${customerLedgers.map(l=>`<option value="${l.id}" ${pos.customerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
-            </select>
-          </div>
+            <div style="margin:16px 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);">Customer &amp; Payment</div>
 
-          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;font-weight:500;margin:10px 0;">
-            <input type="checkbox" id="posCollectPayment" style="width:auto;" ${pos.collectPayment?'checked':''}> Collect payment now
-          </label>
-
-          ${pos.collectPayment ? `
-          <div class="row">
-            <div class="field"><label>Tender</label>
-              <select id="posTenderLedger">
-                ${state.ledgers.filter(l=>['cash','bank'].includes(bucketOf(l))).map(l=>`<option value="${l.id}" ${pos.tenderLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+            <div class="field"><label>Customer</label>
+              <select id="posCustomer">
+                <option value="">Walk-in Customer</option>
+                ${customerLedgers.map(l=>`<option value="${l.id}" ${pos.customerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
               </select>
             </div>
-            <div class="field" style="max-width:150px;"><label>Amount Tendered</label><input type="number" id="posAmountTendered" value="${pos.amountTendered}" step="0.01" placeholder="${fmt(total)}"></div>
-          </div>
-          <div class="totals-line ${tendered>=total?'balanced':'unbalanced'}" id="posChangeLine" style="justify-content:space-between;">
-            <span>${tendered>=total?'Change Due':'Amount Due'}</span><span>₹${fmt(Math.abs(r2(tendered-total)))}</span>
-          </div>` : `<p class="muted" style="font-size:11.5px;">Posts the full amount to the customer's ledger as a receivable — no Cash/Bank movement recorded now.</p>`}
 
-          <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:11.5px;font-weight:500;margin-top:10px;">
-            <input type="checkbox" id="posAlwaysPrint" style="width:auto;" ${currentCompany.posAlwaysPrint!==false?'checked':''}> Print invoice automatically after each sale
-          </label>
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;font-weight:500;margin:10px 0;">
+              <input type="checkbox" id="posCollectPayment" style="width:auto;" ${pos.collectPayment?'checked':''}> Collect payment now
+            </label>
 
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-            <button class="btn" id="posCompleteSale" type="button" ${(pos.items.length && !isReadOnlyMode())?'':'disabled'}>✅ Complete Sale</button>
-            <button class="btn secondary" id="posHoldSale" type="button" ${pos.items.length?'':'disabled'}>⏸ Hold</button>
-            <button class="btn secondary" id="posClearCart" type="button" ${pos.items.length?'':'disabled'}>Clear</button>
+            ${pos.collectPayment ? `
+            <div class="row">
+              <div class="field"><label>Tender</label>
+                <select id="posTenderLedger">
+                  ${state.ledgers.filter(l=>['cash','bank'].includes(bucketOf(l))).map(l=>`<option value="${l.id}" ${pos.tenderLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field" style="max-width:150px;"><label>Amount Tendered</label><input type="number" id="posAmountTendered" value="${pos.amountTendered}" step="0.01" placeholder="${fmt(total)}"></div>
+            </div>
+            <div class="totals-line ${tendered>=total?'balanced':'unbalanced'}" id="posChangeLine" style="justify-content:space-between;">
+              <span>${tendered>=total?'Change Due':'Amount Due'}</span><span>₹${fmt(Math.abs(r2(tendered-total)))}</span>
+            </div>` : `<p class="muted" style="font-size:11.5px;">Posts the full amount to the customer's ledger as a receivable — no Cash/Bank movement recorded now.</p>`}
+
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:11.5px;font-weight:500;margin-top:10px;">
+              <input type="checkbox" id="posAlwaysPrint" style="width:auto;" ${currentCompany.posAlwaysPrint!==false?'checked':''}> Print invoice automatically after each sale
+            </label>
           </div>
-          ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:8px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
+
+          <div style="padding:14px 16px;border-top:2px solid var(--border);background:linear-gradient(180deg, rgba(44,160,28,0.05), rgba(44,160,28,0.02));">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);">Total Due</span>
+              <span id="posGrandTotal" style="font-size:19px;font-weight:800;">₹${fmt(total)}</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn" id="posCompleteSale" type="button" ${(pos.items.length && !isReadOnlyMode())?'':'disabled'}>✅ Complete Sale</button>
+              <button class="btn secondary" id="posHoldSale" type="button" ${pos.items.length?'':'disabled'}>⏸ Hold</button>
+              <button class="btn secondary" id="posClearCart" type="button" ${pos.items.length?'':'disabled'}>Clear</button>
+            </div>
+            ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:8px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
+          </div>
         </div>
       </div>
     </div>
@@ -19813,6 +19858,39 @@ function attachHandlers(){
         if(!pos.items[i]) return;
         pos.items[i].qty = Math.max(1, Number(e.target.value)||1);
         updatePosTotals();
+      });
+    });
+    document.querySelectorAll('[data-pos-qty-set]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = +el.dataset.posQtySet;
+        if(pos.items[i]) pos.items[i].qty = +el.dataset.qty;
+        render();
+      });
+    });
+    document.querySelectorAll('.pos-disc-input').forEach(el=>{
+      el.addEventListener('input', e=>{
+        const i = +e.target.dataset.i;
+        if(!pos.items[i]) return;
+        pos.items[i].disc = Math.max(0, Math.min(100, Number(e.target.value)||0));
+        updatePosTotals();
+      });
+    });
+    document.querySelectorAll('[data-pos-note-toggle]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = +el.dataset.posNoteToggle;
+        if(!pos.items[i]) return;
+        pos.items[i].noteOpen = !pos.items[i].noteOpen;
+        render();
+        if(pos.items[i].noteOpen){
+          const input = document.querySelector(`.pos-note-input[data-i="${i}"]`);
+          input?.focus();
+        }
+      });
+    });
+    document.querySelectorAll('.pos-note-input').forEach(el=>{
+      el.addEventListener('input', e=>{
+        const i = +e.target.dataset.i;
+        if(pos.items[i]) pos.items[i].note = e.target.value;
       });
     });
     document.querySelectorAll('[data-pos-remove-item]').forEach(el=>{
