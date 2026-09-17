@@ -248,6 +248,9 @@
   .entry-row .rm{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--debit);font-size:14px;padding:6px 10px;font-weight:700;}
   .entry-row .add-side{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--credit);font-size:14px;padding:6px 10px;font-weight:700;}
   .entry-row .rm:hover{background:var(--debit-bg);border-color:var(--debit);}
+  .entry-amt-wrap{position:relative;}
+  .entry-amt-wrap input{padding-right:32px;}
+  .entry-amt-suffix{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:11px;font-weight:700;pointer-events:none;}
   .totals-line{display:flex;justify-content:flex-end;gap:26px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;}
   .totals-line.balanced{color:var(--credit);}
   .totals-line.unbalanced{color:var(--debit);}
@@ -13971,6 +13974,11 @@ function entrySide(e){
 // Safety net: if an entry sitting on one side actually also has a value in the "other" field (e.g. an
 // older voucher saved before this convention existed), both Dr and Cr inputs are shown for that row
 // rather than silently hiding a populated amount.
+// The amount box sits directly under its own column -- a Debit-side row's box is in the Debit column
+// (left of the two amount columns) and the Credit column next to it is a truly empty cell, no box at
+// all; a Credit-side row is the mirror image. Each box carries a small "Dr."/"Cr." tag pinned to its
+// right edge (via the .entry-amt-wrap/.entry-amt-suffix CSS) so the row reads unambiguously even
+// without checking which column it's in.
 function entryRow(e,i,isLast){
   const side = entrySide(e);
   const bothPopulated = Number(e.dr)>0 && Number(e.cr)>0;
@@ -13981,26 +13989,16 @@ function entryRow(e,i,isLast){
   const trailing = isLast
     ? `<button class="add-side" data-add-side="${side}" title="Add another ${side==='dr'?'Debit':'Credit'} line" type="button">+</button>`
     : `<button class="rm" data-rm="${i}" title="Remove row">✕</button>`;
+  const drCell = `<div class="entry-amt-wrap"><input type="number" class="e-dr" data-i="${i}" placeholder="Debit amount" value="${e.dr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Dr.</span></div>`;
+  const crCell = `<div class="entry-amt-wrap"><input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Cr.</span></div>`;
+  const emptyCell = `<span></span>`;
   if(bothPopulated){
-    return `<div class="entry-row" data-idx="${i}">
-    ${ledgerSelect}
-    <input type="number" class="e-dr" data-i="${i}" placeholder="Debit" value="${e.dr||''}" min="0" step="0.01">
-    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit" value="${e.cr||''}" min="0" step="0.01">
-    ${trailing}
-  </div>`;
+    return `<div class="entry-row" data-idx="${i}">${ledgerSelect}${drCell}${crCell}${trailing}</div>`;
   }
   if(side==='dr'){
-    return `<div class="entry-row" data-idx="${i}">
-    ${ledgerSelect}
-    <input type="number" class="e-dr" data-i="${i}" placeholder="Debit amount" value="${e.dr||''}" min="0" step="0.01" style="grid-column:span 2;">
-    ${trailing}
-  </div>`;
+    return `<div class="entry-row" data-idx="${i}">${ledgerSelect}${drCell}${emptyCell}${trailing}</div>`;
   }
-  return `<div class="entry-row" data-idx="${i}">
-    ${ledgerSelect}
-    <input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01" style="grid-column:span 2;">
-    ${trailing}
-  </div>`;
+  return `<div class="entry-row" data-idx="${i}">${ledgerSelect}${emptyCell}${crCell}${trailing}</div>`;
 }
 function quickAddLedgerModal(){
   return `
