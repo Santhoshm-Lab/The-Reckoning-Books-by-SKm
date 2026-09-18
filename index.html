@@ -254,6 +254,23 @@
   .totals-line{display:flex;justify-content:flex-end;gap:26px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;}
   .totals-line.balanced{color:var(--credit);}
   .totals-line.unbalanced{color:var(--debit);}
+  /* Voucher entry can run to many Dr/Cr rows, and the plain in-flow totals-line above used to scroll
+     out of view right when it matters most (mid-entry, checking whether you're balanced). This
+     variant is a sibling of the entries .panel rather than a child of it -- .panel has overflow:hidden
+     for its rounded corners, which silently defeats position:sticky on anything nested inside it, so
+     the sticky bar lives just outside the panel, directly under #mainContent (the actual scrolling
+     pane), where sticky positioning resolves against the right scrollport. renderTotalsOnly() doesn't
+     care where in the DOM this lives -- it targets '.totals-line' by class either way. */
+  .totals-line.sticky-balance{
+    position:sticky; bottom:14px; z-index:20; margin-top:-4px;
+    background:var(--surface); border:1px solid var(--border); border-top:1px solid var(--border);
+    border-radius:12px; box-shadow:0 8px 22px rgba(20,30,25,0.16); padding:12px 18px;
+  }
+  .totals-line.sticky-balance.balanced{border-color:var(--credit);}
+  .totals-line.sticky-balance.unbalanced{border-color:var(--debit);}
+  @media (max-width:560px){
+    .totals-line.sticky-balance{gap:14px;font-size:12px;padding:10px 14px;bottom:8px;}
+  }
 
   .toast-host{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none;}
   .toast-item{display:flex;align-items:center;gap:10px;background:#1B2420;color:#fff;box-shadow:0 12px 28px rgba(0,0,0,0.25);padding:10px 12px 10px 16px;border-radius:999px;font-size:12.5px;font-weight:600;pointer-events:auto;border-left:3px solid var(--ink-faint);animation:toastIn .22s ease;white-space:nowrap;}
@@ -431,6 +448,30 @@
   .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:400px;max-width:100%;box-shadow:0 30px 70px rgba(13,20,15,0.35);overflow:hidden;}
   .modal-card .panel-head{padding:14px 18px;}
   .modal-card .panel-body{padding:18px;}
+
+  /* Ctrl+K / Cmd+K command palette — a search-first overlay, so it sits near the top of the screen
+     (Spotlight/Linear-style) rather than vertically centered like the other small dialogs above. */
+  .cmdk-overlay{align-items:flex-start;padding-top:12vh;}
+  .cmdk-card{width:600px;max-width:100%;display:flex;flex-direction:column;max-height:70vh;}
+  .cmdk-inputwrap{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .cmdk-inputicon{font-size:15px;opacity:.6;flex-shrink:0;}
+  .cmdk-input{border:none;background:transparent;font-size:15px;padding:2px 0;flex:1;color:var(--ink);}
+  .cmdk-input:focus{outline:none;box-shadow:none;border:none;}
+  .cmdk-results{overflow-y:auto;padding:8px;flex:1;min-height:0;}
+  .cmdk-item{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:9px;cursor:pointer;}
+  .cmdk-item.active,.cmdk-item:hover{background:var(--surface-strong);}
+  .cmdk-item-icon{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink-soft);}
+  .cmdk-item-icon .tab-icon{width:15px;height:15px;color:var(--accent1);}
+  .cmdk-item-text{display:flex;flex-direction:column;min-width:0;flex:1;}
+  .cmdk-item-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cmdk-item-sub{font-size:11px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cmdk-empty{padding:28px 14px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
+  .cmdk-hint{display:flex;gap:16px;padding:9px 18px;border-top:1px solid var(--border);flex-shrink:0;font-size:10.5px;color:var(--ink-faint);}
+  .cmdk-hint kbd{display:inline-block;background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:10px;margin-right:3px;}
+  @media (max-width:560px){
+    .cmdk-overlay{padding-top:0;align-items:stretch;padding:0;}
+    .cmdk-card{width:100%;max-width:100%;border-radius:0;max-height:100vh;height:100vh;}
+  }
 
   /* Tablet: keep the sidebar as a vertical rail (still useful at this width, unlike on a phone)
      but collapse it to icons-only so it stops eating a third of a 768-1024px screen; the tooltip
@@ -2270,6 +2311,11 @@ let inventorySearchQuery = '';
 let itemEditId = null; // null = "Create Stock Item" mode | a state.items id = editing that item in stockItemForm()
 let partiesSearchQuery = '';
 let ordersSearchQuery = '';
+// Ctrl+K / Cmd+K command palette — jump to any screen, start a new voucher of any type, or search
+// ledgers/parties/items/vouchers by name, all from one box. See openCommandPalette()/cmdkResults()/
+// commandPaletteModal() further down.
+let cmdkQuery = '';
+let cmdkIndex = 0;
 // Which series are hidden (clicked off) in the new interactive Dashboard trend visuals — keyed by
 // a series key like 'revenue'/'cogs'/'margin'. Persists only for the session (like every other
 // piece of UI draft state in this app), reset is not needed since it's just a display toggle.
@@ -7147,6 +7193,7 @@ function render(){
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
       ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <button class="theme-toggle" id="cmdkOpenBtn" type="button" title="Search ledgers, parties, vouchers, items, or jump to a screen" aria-label="Open command palette">🔎 Search <kbd style="margin-left:5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:10px;">Ctrl K</kbd></button>
         <button class="btn secondary small" id="refreshSessionBtn" type="button" style="padding:3px 10px;font-size:11px;" title="Reload this company's data, your plan, and any admin changes">⟳ Refresh</button>
         <span class="theme-toggle" id="themeToggleBtn" title="${darkMode?'Switch to light mode':'Switch to dark mode'}" role="button" tabindex="0" aria-label="${darkMode?'Switch to light mode':'Switch to dark mode'}">${darkMode?'☀️':'🌙'}</span>
       </span>
@@ -7222,6 +7269,7 @@ function render(){
     ${modal==='eway' ? eWayBillTransportModal() : ''}
     ${modal==='attachments' ? attachmentsModal() : ''}
     ${modal==='invoiceSettings' ? invoiceSettingsModal() : ''}
+    ${modal==='commandPalette' ? commandPaletteModal() : ''}
     ${qaWidget()}
   `;
   attachHandlers();
@@ -7303,6 +7351,7 @@ function render(){
   });
   document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
   wireKeyActivate('themeToggleBtn');
+  document.getElementById('cmdkOpenBtn')?.addEventListener('click', ()=> openCommandPalette());
   document.getElementById('menuHelp').addEventListener('click', async ()=>{
     modal = 'help';
     helpTab = 'info';
@@ -7348,6 +7397,35 @@ function render(){
       if(e.target.id==='modalOverlayBg'){ modal = null; render(); }
     });
     document.getElementById('modalClose')?.addEventListener('click', ()=>{ modal = null; render(); });
+  }
+  if(modal==='commandPalette'){
+    const focusCmdkInput = (caret)=>{
+      const el = document.getElementById('cmdkInput');
+      if(!el) return;
+      el.focus();
+      const pos = caret==null ? el.value.length : caret;
+      try{ el.setSelectionRange(pos, pos); }catch(err){}
+    };
+    document.getElementById('cmdkInput')?.addEventListener('input', e=>{
+      cmdkQuery = e.target.value;
+      cmdkIndex = 0;
+      const caret = e.target.selectionStart;
+      render();
+      focusCmdkInput(caret);
+    });
+    document.getElementById('cmdkInput')?.addEventListener('keydown', e=>{
+      const list = cmdkResults();
+      if(e.key==='ArrowDown'){ e.preventDefault(); cmdkIndex = list.length ? Math.min(cmdkIndex+1, list.length-1) : 0; render(); focusCmdkInput(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); cmdkIndex = Math.max(cmdkIndex-1, 0); render(); focusCmdkInput(); }
+      else if(e.key==='Enter'){ e.preventDefault(); const r = list[cmdkIndex]; if(r) r.run(); }
+      // Escape is handled by the dedicated Ctrl+K/Escape document listener above, so it still works
+      // even if focus isn't in this input for some reason.
+    });
+    document.querySelectorAll('[data-cmdk-idx]').forEach(el=>{
+      const i = Number(el.dataset.cmdkIdx);
+      el.addEventListener('mouseenter', ()=>{ if(cmdkIndex!==i){ cmdkIndex = i; render(); focusCmdkInput(); } });
+      el.addEventListener('click', ()=>{ const r = cmdkResults()[i]; if(r) r.run(); });
+    });
   }
   if(modal==='gstFormats'){
     document.querySelectorAll('[data-fmt-jump]').forEach(el=>{
@@ -7511,12 +7589,131 @@ document.addEventListener('keydown', (e)=>{
   e.preventDefault();
   goToTab(id);
 });
+// Ctrl+K / Cmd+K opens the command palette — deliberately a SEPARATE listener from the plain-letter
+// shortcuts above, since it has to fire even while typing in a field (that's the whole point of a
+// command palette) and even while another modal is open (to close that modal's Escape-equivalent
+// path cleanly rather than stacking a second overlay on top of it).
+document.addEventListener('keydown', (e)=>{
+  if(screen!=='app') return;
+  if((e.key==='k' || e.key==='K') && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey){
+    e.preventDefault();
+    if(modal==='commandPalette'){ modal = null; render(); }
+    else if(!modal){ openCommandPalette(); }
+    return;
+  }
+  if(modal==='commandPalette' && e.key==='Escape'){
+    e.preventDefault();
+    modal = null;
+    render();
+  }
+});
 function viewDropdown(){
   const tabs = [
     ['dashboard','Dashboard'],['voucher','Voucher'],['daybook','Day Book'],['calendar','Calendar'],
     ['ledgers','Ledgers'],['coa','Accounts'],['inventory','Inventory Control'],['reports','Reports'],['gst','GST']
   ];
   return `<div class="menu-dropdown">${tabs.map(([id,label])=>`<a data-view-jump="${id}">${label}</a>`).join('')}</div>`;
+}
+
+/* ---------------- Command palette (Ctrl+K / Cmd+K) ----------------
+   A single search-first box that jumps to any screen, starts a new voucher of any type, or finds a
+   ledger/party/item/voucher by name — matching the sidebar's own tab set (CMDK_TABS mirrors the
+   .tabstrip buttons in render() one-for-one) and reusing the exact same navigation/edit code paths
+   the sidebar and Day Book already use (goToTab, switchVoucherType, openVoucherForEditing), so a
+   palette action never behaves differently from clicking the equivalent thing by hand. */
+const CMDK_TABS = [
+  {id:'dashboard', label:'Dashboard'}, {id:'voucher', label:'Voucher'}, {id:'pos', label:'POS / Quick Sale'},
+  {id:'daybook', label:'Day Book'}, {id:'calendar', label:'Calendar'}, {id:'ledgers', label:'Ledgers'},
+  {id:'coa', label:'Accounts'}, {id:'inventory', label:'Inventory Control'}, {id:'reports', label:'Reports'},
+  {id:'gst', label:'GST'}, {id:'reconcile', label:'Reconcile'}, {id:'assets', label:'Assets'},
+  {id:'parties', label:'Parties'}, {id:'orders', label:'Orders'}, {id:'payroll', label:'Payroll Management'},
+];
+function openCommandPalette(){
+  if(modal) return; // never stack over another modal that's already open
+  cmdkQuery = '';
+  cmdkIndex = 0;
+  modal = 'commandPalette';
+  render();
+  document.getElementById('cmdkInput')?.focus();
+}
+function cmdkResults(){
+  const q = cmdkQuery.trim().toLowerCase();
+  const results = [];
+  CMDK_TABS.forEach(t=>{
+    if(isTabGated(t.id)) return; // don't suggest jumping to a screen this plan doesn't have
+    if(!q || t.label.toLowerCase().includes(q)) results.push({
+      icon: tabIcon(t.id), title:'Go to '+t.label, sub:'Navigate',
+      run:()=>{ modal = null; goToTab(t.id); },
+    });
+  });
+  VOUCHER_TYPES.forEach(t=>{
+    const title = 'New '+t+' Voucher';
+    if(!q || title.toLowerCase().includes(q) || t.toLowerCase().includes(q)) results.push({
+      icon:'🧾', title, sub:'Create',
+      run:()=>{
+        modal = null; vform = null; view = 'voucher';
+        render(); // viewVoucher()'s lazy-init builds a fresh, blank vform (defaults to type 'Payment')
+        switchVoucherType(t); // ...then switch it to the requested type, same as clicking its vtype tab
+        render();
+        pushHistory();
+      },
+    });
+  });
+  if(!q || 'dark mode'.includes(q) || 'light mode'.includes(q) || 'theme'.includes(q)) results.push({
+    icon: darkMode?'☀️':'🌙', title: darkMode?'Switch to Light Mode':'Switch to Dark Mode', sub:'Preference',
+    run:()=>{ modal = null; toggleTheme(); render(); },
+  });
+  if(q){
+    state.ledgers.filter(l=>l.name.toLowerCase().includes(q)).slice(0,8).forEach(l=>{
+      const isParty = l.partyType==='customer' || l.partyType==='supplier';
+      results.push({
+        icon: isParty?'🤝':'📒', title:l.name, sub:(isParty?'Party — ':'Ledger — ')+(groupOf(l.group)?groupOf(l.group).name:l.group),
+        run:()=>{
+          modal = null;
+          if(isParty){ partyDetailLedgerId = l.id; modal = 'partyDetail'; goToTab('parties'); }
+          else { window._selectedLedger = l.id; goToTab('ledgers'); }
+        },
+      });
+    });
+    state.items.filter(it=>it.name.toLowerCase().includes(q)).slice(0,6).forEach(it=>{
+      results.push({
+        icon:'📦', title:it.name, sub:'Item',
+        run:()=>{ stockDetailItemId = it.id; modal = 'stockDetail'; goToTab('inventory'); },
+      });
+    });
+    state.vouchers.filter(v=>(v.narration||'').toLowerCase().includes(q) || String(v.type).toLowerCase().includes(q))
+      .sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0)
+      .slice(0,6)
+      .forEach(v=>{
+        results.push({
+          icon:'🧾', title:`${v.type} — ${v.narration||'(no narration)'}`, sub:v.date,
+          run:()=>{ if(openVoucherForEditing(v.id)){ modal = null; render(); } },
+        });
+      });
+  }
+  return results;
+}
+function commandPaletteModal(){
+  const results = cmdkResults();
+  if(cmdkIndex >= results.length) cmdkIndex = Math.max(0, results.length-1);
+  return `
+    <div class="modal-overlay cmdk-overlay" id="modalOverlayBg">
+      <div class="modal-card cmdk-card" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div class="cmdk-inputwrap">
+          <span class="cmdk-inputicon">🔎</span>
+          <input type="text" id="cmdkInput" class="cmdk-input" placeholder="Search ledgers, parties, vouchers, items — or jump to a screen…" value="${escapeAttr(cmdkQuery)}" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="cmdk-results" id="cmdkResultsEl">
+          ${results.length ? results.map((r,i)=>`
+            <div class="cmdk-item ${i===cmdkIndex?'active':''}" data-cmdk-idx="${i}">
+              <span class="cmdk-item-icon">${r.icon}</span>
+              <span class="cmdk-item-text"><span class="cmdk-item-title">${escapeHtml(r.title)}</span><span class="cmdk-item-sub">${escapeHtml(r.sub)}</span></span>
+            </div>`).join('') : `<div class="cmdk-empty">No matches for "${escapeHtml(cmdkQuery)}"</div>`}
+        </div>
+        <div class="cmdk-hint"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span><span><kbd>Enter</kbd> Select</span><span><kbd>Esc</kbd> Close</span></div>
+      </div>
+    </div>
+  `;
 }
 function editCompanyModal(){
   return `
@@ -13949,6 +14146,54 @@ function rememberedPairForType(type){
   for(const k in tally){ if(!best || tally[k].count>best.count) best = tally[k]; }
   return (best && best.count>=2) ? best : null;
 }
+// Switch the in-progress vform to a different voucher type -- shared by the vtype-tabs click handler
+// and the "New <Type> Voucher" command-palette actions, so both stay in sync with the same
+// pre-fill-the-usual-ledger-pair behavior instead of drifting apart.
+function switchVoucherType(type){
+  vform.type = type;
+  vform.tax = { enabled:false, sectionCode:'', rate:'' }; // TDS/TCS sections are type-specific — start fresh on a type switch
+  // Pre-fill the usual ledger pair for this type on a brand-new, still-blank voucher only —
+  // never overwrite an edit in progress or an existing voucher being changed.
+  if(!vform.id){
+    const blank = vform.mode==='single'
+      ? (!vform.single.ledgerA && !vform.single.ledgerB)
+      : vform.entries.every(e=>!e.ledgerId);
+    if(blank){
+      const pair = rememberedPairForType(vform.type);
+      if(pair){
+        if(vform.mode==='single' && ['Payment','Receipt','Contra'].includes(vform.type)){
+          vform.single.ledgerA = pair.a; vform.single.ledgerB = pair.b;
+        } else {
+          vform.entries = [{ledgerId:pair.a, dr:0, cr:0, side:'dr'}, {ledgerId:pair.b, dr:0, cr:0, side:'cr'}];
+        }
+        toast(`Pre-filled with your usual ${vform.type} ledgers`, {type:'info'});
+      }
+    }
+  }
+}
+// Load an existing voucher into vform for editing and switch to the Voucher tab -- shared by the Day
+// Book / GST report "Edit" actions and the command palette's voucher search results.
+function openVoucherForEditing(id){
+  const v = state.vouchers.find(x=>x.id===id);
+  if(!v) return false;
+  if(state.salaryVouchers.some(sv=>sv.voucherId===id)){
+    toast('This is a payroll voucher — manage it from the Payroll tab (Void Payslip) instead of editing it directly, so the payslip stays in sync.');
+    return false;
+  }
+  vform = {
+    id: v.id,
+    type: v.type,
+    date: v.date,
+    narration: v.narration,
+    entries: v.entries.map(e=>({...e})),
+    gst: {party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items: (v.items||[]).map(it=>({...it}))},
+    costCenterId: v.costCenterId || null,
+    channel: v.channel || '',
+    appliedItems: (v.items||[]).map(it=>({...it})), // preserved as-is unless the GST Calculator's "Add to Voucher" is used again
+  };
+  view = 'voucher';
+  return true;
+}
 function viewVoucher(){
   if(!vform){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
@@ -14058,10 +14303,6 @@ function viewVoucher(){
             }).join('')}
           </div>`;
         })()}
-        <div class="totals-line ${balanced?'balanced':'unbalanced'}">
-          <span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span>
-          <span>${balanced?'Balanced ✓':'Not balanced'}</span>
-        </div>
         ` : `
         <div class="section-title">Entries</div>
         <div class="entry-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:2px;padding:0 2px;">
@@ -14082,10 +14323,6 @@ function viewVoucher(){
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn secondary small" id="quickAddLedgerBtn" type="button">+ New Ledger</button>
-        </div>
-        <div class="totals-line ${balanced?'balanced':'unbalanced'}">
-          <span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span>
-          <span>${balanced?'Balanced ✓':'Not balanced'}</span>
         </div>
         ${showPaymentItems ? paymentPurchaseItemsPanel() : ''}`}
 
@@ -14110,6 +14347,11 @@ function viewVoucher(){
         </div>
       </div>
     </div>
+    ${effectiveMode!=='single' ? `
+    <div class="totals-line sticky-balance ${balanced?'balanced':'unbalanced'}">
+      <span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span>
+      <span>${balanced?'Balanced ✓':'Not balanced'}</span>
+    </div>` : ''}
   `;
 }
 function singleEntryFields(){
@@ -19846,26 +20088,8 @@ function attachHandlers(){
 
   document.querySelectorAll('[data-edit-voucher]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      const id = b.dataset.editVoucher;
-      const v = state.vouchers.find(x=>x.id===id);
-      if(!v) return;
-      if(state.salaryVouchers.some(sv=>sv.voucherId===id)){
-        toast('This is a payroll voucher — manage it from the Payroll tab (Void Payslip) instead of editing it directly, so the payslip stays in sync.');
-        return;
-      }
-      vform = {
-        id: v.id,
-        type: v.type,
-        date: v.date,
-        narration: v.narration,
-        entries: v.entries.map(e=>({...e})),
-        gst: {party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items: (v.items||[]).map(it=>({...it}))},
-        costCenterId: v.costCenterId || null,
-        channel: v.channel || '',
-        appliedItems: (v.items||[]).map(it=>({...it})), // preserved as-is unless the GST Calculator's "Add to Voucher" is used again
-      };
+      if(!openVoucherForEditing(b.dataset.editVoucher)) return;
       modal = null;
-      view = 'voucher';
       render();
     });
   });
@@ -19935,29 +20159,7 @@ function attachHandlers(){
 
   if(view==='voucher'){
     document.querySelectorAll('[data-vtype]').forEach(b=>{
-      b.addEventListener('click',()=>{
-        vform.type = b.dataset.vtype;
-        vform.tax = { enabled:false, sectionCode:'', rate:'' }; // TDS/TCS sections are type-specific — start fresh on a type switch
-        // Pre-fill the usual ledger pair for this type on a brand-new, still-blank voucher only —
-        // never overwrite an edit in progress or an existing voucher being changed.
-        if(!vform.id){
-          const blank = vform.mode==='single'
-            ? (!vform.single.ledgerA && !vform.single.ledgerB)
-            : vform.entries.every(e=>!e.ledgerId);
-          if(blank){
-            const pair = rememberedPairForType(vform.type);
-            if(pair){
-              if(vform.mode==='single' && ['Payment','Receipt','Contra'].includes(vform.type)){
-                vform.single.ledgerA = pair.a; vform.single.ledgerB = pair.b;
-              } else {
-                vform.entries = [{ledgerId:pair.a, dr:0, cr:0, side:'dr'}, {ledgerId:pair.b, dr:0, cr:0, side:'cr'}];
-              }
-              toast(`Pre-filled with your usual ${vform.type} ledgers`, {type:'info'});
-            }
-          }
-        }
-        render();
-      });
+      b.addEventListener('click',()=>{ switchVoucherType(b.dataset.vtype); render(); });
     });
     document.getElementById('vdate').addEventListener('input', e=> vform.date = e.target.value);
     document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); });
@@ -21362,7 +21564,11 @@ function renderTotalsOnly(){
     // be visual noise.
     const justBalanced = balanced && el.dataset.wasBalanced !== '1';
     el.dataset.wasBalanced = balanced ? '1' : '0';
-    el.className = 'totals-line ' + (balanced?'balanced':'unbalanced');
+    // Preserve the sticky-balance modifier (this element now lives outside the entries panel so it
+    // can float while scrolling — see the .totals-line.sticky-balance CSS comment) instead of
+    // clobbering it with a plain className overwrite.
+    const wasSticky = el.classList.contains('sticky-balance');
+    el.className = 'totals-line ' + (wasSticky?'sticky-balance ':'') + (balanced?'balanced':'unbalanced');
     const balancedLabel = balanced ? `${justBalanced?'<span class="balanced-tick">✓</span>':'✓'} Balanced` : 'Not balanced';
     el.innerHTML = `<span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span><span>${balancedLabel}</span>`;
   }
