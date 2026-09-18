@@ -224,6 +224,10 @@
   .pill{display:inline-block;padding:4px 11px;border-radius:999px;font-size:10.5px;font-family:inherit;font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;}
   .pill.neg{background:var(--debit-bg);color:var(--debit);}
   .pill.pos{background:var(--credit-bg);color:var(--credit);}
+  /* Confidence badge on a Reconcile row that Bank-statement import auto-cleared (see
+     bankReconcileEntries()'s autoMatched field) -- plain-language + a number, never a raw decimal,
+     with the full "why" as a native tooltip so it stays out of the way until asked for. */
+  .match-badge{display:inline-block;margin-left:7px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.01em;background:color-mix(in srgb, var(--accent1) 14%, transparent);color:var(--accent1);cursor:help;vertical-align:middle;}
   .muted{color:var(--ink-faint);}
   .empty{padding:28px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
 
@@ -249,6 +253,14 @@
   input[type=number]{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;}
   label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-bottom:6px;font-weight:700;}
   .field{margin-bottom:14px;}
+  /* Predictive smart-default ghost text (Single Entry Amount field): a greyed-out suggested value
+     layered over the still-empty input, accepted with Tab (or a click) -- see
+     updateAmountGhostSuggestion()/wireGhostAmountInput(). Only ever rendered while the real input has
+     no value, so it can never visually collide with what the user actually typed. */
+  .ghost-input-wrap{position:relative;}
+  .ghost-suggest{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:9px 12px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink-faint);opacity:.62;pointer-events:none;white-space:nowrap;}
+  .ghost-suggest:empty{display:none;}
+  .ghost-suggest .ghost-tab-hint{pointer-events:auto;cursor:pointer;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border:1px solid var(--border);border-radius:4px;padding:1px 4px;opacity:.9;background:var(--surface-strong);}
   .row{display:flex;gap:12px;}
   .row > *{flex:1;}
 
@@ -469,6 +481,12 @@
   .cmdk-inputicon{font-size:15px;opacity:.6;flex-shrink:0;}
   .cmdk-input{border:none;background:transparent;font-size:15px;padding:2px 0;flex:1;color:var(--ink);}
   .cmdk-input:focus{outline:none;box-shadow:none;border:none;}
+  /* Voice input mic button (Web Speech API) -- see toggleCmdkVoiceInput() */
+  .cmdk-voice-btn{flex-shrink:0;border:1px solid var(--border);background:var(--surface-strong);border-radius:8px;width:30px;height:30px;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;}
+  .cmdk-voice-btn:hover{background:var(--surface);}
+  .cmdk-voice-btn.listening{background:color-mix(in srgb, var(--debit) 16%, transparent);border-color:var(--debit);animation:cmdkPulse 1.4s ease-in-out infinite;}
+  @keyframes cmdkPulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--debit) 35%, transparent);}50%{box-shadow:0 0 0 6px transparent;}}
+  @media (prefers-reduced-motion: reduce){ .cmdk-voice-btn.listening{animation:none;} }
   .cmdk-results{overflow-y:auto;padding:8px;flex:1;min-height:0;}
   .cmdk-item{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:9px;cursor:pointer;}
   .cmdk-item.active,.cmdk-item:hover{background:var(--surface-strong);}
@@ -759,6 +777,28 @@
   .insight-row .dot{width:6px;height:6px;border-radius:50%;margin-top:6px;flex-shrink:0;}
   .insight-row .dot.up{background:var(--credit);} .insight-row .dot.down{background:var(--debit);} .insight-row .dot.flat{background:var(--ink-faint);} .insight-row .dot.warn{background:var(--gold);}
   .insight-row b{color:var(--ink);}
+  /* "Needs Your Attention" exception queue (Dashboard) -- deliberately a bit more urgent-looking than
+     the neutral Smart Insights card below it: a left accent stripe per row (warn = amber, info = the
+     page accent) instead of a small dot, since these are things worth actually clicking into. */
+  .exception-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px;}
+  .exception-head{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;margin-bottom:10px;}
+  .exception-count{background:var(--gold,#F2A900);color:#3a2900;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px;}
+  .exception-list{display:flex;flex-direction:column;gap:7px;}
+  .exception-row{display:flex;align-items:center;gap:10px;font-size:12.3px;line-height:1.5;padding:9px 10px;border-radius:9px;border-left:3px solid var(--ink-faint);background:var(--surface-strong);cursor:pointer;transition:background .15s,transform .1s;}
+  .exception-row:hover{background:var(--surface-strong2, var(--surface-strong));transform:translateX(1px);}
+  .exception-row:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+  .exception-row.warn{border-left-color:var(--gold,#F2A900);}
+  .exception-row.info{border-left-color:var(--accent1);}
+  .exception-icon{flex-shrink:0;font-size:14px;}
+  .exception-text{flex:1;min-width:0;}
+  .exception-text b{color:var(--ink);}
+  .exception-arrow{flex-shrink:0;color:var(--ink-faint);font-size:13px;}
+  /* Unified automation activity feed modal (automationFeedModal) */
+  .automation-row{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:9px;background:var(--surface-strong);font-size:12.3px;line-height:1.5;}
+  .automation-icon{flex-shrink:0;font-size:14px;margin-top:1px;}
+  .automation-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .automation-when{font-size:10.5px;color:var(--ink-faint);}
+  .automation-row button{flex-shrink:0;}
 
   /* ---- Smart ledger-suggestion chip (Voucher narration) ---- */
   .narr-suggest{margin-top:7px;min-height:1px;}
@@ -2105,6 +2145,12 @@ let state = {
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
   docVaultSalt: null,      // base64 random salt for the Employee Documents encryption vault (set once, on first use)
   docVaultVerifier: null,  // base64 SHA-256(passphrase+salt) -- lets the app confirm a re-entered passphrase is correct WITHOUT ever storing the passphrase or the derived AES key anywhere persistent
+  // [{id, at (ISO timestamp), icon, text, kind}] -- a chronological log of everything the app itself
+  // did automatically (reconciliation auto-match, "pre-filled with your usual ledgers", etc.), newest
+  // first, capped at 200. Deliberately separate from the Admin Panel's Audit Log: that one is
+  // org/user-security history (who signed in, who edited a company); this one is this company's own
+  // "what did the automation do" trail. See logAutomation()/automationActivityFeedCard().
+  automationLog: [],
 };
 let view = 'dashboard';
 // ---- Advanced UI/UX state: dashboard counter animation (darkMode is declared
@@ -2118,6 +2164,35 @@ let landingRevealObserver = null;
 let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
 let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
 let pinnedTiles = (function(){ try{ return JSON.parse(localStorage.getItem('rb_pinnedTiles')||'[]'); }catch(e){ return []; } })(); // dashboard viz-card ids pinned to the top "Pinned" section
+// ---- Personalized Dashboard layout: which of the top KPI stat tiles + summary cards this browser
+// wants to see. Same "plain array in localStorage" pattern as pinnedTiles/ledgerUsageHistory above --
+// per-browser, not synced to the company's data, so it's a pure display preference, never something
+// that could hide a real figure from a teammate looking at the same books on their own machine.
+const DASHBOARD_SECTIONS = {
+  profit:      {label:'Net Profit / Loss'},
+  cash:        {label:'Cash & Bank'},
+  assets:      {label:'Total Assets'},
+  liab:        {label:'Liabilities + Capital'},
+  overdue:     {label:'Overdue Invoices'},
+  monthCompare:{label:'This Month vs Last Month'},
+  exceptions:  {label:'Needs Your Attention'},
+  insights:    {label:'Smart Insights'},
+};
+let dashboardVisibleSections = (function(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('rb_dashboardSections')||'null');
+    if(Array.isArray(saved) && saved.length) return saved.filter(id=>DASHBOARD_SECTIONS[id]);
+  }catch(e){}
+  return Object.keys(DASHBOARD_SECTIONS); // default: everything visible, exactly like today
+})();
+function isDashboardSectionVisible(id){ return dashboardVisibleSections.includes(id); }
+function saveDashboardSections(){ try{ localStorage.setItem('rb_dashboardSections', JSON.stringify(dashboardVisibleSections)); }catch(e){} }
+function toggleDashboardSection(id){
+  dashboardVisibleSections = isDashboardSectionVisible(id)
+    ? dashboardVisibleSections.filter(x=>x!==id)
+    : dashboardVisibleSections.concat([id]);
+  saveDashboardSections();
+}
 // Recently-used-ledger tracking, per voucher type, so ledger <select>s on the Voucher tab can surface
 // a "Recently Used" optgroup above the full list -- see trackLedgerUsage/ledgerSelectOptionsHtml
 // below. Kept in this browser's localStorage only, exactly like pinnedTiles/darkMode above.
@@ -2365,6 +2440,12 @@ let ordersSearchQuery = '';
 // commandPaletteModal() further down.
 let cmdkQuery = '';
 let cmdkIndex = 0;
+// Voice input on the command palette, via the browser's built-in Web Speech API -- no server, no API
+// key. `cmdkRecognition` is the live SpeechRecognition instance (kept outside `state`/component
+// re-render since it's a live browser object, not data) and `cmdkVoiceActive` just drives the mic
+// button's own visual state. See toggleCmdkVoiceInput()/speechRecognitionSupported() further down.
+let cmdkRecognition = null;
+let cmdkVoiceActive = false;
 // Which series are hidden (clicked off) in the new interactive Dashboard trend visuals — keyed by
 // a series key like 'revenue'/'cogs'/'margin'. Persists only for the session (like every other
 // piece of UI draft state in this app), reset is not needed since it's just a display toggle.
@@ -4172,6 +4253,7 @@ async function loadState(){
     state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
     state.docVaultSalt = data.docVaultSalt || null;
     state.docVaultVerifier = data.docVaultVerifier || null;
+    state.automationLog = Array.isArray(data.automationLog) ? data.automationLog : [];
   }catch(e){
     console.error(e);
     state.ledgers = DEFAULT_LEDGERS.slice();
@@ -4198,6 +4280,7 @@ async function loadState(){
     state.taxDeductions = [];
     state.docVaultSalt = null;
     state.docVaultVerifier = null;
+    state.automationLog = [];
     toast('Could not load company data');
   }
   // Safety net: if this is the shared demo company but its sample vouchers are missing (e.g. an
@@ -4321,6 +4404,30 @@ async function saveBankClears(){
   try{ await db.collection('companies').doc(currentCompany.id).set({ bankClears: state.bankClears }, {merge:true}); }
   catch(e){ toast('Could not save reconciliation status'); }
 }
+async function saveAutomationLog(){
+  // Best-effort like the other save*() helpers, but deliberately silent on failure (no toast) -- this
+  // is a secondary "what did the automation do" trail, not something a user action is waiting on, so
+  // a hiccup here shouldn't interrupt whatever they were actually doing.
+  if(isReadOnlyMode()) return;
+  try{ await db.collection('companies').doc(currentCompany.id).set({ automationLog: state.automationLog }, {merge:true}); }
+  catch(e){ /* logging is best-effort */ }
+}
+// Appends one entry to the automation activity feed (see state.automationLog's comment) and persists
+// it. `undo`, if given, is a same-session-only async function -- never serialized/stored -- so the
+// feed still shows history correctly after a reload, it just can't offer Undo on an entry from a
+// previous session (see automationActivityFeedCard()).
+function logAutomation(icon, text, undo){
+  const entry = { id: uid('al'), at: new Date().toISOString(), icon, text };
+  state.automationLog.unshift(entry);
+  if(state.automationLog.length>200) state.automationLog.length = 200;
+  if(typeof undo==='function') automationUndoHandlers[entry.id] = undo;
+  saveAutomationLog();
+  return entry.id;
+}
+// Same-session-only map of automationLog entry id -> undo function (see logAutomation). Deliberately
+// not persisted or put on `state` -- a function can't survive a save/reload, and pretending it could
+// (e.g. by disabling the button silently) would be worse than just not offering Undo after a reload.
+let automationUndoHandlers = {};
 async function saveReconciliations(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   try{ await db.collection('companies').doc(currentCompany.id).set({ reconciliations: state.reconciliations }, {merge:true}); }
@@ -4920,6 +5027,7 @@ function buildCompanyBackup(){
     taxDeductions: state.taxDeductions,
     docVaultSalt: state.docVaultSalt,
     docVaultVerifier: state.docVaultVerifier,
+    automationLog: state.automationLog,
   };
 }
 // Generic "save this object as a downloaded .json file" helper, used by the e-Invoice/e-Way Bill
@@ -5099,13 +5207,14 @@ async function restoreCompanyBackup(data){
   state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
   state.docVaultSalt = data.docVaultSalt || null;
   state.docVaultVerifier = data.docVaultVerifier || null;
+  state.automationLog = Array.isArray(data.automationLog) ? data.automationLog : [];
   await Promise.all([
     saveLedgers(), saveVouchers(), saveItems(), saveStockAdjustments(),
     saveWarehouses(), saveStockTransfers(),
     saveBankClears(), saveReconciliations(), saveRecurringTemplates(), saveFixedAssets(),
     saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
     saveQuotations(), saveSalesOrders(), savePurchaseOrders(), saveDeliveryChallans(),
-    saveTaxDeductions(), saveDocVault(),
+    saveTaxDeductions(), saveDocVault(), saveAutomationLog(),
   ]);
 }
 
@@ -5222,10 +5331,14 @@ function ledgerFlowBetween(ledgerId, fromDate, toDate){
 function isBankClear(ledgerId, voucherId){
   return state.bankClears.some(c=>c.ledgerId===ledgerId && c.voucherId===voucherId);
 }
-function toggleBankClear(ledgerId, voucherId, clearedDate){
+// `meta` is optional and only used when creating a fresh Cleared entry (never on the toggle-off
+// path) -- see the auto-match block in commitImport(), which passes {autoMatched, matchConfidence,
+// matchReason} so the Reconcile screen can show WHY something was auto-cleared, not just that it was.
+// A manual tick from the checkbox in viewReconcile() calls this with no 4th argument, same as always.
+function toggleBankClear(ledgerId, voucherId, clearedDate, meta){
   const idx = state.bankClears.findIndex(c=>c.ledgerId===ledgerId && c.voucherId===voucherId);
   if(idx>-1) state.bankClears.splice(idx,1);
-  else state.bankClears.push({ ledgerId, voucherId, clearedDate: clearedDate || new Date().toISOString().slice(0,10) });
+  else state.bankClears.push({ ledgerId, voucherId, clearedDate: clearedDate || new Date().toISOString().slice(0,10), ...(meta||{}) });
   saveBankClears();
 }
 // One row per voucher entry that touches this bank ledger, dated on/before asOfDate, oldest first.
@@ -5236,10 +5349,17 @@ function bankReconcileEntries(ledgerId, asOfDate){
     for(const e of v.entries){
       if(e.ledgerId !== ledgerId) continue;
       if(!(e.dr || e.cr)) continue;
+      const clearRec = state.bankClears.find(c=>c.ledgerId===ledgerId && c.voucherId===v.id);
       rows.push({
         voucherId: v.id, date: v.date, type: v.type, narration: v.narration,
         dr: e.dr||0, cr: e.cr||0,
-        cleared: isBankClear(ledgerId, v.id),
+        cleared: !!clearRec,
+        // Present only when this row was ticked Cleared by commitImport()'s reconciliation
+        // auto-match (see toggleBankClear's meta param) rather than by hand -- lets the Reconcile
+        // screen show a "why" badge instead of leaving an auto-tick looking identical to a manual one.
+        autoMatched: !!(clearRec && clearRec.autoMatched),
+        matchConfidence: clearRec ? clearRec.matchConfidence : null,
+        matchReason: clearRec ? clearRec.matchReason : null,
       });
     }
   }
@@ -7323,6 +7443,8 @@ function render(){
     ${modal==='stockTransfer' ? stockTransferModal() : ''}
     ${modal==='employeeDocuments' ? employeeDocumentsModal() : ''}
     ${modal==='recentVouchers' ? recentVouchersModal() : ''}
+    ${modal==='automationFeed' ? automationFeedModal() : ''}
+    ${modal==='dashboardPersonalize' ? dashboardPersonalizeModal() : ''}
     ${modal==='import' ? importModal() : ''}
     ${modal==='balanceSheetDetail' ? balanceSheetDetailModal() : ''}
     ${modal==='incomeStatementDetail' ? incomeStatementDetailModal() : ''}
@@ -7478,6 +7600,10 @@ function render(){
     autofocusModalIfNeeded();
   } else {
     lastAutofocusedModal = null;
+    // The command palette's mic keeps listening independently of the DOM (see toggleCmdkVoiceInput) --
+    // make sure closing the palette by any route (Escape, overlay click, selecting a result) actually
+    // stops it, rather than leaving the browser's mic-in-use indicator on in the background.
+    if(cmdkRecognition && cmdkVoiceActive){ try{ cmdkRecognition.stop(); }catch(e){} cmdkVoiceActive = false; }
   }
   if(modal==='commandPalette'){
     const focusCmdkInput = (caret)=>{
@@ -7494,6 +7620,7 @@ function render(){
       render();
       focusCmdkInput(caret);
     });
+    document.getElementById('cmdkVoiceBtn')?.addEventListener('click', ()=>{ toggleCmdkVoiceInput(); });
     document.getElementById('cmdkInput')?.addEventListener('keydown', e=>{
       const list = cmdkResults();
       if(e.key==='ArrowDown'){ e.preventDefault(); cmdkIndex = list.length ? Math.min(cmdkIndex+1, list.length-1) : 0; render(); focusCmdkInput(); }
@@ -7746,13 +7873,131 @@ function openCommandPalette(){
   if(modal) return; // never stack over another modal that's already open
   cmdkQuery = '';
   cmdkIndex = 0;
+  cmdkVoiceActive = false;
   modal = 'commandPalette';
   render();
   document.getElementById('cmdkInput')?.focus();
 }
+function speechRecognitionSupported(){
+  return typeof window!=='undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+// Starts/stops voice dictation into the command palette's search box, using the browser's built-in
+// Web Speech API (no server round-trip, no API key -- and unsupported browsers just don't get the mic
+// button at all, see commandPaletteModal()). Interim results stream in live so the results list
+// updates as the person talks, exactly as if they were typing.
+function toggleCmdkVoiceInput(){
+  if(!speechRecognitionSupported()) return;
+  if(cmdkVoiceActive){ try{ cmdkRecognition?.stop(); }catch(e){} return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  cmdkRecognition = new SR();
+  cmdkRecognition.lang = 'en-IN';
+  cmdkRecognition.interimResults = true;
+  cmdkRecognition.maxAlternatives = 1;
+  cmdkRecognition.onresult = (e)=>{
+    let transcript = '';
+    for(let i=0;i<e.results.length;i++) transcript += e.results[i][0].transcript;
+    cmdkQuery = transcript;
+    cmdkIndex = 0;
+    render();
+    document.getElementById('cmdkInput')?.focus();
+  };
+  cmdkRecognition.onerror = ()=>{ cmdkVoiceActive = false; render(); };
+  cmdkRecognition.onend = ()=>{ cmdkVoiceActive = false; render(); };
+  try{
+    cmdkRecognition.start();
+    cmdkVoiceActive = true;
+  }catch(e){
+    cmdkVoiceActive = false;
+    toast('Could not start voice input — check the browser has mic permission.');
+  }
+  render();
+}
+// Very small, fully local NL parser behind the command palette's agentic entry point (type a
+// transaction straight into Ctrl+K, e.g. "paid 500 for rent yesterday"). It never posts anything on
+// its own -- a match only prefills a fresh Voucher-screen draft (vform), landing the user on exactly
+// the same Save-button review/validation flow as picking "New Payment Voucher" from this same
+// palette would. Returns null whenever the phrase doesn't look transaction-shaped (needs a number AND
+// a recognizable pay/receive verb), so it never interferes with ordinary searches.
+function parseTransactionPhrase(text){
+  const raw = (text||'').trim();
+  if(raw.length < 4) return null;
+  const lower = raw.toLowerCase();
+  const amountMatch = raw.match(/(?:₹|rs\.?|inr)?\s*([\d][\d,]*(?:\.\d{1,2})?)/i);
+  if(!amountMatch) return null;
+  const amount = parseFloat(amountMatch[1].replace(/,/g,''));
+  if(!amount || amount <= 0) return null;
+
+  const PAID_RE = /\b(paid|pay|spent|spend|bought|purchased|gave)\b/i;
+  const RECEIVED_RE = /\b(received|receive|got|collected|earned|sold)\b/i;
+  const isPayment = PAID_RE.test(lower);
+  const isReceipt = !isPayment && RECEIVED_RE.test(lower);
+  if(!isPayment && !isReceipt) return null; // not transaction-shaped enough -- fall through to normal search
+
+  const d = new Date();
+  if(/\byesterday\b/i.test(lower)) d.setDate(d.getDate()-1);
+  const date = d.toISOString().slice(0,10);
+
+  // Counterparty/category phrase -- whatever follows "for"/"to"/"from"/"on", trimmed of a trailing
+  // "yesterday"/"today" the date regex above already consumed.
+  let subject = '';
+  const forMatch = raw.match(/\b(?:for|to|from|on)\s+([a-zA-Z][a-zA-Z &']*)/i);
+  if(forMatch) subject = forMatch[1].replace(/\b(yesterday|today)\b.*$/i,'').trim();
+  subject = subject.replace(/[.,!?]+$/,'').trim();
+
+  const moneyLedger = state.ledgers.find(l=>{
+    const b = bucketOf(l);
+    return (b==='cash'||b==='bank') && lower.includes(l.name.toLowerCase());
+  }) || state.ledgers.find(l=>bucketOf(l)==='cash') || state.ledgers.find(l=>bucketOf(l)==='bank') || null;
+
+  let counterLedger = null;
+  if(subject){
+    const subjLower = subject.toLowerCase();
+    counterLedger = state.ledgers.find(l=>l.name.toLowerCase()===subjLower)
+      || state.ledgers.find(l=>l.name.toLowerCase().includes(subjLower) || subjLower.includes(l.name.toLowerCase()));
+  }
+  if(!counterLedger){
+    // No "for"/"to" phrase, or it didn't match anything -- fall back to scanning the whole phrase for
+    // any ledger name mentioned (e.g. "paid electricity board 500").
+    const words = lower.replace(/[^a-z\s]/g,' ').split(/\s+/).filter(w=>w.length>3 && !PAID_RE.test(w) && !RECEIVED_RE.test(w));
+    counterLedger = state.ledgers.find(l=>{
+      const nameLower = l.name.toLowerCase();
+      return words.some(w=>nameLower.includes(w));
+    }) || null;
+  }
+
+  return { raw, isPayment, amount, date, subject, moneyLedger, counterLedger };
+}
 function cmdkResults(){
   const q = cmdkQuery.trim().toLowerCase();
   const results = [];
+  const txn = cmdkQuery.trim() ? parseTransactionPhrase(cmdkQuery) : null;
+  if(txn){
+    const type = txn.isPayment ? 'Payment' : 'Receipt';
+    const counterLabel = txn.counterLedger ? txn.counterLedger.name : (txn.subject ? `"${txn.subject}" — pick a ledger` : 'pick a ledger');
+    const moneyLabel = txn.moneyLedger ? txn.moneyLedger.name : 'pick Cash/Bank';
+    results.push({
+      icon: '🪄',
+      title: `Draft ${type}: ₹${fmt(txn.amount)}${txn.subject ? ' — '+txn.subject : ''}`,
+      sub: `Action Preview — opens an editable voucher (${type==='Payment' ? moneyLabel+' → '+counterLabel : counterLabel+' → '+moneyLabel}), nothing is saved yet`,
+      run: ()=>{
+        modal = null; vform = null; view = 'voucher';
+        render(); // viewVoucher()'s lazy-init gives a fresh, blank vform
+        vform.type = type;
+        vform.date = txn.date;
+        vform.mode = 'double';
+        vform.narration = txn.raw.charAt(0).toUpperCase() + txn.raw.slice(1);
+        vform.entries = type==='Payment'
+          ? [{ledgerId: txn.counterLedger?txn.counterLedger.id:'', dr:txn.amount, cr:0, side:'dr'},
+             {ledgerId: txn.moneyLedger?txn.moneyLedger.id:'', dr:0, cr:txn.amount, side:'cr'}]
+          : [{ledgerId: txn.moneyLedger?txn.moneyLedger.id:'', dr:txn.amount, cr:0, side:'dr'},
+             {ledgerId: txn.counterLedger?txn.counterLedger.id:'', dr:0, cr:txn.amount, side:'cr'}];
+        render();
+        pushHistory();
+        const missing = (!txn.counterLedger || !txn.moneyLedger) ? ' — pick the highlighted ledger(s) before saving' : '';
+        toast(`Drafted from "${txn.raw}". Review and Save when ready${missing}.`, {type:'info'});
+      },
+    });
+  }
   CMDK_TABS.forEach(t=>{
     if(isTabGated(t.id)) return; // don't suggest jumping to a screen this plan doesn't have
     if(!q || t.label.toLowerCase().includes(q)) results.push({
@@ -7776,6 +8021,10 @@ function cmdkResults(){
   if(!q || 'dark mode'.includes(q) || 'light mode'.includes(q) || 'theme'.includes(q)) results.push({
     icon: darkMode?'☀️':'🌙', title: darkMode?'Switch to Light Mode':'Switch to Dark Mode', sub:'Preference',
     run:()=>{ modal = null; toggleTheme(); render(); },
+  });
+  if(!q || 'automation activity'.includes(q) || 'automation'.includes(q) || 'activity feed'.includes(q)) results.push({
+    icon:'🔁', title:'Automation Activity', sub:`What the app has done automatically${state.automationLog.length?` (${state.automationLog.length})`:''}`,
+    run:()=>{ modal = 'automationFeed'; render(); },
   });
   if(q){
     state.ledgers.filter(l=>l.name.toLowerCase().includes(q)).slice(0,8).forEach(l=>{
@@ -7815,7 +8064,8 @@ function commandPaletteModal(){
       <div class="modal-card cmdk-card" role="dialog" aria-modal="true" aria-label="Command palette">
         <div class="cmdk-inputwrap">
           <span class="cmdk-inputicon">🔎</span>
-          <input type="text" id="cmdkInput" class="cmdk-input" placeholder="Search ledgers, parties, vouchers, items — or jump to a screen…" value="${escapeAttr(cmdkQuery)}" autocomplete="off" spellcheck="false">
+          <input type="text" id="cmdkInput" class="cmdk-input" placeholder="${cmdkVoiceActive?'Listening…':'Search, jump to a screen, or type a transaction — &quot;paid 500 for rent yesterday&quot;…'}" value="${escapeAttr(cmdkQuery)}" autocomplete="off" spellcheck="false">
+          ${speechRecognitionSupported() ? `<button type="button" id="cmdkVoiceBtn" class="cmdk-voice-btn ${cmdkVoiceActive?'listening':''}" aria-label="${cmdkVoiceActive?'Stop voice input':'Voice input'}" title="${cmdkVoiceActive?'Stop voice input':'Voice input'}">${cmdkVoiceActive?'⏹️':'🎙️'}</button>` : ''}
         </div>
         <div class="cmdk-results" id="cmdkResultsEl">
           ${results.length ? results.map((r,i)=>`
@@ -7824,7 +8074,7 @@ function commandPaletteModal(){
               <span class="cmdk-item-text"><span class="cmdk-item-title">${escapeHtml(r.title)}</span><span class="cmdk-item-sub">${escapeHtml(r.sub)}</span></span>
             </div>`).join('') : `<div class="cmdk-empty">No matches for "${escapeHtml(cmdkQuery)}"</div>`}
         </div>
-        <div class="cmdk-hint"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span><span><kbd>Enter</kbd> Select</span><span><kbd>Esc</kbd> Close</span></div>
+        <div class="cmdk-hint"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span><span><kbd>Enter</kbd> Select</span><span><kbd>Esc</kbd> Close</span>${speechRecognitionSupported()?'<span>🎙️ Voice input available</span>':''}</div>
       </div>
     </div>
   `;
@@ -12649,6 +12899,118 @@ function dashboardInsightsCard(){
     </div>
   `;
 }
+// ---- "Needs Your Attention" exception queue: proactively surfaces things that usually deserve a
+// human look before they turn into a real problem, rather than waiting for the user to notice them
+// while scanning some other report. Every check here is read-only detection -- nothing is changed
+// automatically -- and each item's `action` just deep-links to wherever a person would actually go to
+// look into (and fix, or dismiss as fine) the thing it found.
+function dashboardExceptionQueue(){
+  const items = [];
+
+  // 1) Possible duplicate invoices -- two or more Sales vouchers to the same customer, for the same
+  // amount, within 2 days of each other. An easy real-world slip (re-entering the same sale twice)
+  // that's easy to miss just scanning the Day Book but jumps out once grouped like this.
+  const sales = state.vouchers.filter(v=>v.type==='Sales' && v.date);
+  const claimedForDupe = new Set();
+  for(const sv of sales){
+    if(claimedForDupe.has(sv.id)) continue;
+    const partyEntry = sv.entries.find(e=>e.dr>0);
+    const partyId = partyEntry ? partyEntry.ledgerId : null;
+    const amt = voucherAmount(sv);
+    if(!partyId || !amt) continue;
+    const dupes = sales.filter(v=>{
+      if(v.id===sv.id || claimedForDupe.has(v.id)) return false;
+      const pe = v.entries.find(e=>e.dr>0);
+      if(!pe || pe.ledgerId!==partyId) return false;
+      if(Math.abs(voucherAmount(v)-amt) >= 0.005) return false;
+      return Math.abs(new Date(v.date+'T00:00:00') - new Date(sv.date+'T00:00:00'))/86400000 <= 2;
+    });
+    if(dupes.length){
+      const group = [sv, ...dupes];
+      group.forEach(v=>claimedForDupe.add(v.id));
+      const party = ledgerOf(partyId);
+      const newestId = group.slice().sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0)[0].id;
+      items.push({
+        id: 'dup-'+group.map(v=>v.id).sort().join('-'), severity:'warn', icon:'⚠️',
+        text: `${group.length} Sales invoices to <b>${escapeHtml(party?party.name:'a customer')}</b> for ₹${fmt(amt)}, within a couple of days of each other — possible duplicate`,
+        action: ()=>{ if(openVoucherForEditing(newestId)){ modal=null; render(); } },
+      });
+    }
+  }
+
+  // 2) Expense spike -- this month's spend on a ledger well above its own last-month figure. Reuses
+  // dashboardExpenseDriver()'s per-ledger current-vs-previous-month numbers (the same engine Smart
+  // Insights already draws its "mainly driven by X" line from) rather than recomputing anything.
+  const driver = dashboardExpenseDriver();
+  if(driver && driver.cur>0 && driver.prev>0 && driver.cur > driver.prev*1.75 && (driver.cur-driver.prev)>1000){
+    items.push({
+      id:'spike-'+driver.name, severity:'warn', icon:'📈',
+      text: `<b>${escapeHtml(driver.name)}</b> spending is up to ₹${fmt(driver.cur)} this month, vs ₹${fmt(driver.prev)} last month`,
+      action: ()=>{ goToTab('reports'); },
+    });
+  }
+
+  // 3) Missing GST fields -- a Sales/Purchase voucher with GST actually applied, but the party ledger
+  // has no GSTIN on file, which a compliant tax invoice (and GSTR-1/2B) needs.
+  const gstMissing = [];
+  for(const v of state.vouchers){
+    if(v.type!=='Sales' && v.type!=='Purchase') continue;
+    let g; try{ g = gstBreakdownForVoucher(v); }catch(e){ continue; }
+    if(!g || !(g.totalTax>0)) continue;
+    const partyEntry = v.entries.find(e=> v.type==='Sales' ? e.dr>0 : e.cr>0);
+    const party = partyEntry ? ledgerOf(partyEntry.ledgerId) : null;
+    if(party && (party.partyType==='customer'||party.partyType==='supplier') && !party.gstin) gstMissing.push({v, party});
+  }
+  if(gstMissing.length){
+    const distinctParties = Array.from(new Set(gstMissing.map(x=>x.party.id)));
+    items.push({
+      id:'gst-missing', severity:'info', icon:'🧾',
+      text: `${gstMissing.length} GST invoice${gstMissing.length===1?'':'s'} across ${distinctParties.length} part${distinctParties.length===1?'y':'ies'} ${gstMissing.length===1?'has':'have'} tax applied but no GSTIN on file`,
+      action: ()=>{ window._selectedLedger = distinctParties[0]; goToTab('ledgers'); },
+    });
+  }
+
+  // 4) Stale unreconciled bank items -- posted a while ago and still not ticked Cleared on the
+  // Reconcile screen (see bankReconcileEntries/isBankClear/toggleBankClear).
+  const STALE_DAYS = 21;
+  const today = new Date().toISOString().slice(0,10);
+  const bankLedgers = state.ledgers.filter(l=>bucketOf(l)==='bank');
+  let staleCount = 0, staleLedgerId = null;
+  for(const l of bankLedgers){
+    const staleRows = bankReconcileEntries(l.id, today).filter(r=>{
+      if(r.cleared) return false;
+      const gap = Math.floor((new Date(today+'T00:00:00') - new Date(r.date+'T00:00:00'))/86400000);
+      return gap >= STALE_DAYS;
+    });
+    if(staleRows.length){ staleCount += staleRows.length; if(!staleLedgerId) staleLedgerId = l.id; }
+  }
+  if(staleCount){
+    items.push({
+      id:'stale-reconcile', severity:'info', icon:'🏦',
+      text: `${staleCount} bank entr${staleCount===1?'y':'ies'} posted over ${STALE_DAYS} days ago ${staleCount===1?'is':'are'} still unreconciled`,
+      action: ()=>{ if(staleLedgerId){ reconcileLedgerId = staleLedgerId; goToTab('reconcile'); } },
+    });
+  }
+
+  return items;
+}
+function dashboardExceptionQueueCard(){
+  const items = dashboardExceptionQueue();
+  if(!items.length) return '';
+  return `
+    <div class="exception-card">
+      <div class="exception-head">🔔 Needs Your Attention <span class="exception-count">${items.length}</span></div>
+      <div class="exception-list">
+        ${items.map((it,i)=>`
+          <div class="exception-row ${it.severity}" data-exception-idx="${i}" tabindex="0" role="button">
+            <span class="exception-icon">${it.icon}</span>
+            <span class="exception-text">${it.text}</span>
+            <span class="exception-arrow">→</span>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+}
 // A tiny inline trend line for a bento hero tile -- reuses qaMonthlyTrend's own numbers (the same
 // engine "Ask Your Books" answers trend questions from) rather than recomputing anything, so this
 // is guaranteed to agree with what the rest of the app says the trend is.
@@ -12788,6 +13150,30 @@ const DASHBOARD_TILES = {
   assetDonut: {label:'Asset Mix', render: ()=>assetDonutCard()},
   balanceSheetKPIGauge: {label:'Balance Sheet KPIs', render: ()=>balanceSheetKPIGaugeCard()},
 };
+// Personalized Dashboard layout -- lets the user pick which of the top KPI tiles and summary cards
+// their Dashboard shows (see DASHBOARD_SECTIONS/dashboardVisibleSections above). Purely a per-browser
+// display preference in localStorage, same as tile pinning -- never touches state or anyone else's view.
+function dashboardPersonalizeModal(){
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:420px;">
+        <div class="panel-head"><h2>⚙️ Personalize Dashboard</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-bottom:8px;">Choose what shows on your Dashboard. Saved in this browser only — everyone else's view is unaffected.</p>
+          <div style="display:flex;flex-direction:column;">
+            ${Object.entries(DASHBOARD_SECTIONS).map(([id,meta])=>`
+              <label style="display:flex;align-items:center;gap:10px;padding:8px 4px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);">
+                <input type="checkbox" data-dashboard-section-toggle="${id}" ${isDashboardSectionVisible(id)?'checked':''}>
+                ${escapeHtml(meta.label)}
+              </label>
+            `).join('')}
+          </div>
+          <button class="btn secondary small" id="dashboardSectionsResetBtn" type="button" style="margin-top:12px;">Show Everything (Reset)</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function pinnedTilesSection(){
   const ids = pinnedTiles.filter(id=>DASHBOARD_TILES[id]);
   if(!ids.length) return '';
@@ -12820,29 +13206,35 @@ function viewDashboard(){
       <span>📦 ${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level</span>
       <button class="btn secondary small" data-dashboard-goto-inventory type="button" style="background:#fff;color:#7a4f00;">View Reorder Suggestions</button>
     </div>` : ''}
+    ${dashboardVisibleSections.some(id=>['profit','cash','assets','liab','overdue'].includes(id)) ? `
     <div class="bento-grid">
+      ${isDashboardSectionVisible('profit') ? `
       <div class="stat bento-hero" data-open-kpi="profit">
         <div>
           <div class="label">${profit>=0?'Net Profit':'Net Loss'}</div>
           <div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div>
         </div>
         ${dashboardProfitSparkline()}
-      </div>
-      <div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>
-      <div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>
-      <div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>
-      <div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>
-    </div>
+      </div>` : ''}
+      ${isDashboardSectionVisible('cash') ? `<div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>` : ''}
+      ${isDashboardSectionVisible('assets') ? `<div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>` : ''}
+      ${isDashboardSectionVisible('liab') ? `<div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>` : ''}
+      ${isDashboardSectionVisible('overdue') ? `<div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>` : ''}
+    </div>` : ''}
 
-    ${monthComparisonStrip()}
+    ${isDashboardSectionVisible('monthCompare') ? monthComparisonStrip() : ''}
 
-    ${dashboardInsightsCard()}
+    ${isDashboardSectionVisible('exceptions') ? dashboardExceptionQueueCard() : ''}
+
+    ${isDashboardSectionVisible('insights') ? dashboardInsightsCard() : ''}
 
     ${pinnedTilesSection()}
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
       <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
       <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
+      <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
+      <button class="btn secondary" id="openDashboardPersonalizeBtn" type="button">⚙️ Personalize Dashboard</button>
     </div>
 
     <div class="row" style="align-items:flex-start;">
@@ -13714,6 +14106,36 @@ function recentVouchersModal(){
 function voucherAmount(v){
   return v.entries.reduce((s,e)=>s+(e.dr||0),0);
 }
+// ---- Unified automation activity feed: a chronological, undo-able log of everything the app did
+// automatically (see state.automationLog / logAutomation() / automationUndoHandlers above) --
+// deliberately separate from the Admin Panel's Audit Log, which is org/user security history, not
+// "what did this company's automation do". Undo is only offered for entries logged THIS session (a
+// function can't survive a reload -- see automationUndoHandlers' comment); older entries stay in the
+// feed as history but without an Undo button.
+function automationFeedModal(){
+  const log = state.automationLog || [];
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:640px;">
+        <div class="panel-head"><h2>🔁 Automation Activity</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
+          <p class="muted" style="font-size:12px;padding:12px 16px 0;">Everything the app did on its own — bank-import auto-matches, and more over time — newest first. Separate from the Admin Panel's security Audit Log.</p>
+          ${log.length ? `
+          <div style="padding:10px 16px 16px;display:flex;flex-direction:column;gap:6px;">
+            ${log.map(e=>{
+              const canUndo = !!automationUndoHandlers[e.id];
+              return `<div class="automation-row">
+                <span class="automation-icon">${e.icon||'🤖'}</span>
+                <span class="automation-text">${escapeHtml(e.text)}<span class="automation-when">${fmtTimestamp(e.at)}</span></span>
+                ${canUndo ? `<button class="btn secondary small" data-automation-undo="${e.id}" type="button">Undo</button>` : ''}
+              </div>`;
+            }).join('')}
+          </div>` : emptyState({icon:'🤖', title:'No automated activity yet', text:'When the app auto-matches a bank import (or automates something else, going forward) it will show up here.', ctaLabel:'Back to Dashboard', ctaTab:'dashboard'})}
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 /* ---------------- Import Accounting Data (bank statement / spreadsheet → vouchers) ---------------- */
 const IMPORT_COLUMN_SYNONYMS = {
@@ -14008,7 +14430,16 @@ async function commitImport(){
     const existing = findExistingMatch(t);
     if(existing){
       claimedVoucherIds.add(existing.id);
-      toggleBankClear(primaryId, existing.id, t.date);
+      const gap = existing.date ? Math.round(daysBetween(existing.date, t.date)) : null;
+      const confidence = gap===0 ? 100 : gap===1 ? 92 : 80;
+      const reason = gap===0
+        ? `Same date and amount (₹${fmt(t.amount)}) as an existing voucher you already entered`
+        : `Same amount (₹${fmt(t.amount)}) as an existing voucher entered ${gap} day${gap===1?'':'s'} earlier, on ${existing.date}`;
+      toggleBankClear(primaryId, existing.id, t.date, {autoMatched:true, matchConfidence:confidence, matchReason:reason});
+      logAutomation('🔗', `Matched an imported bank row (₹${fmt(t.amount)}, ${t.date}) to an existing voucher and marked it Cleared on Reconcile`, async ()=>{
+        toggleBankClear(primaryId, existing.id, t.date);
+        await saveBankClears();
+      });
       matched++;
       return;
     }
@@ -14025,7 +14456,15 @@ async function commitImport(){
       createdAt: now,
       importedFrom: importState.fileName || 'spreadsheet import',
     });
-    if(isBankLedger) toggleBankClear(primaryId, newVoucherId, t.date);
+    if(isBankLedger){
+      toggleBankClear(primaryId, newVoucherId, t.date, {autoMatched:true, matchConfidence:100, matchReason:'Created directly from the imported bank statement row'});
+      logAutomation('📥', `Created a new ${t.drcr==='dr'?'Payment':'Receipt'} voucher (₹${fmt(t.amount)}, ${t.date}) from an imported bank row and marked it Cleared`, async ()=>{
+        state.vouchers = state.vouchers.filter(v=>v.id!==newVoucherId);
+        toggleBankClear(primaryId, newVoucherId, t.date);
+        await saveVouchers();
+        await saveBankClears();
+      });
+    }
     created++;
   });
 
@@ -14277,7 +14716,71 @@ function suggestLedgerForNarration(text, excludeLedgerIds){
   for(const id in tally){ if(!best || tally[id].count>best.count) best = {ledgerId:id, name:tally[id].name, count:tally[id].count}; }
   return (best && best.count>=2) ? best : null;
 }
-// Same word-overlap heuristic as the narration suggestion above, applied to Chart of Accounts:
+// Ghost-text amount suggestion for the Single Entry voucher form (predictive smart defaults): finds
+// the closest matching prior voucher -- preferring one that actually touches the already-picked
+// counterparty ledger, then falling back to narration word overlap (same heuristic as
+// suggestLedgerForNarration above) -- and returns its amount, most recent match wins on a tie. Lets
+// the Amount field show a greyed-out suggestion the user accepts with Tab instead of retyping a
+// number they enter often (rent, a recurring bill, ...). Never used to silently fill anything in --
+// see wireGhostAmountInput(), which only ever fills the field on an explicit Tab/click.
+function suggestAmountForNarration(text, ledgerId){
+  const words = (text||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !QA_STOPWORDS.has(w));
+  let best = null, bestScore = 0, bestDate = '';
+  for(const v of state.vouchers){
+    if(!v.date) continue;
+    let score = 0;
+    if(words.length && v.narration){
+      const vw = v.narration.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2);
+      score += words.filter(w=>vw.includes(w)).length;
+    }
+    if(ledgerId && (v.entries||[]).some(e=>e.ledgerId===ledgerId)) score += 3;
+    if(score<1) continue;
+    if(score>bestScore || (score===bestScore && v.date>bestDate)){ best=v; bestScore=score; bestDate=v.date; }
+  }
+  return best ? voucherAmount(best) : null;
+}
+// Refreshes the ghost-text amount suggestion next to #singleAmount. Only ever shows while the field
+// is genuinely empty (so it can never be mistaken for -- or silently overwrite -- what the user
+// actually typed), and clears itself the moment a suggestion isn't available.
+function updateAmountGhostSuggestion(){
+  const holder = document.getElementById('singleAmountGhost');
+  if(!holder) return;
+  const s = vform.single;
+  if(!s || (s.amount!=null && String(s.amount)!=='')){ holder.innerHTML=''; holder.dataset.value=''; return; }
+  const counterLedgerId = vform.type==='Payment' ? s.ledgerB : (vform.type==='Receipt' ? s.ledgerB : (s.ledgerB||s.ledgerA));
+  const amt = suggestAmountForNarration(vform.narration, counterLedgerId);
+  if(amt==null){ holder.innerHTML=''; holder.dataset.value=''; return; }
+  holder.dataset.value = amt;
+  holder.innerHTML = `₹${fmt(amt)} <span class="ghost-tab-hint">Tab</span>`;
+}
+// Same-name-events wiring for the ghost suggestion above -- Tab (or a click on the ghost text itself)
+// accepts it; any other key just lets the browser behave normally (typing overwrites/clears it on the
+// very next render since the field is no longer empty).
+function wireGhostAmountInput(){
+  const input = document.getElementById('singleAmount');
+  const holder = document.getElementById('singleAmountGhost');
+  if(!input || !holder) return;
+  input.addEventListener('keydown', e=>{
+    if(e.key!=='Tab') return;
+    const v = holder.dataset.value;
+    if(!v) return; // nothing to accept -- let Tab move focus onward as normal
+    e.preventDefault();
+    vform.single.amount = v;
+    updateSingleEntryPreview();
+    input.value = v;
+    holder.innerHTML=''; holder.dataset.value='';
+  });
+  holder.addEventListener('click', ()=>{
+    const v = holder.dataset.value;
+    if(!v) return;
+    vform.single.amount = v;
+    input.value = v;
+    input.focus();
+    updateSingleEntryPreview();
+    holder.innerHTML=''; holder.dataset.value='';
+  });
+}
+// Same-word-overlap heuristic as the narration suggestion above, applied to Chart of Accounts:
 // suggests which Group a brand-new ledger name most resembles, based on the groups your existing
 // ledgers with similar-sounding names already live under. Local only, no API.
 function suggestGroupForLedgerName(name){
@@ -14583,7 +15086,12 @@ function singleEntryFields(){
         </select>
       </div>
     </div>
-    <div class="field" style="max-width:220px;"><label>Amount</label><input type="number" id="singleAmount" value="${s.amount}" step="0.01" placeholder="0.00"></div>
+    <div class="field" style="max-width:220px;"><label>Amount</label>
+      <div class="ghost-input-wrap">
+        <input type="number" id="singleAmount" value="${s.amount}" step="0.01" placeholder="0.00">
+        <span class="ghost-suggest" id="singleAmountGhost"></span>
+      </div>
+    </div>
     <button class="btn secondary small" id="quickAddLedgerBtn" type="button">+ New Ledger</button>
     <p class="muted" style="font-size:12.5px;" id="singlePreview">${singleEntryPreviewText()}</p>
   `;
@@ -18477,7 +18985,7 @@ function viewReconcile(){
           <tr>
             <td class="muted">${r.date}</td>
             <td class="muted">${escapeHtml(r.type)}</td>
-            <td>${escapeHtml(r.narration||'—')}</td>
+            <td>${escapeHtml(r.narration||'—')}${r.autoMatched ? `<span class="match-badge" title="${escapeAttr(r.matchReason||'Auto-matched against the imported bank statement')}">🔗 ${r.matchConfidence!=null ? r.matchConfidence+'% ' : ''}auto-matched</span>` : ''}</td>
             <td class="num">${r.dr?'₹'+fmt(r.dr):''}</td>
             <td class="num">${r.cr?'₹'+fmt(r.cr):''}</td>
             <td style="text-align:center;"><input type="checkbox" data-clear-voucher="${r.voucherId}" ${r.cleared?'checked':''}></td>
@@ -20169,6 +20677,41 @@ function attachHandlers(){
       });
     });
   }
+  if(modal==='dashboardPersonalize'){
+    document.querySelectorAll('[data-dashboard-section-toggle]').forEach(el=>{
+      el.addEventListener('change', ()=>{
+        toggleDashboardSection(el.dataset.dashboardSectionToggle);
+        render();
+      });
+    });
+    document.getElementById('dashboardSectionsResetBtn')?.addEventListener('click', ()=>{
+      dashboardVisibleSections = Object.keys(DASHBOARD_SECTIONS);
+      saveDashboardSections();
+      render();
+    });
+  }
+  if(modal==='automationFeed'){
+    document.querySelectorAll('[data-automation-undo]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const id = el.dataset.automationUndo;
+        const fn = automationUndoHandlers[id];
+        if(!fn) return;
+        el.disabled = true;
+        try{
+          await fn();
+          delete automationUndoHandlers[id];
+          const entry = state.automationLog.find(x=>x.id===id);
+          if(entry) entry.text += ' — undone';
+          await saveAutomationLog();
+          toast('Undone', {type:'success'});
+          render();
+        }catch(err){
+          el.disabled = false;
+          toast('Could not undo that action — it may have already changed.');
+        }
+      });
+    });
+  }
 
   document.querySelectorAll('[data-employee-documents]').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -20305,6 +20848,14 @@ function attachHandlers(){
       modal = 'import';
       render();
     });
+    document.getElementById('openAutomationFeedBtn')?.addEventListener('click', ()=>{
+      modal = 'automationFeed';
+      render();
+    });
+    document.getElementById('openDashboardPersonalizeBtn')?.addEventListener('click', ()=>{
+      modal = 'dashboardPersonalize';
+      render();
+    });
     document.querySelectorAll('[data-open-visual]').forEach(el=>{
       el.addEventListener('click', ()=>{
         const kind = el.dataset.openVisual;
@@ -20328,6 +20879,14 @@ function attachHandlers(){
         if(modal) render();
       });
     });
+    document.querySelectorAll('[data-exception-idx]').forEach(el=>{
+      const run = ()=>{
+        const item = dashboardExceptionQueue()[Number(el.dataset.exceptionIdx)];
+        if(item && item.action) item.action();
+      };
+      el.addEventListener('click', run);
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); run(); } });
+    });
     renderDashboardCharts();
     wireVizInteractivity();
     animateDashboardCounters();
@@ -20338,9 +20897,11 @@ function attachHandlers(){
       b.addEventListener('click',()=>{ switchVoucherType(b.dataset.vtype); render(); });
     });
     document.getElementById('vdate').addEventListener('input', e=> vform.date = e.target.value);
-    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); });
+    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); });
     document.getElementById('vchannel')?.addEventListener('change', e=>{ vform.channel = e.target.value; });
     updateNarrationSuggestion(); // show a suggestion immediately if editing a voucher that already has a narration
+    updateAmountGhostSuggestion();
+    wireGhostAmountInput();
     document.getElementById('vCurrency')?.addEventListener('change', e=>{
       vform.currency = e.target.value;
       vform.fxRate = currencyOf(vform.currency)?.rate || 1;
@@ -21771,6 +22332,7 @@ function updateSingleEntryPreview(){
   const ok = !!(s.ledgerA && s.ledgerB && amt>0 && s.ledgerA!==s.ledgerB);
   const saveBtn = document.getElementById('saveVoucher');
   if(saveBtn) saveBtn.disabled = !ok || isReadOnlyMode();
+  updateAmountGhostSuggestion();
 }
 
 function renderTotalsOnly(){
