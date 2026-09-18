@@ -2177,6 +2177,8 @@ const DASHBOARD_SECTIONS = {
   monthCompare:{label:'This Month vs Last Month'},
   exceptions:  {label:'Needs Your Attention'},
   insights:    {label:'Smart Insights'},
+  cashForecast:{label:'AI Cash-Flow Forecast'},
+  collections: {label:'Collections Priority'},
 };
 let dashboardVisibleSections = (function(){
   try{
@@ -2413,6 +2415,7 @@ let groupSettingsNotice = '';
 let ledgerDetailId = null;   // which ledger was clicked in the Balance Sheet, for the detail modal
 let cfDetailBucket = null;   // which Cash Flow bucket (operating/investing/financing) was clicked, for the detail modal
 let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice ageing detail modal is showing
+let monthlyNarrativeMonth = null; // which 'YYYY-MM' the AI-Written Monthly Narrative Summary modal is showing -- null = current month
 let pieChartLedgerId = null; // which ledger's pie chart to show
 // Ledgers tab (viewLedgers): free-text filter typed into the sidebar's search box, and which
 // ledger the "New Ledger"/"Alter" modal is open for -- null when the modal is closed, the string
@@ -5295,6 +5298,31 @@ function stockWarningFor(type, items, editingVoucherId){
   if(!warnings.length) return null;
   return warnings.length===1 ? warnings[0] : `${warnings.length} items would go below zero stock:\n${warnings.join('\n')}`;
 }
+// Duplicate-Payment Guard -- a save-time check, same soft-warning shape as creditLimitWarningFor/
+// stockWarningFor above (a confirm() the user can push past, never a silent block). Catches the
+// everyday slip of re-entering the same Payment or cash Purchase twice: same counterparty (whichever
+// ledger touched isn't Cash/Bank), same amount, within a few days of an existing voucher of the same
+// kind. Mirrors dashboardExceptionQueue()'s duplicate-Sales-invoice check, just run BEFORE the save
+// instead of surfaced after the fact.
+function duplicatePaymentWarningFor(type, entries, date, editingVoucherId){
+  if(!['Payment','Purchase'].includes(type) || !Array.isArray(entries) || !date) return null;
+  const isCashBank = ledgerId=>{ const l = ledgerOf(ledgerId); return l && (bucketOf(l)==='cash'||bucketOf(l)==='bank'); };
+  const partyLine = entries.find(e=>e.ledgerId && !isCashBank(e.ledgerId));
+  if(!partyLine) return null;
+  const amt = r2(entries.reduce((s,e)=>s+(Number(e.dr)||0),0));
+  if(!amt) return null;
+  const dupe = state.vouchers.find(v=>{
+    if(v.id===editingVoucherId || !['Payment','Purchase'].includes(v.type) || !v.date) return false;
+    const vParty = v.entries.find(e=>e.ledgerId && !isCashBank(e.ledgerId));
+    if(!vParty || vParty.ledgerId!==partyLine.ledgerId) return false;
+    const vAmt = r2(v.entries.reduce((s,e)=>s+(Number(e.dr)||0),0));
+    if(Math.abs(vAmt-amt)>=0.005) return false;
+    return Math.abs(new Date(v.date+'T00:00:00') - new Date(date+'T00:00:00'))/86400000 <= 3;
+  });
+  if(!dupe) return null;
+  const party = ledgerOf(partyLine.ledgerId);
+  return `This looks like it could be a duplicate — ${party?party.name:'this party'} already has a ${dupe.type} of ₹${fmt(amt)} dated ${dupe.date}.`;
+}
 
 /* ---------------- bank reconciliation ---------------- */
 // Ledger balance as of a specific date (inclusive) — a cumulative running balance up to that day,
@@ -7444,6 +7472,8 @@ function render(){
     ${modal==='employeeDocuments' ? employeeDocumentsModal() : ''}
     ${modal==='recentVouchers' ? recentVouchersModal() : ''}
     ${modal==='automationFeed' ? automationFeedModal() : ''}
+    ${modal==='closeChecklist' ? closeChecklistModal() : ''}
+    ${modal==='monthlyNarrative' ? monthlyNarrativeModal() : ''}
     ${modal==='dashboardPersonalize' ? dashboardPersonalizeModal() : ''}
     ${modal==='import' ? importModal() : ''}
     ${modal==='balanceSheetDetail' ? balanceSheetDetailModal() : ''}
@@ -12899,6 +12929,102 @@ function dashboardInsightsCard(){
     </div>
   `;
 }
+// ---- AI Cash-Flow Forecasting: a local, deterministic 30/60/90-day cash position projection --
+// no external AI call, just your own open receivables/payables due dates plus any active recurring
+// templates, the same building blocks partyOutstandingInvoices()/dueRecurringTemplates() already
+// give every other screen. An invoice already past its due date is assumed to land "now" for
+// forecasting purposes (it's overdue, not gone), rather than skewing the projection into the past.
+function cashFlowForecastData(){
+  const today = new Date().toISOString().slice(0,10);
+  const startCash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank')
+    .reduce((s,l)=>s+ledgerBalance(l.id),0);
+  const events = []; // {date, amount} -- amount>0 = expected inflow, <0 = expected outflow
+  const DEFAULT_TERMS_DAYS = 30; // used only when a party has no Credit Period set on their ledger
+  state.ledgers.forEach(l=>{
+    if(l.partyType!=='customer' && l.partyType!=='supplier') return;
+    const invs = partyOutstandingInvoices(l.id);
+    if(!invs.length) return;
+    const terms = l.creditDays!=null ? l.creditDays : DEFAULT_TERMS_DAYS;
+    invs.forEach(inv=>{
+      const due = addDays(inv.date, terms);
+      const when = due < today ? today : due;
+      events.push({ date: when, amount: l.partyType==='customer' ? inv.remaining : -inv.remaining });
+    });
+  });
+  const horizonEnd = addDays(today, 90);
+  state.recurringTemplates.filter(t=>t.active).forEach(t=>{
+    let d = t.nextDueDate, guard = 0;
+    while(d && d<=horizonEnd && guard<40){
+      const amt = Number(t.amount)||0;
+      if(amt) events.push({ date: d, amount: t.type==='Receipt' ? amt : -amt });
+      d = advanceDate(d, t.frequency);
+      guard++;
+    }
+  });
+  const results = [30,60,90].map(days=>{
+    const cutoff = addDays(today, days);
+    const net = events.filter(e=>e.date<=cutoff).reduce((s,e)=>s+e.amount,0);
+    return { days, date: cutoff, projected: r2(startCash + net) };
+  });
+  return { startCash: r2(startCash), events, results };
+}
+function cashFlowForecastCard(){
+  const data = cashFlowForecastData();
+  const categories = [{key:'now', label:'Today'}, ...data.results.map(r=>({key:'d'+r.days, label:'+'+r.days+'d'}))];
+  const values = { now: data.startCash };
+  data.results.forEach(r=> values['d'+r.days] = r.projected);
+  const lines = [{ key:'forecast', label:'Projected Cash', color:VIZ_COLORS[1], values, fmt:v=>'₹'+fmt(v) }];
+  const worst = Math.min(data.startCash, ...data.results.map(r=>r.projected));
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>🔮 AI Cash-Flow Forecast</h2><span class="viz-sub">30 / 60 / 90-day projection</span></div>
+      <div class="panel-body">
+        ${svgMultiLineChart(categories, lines, {axisFmt:v=>'₹'+fmtShort(v)})}
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;">
+          ${data.results.map(r=>`<div style="font-size:12px;"><span class="muted">+${r.days}d (${r.date})</span><br><strong class="${r.projected>=0?'pos':'neg'}">₹${fmt(r.projected)}</strong></div>`).join('')}
+        </div>
+        <p class="muted" style="font-size:10.5px;margin:8px 0 0;">Projects cash from open receivables (expected in, by each customer's Credit Period), open payables (expected out), and any active recurring templates — a local estimate from your own data.${worst<0?' ⚠ Projected to go negative at some point in the next 90 days — plan ahead.':''}</p>
+      </div>
+    </div>
+  `;
+}
+// ---- Collections Prioritization: ranks every overdue customer invoice by a simple "how much
+// attention this needs" score -- amount and days overdue both push a row up, and a customer who is
+// currently over their own credit limit is flagged as extra risk on top of that. Built entirely on
+// overdueInvoices()/ledgerBalance(), the same numbers the Overdue Invoices KPI already uses.
+function collectionsPriorityList(){
+  return overdueInvoices().map(r=>{
+    const utilization = r.ledger.creditLimit ? ledgerBalance(r.ledger.id)/r.ledger.creditLimit : 0;
+    const overLimit = utilization>1;
+    const score = r2(r.invoice.remaining * (1 + r.daysOverdue/20) * (overLimit ? 1.25 : 1));
+    return { ...r, score, overLimit };
+  }).sort((a,b)=> b.score-a.score);
+}
+function collectionsPriorityCard(){
+  const rows = collectionsPriorityList().slice(0,6);
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>🎯 Collections Priority</h2><span class="viz-sub">Ranked by amount × days overdue</span></div>
+      <div class="panel-body" style="padding:${rows.length?'0':'16px'};">
+        ${rows.length ? `
+        <div style="display:flex;flex-direction:column;">
+          ${rows.map((r,i)=>`
+            <div data-open-party="${r.ledger.id}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
+              <span style="font-weight:700;font-size:12px;color:var(--muted);width:16px;">${i+1}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.ledger.name)}${r.overLimit?' <span class="pill neg" style="font-size:9.5px;">OVER LIMIT</span>':''}</div>
+                <div class="muted" style="font-size:11px;">${r.daysOverdue}d overdue · due ${r.dueDate}</div>
+              </div>
+              <div style="text-align:right;font-weight:700;font-size:13px;">₹${fmt(r.invoice.remaining)}</div>
+            </div>
+          `).join('')}
+        </div>
+        <p class="muted" style="font-size:10.5px;padding:8px 14px 12px;">Blends outstanding amount, days overdue, and credit-limit risk into a local ranking — click any row for that party's full ledger.</p>
+        ` : `<div class="empty">Nothing overdue to prioritize.</div>`}
+      </div>
+    </div>
+  `;
+}
 // ---- "Needs Your Attention" exception queue: proactively surfaces things that usually deserve a
 // human look before they turn into a real problem, rather than waiting for the user to notice them
 // while scanning some other report. Every check here is read-only detection -- nothing is changed
@@ -13228,12 +13354,20 @@ function viewDashboard(){
 
     ${isDashboardSectionVisible('insights') ? dashboardInsightsCard() : ''}
 
+    ${isDashboardSectionVisible('cashForecast') || isDashboardSectionVisible('collections') ? `
+    <div class="row" style="align-items:flex-start;">
+      ${isDashboardSectionVisible('cashForecast') ? `<div style="flex:1;">${cashFlowForecastCard()}</div>` : ''}
+      ${isDashboardSectionVisible('collections') ? `<div style="flex:1;">${collectionsPriorityCard()}</div>` : ''}
+    </div>` : ''}
+
     ${pinnedTilesSection()}
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
       <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
       <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
       <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
+      <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close Checklist</button>
+      <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
       <button class="btn secondary" id="openDashboardPersonalizeBtn" type="button">⚙️ Personalize Dashboard</button>
     </div>
 
@@ -14136,6 +14270,162 @@ function automationFeedModal(){
     </div>
   `;
 }
+// ---- AI-Assisted Month-End Close Checklist: walks through the four things a month-end close
+// usually needs -- depreciation, accruals/provisions (recurring templates), GST, and bank
+// reconciliation -- each derived live from the same functions the rest of the app already uses for
+// those screens (assetDepreciationForFY/postedFYs, dueRecurringTemplates, the exception queue's GST
+// check, bankReconcileEntries). Nothing here is "completed" and forgotten -- it's a live read of the
+// books, so it always reflects the current state, and each row deep-links to where to actually act.
+function monthEndCloseChecklistItems(){
+  const today = new Date().toISOString().slice(0,10);
+  const currentFY = fyLabelForDate(today);
+  const items = [];
+
+  const dueAssets = state.fixedAssets.filter(a=>a.active!==false && !(a.postedFYs||[]).includes(currentFY) && assetDepreciationForFY(a,currentFY)>0);
+  items.push({
+    id:'depreciation', icon:'📉', title:'Post depreciation for the current year',
+    status: dueAssets.length ? 'pending' : 'done',
+    detail: dueAssets.length ? `${dueAssets.length} fixed asset${dueAssets.length===1?'':'s'} ${dueAssets.length===1?'has':'have'} depreciation for FY ${currentFY} not yet posted.` : `All active fixed assets are up to date for FY ${currentFY}.`,
+    action: ()=>{ modal=null; goToTab('assets'); },
+  });
+
+  const dueRecurring = dueRecurringTemplates(today);
+  items.push({
+    id:'accruals', icon:'🔁', title:'Post due recurring entries (accruals & provisions)',
+    status: dueRecurring.length ? 'pending' : 'done',
+    detail: dueRecurring.length ? `${dueRecurring.length} recurring template${dueRecurring.length===1?'':'s'} (rent, subscriptions, and similar) ${dueRecurring.length===1?'is':'are'} due and not yet generated.` : `No recurring templates are currently due.`,
+    action: ()=>{ modal='recurring'; render(); },
+  });
+
+  const exceptions = dashboardExceptionQueue();
+  const gstItem = exceptions.find(e=>e.id==='gst-missing');
+  items.push({
+    id:'gst', icon:'🧾', title:'Review GST — GSTINs on file & the period statement',
+    status: gstItem ? 'pending' : 'done',
+    detail: gstItem ? gstItem.text : 'No GST-applicable invoices are missing a GSTIN on file.',
+    action: ()=>{ modal=null; goToTab('gst'); },
+  });
+
+  const STALE_DAYS = 21;
+  let staleCount = 0;
+  for(const l of state.ledgers.filter(l=>bucketOf(l)==='bank')){
+    staleCount += bankReconcileEntries(l.id, today).filter(r=>!r.cleared && Math.floor((new Date(today+'T00:00:00')-new Date(r.date+'T00:00:00'))/86400000)>=STALE_DAYS).length;
+  }
+  items.push({
+    id:'reconcile', icon:'🏦', title:'Reconcile bank & cash accounts',
+    status: staleCount ? 'pending' : 'done',
+    detail: staleCount ? `${staleCount} bank entr${staleCount===1?'y':'ies'} posted over ${STALE_DAYS} days ago ${staleCount===1?'is':'are'} still unreconciled.` : 'No long-stale unreconciled bank entries.',
+    action: ()=>{ modal=null; goToTab('reconcile'); },
+  });
+
+  return items;
+}
+function closeChecklistModal(){
+  const items = monthEndCloseChecklistItems();
+  const doneCount = items.filter(i=>i.status==='done').length;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:580px;">
+        <div class="panel-head"><h2>✅ Month-End Close Checklist</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-bottom:12px;">${doneCount} of ${items.length} steps clear right now. This re-checks your live books every time it's opened — click any row to go act on it.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${items.map(it=>`
+              <div data-close-item="${it.id}" tabindex="0" role="button" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;${it.status==='done'?'':'background:#FFF8E8;'}">
+                <span style="font-size:18px;line-height:1.2;">${it.status==='done'?'✅':'⏳'}</span>
+                <div style="flex:1;">
+                  <div style="font-weight:600;font-size:13px;">${escapeHtml(it.title)}</div>
+                  <div class="muted" style="font-size:12px;margin-top:2px;">${it.detail}</div>
+                </div>
+                <span class="muted" style="font-size:13px;">${it.status==='done'?'':'→'}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// ---- AI-Written Monthly Narrative Summary: a template-driven prose recap of a chosen month --
+// revenue/expense movement, the biggest expense driver, overdue invoices, and cash position -- built
+// on qaPeriodTotals()/overdueInvoices(), the same figures the Smart Insights card already draws from.
+// A periodic digest rather than a live dashboard card, viewable per-month and printable.
+function monthlyNarrativeSummary(monthKey){
+  const today = new Date().toISOString().slice(0,10);
+  monthKey = monthKey || today.slice(0,7);
+  const prevDate = new Date(monthKey+'-01T00:00:00');
+  prevDate.setMonth(prevDate.getMonth()-1);
+  const prevKey = prevDate.toISOString().slice(0,7);
+  const cur = qaPeriodTotals(d=>d.slice(0,7)===monthKey);
+  const prev = qaPeriodTotals(d=>d.slice(0,7)===prevKey);
+  const monthLabel = new Date(monthKey+'-01T00:00:00').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+  const paragraphs = [];
+
+  const revPct = prev.revenue ? r2(((cur.revenue-prev.revenue)/Math.abs(prev.revenue))*100) : null;
+  let p1 = `In ${monthLabel}, revenue came to ₹${fmt(cur.revenue)}`;
+  if(revPct!=null && Math.abs(revPct)>=1) p1 += `, ${revPct>=0?'up':'down'} ${Math.abs(revPct)}% from ₹${fmt(prev.revenue)} the month before`;
+  p1 += `. Total expenses were ₹${fmt(cur.expenses)}, leaving a ${cur.profit>=0?'net profit':'net loss'} of ₹${fmt(Math.abs(cur.profit))} for the month.`;
+  paragraphs.push(p1);
+
+  const perLedger = {};
+  for(const v of state.vouchers){
+    if(!v.date || v.date.slice(0,7)!==monthKey) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || !['purch','dexp','iexp'].includes(bucketOf(l))) continue;
+      const net = (e.dr||0)-(e.cr||0);
+      if(!perLedger[l.id]) perLedger[l.id] = { name:l.name, amt:0 };
+      perLedger[l.id].amt += net;
+    }
+  }
+  const topExpense = Object.values(perLedger).sort((a,b)=>b.amt-a.amt)[0];
+  if(topExpense && topExpense.amt>0) paragraphs.push(`The largest expense line this month was <b>${escapeHtml(topExpense.name)}</b>, at ₹${fmt(topExpense.amt)}.`);
+
+  const overdue = overdueInvoices();
+  if(overdue.length){
+    const total = overdue.reduce((s,r)=>s+r.invoice.remaining,0);
+    paragraphs.push(`${overdue.length} customer invoice${overdue.length===1?'':'s'} remain overdue as of today, totaling ₹${fmt(total)} outstanding — worth following up before they age further.`);
+  } else {
+    paragraphs.push(`No customer invoices are currently overdue.`);
+  }
+
+  const cash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank').reduce((s,l)=>s+ledgerBalance(l.id),0);
+  paragraphs.push(`Cash and bank balances stand at ₹${fmt(cash)} as of today.`);
+
+  const exceptions = dashboardExceptionQueue();
+  if(exceptions.length){
+    paragraphs.push(`${exceptions.length} item${exceptions.length===1?'':'s'} on the "Needs Your Attention" queue could use a look — duplicate entries, expense spikes, missing GST details, or reconciliation gaps.`);
+  }
+
+  return { monthKey, monthLabel, cur, prev, paragraphs };
+}
+function monthlyNarrativeModal(){
+  const monthKey = monthlyNarrativeMonth || new Date().toISOString().slice(0,7);
+  const summary = monthlyNarrativeSummary(monthKey);
+  const monthsWithData = Array.from(new Set(state.vouchers.filter(v=>v.date).map(v=>v.date.slice(0,7)))).sort().reverse();
+  if(!monthsWithData.includes(monthKey)) monthsWithData.unshift(monthKey);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:580px;">
+        <div class="panel-head"><h2>📝 Monthly Narrative Summary</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+            <label class="muted" style="font-size:12px;">Month</label>
+            <select id="narrativeMonthPicker">
+              ${monthsWithData.map(m=>`<option value="${m}" ${m===monthKey?'selected':''}>${new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</option>`).join('')}
+            </select>
+            <button class="btn secondary small" id="narrativePrintBtn" type="button">🖨️ Print</button>
+          </div>
+          <div id="narrativePrintArea">
+            <h3 style="margin:0 0 10px;">${escapeHtml(summary.monthLabel)} — Summary</h3>
+            ${summary.paragraphs.map(p=>`<p style="font-size:13.5px;line-height:1.65;margin:0 0 10px;">${p}</p>`).join('')}
+          </div>
+          <p class="muted" style="font-size:10.5px;margin-top:6px;">Generated locally from your own books — revenue/expense movement, the biggest expense driver, overdue invoices, and cash position for the month. Nothing here is sent to an external service.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 /* ---------------- Import Accounting Data (bank statement / spreadsheet → vouchers) ---------------- */
 const IMPORT_COLUMN_SYNONYMS = {
@@ -14745,13 +15035,18 @@ function suggestAmountForNarration(text, ledgerId){
 function updateAmountGhostSuggestion(){
   const holder = document.getElementById('singleAmountGhost');
   if(!holder) return;
+  const input = document.getElementById('singleAmount');
   const s = vform.single;
-  if(!s || (s.amount!=null && String(s.amount)!=='')){ holder.innerHTML=''; holder.dataset.value=''; return; }
+  if(!s || (s.amount!=null && String(s.amount)!=='')){ holder.innerHTML=''; holder.dataset.value=''; if(input) input.placeholder='0.00'; return; }
   const counterLedgerId = vform.type==='Payment' ? s.ledgerB : (vform.type==='Receipt' ? s.ledgerB : (s.ledgerB||s.ledgerA));
   const amt = suggestAmountForNarration(vform.narration, counterLedgerId);
-  if(amt==null){ holder.innerHTML=''; holder.dataset.value=''; return; }
+  if(amt==null){ holder.innerHTML=''; holder.dataset.value=''; if(input) input.placeholder='0.00'; return; }
   holder.dataset.value = amt;
   holder.innerHTML = `₹${fmt(amt)} <span class="ghost-tab-hint">Tab</span>`;
+  // Blank the native placeholder while the ghost overlay is showing a suggestion -- both are
+  // right-aligned in the same box, so leaving "0.00" in place makes it visually collide with the
+  // ghost text instead of reading as one clean suggestion.
+  if(input) input.placeholder='';
 }
 // Same-name-events wiring for the ghost suggestion above -- Tab (or a click on the ghost text itself)
 // accepts it; any other key just lets the browser behave normally (typing overwrites/clears it on the
@@ -20677,6 +20972,23 @@ function attachHandlers(){
       });
     });
   }
+  if(modal==='closeChecklist'){
+    document.querySelectorAll('[data-close-item]').forEach(el=>{
+      const run = ()=>{
+        const item = monthEndCloseChecklistItems().find(i=>i.id===el.dataset.closeItem);
+        if(item && item.action) item.action();
+      };
+      el.addEventListener('click', run);
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); run(); } });
+    });
+  }
+  if(modal==='monthlyNarrative'){
+    document.getElementById('narrativeMonthPicker')?.addEventListener('change', e=>{
+      monthlyNarrativeMonth = e.target.value;
+      render();
+    });
+    document.getElementById('narrativePrintBtn')?.addEventListener('click', ()=>{ window.print(); });
+  }
   if(modal==='dashboardPersonalize'){
     document.querySelectorAll('[data-dashboard-section-toggle]').forEach(el=>{
       el.addEventListener('change', ()=>{
@@ -20854,6 +21166,15 @@ function attachHandlers(){
     });
     document.getElementById('openDashboardPersonalizeBtn')?.addEventListener('click', ()=>{
       modal = 'dashboardPersonalize';
+      render();
+    });
+    document.getElementById('openCloseChecklistBtn')?.addEventListener('click', ()=>{
+      modal = 'closeChecklist';
+      render();
+    });
+    document.getElementById('openMonthlyNarrativeBtn')?.addEventListener('click', ()=>{
+      monthlyNarrativeMonth = null;
+      modal = 'monthlyNarrative';
       render();
     });
     document.querySelectorAll('[data-open-visual]').forEach(el=>{
@@ -21337,6 +21658,8 @@ function attachHandlers(){
       // since "paid immediately" is inherent to this flow.
       const hasPaymentItems = vform.type==='Payment' && vform.appliedItems && vform.appliedItems.length>0;
       const effectiveType = hasPaymentItems ? 'Purchase' : vform.type;
+      const dupWarning = duplicatePaymentWarningFor(effectiveType, entries, vform.date, vform.id);
+      if(dupWarning && !confirm(dupWarning + '\n\nSave anyway?')) return;
       let savedVoucherId = vform.id || null;
       // Micro-interaction: every validation check above this point can still bail out with an early
       // return, so the button only flips to its "in flight" state once the save is actually
