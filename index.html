@@ -163,6 +163,18 @@
   .bento-hero .stat-spark{margin-top:12px;}
   .bento-wide{grid-column:span 2;}
 
+  /* "This Month vs Last Month" comparison strip on the Dashboard — three compact .stat tiles (see
+     monthComparisonStrip()) with a %-change chip next to the figure instead of a full sentence, for
+     a reader who wants the number at a glance rather than the Smart Insights prose. */
+  .mc-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
+  .mc-strip .stat{padding:14px 16px 13px;}
+  .mc-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .mc-chip{font-size:11px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:.01em;}
+  .mc-chip.pos{background:color-mix(in srgb, var(--credit) 16%, transparent);color:var(--credit);}
+  .mc-chip.neg{background:color-mix(in srgb, var(--debit) 16%, transparent);color:var(--debit);}
+  .mc-chip.flat{background:var(--surface-strong);color:var(--ink-faint);}
+  @media (max-width:640px){ .mc-strip{grid-template-columns:1fr;} }
+
   /* Buttonless-leaning banners: the whole row is the control (click anywhere to act on the insight),
      the button inside is a visible affordance for the same action rather than the only way to fire it. */
   .insight-banner{cursor:pointer;transition:filter .15s ease, transform .1s ease;}
@@ -667,6 +679,18 @@
     animation:reckoningSpin 0.9s linear infinite;
   }
   @keyframes reckoningSpin{to{transform:rotate(360deg);}}
+
+  /* Skeleton loading shell — shown the instant a company is opened (see showCompanyOpeningSkeleton),
+     replacing the "nothing visibly happened" gap while enterCompanyApp() awaits the Firestore
+     document read (a company with years of history can hold thousands of vouchers in one document).
+     A moving shimmer sweep across placeholder bars reads as "your books are opening" the same way
+     the shimmer on .loading already does, just shaped like the real app shell instead of one spinner. */
+  .skel-shimmer{background:linear-gradient(90deg, var(--surface-strong) 25%, var(--border) 37%, var(--surface-strong) 63%);background-size:400% 100%;animation:skelSweep 1.4s ease-in-out infinite;border-radius:var(--radius-sm);}
+  @keyframes skelSweep{0%{background-position:100% 0;}100%{background-position:0 0;}}
+  .skel-tab{height:32px;margin-bottom:3px;}
+  .skel-line{height:14px;border-radius:4px;}
+  .skel-card{border-radius:var(--radius-sm);}
+  @media (prefers-reduced-motion: reduce){ .skel-shimmer{animation:none;} }
 
   /* Empty states read as "nothing here yet" rather than a blank cell — a dashed on-brand frame plus
      a simple mark, reused everywhere .empty already appears with no template changes needed. */
@@ -2177,6 +2201,31 @@ let resetShowPassword = false;     // show/hide toggle state for this card's own
 let coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
 let modal = null;          // null | 'editCompany' | 'help' | 'isDetail'
+let lastAutofocusedModal = null; // tracks which modal autofocusModalIfNeeded() last moved focus for
+                                  // (see its own comment) -- reset to null whenever modal closes.
+// Accessibility: move focus into a modal the moment it opens, so keyboard/screen-reader users land
+// inside it instead of staying on whatever page element triggered it (now hidden behind the
+// overlay). Guarded by lastAutofocusedModal so this only fires once per open, not on every internal
+// re-render while the same modal is still showing -- many modals re-render on every keystroke (the
+// standard input-handler pattern this app uses throughout), so re-focusing every time would yank
+// focus away from a field while someone's still typing in it.
+function autofocusModalIfNeeded(){
+  if(!modal){ lastAutofocusedModal = null; return; }
+  if(modal===lastAutofocusedModal) return;
+  lastAutofocusedModal = modal;
+  const overlay = document.querySelector('.modal-overlay[role="dialog"], .modal-overlay .modal-card[role="dialog"]')
+    || document.getElementById('modalOverlayBg');
+  if(!overlay) return;
+  // Prefer an actual input field over a button -- the ✕ close button (#modalClose) is almost always
+  // the first focusable element in DOM order (it sits in the modal's header, above the body), so a
+  // plain "first focusable element" query would land focus there instead of on the field the person
+  // is actually here to fill in. Only fall back to a button (skipping modalClose) for a modal that's
+  // genuinely just a confirmation/detail view with no fields of its own.
+  const field = overlay.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+  if(field){ field.focus(); return; }
+  const btn = Array.from(overlay.querySelectorAll('button:not([disabled])')).find(b=>b.id!=='modalClose');
+  (btn || overlay.querySelector('button:not([disabled])'))?.focus();
+}
 let gstFormatIndex = 0;    // which GST_FORMS entry the "GST Format" modal is showing
 let viewMenuOpen = false;  // View menu dropdown toggle
 let editCoDraft = null;    // draft for the Edit Company modal
@@ -3231,7 +3280,7 @@ async function restoreHistorySnapshot(snap){
         renderGateway();
         return;
       }
-      currentCompany = c; await loadState();
+      currentCompany = c; showCompanyOpeningSkeleton(c.name); await loadState();
       activeFY = null; // don't carry an FY filter over from whatever company was open before
     }
     screen = 'app';
@@ -4176,9 +4225,38 @@ async function loadState(){
 // company's data and, if its vouchers span more than one financial year, stops short of the
 // dashboard and shows the FY picker modal first so the user chooses what "this company's books"
 // means for the Day Book and Reports before looking at anything.
+// See the CSS comment on .skel-shimmer -- shown for the instant between clicking a company and
+// loadState() resolving, so the gateway→app transition never sits blank/frozen while a large
+// document is fetched. Mirrors the real app shell's basic proportions (tab strip + a few content
+// cards) rather than a full re-render, since vform/state aren't loaded yet at this point.
+function companyOpeningSkeletonHTML(companyName){
+  return `
+    <div class="titlebar"><span>The Reckoning Books by SKm — [Company: ${escapeHtml(companyName||'')}]</span></div>
+    <div class="menubar"><span class="skel-shimmer skel-line" style="width:120px;display:inline-block;"></span></div>
+    <div class="body-shell">
+      <div class="tabstrip">
+        ${Array.from({length:9}).map(()=>`<div class="skel-tab skel-shimmer"></div>`).join('')}
+      </div>
+      <div class="main">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="skel-line skel-shimmer" style="width:240px;height:22px;"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;">
+            ${Array.from({length:4}).map(()=>`<div class="skel-card skel-shimmer" style="height:84px;"></div>`).join('')}
+          </div>
+          <div class="skel-card skel-shimmer" style="height:220px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function showCompanyOpeningSkeleton(companyName){
+  const app = document.getElementById('app');
+  if(app) app.innerHTML = companyOpeningSkeletonHTML(companyName);
+}
 async function enterCompanyApp(company, opts={}){
   currentCompany = company;
   if(opts.adminViewOnly) adminViewOnlyCompanyId = company.id;
+  showCompanyOpeningSkeleton(company.name);
   await loadState();
   // Read-only sessions (admin view-only, or anyone but the Administrator opening the shared demo
   // company) get a pristine snapshot taken right here, right after the real data loads — render()
@@ -4396,7 +4474,7 @@ function attachmentsModal(){
   const v = state.vouchers.find(x=>x.id===attachmentsVoucherId);
   const rows = attachmentsCache[attachmentsVoucherId] || [];
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:520px;">
         <div class="panel-head" style="padding:16px 20px;"><h2>Attachments</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;">
@@ -4553,7 +4631,7 @@ function employeeDocumentsModal(){
   const needsSetup = !state.docVaultSalt;
   const needsUnlock = !needsSetup && !docVaultKey;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head" style="padding:16px 20px;"><h2>Documents — ${emp?escapeHtml(emp.name):''}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;">
@@ -6519,7 +6597,7 @@ const INVOICE_LOGO_MAX_BYTES = 150 * 1024;
 function invoiceSettingsModal(){
   const d = invoiceSettingsDraft;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:480px;">
         <div class="panel-head"><h2>Invoice Template</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
@@ -6547,7 +6625,7 @@ function invoiceSettingsModal(){
 function eInvoiceModal(){
   const rows = eInvoiceEligibleVouchers();
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:700px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div class="panel-head" style="padding:16px 20px;"><h2>e-Invoice / e-Way Bill JSON</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
@@ -6571,7 +6649,7 @@ function eInvoiceModal(){
 }
 function eWayBillTransportModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:420px;">
         <div class="panel-head" style="padding:16px 20px;"><h2>e-Way Bill — Transport Details</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;">
@@ -7397,6 +7475,9 @@ function render(){
       if(e.target.id==='modalOverlayBg'){ modal = null; render(); }
     });
     document.getElementById('modalClose')?.addEventListener('click', ()=>{ modal = null; render(); });
+    autofocusModalIfNeeded();
+  } else {
+    lastAutofocusedModal = null;
   }
   if(modal==='commandPalette'){
     const focusCmdkInput = (caret)=>{
@@ -7607,6 +7688,39 @@ document.addEventListener('keydown', (e)=>{
     render();
   }
 });
+// Alt+key shortcuts for the voucher form's primary actions -- Alt+S to save/update, Alt+R to
+// clear/cancel -- so keyboard-first entry can finish a voucher without ever reaching for the mouse.
+// Scoped to the voucher screen with no other modifier held, and deliberately avoids letters browsers
+// reserve for their own Alt shortcuts (D for the address bar, F/E/V/H/T for menu mnemonics).
+document.addEventListener('keydown', (e)=>{
+  if(screen!=='app' || view!=='voucher' || !vform || modal) return;
+  if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const key = e.key.toLowerCase();
+  if(key==='s'){
+    e.preventDefault();
+    const btn = document.getElementById('saveVoucher');
+    if(btn && !btn.disabled) btn.click();
+  } else if(key==='r'){
+    e.preventDefault();
+    document.getElementById('resetVoucher')?.click();
+  }
+});
+// Accessibility: Escape closes whichever modal is currently open, everywhere in the app -- until
+// now every one of the ~45 modal dialogs could only be dismissed by clicking the ✕ button or
+// clicking outside it, which is a real keyboard/screen-reader trap (no keyboard-only way out).
+// Rather than re-implementing each modal's own close logic (several reset extra state -- see e.g.
+// closeTopModal() for the Admin/Group-Admin modals), this simply simulates a click on that modal's
+// own #modalClose button, so whatever handler is already wired for the currently-open modal (in
+// whichever render/attachHandlers context wired it) runs exactly as it would from a mouse click.
+// The command palette already has its own equivalent Escape handling just above, so it's skipped
+// here to avoid double-handling the same keypress.
+document.addEventListener('keydown', (e)=>{
+  if(e.key!=='Escape' || !modal || modal==='commandPalette') return;
+  const closeBtn = document.getElementById('modalClose');
+  if(!closeBtn) return;
+  e.preventDefault();
+  closeBtn.click();
+});
 function viewDropdown(){
   const tabs = [
     ['dashboard','Dashboard'],['voucher','Voucher'],['daybook','Day Book'],['calendar','Calendar'],
@@ -7717,7 +7831,7 @@ function commandPaletteModal(){
 }
 function editCompanyModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:460px;">
         <div class="panel-head"><h2>Edit Company</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
@@ -7809,7 +7923,7 @@ function incomeDetailModal(){
   const d = map[isDetailCategory];
   if(!d) return '';
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:440px;">
         <div class="panel-head"><h2>${d.label}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="padding:0;">
@@ -7826,7 +7940,7 @@ function incomeDetailModal(){
 function ledgerDetailModal(){
   if(!ledgerDetailId) return '';
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;position:relative;">
         <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div style="padding:18px;max-height:75vh;overflow-y:auto;">
@@ -7876,7 +7990,7 @@ function pieChartModal(){
   }
 
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:420px;">
         <div class="panel-head"><h2>${l.name} — Activity Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -7904,7 +8018,7 @@ function itemStockModal(){
   });
   const summary = stockSummaryForItem(item);
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head">
           <h2>${item.name} — Stock Movement</h2>
@@ -7934,7 +8048,7 @@ function stockAdjustModal(){
   if(!item) return '';
   const summary = stockSummaryForItem(item);
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:400px;">
         <div class="panel-head"><h2>Adjust Stock</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -7955,7 +8069,7 @@ function stockTransferModal(){
   const item = state.items.find(i=>i.id===d.itemId);
   const available = item ? stockByWarehouseForItem(item).find(r=>r.warehouse.id===d.fromWarehouseId) : null;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:440px;">
         <div class="panel-head"><h2>Transfer Stock Between Locations</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -7991,7 +8105,7 @@ function cashBankDetailModal(){
   const total = ledgers.reduce((s,l)=>s+ledgerBalance(l.id),0);
   const rows = ledgers.map(l=>`<tr><td>${l.name}</td><td class="num">₹${fmt(ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">No cash or bank ledgers yet</td></tr>`;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:440px;">
         <div class="panel-head"><h2>Cash &amp; Bank — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8010,7 +8124,7 @@ function totalAssetsDetailModal(){
   const bs = balanceSheetIFRSData(is.profitForPeriod);
   const rows = (ledgers, sign) => ledgers.map(l=>`<tr><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:460px;">
         <div class="panel-head"><h2>Total Assets — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8033,7 +8147,7 @@ function liabCapitalDetailModal(){
   const bs = balanceSheetIFRSData(is.profitForPeriod);
   const rows = (ledgers, sign) => ledgers.map(l=>`<tr><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:460px;">
         <div class="panel-head"><h2>Liabilities + Capital — Breakdown</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8060,7 +8174,7 @@ function balanceSheetDetailModal(){
   const bs = balanceSheetIFRSData(is.profitForPeriod);
   const rows = (ledgers, sign) => ledgers.map(l=>`<tr><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:520px;">
         <div class="panel-head"><h2>Balance Sheet — Statement of Financial Position</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8092,7 +8206,7 @@ function balanceSheetDetailModal(){
 function overdueInvoicesDetailModal(){
   const rows = overdueInvoices();
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:640px;">
         <div class="panel-head"><h2>Overdue Invoices</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8116,7 +8230,7 @@ function incomeStatementDetailModal(){
   const is = incomeStatementData();
   const rows = (ledgers, sign) => ledgers.map(l=>`<tr><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:520px;">
         <div class="panel-head"><h2>Income Statement — Statement of Profit or Loss</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8161,7 +8275,7 @@ function cashFlowBucketDetailModal(){
   const items = cf.detail[bucket] || [];
   const total = cf[bucket];
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head"><h2>Cash Flow — ${labels[bucket]}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -8180,7 +8294,7 @@ function fyPickerModal(){
   const fys = distinctFYsInVouchers();
   const todayFY = fyLabelForDate(new Date().toISOString().slice(0,10));
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:440px;">
         <div class="panel-head"><h2>Select Financial Year</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -8214,7 +8328,7 @@ function helpModal(){
   const unseenCount = showTickets ? myTickets.filter(t=>t.seenByUser===false).length : 0;
   const activeTab = showTickets ? helpTab : 'info';
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:640px;max-height:88vh;display:flex;flex-direction:column;">
         <div class="panel-head"><h2>Help</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         ${showTickets ? `
@@ -8284,7 +8398,7 @@ function helpTicketsTab(){
 
 function reconcileHelpModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head"><h2>How Bank Reconciliation works</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -8310,7 +8424,7 @@ function reconcileHelpModal(){
 
 function assetsHelpModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head"><h2>How the Fixed Asset Register works</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -8331,7 +8445,7 @@ function assetsHelpModal(){
 }
 function partiesHelpModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head"><h2>How Parties &amp; Ageing works</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -8350,7 +8464,7 @@ function recurringModal(){
   const today = new Date().toISOString().slice(0,10);
   const dueCount = dueRecurringTemplates(today).length;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:660px;position:relative;">
         <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>Recurring Vouchers</h2></div>
@@ -8424,7 +8538,7 @@ function recurringDraftForm(){
 
 function backupModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:520px;position:relative;">
         <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>Backup &amp; Restore</h2></div>
@@ -8911,7 +9025,7 @@ function renderLogin(){
         </div>
       </div>
       ${forgotPasswordOpen ? `
-      <div class="modal-overlay" id="forgotOverlayBg">
+      <div class="modal-overlay" id="forgotOverlayBg" role="dialog" aria-modal="true">
         <div class="modal-card" style="width:360px;">
           <div class="panel-head"><h2>Reset Password</h2><button class="btn secondary small" id="forgotDialogClose" type="button">✕</button></div>
           <div class="panel-body">
@@ -9387,7 +9501,7 @@ function renderLogin(){
 // isn't crowded by a long form the person may not be about to fill in.
 function companyCreateModal(){
   return `
-  <div class="modal-overlay" id="createCoModalOverlayBg">
+  <div class="modal-overlay" id="createCoModalOverlayBg" role="dialog" aria-modal="true">
     <div class="modal-card" style="width:560px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
       <div class="panel-head"><h2>Create Company</h2><button class="btn secondary small" id="closeCreateCoBtn" type="button">✕</button></div>
       <div style="padding:14px 18px;overflow-y:auto;flex:1;min-height:0;">
@@ -9807,6 +9921,9 @@ function renderGateway(){
       if(e.target.id==='modalOverlayBg') closeTopModal();
     });
     document.getElementById('modalClose')?.addEventListener('click', closeTopModal);
+    autofocusModalIfNeeded();
+  } else if(screen==='gateway'){
+    lastAutofocusedModal = null;
   }
   if(modal==='help'){
     wireContactSupportHandlers(renderGateway);
@@ -11152,7 +11269,7 @@ function adminTabBtn(id, label){
 }
 function adminPanelModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
         <div class="admin-modal-head"><div class="aurora-orb amh-aurora-1"></div><div class="aurora-orb amh-aurora-2"></div><div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:relative;z-index:1;">✕</button></div>
         <div class="modern-tabbar">
@@ -11648,7 +11765,7 @@ function adminGroupTreeModal(){
       </div>
     </div>`;
   return `
-  <div class="modal-overlay" id="groupTreeOverlayBg">
+  <div class="modal-overlay" id="groupTreeOverlayBg" role="dialog" aria-modal="true">
     <div class="modal-card" style="width:600px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
       <div class="panel-head"><h2>Group: ${escapeHtml(support.name)}</h2><button class="btn secondary small" id="groupTreeCloseBtn" type="button">✕</button></div>
       <div style="padding:16px 18px;overflow-y:auto;flex:1;min-height:0;">
@@ -11848,7 +11965,7 @@ function adminUserDetailModal(){
   if(!u) return '';
   const owned = companies.filter(c=>c.ownerId===u.id);
   return `
-    <div class="modal-overlay" id="userDetailOverlayBg">
+    <div class="modal-overlay" id="userDetailOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:92vw;max-width:640px;max-height:86vh;display:flex;flex-direction:column;">
         <div class="panel-head"><h2>${escapeHtml(u.name)}</h2><button class="btn secondary small" id="userDetailClose" type="button">✕</button></div>
         <div style="overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;">
@@ -11904,7 +12021,7 @@ function adminUserDetailModal(){
 function adminAddUserModal(){
   const d = adminAddUserDraft;
   return `
-    <div class="modal-overlay" id="addUserOverlayBg">
+    <div class="modal-overlay" id="addUserOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:94vw;max-width:640px;">
         <div class="panel-head" style="padding:20px 24px;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:14px;">
@@ -12033,7 +12150,7 @@ function groupAdminTabBtn(id, label){
 function groupAdminModal(){
   const openTickets = groupTickets.filter(t=>t.status==='open').length;
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:96vw;max-width:1180px;max-height:90vh;display:flex;flex-direction:column;">
         <div class="admin-modal-head"><div class="aurora-orb amh-aurora-1"></div><div class="aurora-orb amh-aurora-2"></div><div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(currentUser && currentUser.groupName ? currentUser.groupName : 'My Group')}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div><button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:relative;z-index:1;">✕</button></div>
         <div class="modern-tabbar">
@@ -12219,7 +12336,7 @@ function groupUserDetailModal(){
   if(!u) return '';
   const owned = groupCompanies.filter(c=>c.ownerId===u.id);
   return `
-    <div class="modal-overlay" id="userDetailOverlayBg">
+    <div class="modal-overlay" id="userDetailOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:92vw;max-width:640px;max-height:86vh;display:flex;flex-direction:column;">
         <div class="panel-head"><h2>${escapeHtml(u.name)}</h2><button class="btn secondary small" id="userDetailClose" type="button">✕</button></div>
         <div style="overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;">
@@ -12264,7 +12381,7 @@ function groupUserDetailModal(){
 function groupAddUserModal(){
   const d = groupAddUserDraft;
   return `
-    <div class="modal-overlay" id="addUserOverlayBg">
+    <div class="modal-overlay" id="addUserOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:94vw;max-width:640px;">
         <div class="panel-head" style="padding:20px 24px;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:14px;">
@@ -12717,6 +12834,8 @@ function viewDashboard(){
       <div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>
     </div>
 
+    ${monthComparisonStrip()}
+
     ${dashboardInsightsCard()}
 
     ${pinnedTilesSection()}
@@ -12744,6 +12863,45 @@ function viewDashboard(){
       ${pinnableTile('balanceSheetStacked', DASHBOARD_TILES.balanceSheetStacked.label, balanceSheetStackedCard())}
       ${pinnableTile('assetDonut', DASHBOARD_TILES.assetDonut.label, assetDonutCard())}
       ${pinnableTile('balanceSheetKPIGauge', DASHBOARD_TILES.balanceSheetKPIGauge.label, balanceSheetKPIGaugeCard())}
+    </div>
+  `;
+}
+// Compact "This Month vs Last Month" comparison — the existing Smart Insights card (below) already
+// narrates revenue/expense movement in a sentence, but that means reading prose to find the number.
+// This adds the same comparison as three small stat tiles with a %-change chip so it's visible at a
+// glance, using the same qaPeriodTotals() aggregator the "Ask Your Books" chat and other reports
+// already share (by calendar month, not "last N months with data", so a brand-new month with zero
+// vouchers so far still shows correctly as ₹0 rather than being silently skipped).
+function monthComparisonStrip(){
+  const now = new Date();
+  const thisMonthKey = now.toISOString().slice(0,7);
+  const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const prevMonthKey = prevDate.toISOString().slice(0,7);
+  const cur = qaPeriodTotals(d=>d.slice(0,7)===thisMonthKey);
+  const prev = qaPeriodTotals(d=>d.slice(0,7)===prevMonthKey);
+  if(!cur.revenue && !cur.expenses && !prev.revenue && !prev.expenses) return ''; // nothing posted in either month -- nothing to compare yet
+  const monthLabel = now.toLocaleDateString('en-IN',{month:'long'});
+  const prevLabel = prevDate.toLocaleDateString('en-IN',{month:'long'});
+  const chip = (curVal, prevVal, goodWhenUp)=>{
+    if(!prevVal) return '';
+    const pct = r2(((curVal-prevVal)/Math.abs(prevVal))*100);
+    if(Math.abs(pct)<1) return `<span class="mc-chip flat">Flat</span>`;
+    const up = pct>0;
+    const good = goodWhenUp ? up : !up;
+    return `<span class="mc-chip ${good?'pos':'neg'}">${up?'▲':'▼'} ${Math.abs(pct)}%</span>`;
+  };
+  const tile = (label, curVal, prevVal, goodWhenUp, valClass)=>`
+    <div class="stat">
+      <div class="label">${label}</div>
+      <div class="mc-row"><span class="val ${valClass||''}" style="font-size:19px;">₹${fmt(curVal)}</span>${chip(curVal, prevVal, goodWhenUp)}</div>
+      <div class="muted" style="font-size:11px;margin-top:2px;">vs ₹${fmt(prevVal)} in ${prevLabel}</div>
+    </div>`;
+  return `
+    <div class="section-title" style="margin-top:4px;">${monthLabel} vs ${prevLabel}</div>
+    <div class="mc-strip">
+      ${tile('Revenue', cur.revenue, prev.revenue, true)}
+      ${tile('Expenses', cur.expenses, prev.expenses, false)}
+      ${tile(cur.profit>=0?'Net Profit':'Net Loss', cur.profit, prev.profit, true, cur.profit>=0?'pos':'neg')}
     </div>
   `;
 }
@@ -13534,7 +13692,7 @@ function balanceSheetKPIGaugeCard(){
 function recentVouchersModal(){
   const recent = state.vouchers.slice().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||'').localeCompare(a.createdAt||'')).slice(0,25);
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:640px;">
         <div class="panel-head"><h2>Recent Vouchers</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
@@ -13805,17 +13963,61 @@ async function commitImport(){
     groupLedgerMap[g.key] = lid;
   }
 
+  // Reconciliation auto-match: when this statement is for a BANK ledger, a row on it usually isn't
+  // brand new to the books -- it's very often confirming a Payment/Receipt the user already entered
+  // by hand days earlier, just now cleared by the bank. Importing that row as a second voucher would
+  // silently double-post it. So for a bank ledger, look for an already-posted, not-yet-cleared
+  // voucher on this ledger with the same date (±3 days, since the bank's clearing date commonly lags
+  // the voucher date) and the same amount on the matching side, and if one is found, skip creating a
+  // duplicate and just tick it "Cleared" on the Reconcile screen instead -- exactly what a person
+  // reconciling by hand would do by ticking the checkbox themselves. Anything left unmatched is
+  // still created as a new voucher exactly as before, and -- since the statement itself confirms it
+  // -- is marked Cleared too, so a bank-statement import leaves the Reconcile screen already caught
+  // up instead of requiring every row to be ticked again by hand. Cash ledgers have no "cleared"
+  // concept (see isBankClear/toggleBankClear, both keyed for Reconcile's bank-ledger screen only),
+  // so this whole step is skipped for anything but a bank ledger and behaves exactly as it always has.
+  const primaryLedgerObj = ledgerOf(primaryId);
+  const isBankLedger = !!primaryLedgerObj && bucketOf(primaryLedgerObj)==='bank';
+  const claimedVoucherIds = new Set();
+  const MATCH_WINDOW_DAYS = 3;
+  const daysBetween = (a,b)=> Math.abs(new Date(a+'T00:00:00') - new Date(b+'T00:00:00')) / 86400000;
+  const findExistingMatch = (t)=>{
+    if(!isBankLedger) return null;
+    return state.vouchers.find(v=>{
+      if(claimedVoucherIds.has(v.id)) return false;
+      if(!v.date || daysBetween(v.date, t.date) > MATCH_WINDOW_DAYS) return false;
+      if(isBankClear(primaryId, v.id)) return false; // already reconciled -- don't re-match it
+      const entry = (v.entries||[]).find(e=>e.ledgerId===primaryId);
+      if(!entry) return false;
+      const side = (Number(entry.dr)||0)>0 ? 'dr' : 'cr';
+      // t.drcr==='dr' means the bank ledger is CREDITED below (money out, a Payment) -- so the
+      // matching existing voucher is the one whose bank-ledger entry is also on the credit side.
+      const expectedSide = t.drcr==='dr' ? 'cr' : 'dr';
+      if(side !== expectedSide) return false;
+      const amt = side==='dr' ? Number(entry.dr)||0 : Number(entry.cr)||0;
+      return Math.abs(amt - t.amount) < 0.005;
+    }) || null;
+  };
+
   const now = new Date().toISOString();
-  let created = 0;
+  let created = 0, matched = 0;
   importState.transactions.forEach(t=>{
     const key = importNormalizeNarration(t.desc) || '(blank)';
     const counterId = groupLedgerMap[key];
     if(!counterId) return;
+    const existing = findExistingMatch(t);
+    if(existing){
+      claimedVoucherIds.add(existing.id);
+      toggleBankClear(primaryId, existing.id, t.date);
+      matched++;
+      return;
+    }
     const entries = t.drcr==='dr'
       ? [{ledgerId:counterId, dr:t.amount, cr:0}, {ledgerId:primaryId, dr:0, cr:t.amount}]
       : [{ledgerId:primaryId, dr:t.amount, cr:0}, {ledgerId:counterId, dr:0, cr:t.amount}];
+    const newVoucherId = uid('v');
     state.vouchers.push({
-      id: uid('v'),
+      id: newVoucherId,
       type: t.drcr==='dr' ? 'Payment' : 'Receipt',
       date: t.date,
       narration: t.desc || '(Imported transaction)',
@@ -13823,30 +14025,35 @@ async function commitImport(){
       createdAt: now,
       importedFrom: importState.fileName || 'spreadsheet import',
     });
+    if(isBankLedger) toggleBankClear(primaryId, newVoucherId, t.date);
     created++;
   });
 
   await saveLedgers();
   await saveVouchers();
-  toast(`Imported ${created} voucher${created===1?'':'s'}`);
+  if(isBankLedger) await saveBankClears();
+  const matchNote = matched ? ` — ${matched} already in your books were matched to the statement and marked Cleared instead of duplicated` : '';
+  toast(`Imported ${created} voucher${created===1?'':'s'}${matchNote}`);
   modal = null;
   importState = null;
-  view = 'daybook';
+  view = isBankLedger ? 'reconcile' : 'daybook';
+  if(isBankLedger) reconcileLedgerId = primaryId;
   render();
 }
 function importModal(){
   if(!importState) return '';
   if(importState.step===2){
-    const primaryLedger = importState.primaryLedgerId==='__new__'
-      ? (importState.newPrimaryLedgerName||'New Ledger')
-      : (ledgerOf(importState.primaryLedgerId)?.name || '—');
+    const primaryLedgerRec = importState.primaryLedgerId==='__new__' ? null : ledgerOf(importState.primaryLedgerId);
+    const primaryLedger = importState.primaryLedgerId==='__new__' ? (importState.newPrimaryLedgerName||'New Ledger') : (primaryLedgerRec?.name || '—');
+    const isBankImport = !!primaryLedgerRec && bucketOf(primaryLedgerRec)==='bank';
     return `
-      <div class="modal-overlay" id="modalOverlayBg">
+      <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
         <div class="modal-card" style="width:680px;">
           <div class="panel-head"><h2>Preview Import</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
           <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
             <div style="padding:14px 18px 0;">
               <p class="muted" style="font-size:12px;margin:0 0 10px;">${importState.transactions.length} transaction(s) will be imported as vouchers against <strong style="color:var(--ink);">${escapeHtml(primaryLedger)}</strong>. Review the ledger assigned to each narration below — matches are pre-filled, unmatched rows default to a Suspense Account you can reclassify later.</p>
+              ${isBankImport ? `<p class="muted" style="font-size:12px;margin:0 0 10px;">🔗 This is a bank ledger, so each row will first be checked against vouchers you've already entered (same date ±3 days, same amount) — a match gets ticked "Cleared" on the Reconcile screen instead of being imported again as a duplicate.</p>` : ''}
             </div>
             <table>
               <tr><th>Narration</th><th class="num">Count</th><th class="num">Debit (Dr.)</th><th class="num">Credit (Cr.)</th><th>Ledger</th></tr>
@@ -13875,7 +14082,7 @@ function importModal(){
     `;
   }
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:580px;">
         <div class="panel-head"><h2>Import Accounting Data</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -14340,9 +14547,9 @@ function viewVoucher(){
         </div>` : ''}
 
         <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn" id="saveVoucher" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
+          <button class="btn" id="saveVoucher" title="Shortcut: Alt+S" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
           ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;width:100%;margin-top:2px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
-          <button class="btn secondary" id="resetVoucher" type="button">${editing?'Cancel Edit':'Clear'}</button>
+          <button class="btn secondary" id="resetVoucher" type="button" title="Shortcut: Alt+R">${editing?'Cancel Edit':'Clear'}</button>
           ${vform.type==='Sales' ? `<button class="btn secondary" id="printBillBtn" type="button">🖨️ Generate &amp; Print Bill</button>` : ''}
         </div>
       </div>
@@ -14484,8 +14691,8 @@ function entryRow(e,i,isLast){
       ${ledgerSelectOptionsHtml(e.ledgerId, vform.type)}
     </select>`;
   const trailing = isLast
-    ? `<button class="add-side" data-add-side="${side}" title="Add another ${side==='dr'?'Debit':'Credit'} line" type="button">+</button>`
-    : `<button class="rm" data-rm="${i}" title="Remove row">✕</button>`;
+    ? `<button class="add-side" data-add-side="${side}" title="Add another ${side==='dr'?'Debit':'Credit'} line" aria-label="Add another ${side==='dr'?'Debit':'Credit'} line" type="button">+</button>`
+    : `<button class="rm" data-rm="${i}" title="Remove row" aria-label="Remove row">✕</button>`;
   const drCell = `<div class="entry-amt-wrap"><input type="number" class="e-dr" data-i="${i}" placeholder="Debit amount" value="${e.dr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Dr.</span></div>`;
   const crCell = `<div class="entry-amt-wrap"><input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Cr.</span></div>`;
   const emptyCell = `<span></span>`;
@@ -14499,7 +14706,7 @@ function entryRow(e,i,isLast){
 }
 function quickAddLedgerModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:520px;">
         <div class="panel-head"><h2>New Ledger</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -14541,7 +14748,7 @@ function quickAddLedgerModal(){
 // pointing at it, instead of just sitting in the catalog waiting to be picked.
 function quickAddItemModal(){
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:520px;">
         <div class="panel-head"><h2>Create Item</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -14588,7 +14795,7 @@ function alterLedgerModal(){
   const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
   const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.creditLimit!=null || l.creditDays!=null || l.gstin));
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
         <div class="panel-head"><h2>${editing?'Alter Ledger':'New Ledger'}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -14650,7 +14857,7 @@ function deleteLedgerPasswordModal(){
   const l = ledgerOf(ledgerDeleteConfirmId);
   if(!l) return '';
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:420px;">
         <div class="panel-head"><h2>Confirm Deletion</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
@@ -14669,21 +14876,25 @@ function deleteLedgerPasswordModal(){
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function generateAndPrintBill(){
-  const g = vform.gst;
-  const items = (g.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
-  if(!g.party){ toast('Select a customer in the GST Calculator first'); return; }
-  const party = ledgerOf(g.party);
-  if(!party){ toast('Select a customer in the GST Calculator first'); return; }
-  if(!items.length){ toast('Add at least one item in the GST Calculator first'); return; }
-
-  const amt = itemsSubtotal(items);
-  const rate = Number(g.rate)||0;
-  const taxVal = amt*rate/100;
-  const total = amt+taxVal;
+// ---------------- Shared tax-invoice HTML builder ----------------
+// Both the live "Generate & Print Bill" button (mid-entry, off the still-unsaved GST Calculator draft)
+// and the Day Book's reprint action (an already-saved Sales voucher) used to build their own separate
+// copy of this HTML, and only the reprint path honored the saved Invoice Template settings (logo/
+// accent/template/footer) -- so the very first invoice a customer saw during entry could look
+// different from every later reprint. One builder now backs both call sites: generateAndPrintBill()
+// and printInvoiceForVoucher() each normalize their own data source into the same `opts` shape and
+// hand it to this function, so a template/logo/accent change takes effect everywhere at once.
+// isDraft marks the mid-entry case, where there's no saved voucher yet to number for real -- the
+// preview banner and "(assigned on save)" note are the honest alternative to silently promising a
+// number that could still shift if another Sales voucher is saved first.
+function buildInvoiceHTML(opts){
+  const { partyName, invoiceNo, isDraft, date, items, subtotal, cgst, sgst, igst, total, narration } = opts;
+  const hasTax = (cgst+sgst+igst) > 0;
+  const supplyIntra = hasTax && igst<=0;
+  const cgstRate = subtotal>0 ? r2(cgst/subtotal*100) : 0;
+  const sgstRate = subtotal>0 ? r2(sgst/subtotal*100) : 0;
+  const igstRate = subtotal>0 ? r2(igst/subtotal*100) : 0;
   const now = new Date();
-  const billDate = vform.date;
-  const billTime = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
   const printedAt = now.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
   const rows = items.map((it,i)=>`
@@ -14694,52 +14905,105 @@ function generateAndPrintBill(){
       <td style="text-align:right;">₹${fmt(Number(it.rate)||0)}</td>
       <td style="text-align:right;">₹${fmt((Number(it.qty)||0)*(Number(it.rate)||0))}</td>
     </tr>`).join('');
+  const taxTotalsRows = !hasTax ? '' : (supplyIntra
+    ? `<tr><td>CGST @ ${cgstRate}%</td><td style="text-align:right;">₹${fmt(cgst)}</td></tr>
+       <tr><td>SGST @ ${sgstRate}%</td><td style="text-align:right;">₹${fmt(sgst)}</td></tr>`
+    : `<tr><td>IGST @ ${igstRate}%</td><td style="text-align:right;">₹${fmt(igst)}</td></tr>`);
 
-  const taxTotalsRows = g.supply==='intra'
-    ? `<tr><td>CGST @ ${rate/2}%</td><td style="text-align:right;">₹${fmt(taxVal/2)}</td></tr>
-       <tr><td>SGST @ ${rate/2}%</td><td style="text-align:right;">₹${fmt(taxVal/2)}</td></tr>`
-    : `<tr><td>IGST @ ${rate}%</td><td style="text-align:right;">₹${fmt(taxVal)}</td></tr>`;
+  const isettings = currentCompany.invoiceSettings || {};
+  const accent = isettings.accentColor || '#2CA01C';
+  const template = isettings.template || 'classic';
+  const footerNote = isettings.footerNote || '';
+  const logo = isettings.logoDataUrl ? `<img src="${isettings.logoDataUrl}" style="max-height:56px;max-width:180px;display:block;">` : '';
+  const invoiceNoLine = isDraft ? `Preview No: ${invoiceNo} (assigned on save)` : `Invoice No: ${invoiceNo}`;
 
-  const html = `<!DOCTYPE html><html><head><title>Invoice — ${escapeHtml(party.name)}</title>
+  const headerHtml = template==='modern' ? `
+    <div class="bill-header tpl-modern">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          ${logo}
+          <h1 style="color:#fff;">${escapeHtml(currentCompany.name)}</h1>
+          ${currentCompany.address?`<div style="font-size:11.5px;color:rgba(255,255,255,.85);margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
+          ${currentCompany.gstin?`<div style="font-size:11.5px;color:rgba(255,255,255,.85);margin-top:2px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
+        </div>
+        <div class="meta" style="color:#fff;">
+          <div class="invtitle" style="color:#fff;">TAX INVOICE</div>
+          <div>${invoiceNoLine}</div>
+          <div>Date: ${date}</div>
+        </div>
+      </div>
+    </div>
+  ` : template==='minimal' ? `
+    <div class="bill-header tpl-minimal">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          ${logo}
+          <h1>${escapeHtml(currentCompany.name)}</h1>
+          ${currentCompany.address?`<div style="font-size:11.5px;color:#888;margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
+          ${currentCompany.gstin?`<div style="font-size:11.5px;color:#888;margin-top:2px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
+        </div>
+        <div class="meta">
+          <div class="invtitle">Tax Invoice</div>
+          <div>${invoiceNoLine}</div>
+          <div>${date}</div>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div class="bill-header tpl-classic">
+      <div>
+        ${logo}
+        <h1>${escapeHtml(currentCompany.name)}</h1>
+        ${currentCompany.address?`<div style="font-size:12px;color:#555;margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
+        ${currentCompany.gstin?`<div style="font-size:12px;color:#555;margin-top:4px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
+      </div>
+      <div class="meta">
+        <div class="invtitle">TAX INVOICE</div>
+        <div>${invoiceNoLine}</div>
+        <div>Date: ${date}</div>
+      </div>
+    </div>
+  `;
+
+  return `<!DOCTYPE html><html><head><title>Invoice — ${escapeHtml(partyName)}</title>
 <meta charset="UTF-8">
 <style>
+  :root{ --accent: ${accent}; }
   body{font-family: Arial, Helvetica, sans-serif; color:#111; margin:0; padding:34px; font-size:13px;}
-  .bill-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:18px;}
-  .bill-header h1{margin:0;font-size:20px;}
+  .draft-banner{background:#FFF4E0;color:#7a4f00;border:1px solid #F2A900;border-radius:6px;padding:8px 14px;font-size:11.5px;font-weight:700;text-align:center;margin-bottom:16px;}
+  .bill-header{margin-bottom:18px;}
+  .bill-header.tpl-classic{border-bottom:2px solid var(--accent);padding-bottom:14px;}
+  .bill-header.tpl-modern{background:var(--accent);margin:-34px -34px 18px;padding:28px 34px;}
+  .bill-header.tpl-minimal{border-bottom:1px solid #eee;padding-bottom:16px;}
+  .bill-header h1{margin:6px 0 0;font-size:20px;}
   .bill-header .meta{text-align:right;font-size:12px;color:#333;}
-  .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:#111;margin-bottom:4px;}
+  .bill-header.tpl-modern .meta{color:rgba(255,255,255,.9);}
+  .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
+  .bill-header.tpl-modern .meta .invtitle{color:#fff;}
+  .bill-header.tpl-minimal .meta .invtitle{color:#111;font-weight:400;text-transform:uppercase;letter-spacing:.08em;font-size:12px;}
   .parties{display:flex;justify-content:space-between;margin-bottom:20px;font-size:12.5px;}
   .parties h3{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555;}
   table{width:100%;border-collapse:collapse;margin-bottom:18px;}
-  th{background:#f0f0f0;text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid #111;}
+  th{background:${template==='minimal'?'#fff':'#f0f0f0'};text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid ${template==='minimal'?'#111':'var(--accent)'};}
   td{padding:8px;border-bottom:1px solid #ddd;font-size:12.5px;}
   .totals-table{width:320px;margin-left:auto;}
   .totals-table td{border:none;padding:4px 8px;}
-  .grand-total td{font-weight:bold;font-size:15px;border-top:2px solid #111;padding-top:8px;}
+  .grand-total td{font-weight:bold;font-size:15px;border-top:2px solid var(--accent);padding-top:8px;color:${template==='minimal'?'var(--accent)':'#111'};}
   .footer{margin-top:30px;font-size:10.5px;color:#777;border-top:1px solid #ddd;padding-top:10px;}
-  @media print{ body{padding:0;} }
+  .footer-note{margin-top:14px;font-size:12px;color:#444;white-space:pre-line;}
+  @media print{ body{padding:0;} .bill-header.tpl-modern{margin-top:0;} .draft-banner{display:none;} }
 </style>
 </head><body>
-  <div class="bill-header">
-    <div>
-      <h1>${escapeHtml(currentCompany.name)}</h1>
-      ${currentCompany.address?`<div style="font-size:12px;color:#555;margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
-      ${currentCompany.gstin?`<div style="font-size:12px;color:#555;margin-top:4px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
-    </div>
-    <div class="meta">
-      <div class="invtitle">TAX INVOICE</div>
-      <div>Date: ${billDate}</div>
-      <div>Time: ${billTime}</div>
-    </div>
-  </div>
+  ${isDraft ? `<div class="draft-banner">PREVIEW — this voucher hasn't been saved yet. The invoice number is provisional and may change.</div>` : ''}
+  ${headerHtml}
   <div class="parties">
     <div>
       <h3>Bill To</h3>
-      <div style="font-size:14px;font-weight:bold;">${escapeHtml(party.name)}</div>
+      <div style="font-size:14px;font-weight:bold;">${escapeHtml(partyName)}</div>
     </div>
     <div style="text-align:right;">
       <h3>Supply Type</h3>
-      <div>${g.supply==='intra'?'Intrastate (CGST + SGST)':'Interstate (IGST)'}</div>
+      <div>${!hasTax ? 'No GST on this voucher' : (supplyIntra?'Intrastate (CGST + SGST)':'Interstate (IGST)')}</div>
     </div>
   </div>
   <table>
@@ -14747,13 +15011,40 @@ function generateAndPrintBill(){
     ${rows}
   </table>
   <table class="totals-table">
-    <tr><td>Subtotal</td><td style="text-align:right;">₹${fmt(amt)}</td></tr>
+    <tr><td>Subtotal</td><td style="text-align:right;">₹${fmt(subtotal)}</td></tr>
     ${taxTotalsRows}
     <tr class="grand-total"><td>Grand Total</td><td style="text-align:right;">₹${fmt(total)}</td></tr>
   </table>
-  ${vform.narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(vform.narration)}</div>`:''}
+  ${narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(narration)}</div>`:''}
+  ${footerNote?`<div class="footer-note">${escapeHtml(footerNote)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
 </body></html>`;
+}
+function generateAndPrintBill(){
+  const g = vform.gst;
+  const items = (g.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
+  if(!g.party){ toast('Select a customer in the GST Calculator first'); return; }
+  const party = ledgerOf(g.party);
+  if(!party){ toast('Select a customer in the GST Calculator first'); return; }
+  if(!items.length){ toast('Add at least one item in the GST Calculator first'); return; }
+
+  const subtotal = itemsSubtotal(items);
+  const rate = Number(g.rate)||0;
+  const taxVal = r2(subtotal*rate/100);
+  const cgst = g.supply==='intra' ? r2(taxVal/2) : 0;
+  const sgst = g.supply==='intra' ? r2(taxVal/2) : 0;
+  const igst = g.supply==='intra' ? 0 : taxVal;
+  const total = subtotal+taxVal;
+  // No saved voucher yet to number for real -- salesVoucherInvoiceNumber() falls back to
+  // "one past every existing Sales voucher" for an id it doesn't recognize, which is exactly the
+  // right preview number as long as nothing else is saved first (see buildInvoiceHTML's isDraft note).
+  const invoiceNo = salesVoucherInvoiceNumber({ id:'__draft__', date: vform.date });
+
+  const html = buildInvoiceHTML({
+    partyName: party.name, invoiceNo, isDraft: true, date: vform.date,
+    items: items.map(it=>({ name: it.name, qty: it.qty, rate: Number(it.rate)||0 })),
+    subtotal, cgst, sgst, igst, total, narration: vform.narration,
+  });
 
   printHTMLDocument(html);
 }
@@ -14879,134 +15170,14 @@ function printInvoiceForVoucher(voucherId){
   const g = gstBreakdownForVoucher(v);
   const total = voucherAmount(v);
   const subtotal = r2(total - g.totalTax);
-  const supplyIntra = (g.cgst>0 || g.sgst>0) && g.igst===0;
   const rawItems = (v.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
   const items = rawItems.length ? rawItems : [{ name: v.narration || 'Sale as per voucher', qty:1, rate: subtotal }];
-  const cgstRate = subtotal>0 ? r2(g.cgst/subtotal*100) : 0;
-  const sgstRate = subtotal>0 ? r2(g.sgst/subtotal*100) : 0;
-  const igstRate = subtotal>0 ? r2(g.igst/subtotal*100) : 0;
 
-  const now = new Date();
-  const printedAt = now.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const rows = items.map((it,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td>${escapeHtml(it.name)}</td>
-      <td style="text-align:right;">${it.qty}</td>
-      <td style="text-align:right;">₹${fmt(Number(it.rate)||0)}</td>
-      <td style="text-align:right;">₹${fmt((Number(it.qty)||0)*(Number(it.rate)||0))}</td>
-    </tr>`).join('');
-  const taxTotalsRows = g.totalTax<=0 ? '' : (supplyIntra
-    ? `<tr><td>CGST @ ${cgstRate}%</td><td style="text-align:right;">₹${fmt(g.cgst)}</td></tr>
-       <tr><td>SGST @ ${sgstRate}%</td><td style="text-align:right;">₹${fmt(g.sgst)}</td></tr>`
-    : `<tr><td>IGST @ ${igstRate}%</td><td style="text-align:right;">₹${fmt(g.igst)}</td></tr>`);
-
-  const isettings = currentCompany.invoiceSettings || {};
-  const accent = isettings.accentColor || '#2CA01C';
-  const template = isettings.template || 'classic';
-  const footerNote = isettings.footerNote || '';
-  const logo = isettings.logoDataUrl ? `<img src="${isettings.logoDataUrl}" style="max-height:56px;max-width:180px;display:block;">` : '';
-
-  const headerHtml = template==='modern' ? `
-    <div class="bill-header tpl-modern">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          ${logo}
-          <h1 style="color:#fff;">${escapeHtml(currentCompany.name)}</h1>
-          ${currentCompany.address?`<div style="font-size:11.5px;color:rgba(255,255,255,.85);margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
-          ${currentCompany.gstin?`<div style="font-size:11.5px;color:rgba(255,255,255,.85);margin-top:2px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
-        </div>
-        <div class="meta" style="color:#fff;">
-          <div class="invtitle" style="color:#fff;">TAX INVOICE</div>
-          <div>Invoice No: ${salesVoucherInvoiceNumber(v)}</div>
-          <div>Date: ${v.date}</div>
-        </div>
-      </div>
-    </div>
-  ` : template==='minimal' ? `
-    <div class="bill-header tpl-minimal">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div>
-          ${logo}
-          <h1>${escapeHtml(currentCompany.name)}</h1>
-          ${currentCompany.address?`<div style="font-size:11.5px;color:#888;margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
-          ${currentCompany.gstin?`<div style="font-size:11.5px;color:#888;margin-top:2px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
-        </div>
-        <div class="meta">
-          <div class="invtitle">Tax Invoice</div>
-          <div>${salesVoucherInvoiceNumber(v)}</div>
-          <div>${v.date}</div>
-        </div>
-      </div>
-    </div>
-  ` : `
-    <div class="bill-header tpl-classic">
-      <div>
-        ${logo}
-        <h1>${escapeHtml(currentCompany.name)}</h1>
-        ${currentCompany.address?`<div style="font-size:12px;color:#555;margin-top:2px;">${escapeHtml(currentCompany.address)}${currentCompany.state?', '+escapeHtml(currentCompany.state):''}${currentCompany.pincode?' - '+escapeHtml(currentCompany.pincode):''}</div>`:''}
-        ${currentCompany.gstin?`<div style="font-size:12px;color:#555;margin-top:4px;">GSTIN: ${escapeHtml(currentCompany.gstin)}</div>`:''}
-      </div>
-      <div class="meta">
-        <div class="invtitle">TAX INVOICE</div>
-        <div>Invoice No: ${salesVoucherInvoiceNumber(v)}</div>
-        <div>Date: ${v.date}</div>
-      </div>
-    </div>
-  `;
-
-  const html = `<!DOCTYPE html><html><head><title>Invoice — ${escapeHtml(party.name)}</title>
-<meta charset="UTF-8">
-<style>
-  :root{ --accent: ${accent}; }
-  body{font-family: Arial, Helvetica, sans-serif; color:#111; margin:0; padding:34px; font-size:13px;}
-  .bill-header{margin-bottom:18px;}
-  .bill-header.tpl-classic{border-bottom:2px solid var(--accent);padding-bottom:14px;}
-  .bill-header.tpl-modern{background:var(--accent);margin:-34px -34px 18px;padding:28px 34px;}
-  .bill-header.tpl-minimal{border-bottom:1px solid #eee;padding-bottom:16px;}
-  .bill-header h1{margin:6px 0 0;font-size:20px;}
-  .bill-header .meta{text-align:right;font-size:12px;color:#333;}
-  .bill-header.tpl-modern .meta{color:rgba(255,255,255,.9);}
-  .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
-  .bill-header.tpl-modern .meta .invtitle{color:#fff;}
-  .bill-header.tpl-minimal .meta .invtitle{color:#111;font-weight:400;text-transform:uppercase;letter-spacing:.08em;font-size:12px;}
-  .parties{display:flex;justify-content:space-between;margin-bottom:20px;font-size:12.5px;}
-  .parties h3{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555;}
-  table{width:100%;border-collapse:collapse;margin-bottom:18px;}
-  th{background:${template==='minimal'?'#fff':'#f0f0f0'};text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid ${template==='minimal'?'#111':'var(--accent)'};}
-  td{padding:8px;border-bottom:1px solid #ddd;font-size:12.5px;}
-  .totals-table{width:320px;margin-left:auto;}
-  .totals-table td{border:none;padding:4px 8px;}
-  .grand-total td{font-weight:bold;font-size:15px;border-top:2px solid var(--accent);padding-top:8px;color:${template==='minimal'?'var(--accent)':'#111'};}
-  .footer{margin-top:30px;font-size:10.5px;color:#777;border-top:1px solid #ddd;padding-top:10px;}
-  .footer-note{margin-top:14px;font-size:12px;color:#444;white-space:pre-line;}
-  @media print{ body{padding:0;} .bill-header.tpl-modern{margin-top:0;} }
-</style>
-</head><body>
-  ${headerHtml}
-  <div class="parties">
-    <div>
-      <h3>Bill To</h3>
-      <div style="font-size:14px;font-weight:bold;">${escapeHtml(party.name)}</div>
-    </div>
-    <div style="text-align:right;">
-      <h3>Supply Type</h3>
-      <div>${g.totalTax<=0 ? 'No GST on this voucher' : (supplyIntra?'Intrastate (CGST + SGST)':'Interstate (IGST)')}</div>
-    </div>
-  </div>
-  <table>
-    <tr><th>#</th><th>Item</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Rate</th><th style="text-align:right;">Amount</th></tr>
-    ${rows}
-  </table>
-  <table class="totals-table">
-    <tr><td>Subtotal</td><td style="text-align:right;">₹${fmt(subtotal)}</td></tr>
-    ${taxTotalsRows}
-    <tr class="grand-total"><td>Grand Total</td><td style="text-align:right;">₹${fmt(total)}</td></tr>
-  </table>
-  ${v.narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(v.narration)}</div>`:''}
-  ${footerNote?`<div class="footer-note">${escapeHtml(footerNote)}</div>`:''}
-  <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
-</body></html>`;
+  const html = buildInvoiceHTML({
+    partyName: party.name, invoiceNo: salesVoucherInvoiceNumber(v), isDraft: false, date: v.date,
+    items: items.map(it=>({ name: it.name, qty: it.qty, rate: Number(it.rate)||0 })),
+    subtotal, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total, narration: v.narration,
+  });
 
   printHTMLDocument(html);
 }
@@ -15031,7 +15202,7 @@ function orderItemRow(it,i){
     <input type="number" class="o-item-rate" data-i="${i}" placeholder="Rate" value="${it.rate||''}" min="0" step="0.01">
     <input type="number" class="o-item-disc" data-i="${i}" placeholder="0" value="${it.disc||''}" min="0" max="100" step="0.01" title="Discount % on this line">
     <input type="text" class="o-item-amount" value="₹${fmt(itemLineAmount(it))}" disabled>
-    <button class="rm" data-o-item-rm="${i}" type="button" title="Remove item">✕</button>
+    <button class="rm" data-o-item-rm="${i}" type="button" title="Remove item" aria-label="Remove item">✕</button>
   </div>`;
 }
 function updateOrderItemsTotals(){
@@ -15667,12 +15838,17 @@ async function completePOSSale(){
     state.vouchers.push(receiptVoucher);
   }
 
+  // Micro-interaction: every early return above happens before this point, so the button only
+  // flips to its "in flight" state once the sale is guaranteed to post -- same disable+relabel
+  // pattern as the voucher Save button. render() below replaces the button outright once done.
+  const completeBtn = document.getElementById('posCompleteSale');
+  if(completeBtn){ completeBtn.disabled = true; completeBtn.textContent = 'Completing…'; }
   await saveVouchers();
   salesEntries.forEach(e=> trackLedgerUsage('Sales', e.ledgerId));
   if(receiptVoucher) receiptVoucher.entries.forEach(e=> trackLedgerUsage('Receipt', e.ledgerId));
 
   const shouldPrint = currentCompany.posAlwaysPrint !== false;
-  toast(`Sale completed — ₹${fmt(total)}`);
+  toast(`✓ Sale completed — ₹${fmt(total)}`, {type:'success'});
   pos = newPosCart();
   render();
   if(shouldPrint) printInvoiceForVoucher(saleVoucher.id);
@@ -15697,7 +15873,7 @@ function itemRow(it,i){
     <input type="number" class="item-rate" data-i="${i}" placeholder="Rate" value="${it.rate||''}" min="0" step="0.01">
     <input type="number" class="item-disc" data-i="${i}" placeholder="0" value="${it.disc||''}" min="0" max="100" step="0.01" title="Discount % on this line">
     <input type="text" class="item-amount" value="₹${fmt(itemLineAmount(it))}" disabled>
-    <button class="rm" data-item-rm="${i}" type="button" title="Remove item">✕</button>
+    <button class="rm" data-item-rm="${i}" type="button" title="Remove item" aria-label="Remove item">✕</button>
   </div>${needsBatch ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
     <div></div>
     <input type="text" class="item-batch" data-i="${i}" placeholder="Batch no." value="${escapeAttr(it.batch||'')}" style="grid-column:span 2;">
@@ -18092,7 +18268,7 @@ function gstFormatsModal(){
   if(gstFormatIndex>=GST_FORMS.length) gstFormatIndex = GST_FORMS.length-1;
   const f = GST_FORMS[gstFormatIndex];
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:660px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div class="panel-head" style="padding:16px 20px;"><h2>GST Return Formats</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="fmt-chips">
@@ -19260,7 +19436,7 @@ function partyDetailModal(){
   const rows = partyAgeing(partyDetailLedgerId).sort((a,b)=> a.date===b.date?0:(a.date<b.date?-1:1));
   const total = r2(rows.reduce((s,r)=>s+r.remaining,0));
   return `
-    <div class="modal-overlay" id="modalOverlayBg">
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:620px;position:relative;">
         <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>${escapeHtml(l.name)} — Outstanding</h2></div>
@@ -20185,6 +20361,24 @@ function attachHandlers(){
     document.getElementById('singleA')?.addEventListener('focus', ()=>{ quickLedgerFocus = {type:'single', which:'A'}; });
     document.getElementById('singleB')?.addEventListener('focus', ()=>{ quickLedgerFocus = {type:'single', which:'B'}; });
     document.getElementById('singleAmount')?.addEventListener('input', e=>{ vform.single.amount = e.target.value; updateSingleEntryPreview(); });
+    // Keyboard-first Single Entry flow: Enter walks From → To → Amount → Save, so a fast typist
+    // never has to reach for the mouse to post a Payment/Receipt/Contra.
+    document.getElementById('singleA')?.addEventListener('keydown', e=>{
+      if(e.key!=='Enter') return;
+      e.preventDefault();
+      document.getElementById('singleB')?.focus();
+    });
+    document.getElementById('singleB')?.addEventListener('keydown', e=>{
+      if(e.key!=='Enter') return;
+      e.preventDefault();
+      document.getElementById('singleAmount')?.focus();
+    });
+    document.getElementById('singleAmount')?.addEventListener('keydown', e=>{
+      if(e.key!=='Enter') return;
+      e.preventDefault();
+      const btn = document.getElementById('saveVoucher');
+      if(btn && !btn.disabled) btn.click();
+    });
     document.getElementById('taxEnabled')?.addEventListener('change', e=>{
       vform.tax.enabled = e.target.checked;
       if(vform.tax.enabled && !vform.tax.sectionCode){
@@ -20246,6 +20440,16 @@ function attachHandlers(){
         if(vform.type==='Payment') render();
       });
       s.addEventListener('focus', e=>{ quickLedgerFocus = { type:'entry', index: +e.target.dataset.i }; });
+      // Enter on a ledger picker jumps straight to that row's own amount field (Dr or Cr, whichever
+      // this row is) instead of leaving focus stuck on the dropdown -- part of the keyboard-first
+      // Tab/Enter flow through the Dr/Cr rows, alongside the amount-field handler below.
+      s.addEventListener('keydown', e=>{
+        if(e.key!=='Enter') return;
+        e.preventDefault();
+        const i = +s.dataset.i;
+        const side = entrySide(vform.entries[i]);
+        document.querySelector(`.${side==='dr'?'e-dr':'e-cr'}[data-i="${i}"]`)?.focus();
+      });
     });
     document.querySelectorAll('.e-dr').forEach(s=>{
       s.addEventListener('input', e=>{
@@ -20263,9 +20467,11 @@ function attachHandlers(){
         renderTotalsOnly();
       });
     });
-    // Buttonless entry-adding: pressing Enter in the LAST row of a block (Dr or Cr) adds a new row to
-    // that same block and focuses its ledger picker, the same intent that block's own "+" button
-    // serves -- so a fast typist never has to reach for the mouse mid-voucher.
+    // Keyboard-first Dr/Cr flow: Enter in an amount field on any row but the last in its block jumps
+    // to the NEXT row's ledger picker (continuing the walk this row's own ledger-picker Enter started
+    // above); Enter on the LAST row of a block instead adds a new row to that block and focuses its
+    // ledger picker, the same intent that block's own "+" button serves -- so a fast typist can key
+    // through an entire multi-line voucher (ledger → amount → ledger → amount → …) without the mouse.
     document.querySelectorAll('.e-dr, .e-cr').forEach(inp=>{
       inp.addEventListener('keydown', e=>{
         if(e.key!=='Enter') return;
@@ -20275,7 +20481,11 @@ function attachHandlers(){
         if(!entry) return;
         const side = entrySide(entry);
         const sideIdxs = vform.entries.map((e2,i2)=>i2).filter(i2=>entrySide(vform.entries[i2])===side);
-        if(i !== sideIdxs[sideIdxs.length-1]) return; // only the last row of this block responds to Enter
+        const pos = sideIdxs.indexOf(i);
+        if(pos < sideIdxs.length-1){
+          document.querySelector(`.e-ledger[data-i="${sideIdxs[pos+1]}"]`)?.focus();
+          return;
+        }
         addEntrySideRow(side);
       });
     });
@@ -20567,6 +20777,14 @@ function attachHandlers(){
       const hasPaymentItems = vform.type==='Payment' && vform.appliedItems && vform.appliedItems.length>0;
       const effectiveType = hasPaymentItems ? 'Purchase' : vform.type;
       let savedVoucherId = vform.id || null;
+      // Micro-interaction: every validation check above this point can still bail out with an early
+      // return, so the button only flips to its "in flight" state once the save is actually
+      // guaranteed to happen -- disable + relabel for the Firestore round trip itself, the same
+      // feedback the Refresh button already gives (see refreshCurrentSession). render() at the end
+      // of this handler replaces the button outright once the save lands, so nothing needs to
+      // explicitly reset it back.
+      saveBtn.disabled = true;
+      saveBtn.textContent = vform.id ? 'Updating…' : 'Saving…';
       if(vform.id){
         const idx = state.vouchers.findIndex(v=>v.id===vform.id);
         if(idx>-1){
@@ -20578,7 +20796,7 @@ function attachHandlers(){
           if(vform.type==='Sales' && vform.channel) state.vouchers[idx].channel = vform.channel;
         }
         await saveVouchers();
-        toast('Voucher updated');
+        toast('✓ Voucher updated', {type:'success'});
       } else {
         const now = new Date().toISOString();
         const v = { id: uid('v'), date: vform.date, type: effectiveType, narration: vform.narration, entries, createdAt: now };
@@ -20589,7 +20807,7 @@ function attachHandlers(){
         state.vouchers.push(v);
         savedVoucherId = v.id;
         await saveVouchers();
-        toast('Voucher saved');
+        toast('✓ Voucher saved', {type:'success'});
         if(pendingConvertDoc){
           const meta = ORDER_DOC_META[pendingConvertDoc.docType];
           const doc = meta && state[meta.stateKey].find(d=>d.id===pendingConvertDoc.id);
@@ -20916,7 +21134,7 @@ function attachHandlers(){
   }
 
   if(modal==='quickAddLedger'){
-    document.getElementById('quickAddLedgerSubmit')?.addEventListener('click', async ()=>{
+    document.getElementById('quickAddLedgerSubmit')?.addEventListener('click', async (e)=>{
       const name = document.getElementById('quickLedgerName').value.trim();
       const group = document.getElementById('quickLedgerGroup').value;
       const openingRaw = Number(document.getElementById('quickLedgerOpening').value)||0;
@@ -20926,6 +21144,7 @@ function attachHandlers(){
       const ledger = { id: uid('l'), name, group, opening: openingRaw*sign };
       if(gstRaw !== '') ledger.gstRate = Number(gstRaw);
       state.ledgers.push(ledger);
+      e.target.disabled = true; e.target.textContent = 'Creating…'; // micro-interaction: same "in flight" feedback as the voucher Save button
       await saveLedgers();
       if(vform && quickLedgerFocus){
         if(quickLedgerFocus.type==='entry' && vform.entries[quickLedgerFocus.index]){
@@ -20943,13 +21162,13 @@ function attachHandlers(){
       }
       quickLedgerFocus = null;
       modal = null;
-      toast('Ledger added');
+      toast('✓ Ledger added', {type:'success'});
       render();
     });
   }
 
   if(modal==='quickAddItem'){
-    document.getElementById('quickAddItemSubmit')?.addEventListener('click', async ()=>{
+    document.getElementById('quickAddItemSubmit')?.addEventListener('click', async (e)=>{
       const name = document.getElementById('quickItemName').value.trim();
       const group = document.getElementById('quickItemGroup').value;
       const unit = document.getElementById('quickItemUnit').value;
@@ -20964,6 +21183,7 @@ function attachHandlers(){
       if(openQtyRaw !== '') item.openingQty = Number(openQtyRaw);
       if(openRateRaw !== '') item.openingRate = Number(openRateRaw);
       state.items.push(item);
+      e.target.disabled = true; e.target.textContent = 'Creating…'; // micro-interaction: same "in flight" feedback as the voucher Save button
       await saveItems();
       // Also drop it straight onto this voucher's item list, already pointing at the new catalog
       // entry -- the same shape a normal catalog pick would produce (see the .item-select handler).
@@ -20972,7 +21192,7 @@ function attachHandlers(){
         vform.gst.items.push({itemId:item.id, name:item.name, qty:1, rate:item.rate||0, disc:0});
       }
       modal = null;
-      toast('Item created — added to Inventory and to this voucher');
+      toast('✓ Item created — added to Inventory and to this voucher', {type:'success'});
       render();
     });
   }
