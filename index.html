@@ -7002,12 +7002,12 @@ function qaWidget(){
           <div class="muted" style="font-size:11.5px;">
             Answers common bookkeeping questions straight from your ledgers and vouchers — no internet connection needed, nothing leaves your browser. Ask things like:
             <div style="margin-top:6px;display:flex;flex-direction:column;gap:5px;">
-              ${['What\'s my cash balance right now?','What was my profit last month?','Who are my top 5 customers by receivables?','Show revenue for the last 6 months'].map(q=>`<span data-qa-suggest="${escapeAttr(q)}" class="linklike" style="cursor:pointer;">"${q}"</span>`).join('')}
+              ${['What\'s my cash balance right now?','What was my profit last month?','Who are my top 5 customers by receivables?','Show revenue for the last 6 months','Show my top 5 expense categories last quarter as a chart'].map(q=>`<span data-qa-suggest="${escapeAttr(q)}" class="linklike" style="cursor:pointer;">"${q}"</span>`).join('')}
             </div>
           </div>` : ''}
         ${qaMessages.map(m=>`
           <div style="margin-bottom:10px;display:flex;${m.role==='user'?'justify-content:flex-end;':''}">
-            <div style="max-width:85%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}</div>
+            <div style="max-width:${m.chartHtml?'96%':'85%'};padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}${m.chartHtml ? `<div style="margin-top:8px;white-space:normal;">${m.chartHtml}</div>` : ''}</div>
           </div>
         `).join('')}
         ${qaLoading ? `<div class="muted" style="font-size:11.5px;">Thinking…</div>` : ''}
@@ -7064,6 +7064,28 @@ function qaPeriodTotals(predicate){
   }
   return { revenue:r2(revenue), otherIncome:r2(otherIncome), expenses:r2(expenses), profit:r2(revenue+otherIncome-expenses) };
 }
+// Quarter bounds relative to the COMPANY'S OWN financial year (fyLabelForDate/fyBoundsForLabel —
+// the same FY-start-aware helpers Fixed Assets/Year-End Close already use), not plain calendar
+// quarters — matches how "quarter" already means Q1..Q4-of-the-FY everywhere else in this Indian-
+// accounting app (GST's quarterly QRMP filers, CMP-08, etc.). offset=0 is the quarter containing
+// today; offset=-1 is the one before it; and so on.
+function qaQuarterBounds(offset){
+  const todayStr = new Date().toISOString().slice(0,10);
+  const fy = fyLabelForDate(todayStr);
+  const fyStart = new Date(fyBoundsForLabel(fy).start+'T00:00:00');
+  const today = new Date(todayStr+'T00:00:00');
+  const monthsIn = (today.getFullYear()-fyStart.getFullYear())*12 + (today.getMonth()-fyStart.getMonth());
+  let qIndex = Math.floor(monthsIn/3) + (offset||0);
+  let fyStartYear = parseInt(fy.slice(0,4),10);
+  while(qIndex<0){ qIndex+=4; fyStartYear-=1; }
+  while(qIndex>3){ qIndex-=4; fyStartYear+=1; }
+  const shiftedFY = `${fyStartYear}-${String((fyStartYear+1)%100).padStart(2,'0')}`;
+  const shiftedFYStart = new Date(fyBoundsForLabel(shiftedFY).start+'T00:00:00');
+  const qStart = new Date(shiftedFYStart.getFullYear(), shiftedFYStart.getMonth()+qIndex*3, shiftedFYStart.getDate());
+  const qEnd = new Date(shiftedFYStart.getFullYear(), shiftedFYStart.getMonth()+(qIndex+1)*3, shiftedFYStart.getDate());
+  qEnd.setDate(qEnd.getDate()-1);
+  return { startStr: qStart.toISOString().slice(0,10), endStr: qEnd.toISOString().slice(0,10), label: `Q${qIndex+1} FY${shiftedFY}` };
+}
 function qaParsePeriod(q){
   const now = new Date();
   const thisMonthKey = now.toISOString().slice(0,7);
@@ -7073,6 +7095,8 @@ function qaParsePeriod(q){
   if(/\bthis month\b/.test(q)) return { label:'this month', predicate: d=>d.startsWith(thisMonthKey) };
   if(/\blast year\b/.test(q)) return { label:'last year', predicate: d=>d.startsWith(String(now.getFullYear()-1)) };
   if(/\bthis year\b/.test(q)) return { label:'this year', predicate: d=>d.startsWith(String(now.getFullYear())) };
+  if(/\blast quarter\b/.test(q)){ const b=qaQuarterBounds(-1); return { label:b.label, predicate: d=>d>=b.startStr && d<=b.endStr }; }
+  if(/\bthis quarter\b/.test(q)){ const b=qaQuarterBounds(0); return { label:b.label, predicate: d=>d>=b.startStr && d<=b.endStr }; }
   const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   const m = q.match(new RegExp('\\b('+months.join('|')+')\\b(?:\\s+(\\d{4}))?'));
   if(m){
@@ -7104,6 +7128,49 @@ function qaTopLedgers(ledgers, sign, label, n){
     .slice(0,n);
   if(!list.length) return `I couldn't find any ${label} ledgers with a balance right now.`;
   return `Top ${list.length} ${label}${list.length>1?'s':''} by balance:\n`+list.map((x,i)=>`${i+1}. ${x.name} — ₹${fmt(x.bal)}`).join('\n');
+}
+// Period-scoped expense ledgers, ranked by net movement WITHIN that window — unlike qaTopLedgers()
+// above (an all-time balance snapshot), this sums only vouchers the predicate accepts, the same way
+// qaPeriodTotals()/dashboardExpenseDriver() already do. Backs the natural-language chart builder below.
+function qaTopExpenseCategoriesForPeriod(predicate, n){
+  n = n||5;
+  const per = {};
+  for(const v of state.vouchers){
+    if(!v.date || !predicate(v.date)) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || !['purch','dexp','iexp'].includes(bucketOf(l))) continue;
+      const net = (e.dr||0)-(e.cr||0);
+      if(!per[l.id]) per[l.id] = { name:l.name, value:0 };
+      per[l.id].value += net;
+    }
+  }
+  return Object.values(per).filter(x=>x.value>0.005).sort((a,b)=>b.value-a.value).slice(0,n);
+}
+// Natural-language report builder — extends "Ask Your Books" so a question that asks for a
+// "chart"/"graph"/"plot" of its top-N expense categories actually renders one, instead of only ever
+// returning text. Deliberately narrow (regex pattern matching over a specific, well-understood
+// shape — "top N expense categories, chart" — not open-ended free text understanding), same
+// zero-external-API-cost local architecture as the rest of this file: reuses qaParsePeriod() (now
+// quarter-aware, see qaQuarterBounds above) for the timeframe and the existing svgHBarChart()
+// renderer for the picture, rather than inventing new machinery. Anything outside this one pattern
+// falls straight through to the existing text-only answerQuestionLocally(), unchanged.
+function qaWantsChart(q){ return /\b(chart|graph|visuali[sz]e|plot)\b/.test(q); }
+function answerQuestionLocallyRich(question){
+  const q = question.toLowerCase();
+  if(qaWantsChart(q) && /\btop\b/.test(q) && /\bexpense/.test(q)){
+    const nMatch = q.match(/\btop\s+(\d+)\b/);
+    const n = nMatch ? Math.min(10, Math.max(1, Number(nMatch[1]))) : 5;
+    const period = qaParsePeriod(q);
+    const predicate = period ? period.predicate : ()=>true;
+    const periodLabel = period ? period.label : 'all time';
+    const top = qaTopExpenseCategoriesForPeriod(predicate, n);
+    if(!top.length) return { content: `I couldn't find any expense postings for ${periodLabel} to chart.` };
+    const items = top.map((x,i)=>({ label:x.name, value:x.value, display:'₹'+fmt(x.value), color:VIZ_COLORS[i%VIZ_COLORS.length] }));
+    const text = `Top ${top.length} expense categor${top.length>1?'ies':'y'} for ${periodLabel}:\n`+top.map((x,i)=>`${i+1}. ${x.name} — ₹${fmt(x.value)}`).join('\n');
+    return { content:text, chartHtml: svgHBarChart(items, {width:480, labelWidth:150}) };
+  }
+  return { content: answerQuestionLocally(question) };
 }
 function answerQuestionLocally(question){
   const q = question.toLowerCase();
@@ -7250,13 +7317,14 @@ function answerQuestionLocally(question){
     }
   }
 
-  return `I couldn't match that to something I know how to look up yet — I answer from patterns, not free-form understanding. Try asking about: cash or bank balance, revenue or profit (overall, this month, last month, a named month, or "last N months"), total or top expenses, top customers or suppliers by balance, total assets/liabilities/equity, GST payable/input, current ratio or debt-to-equity, stock value, trial balance, or a specific ledger's balance (e.g. "what's the balance of HDFC Bank?").`;
+  return `I couldn't match that to something I know how to look up yet — I answer from patterns, not free-form understanding. Try asking about: cash or bank balance, revenue or profit (overall, this month, last month, a named month, or "last N months"), total or top expenses, top customers or suppliers by balance, total assets/liabilities/equity, GST payable/input, current ratio or debt-to-equity, stock value, trial balance, a specific ledger's balance (e.g. "what's the balance of HDFC Bank?"), or "top N expense categories" for a period (this/last month, this/last quarter, this/last year, or a named month) with "as a chart" to get a bar chart instead of a list.`;
 }
 function askQA(question){
   question = (question||'').trim();
   if(!question) return;
   qaMessages.push({ role:'user', content: question });
-  qaMessages.push({ role:'assistant', content: answerQuestionLocally(question) });
+  const rich = answerQuestionLocallyRich(question);
+  qaMessages.push({ role:'assistant', content: rich.content, chartHtml: rich.chartHtml || null });
   qaError = '';
   render();
   const el = document.getElementById('qaMessagesEl');
