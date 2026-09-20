@@ -2179,6 +2179,7 @@ const DASHBOARD_SECTIONS = {
   insights:    {label:'Smart Insights'},
   cashForecast:{label:'AI Cash-Flow Forecast'},
   collections: {label:'Collections Priority'},
+  partyRisk:   {label:'Party Risk Dashboard'},
 };
 let dashboardVisibleSections = (function(){
   try{
@@ -2416,7 +2417,10 @@ let ledgerDetailId = null;   // which ledger was clicked in the Balance Sheet, f
 let cfDetailBucket = null;   // which Cash Flow bucket (operating/investing/financing) was clicked, for the detail modal
 let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice ageing detail modal is showing
 let monthlyNarrativeMonth = null; // which 'YYYY-MM' the AI-Written Monthly Narrative Summary modal is showing -- null = current month
+let gstReadinessMonth = null; // which 'YYYY-MM' the GST Return Readiness card on the GST tab is showing -- null = current month
 let pieChartLedgerId = null; // which ledger's pie chart to show
+let collectionsReminderDraft = null; // {partyName, text} for the drafted-collections-reminder modal — draft-and-copy only, never sent
+let prepaidMarkDraft = null; // {voucherId, months} while the "Mark Prepaid" modal is open
 // Ledgers tab (viewLedgers): free-text filter typed into the sidebar's search box, and which
 // ledger the "New Ledger"/"Alter" modal is open for -- null when the modal is closed, the string
 // 'new' when it's open in create mode, or a ledger id when it's open in edit mode for that ledger.
@@ -4904,6 +4908,94 @@ async function postDepreciationForFY(assetId, fyLabel){
   toast(`Posted ₹${fmt(amt)} depreciation for ${asset.name}`);
 }
 
+// ---- Prepaid-expense amortization -- mark a Payment voucher's expense entry as spanning multiple
+// months, and auto-schedule the monthly recognition journals -- same find-or-create-a-standing-ledger
+// plus post-a-new-Journal-voucher pattern as ensureDepreciationLedger()/postDepreciationForFY() just
+// above. Same "never mutate a saved voucher's own entries" principle too: marking a voucher prepaid
+// never edits its original Dr/Cr lines -- it posts a NEW Journal that defers most of the expense out
+// to a standing "Prepaid Expenses" ledger, then a further new Journal each month brings that month's
+// slice back. Every change stays a normal, auditable, deletable voucher, never a silent edit to history.
+function ensurePrepaidExpensesLedger(){
+  let l = state.ledgers.find(x=>x.name==='Prepaid Expenses' && bucketOf(x)==='ca');
+  if(!l){ l = {id:uid('l'), name:'Prepaid Expenses', group:'loanadv', opening:0}; state.ledgers.push(l); saveLedgers(); }
+  return l.id;
+}
+// The 'YYYY-MM' keys a prepaid voucher's schedule spans, starting from its own posting month.
+function prepaidScheduleMonths(v){
+  const months = [];
+  const start = new Date(v.date+'T00:00:00');
+  for(let i=0;i<v.prepaidMonths;i++){
+    const d = new Date(start.getFullYear(), start.getMonth()+i, 1);
+    months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return months;
+}
+// Every future month of every prepaid-tagged voucher that's now arrived (<= this month) and hasn't
+// been recognized yet. Month index 0 (the voucher's own posting month) is skipped -- that slice
+// stayed on the original expense ledger when it was marked prepaid, so it's already recognized.
+function duePrepaidAmortizations(){
+  const todayKey = new Date().toISOString().slice(0,7);
+  const due = [];
+  for(const v of state.vouchers){
+    if(!v.prepaidMonths || v.prepaidMonths<2) continue;
+    const months = prepaidScheduleMonths(v);
+    const posted = v.prepaidPostedMonths || [];
+    for(let i=1;i<months.length;i++){
+      const mk = months[i];
+      if(mk<=todayKey && !posted.includes(mk)) due.push({ voucherId:v.id, narration:v.narration, monthKey:mk, amount:r2(voucherAmount(v)/v.prepaidMonths) });
+    }
+  }
+  return due.sort((a,b)=> a.monthKey<b.monthKey?-1:(a.monthKey>b.monthKey?1:0));
+}
+async function markVoucherPrepaid(voucherId, months){
+  const v = state.vouchers.find(x=>x.id===voucherId);
+  if(!v) return;
+  if(v.prepaidMonths){ toast('Already marked as a prepaid schedule'); return; }
+  months = Math.max(2, Math.min(60, Math.round(Number(months)||0)));
+  const totalAmt = voucherAmount(v);
+  const monthly = r2(totalAmt/months);
+  const deferred = r2(monthly*(months-1));
+  if(deferred<=0){ toast('Nothing to defer for this amount/month count'); return; }
+  const expenseEntry = v.entries.find(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))));
+  if(!expenseEntry){ toast('Could not find an expense entry on this voucher to defer'); return; }
+  const prepaidLedgerId = ensurePrepaidExpensesLedger();
+  state.vouchers.push({
+    id: uid('v'), date: v.date, type:'Journal',
+    narration: `Defer prepaid expense over ${months} months — from voucher dated ${v.date}${v.narration?` (${v.narration})`:''}`,
+    entries: [{ledgerId:prepaidLedgerId, dr:deferred, cr:0},{ledgerId:expenseEntry.ledgerId, dr:0, cr:deferred}],
+    createdAt: new Date().toISOString(),
+    fromPrepaidVoucher: v.id,
+  });
+  v.prepaidMonths = months;
+  v.prepaidPostedMonths = [];
+  v.prepaidExpenseLedgerId = expenseEntry.ledgerId;
+  await saveVouchers();
+  toast(`Marked as prepaid — ₹${fmt(deferred)} deferred to Prepaid Expenses over ${months-1} future month${months-1===1?'':'s'}`, {type:'success'});
+}
+async function postPrepaidAmortization(voucherId, monthKey){
+  const v = state.vouchers.find(x=>x.id===voucherId);
+  if(!v || !v.prepaidMonths) return;
+  if((v.prepaidPostedMonths||[]).includes(monthKey)) return;
+  const monthly = r2(voucherAmount(v)/v.prepaidMonths);
+  const prepaidLedgerId = ensurePrepaidExpensesLedger();
+  const today = new Date().toISOString().slice(0,10);
+  state.vouchers.push({
+    id: uid('v'), date: today, type:'Journal',
+    narration: `Prepaid expense amortization — ${monthKey} — from voucher dated ${v.date}${v.narration?` (${v.narration})`:''}`,
+    entries: [{ledgerId:v.prepaidExpenseLedgerId, dr:monthly, cr:0},{ledgerId:prepaidLedgerId, dr:0, cr:monthly}],
+    createdAt: new Date().toISOString(),
+    fromPrepaidVoucher: v.id,
+  });
+  v.prepaidPostedMonths = [...(v.prepaidPostedMonths||[]), monthKey];
+  await saveVouchers();
+  toast(`Posted ₹${fmt(monthly)} amortization for ${monthKey}`, {type:'success'});
+}
+async function postAllDuePrepaidAmortizations(){
+  const due = duePrepaidAmortizations();
+  for(const d of due){ await postPrepaidAmortization(d.voucherId, d.monthKey); }
+  if(due.length) toast(`Posted ${due.length} prepaid amortization${due.length===1?'':'s'}`, {type:'success'});
+}
+
 /* ---------------- Party Master + AR/AP ageing ---------------- */
 // FIFO matching of invoices against payments on one party ledger. A customer ledger is invoiced on
 // the Dr side (Sales) and paid on the Cr side (Receipt); a supplier ledger is billed on the Cr side
@@ -7002,12 +7094,12 @@ function qaWidget(){
           <div class="muted" style="font-size:11.5px;">
             Answers common bookkeeping questions straight from your ledgers and vouchers — no internet connection needed, nothing leaves your browser. Ask things like:
             <div style="margin-top:6px;display:flex;flex-direction:column;gap:5px;">
-              ${['What\'s my cash balance right now?','What was my profit last month?','Who are my top 5 customers by receivables?','Show revenue for the last 6 months','Show my top 5 expense categories last quarter as a chart'].map(q=>`<span data-qa-suggest="${escapeAttr(q)}" class="linklike" style="cursor:pointer;">"${q}"</span>`).join('')}
+              ${['What\'s my cash balance right now?','What was my profit last month?','Who owes me the most?','Show revenue for the last 6 months','Show my top 5 expense categories last quarter as a chart','Invoices over 60 days'].map(q=>`<span data-qa-suggest="${escapeAttr(q)}" class="linklike" style="cursor:pointer;">"${q}"</span>`).join('')}
             </div>
           </div>` : ''}
-        ${qaMessages.map(m=>`
+        ${qaMessages.map((m,mi)=>`
           <div style="margin-bottom:10px;display:flex;${m.role==='user'?'justify-content:flex-end;':''}">
-            <div style="max-width:${m.chartHtml?'96%':'85%'};padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}${m.chartHtml ? `<div style="margin-top:8px;white-space:normal;">${m.chartHtml}</div>` : ''}</div>
+            <div style="max-width:${(m.chartHtml||m.entityHtml)?'96%':'85%'};padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}${m.chartHtml ? `<div style="margin-top:8px;white-space:normal;">${m.chartHtml}</div>` : ''}${m.entityHtml ? `<div style="margin-top:8px;white-space:normal;">${m.entityHtml}</div>` : ''}${m.csv ? `<div style="margin-top:8px;white-space:normal;"><button type="button" class="btn small secondary" data-qa-export-csv="${mi}">⬇ Export rows as CSV</button></div>` : ''}</div>
           </div>
         `).join('')}
         ${qaLoading ? `<div class="muted" style="font-size:11.5px;">Thinking…</div>` : ''}
@@ -7156,8 +7248,73 @@ function qaTopExpenseCategoriesForPeriod(predicate, n){
 // renderer for the picture, rather than inventing new machinery. Anything outside this one pattern
 // falls straight through to the existing text-only answerQuestionLocally(), unchanged.
 function qaWantsChart(q){ return /\b(chart|graph|visuali[sz]e|plot)\b/.test(q); }
+// Natural-language entity search -- extends "Ask Your Books" past charts/text into direct, clickable
+// lookups against specific customers/suppliers/invoices ("who owes me the most", "unpaid bills from
+// Gamma Suppliers", "invoices over 60 days"). Reuses the exact same partyOutstandingInvoices()/
+// overdueInvoices()/qaMatchLedgerByName() the Parties tab and Collections Priority already draw from
+// -- this only reshapes their real output into an `entityHtml` block carrying real data-open-party
+// deep links (the same global click-delegation every party row in this app already uses -- see
+// wireHandlers' `[data-open-party]` block), so a result opens that party's actual ledger, never a
+// re-typed summary of it. Returns null when the question doesn't match one of these shapes, in which
+// case answerQuestionLocallyRich() below falls through to the chart/plain-text answer engines.
+function qaEntityRow(ledgerId, label, amount){
+  return `<div data-open-party="${ledgerId}" style="cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;gap:10px;">
+    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${label}</span><b style="flex-shrink:0;">₹${fmt(amount)}</b>
+  </div>`;
+}
+function qaEntitySearch(question){
+  const q = (question||'').toLowerCase();
+
+  if(/\bwho\b.*\bowes?\b.*\bmost\b/.test(q) || /\bbiggest\s+(debtor|customer)\b/.test(q)){
+    const list = state.ledgers.filter(l=>l.partyType==='customer').map(l=>({l, bal:ledgerBalance(l.id)})).filter(x=>x.bal>0.005).sort((a,b)=>b.bal-a.bal).slice(0,5);
+    if(!list.length) return { content:`No customer currently owes you anything outstanding.` };
+    return {
+      content: `Top ${list.length} customer${list.length>1?'s':''} by amount owed:\n`+list.map((x,i)=>`${i+1}. ${x.l.name} — ₹${fmt(x.bal)}`).join('\n'),
+      entityHtml: `<div style="display:flex;flex-direction:column;gap:6px;">${list.map((x,i)=>qaEntityRow(x.l.id, `${i+1}. ${escapeHtml(x.l.name)}`, x.bal)).join('')}</div>`,
+    };
+  }
+
+  if(/\bwho\b.*\b(do i|do we|i|we)?\s*owe\b.*\bmost\b/.test(q) || /\bbiggest\s+(creditor|supplier|vendor)\b/.test(q)){
+    const list = state.ledgers.filter(l=>l.partyType==='supplier').map(l=>({l, bal:-ledgerBalance(l.id)})).filter(x=>x.bal>0.005).sort((a,b)=>b.bal-a.bal).slice(0,5);
+    if(!list.length) return { content:`You don't currently owe any supplier anything outstanding.` };
+    return {
+      content: `Top ${list.length} supplier${list.length>1?'s':''} by amount owed:\n`+list.map((x,i)=>`${i+1}. ${x.l.name} — ₹${fmt(x.bal)}`).join('\n'),
+      entityHtml: `<div style="display:flex;flex-direction:column;gap:6px;">${list.map((x,i)=>qaEntityRow(x.l.id, `${i+1}. ${escapeHtml(x.l.name)}`, x.bal)).join('')}</div>`,
+    };
+  }
+
+  if(/\b(unpaid|outstanding|open)\b.*(bill|invoice)/.test(q) || /\bwhat does\b.+\bowe\b/.test(q) || /\bhow much does\b.+\bowe\b/.test(q)){
+    const named = qaMatchLedgerByName(q, state.ledgers.filter(l=>l.partyType==='customer'||l.partyType==='supplier'));
+    if(named){
+      const invoices = partyOutstandingInvoices(named.id);
+      if(!invoices.length){
+        return { content:`${named.name} has no unpaid invoices right now.`, entityHtml: qaEntityRow(named.id, `View ${escapeHtml(named.name)}'s ledger →`, 0) };
+      }
+      const total = invoices.reduce((s,i)=>s+i.remaining,0);
+      return {
+        content: `${named.name} has ${invoices.length} unpaid invoice${invoices.length>1?'s':''} totalling ₹${fmt(total)}:\n`+invoices.map(inv=>`${inv.date} — ${inv.type} — ₹${fmt(inv.remaining)}`).join('\n'),
+        entityHtml: `<div style="display:flex;flex-direction:column;gap:6px;">${invoices.map(inv=>qaEntityRow(named.id, `${escapeHtml(inv.type)} · ${inv.date}`, inv.remaining)).join('')}</div>`,
+      };
+    }
+  }
+
+  const daysMatch = q.match(/\bover\s+(\d+)\s+days?\b/);
+  if(daysMatch && (/\binvoice/.test(q) || /\boverdue/.test(q))){
+    const n = Number(daysMatch[1]);
+    const list = overdueInvoices().filter(r=>r.daysOverdue>n);
+    if(!list.length) return { content:`No invoices are more than ${n} days overdue right now.` };
+    return {
+      content: `${list.length} invoice${list.length>1?'s':''} over ${n} days overdue:\n`+list.map(r=>`${r.ledger.name} — ${r.daysOverdue}d — ₹${fmt(r.invoice.remaining)}`).join('\n'),
+      entityHtml: `<div style="display:flex;flex-direction:column;gap:6px;">${list.map(r=>qaEntityRow(r.ledger.id, `${escapeHtml(r.ledger.name)} · ${r.daysOverdue}d overdue`, r.invoice.remaining)).join('')}</div>`,
+    };
+  }
+
+  return null;
+}
 function answerQuestionLocallyRich(question){
   const q = question.toLowerCase();
+  const entity = qaEntitySearch(question);
+  if(entity) return entity;
   if(qaWantsChart(q) && /\btop\b/.test(q) && /\bexpense/.test(q)){
     const nMatch = q.match(/\btop\s+(\d+)\b/);
     const n = nMatch ? Math.min(10, Math.max(1, Number(nMatch[1]))) : 5;
@@ -7319,12 +7476,56 @@ function answerQuestionLocally(question){
 
   return `I couldn't match that to something I know how to look up yet — I answer from patterns, not free-form understanding. Try asking about: cash or bank balance, revenue or profit (overall, this month, last month, a named month, or "last N months"), total or top expenses, top customers or suppliers by balance, total assets/liabilities/equity, GST payable/input, current ratio or debt-to-equity, stock value, trial balance, a specific ledger's balance (e.g. "what's the balance of HDFC Bank?"), or "top N expense categories" for a period (this/last month, this/last quarter, this/last year, or a named month) with "as a chart" to get a bar chart instead of a list.`;
 }
+// CSV export for chat answers -- a handful of high-value question shapes (top expense categories,
+// top customers/suppliers by outstanding, a monthly revenue/expense/profit trend) already resolve to
+// a clean list of {label, value} rows under the hood via the SAME functions the text/chart answers
+// above already call (qaTopExpenseCategoriesForPeriod, scheduleIIIBalanceSheetData, qaMonthlyTrend) --
+// this just reshapes that same real data for downloadCSV() instead of re-deriving anything. Returns
+// null for question shapes with no natural row/column structure (a single balance, a yes/no, etc.),
+// in which case no export button is offered.
+function qaBuildCsvForAnswer(question){
+  const q = (question||'').toLowerCase();
+  if(/\btop\b/.test(q) && /\bexpense/.test(q)){
+    const nMatch = q.match(/\btop\s+(\d+)\b/);
+    const n = nMatch ? Math.min(10, Math.max(1, Number(nMatch[1]))) : 5;
+    const period = qaParsePeriod(q);
+    const predicate = period ? period.predicate : ()=>true;
+    const top = qaTopExpenseCategoriesForPeriod(predicate, n);
+    if(!top.length) return null;
+    return { header:['Expense Ledger','Amount (INR)'], rows: top.map(x=>[x.name, x.value.toFixed(2)]), filename:'top-expense-categories.csv' };
+  }
+  if(/\btop\b.*(customer|receivable|debtor)/.test(q)){
+    const pl = scheduleIIIProfitLossData();
+    const bs = scheduleIIIBalanceSheetData(pl.profitForPeriod);
+    const list = bs.tradeReceivableLedgers.map(l=>({name:l.name, bal:ledgerBalance(l.id)})).filter(x=>Math.abs(x.bal)>0.005).sort((a,b)=>b.bal-a.bal).slice(0,10);
+    if(!list.length) return null;
+    return { header:['Customer','Receivable (INR)'], rows: list.map(x=>[x.name, x.bal.toFixed(2)]), filename:'top-customers.csv' };
+  }
+  if(/\btop\b.*(supplier|vendor|payable|creditor)/.test(q)){
+    const pl = scheduleIIIProfitLossData();
+    const bs = scheduleIIIBalanceSheetData(pl.profitForPeriod);
+    const list = bs.tradePayableLedgers.map(l=>({name:l.name, bal:-ledgerBalance(l.id)})).filter(x=>Math.abs(x.bal)>0.005).sort((a,b)=>b.bal-a.bal).slice(0,10);
+    if(!list.length) return null;
+    return { header:['Supplier','Payable (INR)'], rows: list.map(x=>[x.name, x.bal.toFixed(2)]), filename:'top-suppliers.csv' };
+  }
+  const trendMatch = q.match(/\b(?:last|past)\s+(\d+)\s+months?\b/);
+  if(trendMatch && /\b(revenue|sales|profit|expense)/.test(q)){
+    const n = Math.min(24, Math.max(1, Number(trendMatch[1])));
+    const trend = qaMonthlyTrend(n);
+    if(!trend.length) return null;
+    const metric = /\bprofit\b/.test(q) ? 'profit' : /\bexpense/.test(q) ? 'expenses' : 'revenue';
+    const label = metric==='expenses'?'Expenses':metric[0].toUpperCase()+metric.slice(1);
+    return { header:['Month', label+' (INR)'], rows: trend.map(t=>[t.month, t[metric].toFixed(2)]), filename:'monthly-trend.csv' };
+  }
+  return null;
+}
 function askQA(question){
   question = (question||'').trim();
   if(!question) return;
   qaMessages.push({ role:'user', content: question });
   const rich = answerQuestionLocallyRich(question);
-  qaMessages.push({ role:'assistant', content: rich.content, chartHtml: rich.chartHtml || null });
+  const csv = qaBuildCsvForAnswer(question);
+  qaMessages.push({ role:'assistant', content: rich.content, chartHtml: rich.chartHtml || null, entityHtml: rich.entityHtml || null, csv: csv || null });
   qaError = '';
   render();
   const el = document.getElementById('qaMessagesEl');
@@ -7432,6 +7633,12 @@ function wireQAWidget(){
   input?.focus();
   document.querySelectorAll('[data-qa-suggest]').forEach(el=>{
     el.addEventListener('click', ()=> askQA(el.dataset.qaSuggest));
+  });
+  document.querySelectorAll('[data-qa-export-csv]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const m = qaMessages[Number(el.dataset.qaExportCsv)];
+      if(m && m.csv) downloadCSV(m.csv.header, m.csv.rows, m.csv.filename);
+    });
   });
   const msgs = document.getElementById('qaMessagesEl');
   if(msgs) msgs.scrollTop = msgs.scrollHeight;
@@ -7559,6 +7766,10 @@ function render(){
     ${modal==='recurring' ? recurringModal() : ''}
     ${modal==='backup' ? backupModal() : ''}
     ${modal==='partyDetail' ? partyDetailModal() : ''}
+    ${modal==='collectionsReminder' ? collectionsReminderModal() : ''}
+    ${modal==='partyRisk' ? partyRiskModal() : ''}
+    ${modal==='prepaidMark' ? prepaidMarkModal() : ''}
+    ${modal==='prepaidDue' ? prepaidDueModal() : ''}
     ${modal==='assetsHelp' ? assetsHelpModal() : ''}
     ${modal==='partiesHelp' ? partiesHelpModal() : ''}
     ${modal==='fyPicker' ? fyPickerModal() : ''}
@@ -8836,6 +9047,70 @@ function recurringModal(){
           </table>
 
           ${recurringDraft ? recurringDraftForm() : `<button class="btn secondary small" id="newRecurringBtn" type="button" style="margin-top:14px;">+ New Recurring Template</button>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Asks how many months a just-marked voucher's amount should spread across — opened from a Payment
+// voucher's "Mark Prepaid" Day Book row action. The monthly-estimate line and Confirm button's own
+// label update live as the number changes (direct DOM update, wired below — see wirePrepaidMarkInput
+// in attachHandlers — not a full render(), so the input never loses focus mid-edit).
+function prepaidMarkModal(){
+  if(!prepaidMarkDraft) return '';
+  const v = state.vouchers.find(x=>x.id===prepaidMarkDraft.voucherId);
+  if(!v) return '';
+  const totalAmt = voucherAmount(v);
+  const months = Math.max(2, Math.min(60, Math.round(Number(prepaidMarkDraft.months)||3)));
+  const monthly = r2(totalAmt/months);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:440px;">
+        <div class="panel-head"><h2>🗓 Mark as Prepaid</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-top:0;">₹${fmt(totalAmt)} paid on ${v.date}${v.narration?` (${escapeHtml(v.narration)})`:''} — spread evenly across the months below. This month keeps its share; the rest defers to a Prepaid Expenses ledger and is recognized automatically as each future month arrives (see Month-End Close Checklist, or Day Book → Prepaid Amortization).</p>
+          <div class="field"><label>Spread across how many months?</label><input type="number" id="prepaidMonthsInput" min="2" max="60" step="1" value="${months}"></div>
+          <p class="muted" id="prepaidMonthlyEstimate" style="font-size:12px;">≈ ₹${fmt(monthly)}/month for ${months} months.</p>
+          <button class="btn" id="prepaidMarkConfirmBtn" type="button" style="margin-top:6px;">Confirm — Defer ₹${fmt(r2(monthly*(months-1)))}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Lists every amortization now due for posting (with a one-click "Post All Due", mirroring Recurring
+// Vouchers' "Generate Due"), plus every voucher currently on a prepaid schedule and its progress.
+// Reachable from the Day Book toolbar and from the Month-End Close Checklist's own row.
+function prepaidDueModal(){
+  const due = duePrepaidAmortizations();
+  const scheduled = state.vouchers.filter(v=>v.prepaidMonths);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:620px;">
+        <div class="panel-head"><h2>🗓 Prepaid-Expense Amortization</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body" style="max-height:72vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+            <p class="muted" style="font-size:12px;margin:0;max-width:380px;">Monthly recognition journals for every voucher marked prepaid — due ones are ready to post below.</p>
+            <button class="btn small" id="postAllPrepaidBtn" type="button" ${due.length?'':'disabled'}>▶ Post All Due${due.length?` (${due.length})`:''}</button>
+          </div>
+          ${due.length ? `<table>
+            <tr><th>Month</th><th>Voucher</th><th class="num">Amount</th><th></th></tr>
+            ${due.map(d=>`<tr>
+              <td>${d.monthKey}</td>
+              <td class="muted">${escapeHtml(d.narration||'—')}</td>
+              <td class="num">₹${fmt(d.amount)}</td>
+              <td><button class="btn secondary small" data-post-prepaid="${d.voucherId}|${d.monthKey}" type="button">Post</button></td>
+            </tr>`).join('')}
+          </table>` : `<div class="empty">Nothing due right now.</div>`}
+          <div class="section-title" style="margin-top:16px;">All Prepaid Schedules</div>
+          ${scheduled.length ? `<table>
+            <tr><th>Voucher</th><th>Started</th><th class="num">Months</th><th class="num">Posted</th></tr>
+            ${scheduled.map(v=>`<tr data-edit-voucher="${v.id}" style="cursor:pointer;">
+              <td>${escapeHtml(v.narration||'—')}</td>
+              <td class="muted">${v.date}</td>
+              <td class="num">${v.prepaidMonths}</td>
+              <td class="num">${(v.prepaidPostedMonths||[]).length} / ${v.prepaidMonths-1}</td>
+            </tr>`).join('')}
+          </table>` : `<div class="empty">No vouchers marked prepaid yet — use "Mark Prepaid" on a Payment voucher's Day Book row.</div>`}
         </div>
       </div>
     </div>
@@ -13084,11 +13359,173 @@ function collectionsPriorityCard(){
                 <div class="muted" style="font-size:11px;">${r.daysOverdue}d overdue · due ${r.dueDate}</div>
               </div>
               <div style="text-align:right;font-weight:700;font-size:13px;">₹${fmt(r.invoice.remaining)}</div>
+              <button type="button" class="btn secondary small" data-draft-reminder="${r.ledger.id}|${r.invoice.voucherId}" title="Draft a payment reminder for this invoice" style="flex-shrink:0;">✉ Draft</button>
             </div>
           `).join('')}
         </div>
-        <p class="muted" style="font-size:10.5px;padding:8px 14px 12px;">Blends outstanding amount, days overdue, and credit-limit risk into a local ranking — click any row for that party's full ledger.</p>
+        <p class="muted" style="font-size:10.5px;padding:8px 14px 12px;">Blends outstanding amount, days overdue, and credit-limit risk into a local ranking — click a row for that party's full ledger, or "Draft" for a ready-to-copy reminder.</p>
         ` : `<div class="empty">Nothing overdue to prioritize.</div>`}
+      </div>
+    </div>
+  `;
+}
+// Drafts a ready-to-copy payment-reminder message for one Collections Priority row -- text only,
+// never sent: this app has no outbound email/SMS capability, so the feature is strictly "draft, then
+// the user copies it into whatever they actually send from" (their own email client, WhatsApp, etc.),
+// the same draft-and-review posture as every other AI feature here (agentic voucher drafting still
+// needs an explicit Save; this needs an explicit copy-and-paste-elsewhere).
+function draftCollectionsReminderText(row){
+  const partyName = row.ledger.name;
+  const amount = fmt(row.invoice.remaining);
+  const invoiceNo = salesVoucherInvoiceNumber({ id: row.invoice.voucherId, date: row.invoice.date });
+  const fromName = (typeof currentCompany!=='undefined' && currentCompany && currentCompany.name) ? currentCompany.name : '';
+  return `Subject: Payment Reminder — Invoice ${invoiceNo} (₹${amount})
+
+Dear ${partyName},
+
+This is a friendly reminder that invoice ${invoiceNo}, dated ${row.invoice.date}, for ₹${amount}, was due on ${row.dueDate} and is now ${row.daysOverdue} day${row.daysOverdue===1?'':'s'} overdue.
+
+Could you please arrange payment at your earliest convenience? If it has already been sent, do let us know the reference so we can reconcile it on our end.
+
+Thank you,${fromName?`\n${fromName}`:''}`;
+}
+function collectionsReminderModal(){
+  if(!collectionsReminderDraft) return '';
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:480px;">
+        <div class="panel-head"><h2>✉ Draft Reminder — ${escapeHtml(collectionsReminderDraft.partyName)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-top:0;">Drafted locally from this invoice's details — nothing is sent from here. Copy it into your email, WhatsApp, or wherever you follow up.</p>
+          <textarea id="collectionsReminderText" readonly rows="10" style="width:100%;font-size:12.5px;font-family:inherit;padding:10px;border:1px solid var(--border,#E1E7E3);border-radius:8px;resize:vertical;">${escapeHtml(collectionsReminderDraft.text)}</textarea>
+          <button class="btn" id="collectionsReminderCopyBtn" type="button" style="margin-top:10px;">Copy to Clipboard</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// ---- Party Risk Dashboard -- generalizes collectionsPriorityList()'s single amount×days-overdue
+// formula into a fuller, locally-computed risk picture for EVERY customer and supplier with an open
+// balance (not just those currently overdue), blending four signals:
+//   - payment timing vs credit terms (customers only -- how far past their own Credit Period their
+//     currently-open invoices already run, via the same partyAgeing() ageing this app's AR reports use)
+//   - concentration risk (this one party's share of total receivables, or total payables)
+//   - over credit-limit (reuses the same creditLimit field the voucher form's own warning checks)
+//   - missing GSTIN on GST-bearing invoices (per-party version of dashboardExceptionQueue()'s global check)
+//   - duplicate-payment history (retrospective count of near-duplicate vouchers against this party,
+//     same shape as duplicatePaymentWarningFor()'s save-time check, counted after the fact)
+// Pure read-only scoring -- nothing here changes any data.
+function partyHasMissingGstin(ledgerId){
+  const l = ledgerOf(ledgerId);
+  if(!l || l.gstin) return false;
+  return state.vouchers.some(v=>{
+    if((v.type!=='Sales' && v.type!=='Purchase') || !v.entries.some(e=>e.ledgerId===ledgerId)) return false;
+    let g; try{ g = gstBreakdownForVoucher(v); }catch(e){ return false; }
+    return g && g.totalTax>0;
+  });
+}
+function partyDuplicateGuardTrips(ledgerId){
+  const l = ledgerOf(ledgerId);
+  if(!l) return 0;
+  const types = l.partyType==='supplier' ? ['Payment','Purchase'] : ['Sales'];
+  const relevant = state.vouchers.filter(v=> types.includes(v.type) && v.date && v.entries.some(e=>e.ledgerId===ledgerId));
+  let trips = 0;
+  const claimed = new Set();
+  for(const v of relevant){
+    if(claimed.has(v.id)) continue;
+    const amt = voucherAmount(v);
+    if(!amt) continue;
+    const dupes = relevant.filter(o=> o.id!==v.id && !claimed.has(o.id) && Math.abs(voucherAmount(o)-amt)<0.005 && Math.abs(new Date(o.date+'T00:00:00')-new Date(v.date+'T00:00:00'))/86400000<=3);
+    if(dupes.length){ [v,...dupes].forEach(x=>claimed.add(x.id)); trips += dupes.length; }
+  }
+  return trips;
+}
+function partyRiskList(){
+  const parties = state.ledgers.filter(l=>l.partyType==='customer'||l.partyType==='supplier');
+  const customerTotal = parties.filter(l=>l.partyType==='customer').reduce((s,l)=>s+Math.max(0,ledgerBalance(l.id)),0);
+  const supplierTotal = parties.filter(l=>l.partyType==='supplier').reduce((s,l)=>s+Math.max(0,-ledgerBalance(l.id)),0);
+  return parties.map(l=>{
+    const isCustomer = l.partyType==='customer';
+    const outstanding = isCustomer ? Math.max(0, ledgerBalance(l.id)) : Math.max(0, -ledgerBalance(l.id));
+    const pool = isCustomer ? customerTotal : supplierTotal;
+    const concentration = pool>0 ? outstanding/pool : 0;
+
+    let timingRisk = 0, avgDaysPastTerms = 0;
+    if(isCustomer){
+      const ageing = partyAgeing(l.id);
+      if(ageing.length){
+        const creditDays = l.creditDays || 30;
+        const pastTerms = ageing.map(r=>Math.max(0, r.ageDays-creditDays));
+        avgDaysPastTerms = pastTerms.reduce((a,b)=>a+b,0)/pastTerms.length;
+        timingRisk = Math.min(1, avgDaysPastTerms/60);
+      }
+    }
+    const overLimit = l.creditLimit ? outstanding > l.creditLimit : false;
+    const missingGstin = partyHasMissingGstin(l.id);
+    const dupeTrips = partyDuplicateGuardTrips(l.id);
+    const score = r2(
+      40*timingRisk +
+      25*Math.min(1, concentration/0.35) +
+      15*(overLimit?1:0) +
+      10*(missingGstin?1:0) +
+      10*Math.min(1, dupeTrips/2)
+    );
+    return { ledger:l, isCustomer, outstanding, concentration, timingRisk, avgDaysPastTerms, overLimit, missingGstin, dupeTrips, score };
+  }).filter(r=> r.outstanding>0.005 || r.missingGstin || r.dupeTrips>0)
+    .sort((a,b)=> b.score-a.score);
+}
+function partyRiskLevel(score){
+  if(score>=50) return { label:'High', style:'background:var(--debit-bg);color:var(--debit);' };
+  if(score>=25) return { label:'Medium', style:'background:#FCEFD9;color:#8a5a00;' };
+  return { label:'Low', style:'background:var(--credit-bg);color:var(--credit);' };
+}
+function partyRiskCard(){
+  const rows = partyRiskList().slice(0,6);
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>🛡️ Party Risk Dashboard</h2><span class="viz-sub">Timing, concentration &amp; compliance, blended</span></div>
+      <div class="panel-body" style="padding:${rows.length?'0':'16px'};">
+        ${rows.length ? `
+        <div style="display:flex;flex-direction:column;">
+          ${rows.map((r,i)=>{ const lvl = partyRiskLevel(r.score); return `
+            <div data-open-party="${r.ledger.id}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);">
+              <span style="font-weight:700;font-size:12px;color:var(--muted);width:16px;">${i+1}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.ledger.name)} <span class="pill" style="font-size:9.5px;${lvl.style}">${lvl.label}</span></div>
+                <div class="muted" style="font-size:11px;">${r.isCustomer?'Customer':'Supplier'} · ₹${fmt(r.outstanding)} outstanding${r.overLimit?' · over limit':''}${r.missingGstin?' · GSTIN missing':''}</div>
+              </div>
+              <div style="text-align:right;font-weight:700;font-size:13px;">${r.score}</div>
+            </div>
+          `;}).join('')}
+        </div>
+        <p class="muted" style="font-size:10.5px;padding:8px 14px 12px;">Blends payment timing vs credit terms, receivable/payable concentration, credit-limit &amp; GSTIN compliance, and duplicate-payment history into one local score — click any row for that party's ledger, or <span class="linklike" style="cursor:pointer;" id="openPartyRiskModalBtn">see the full breakdown</span>.</p>
+        ` : `<div class="empty">No customers or suppliers with an open balance yet.</div>`}
+      </div>
+    </div>
+  `;
+}
+function partyRiskModal(){
+  const rows = partyRiskList();
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:760px;max-width:96vw;">
+        <div class="panel-head"><h2>🛡️ Party Risk Dashboard</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body" style="max-height:70vh;overflow-y:auto;">
+          <p class="muted" style="font-size:12px;margin-top:0;">Score blends: payment timing vs credit terms (40%), receivable/payable concentration (25%), over credit-limit (15%), missing GSTIN (10%), duplicate-payment history (10%) — all computed locally from your own ledgers.</p>
+          ${rows.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse;">
+            <tr><th style="text-align:left;padding:6px;">Party</th><th style="text-align:left;padding:6px;">Type</th><th style="text-align:right;padding:6px;">Outstanding</th><th style="text-align:right;padding:6px;">Concentration</th><th style="text-align:left;padding:6px;">Flags</th><th style="text-align:right;padding:6px;">Score</th></tr>
+            ${rows.map(r=>{ const lvl = partyRiskLevel(r.score); return `
+            <tr data-open-party="${r.ledger.id}" style="cursor:pointer;border-top:1px solid var(--border);">
+              <td style="padding:6px;">${escapeHtml(r.ledger.name)}</td>
+              <td style="padding:6px;">${r.isCustomer?'Customer':'Supplier'}</td>
+              <td style="padding:6px;text-align:right;">₹${fmt(r.outstanding)}</td>
+              <td style="padding:6px;text-align:right;">${(r.concentration*100).toFixed(1)}%</td>
+              <td style="padding:6px;font-size:11px;">${[r.overLimit?'Over limit':'', r.missingGstin?'No GSTIN':'', r.dupeTrips?`${r.dupeTrips} dup match${r.dupeTrips===1?'':'es'}`:''].filter(Boolean).join(', ')||'—'}</td>
+              <td style="padding:6px;text-align:right;font-weight:700;"><span class="pill" style="${lvl.style}">${r.score} ${lvl.label}</span></td>
+            </tr>
+            `;}).join('')}
+          </table>` : `<div class="empty">No customers or suppliers with an open balance yet.</div>`}
+        </div>
       </div>
     </div>
   `;
@@ -13186,7 +13623,124 @@ function dashboardExceptionQueue(){
     });
   }
 
+  // 5) GL amount outliers -- a recent posting to an expense/purchase ledger well above that same
+  // ledger's own historical IQR upper fence (see glAmountOutliers below). Surfaced one item per
+  // ledger (its single largest recent outlier), so a genuinely erratic ledger doesn't flood the queue.
+  const amountOutliers = glAmountOutliers();
+  if(amountOutliers.length){
+    const byLedger = {};
+    for(const o of amountOutliers){ if(!byLedger[o.ledgerId] || o.amount>byLedger[o.ledgerId].amount) byLedger[o.ledgerId] = o; }
+    const worst = Object.values(byLedger).sort((a,b)=>b.amount-a.amount)[0];
+    const count = Object.keys(byLedger).length;
+    items.push({
+      id:'gl-outlier-'+worst.voucherId, severity:'warn', icon:'📊',
+      text: `₹${fmt(worst.amount)} posted to <b>${escapeHtml(worst.ledgerName)}</b> on ${worst.date} is well above its usual range (typically around ₹${fmt(worst.typical)})${count>1?` — ${count} ledgers have an unusual recent posting`:''}`,
+      action: ()=>{ if(openVoucherForEditing(worst.voucherId)){ modal=null; render(); } },
+    });
+  }
+
+  // 6) First-time large party -- a brand-new customer/supplier's very first invoice/bill is unusually
+  // large compared to other parties' opening transactions (glFirstTimeLargeParties below) -- worth a
+  // second look before there's any track record to judge it against.
+  const firstTimeLarge = glFirstTimeLargeParties();
+  if(firstTimeLarge.length){
+    const worst = firstTimeLarge.sort((a,b)=>b.amount-a.amount)[0];
+    items.push({
+      id:'gl-first-large-'+worst.voucherId, severity:'info', icon:'🆕',
+      text: `First-ever ${worst.type.toLowerCase()} with <b>${escapeHtml(worst.ledgerName)}</b> is ₹${fmt(worst.amount)} — unusually large for a new party's opening transaction`,
+      action: ()=>{ partyDetailLedgerId = worst.ledgerId; modal = 'partyDetail'; render(); },
+    });
+  }
+
+  // 7) Unusual daily posting volume -- a day with far more vouchers than this company's own typical
+  // daily count (glUnusualPostingDays below), e.g. a bulk backdated import worth a sanity check.
+  const busyDays = glUnusualPostingDays();
+  if(busyDays.length){
+    const worst = busyDays.sort((a,b)=>b.count-a.count)[0];
+    items.push({
+      id:'gl-busy-day-'+worst.date, severity:'info', icon:'📅',
+      text: `${worst.count} vouchers were posted on ${worst.date} — well above the usual ~${Math.round(worst.mean)} a day`,
+      action: ()=>{ daybookSearchQuery = worst.date; goToTab('daybook'); },
+    });
+  }
+
   return items;
+}
+// ---- GL anomaly / outlier detection -- three purely-statistical checks over the existing voucher
+// ledger (interquartile-range fences and simple mean/stddev), no ML model and no external API, in the
+// same spirit as every other "AI" feature in this file. Feeds dashboardExceptionQueue() above; nothing
+// here changes or blocks any data, it only surfaces things worth a look.
+function iqrBounds(values){
+  const sorted = values.slice().sort((a,b)=>a-b);
+  const n = sorted.length;
+  if(n<4) return null;
+  const q1 = sorted[Math.floor(n*0.25)];
+  const q3 = sorted[Math.floor(n*0.75)];
+  const iqr = q3-q1;
+  return { q1, q3, iqr, upper: q3 + 1.5*iqr };
+}
+function glAmountOutliers(){
+  const today = new Date().toISOString().slice(0,10);
+  const cutoff = addDays(today, -30);
+  const byLedger = {}; // ledgerId -> {name, postings:[{voucherId,date,amount}]}
+  for(const v of state.vouchers){
+    if(!v.date) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || !['purch','dexp','iexp'].includes(bucketOf(l))) continue;
+      const amt = (e.dr||0)-(e.cr||0);
+      if(amt<=0) continue;
+      (byLedger[l.id] = byLedger[l.id]||{name:l.name, postings:[]}).postings.push({voucherId:v.id, date:v.date, amount:amt});
+    }
+  }
+  const flags = [];
+  for(const ledgerId in byLedger){
+    const { name, postings } = byLedger[ledgerId];
+    if(postings.length<6) continue; // need enough history for IQR to be meaningful
+    const bounds = iqrBounds(postings.map(p=>p.amount));
+    if(!bounds || bounds.iqr<=0) continue;
+    for(const p of postings){
+      if(p.date < cutoff) continue; // only surface recent postings, not old history
+      if(p.amount > bounds.upper && p.amount > bounds.q3*1.5){
+        flags.push({ ledgerId, ledgerName:name, voucherId:p.voucherId, date:p.date, amount:p.amount, typical:bounds.q3 });
+      }
+    }
+  }
+  return flags;
+}
+function glFirstTimeLargeParties(){
+  const firstTxn = {}; // ledgerId -> {date, voucherId, amount, type, ledgerName, ledgerId}
+  for(const v of state.vouchers){
+    if(!v.date || (v.type!=='Sales' && v.type!=='Purchase')) continue;
+    const partyEntry = v.entries.find(e=> v.type==='Sales' ? e.dr>0 : e.cr>0);
+    if(!partyEntry) continue;
+    const l = ledgerOf(partyEntry.ledgerId);
+    if(!l || (l.partyType!=='customer' && l.partyType!=='supplier')) continue;
+    const amt = voucherAmount(v);
+    const existing = firstTxn[l.id];
+    if(!existing || v.date<existing.date){ firstTxn[l.id] = { date:v.date, voucherId:v.id, amount:amt, type:v.type, ledgerName:l.name, ledgerId:l.id }; }
+  }
+  const firsts = Object.values(firstTxn);
+  if(firsts.length<5) return [];
+  const bounds = iqrBounds(firsts.map(f=>f.amount));
+  if(!bounds || bounds.iqr<=0) return [];
+  const today = new Date().toISOString().slice(0,10);
+  const cutoff = addDays(today, -30);
+  return firsts.filter(f=> f.date>=cutoff && f.amount>bounds.upper && f.amount>bounds.q3*1.5);
+}
+function glUnusualPostingDays(){
+  const counts = {}; // date -> count
+  for(const v of state.vouchers){ if(v.date) counts[v.date] = (counts[v.date]||0)+1; }
+  const dates = Object.keys(counts);
+  if(dates.length<10) return [];
+  const values = dates.map(d=>counts[d]);
+  const mean = values.reduce((a,b)=>a+b,0)/values.length;
+  const variance = values.reduce((a,b)=>a+(b-mean)*(b-mean),0)/values.length;
+  const stddev = Math.sqrt(variance);
+  if(stddev<=0) return [];
+  const today = new Date().toISOString().slice(0,10);
+  const cutoff = addDays(today, -30);
+  return dates.filter(d=> d>=cutoff && counts[d] > mean + 3*stddev && counts[d] >= 8).map(d=>({ date:d, count:counts[d], mean }));
 }
 function dashboardExceptionQueueCard(){
   const items = dashboardExceptionQueue();
@@ -13427,6 +13981,8 @@ function viewDashboard(){
       ${isDashboardSectionVisible('cashForecast') ? `<div style="flex:1;">${cashFlowForecastCard()}</div>` : ''}
       ${isDashboardSectionVisible('collections') ? `<div style="flex:1;">${collectionsPriorityCard()}</div>` : ''}
     </div>` : ''}
+
+    ${isDashboardSectionVisible('partyRisk') ? partyRiskCard() : ''}
 
     ${pinnedTilesSection()}
 
@@ -14386,6 +14942,14 @@ function monthEndCloseChecklistItems(){
     action: ()=>{ modal=null; goToTab('reconcile'); },
   });
 
+  const duePrepaid = duePrepaidAmortizations();
+  items.push({
+    id:'prepaid-amortization', icon:'🗓', title:'Post due prepaid-expense amortization',
+    status: duePrepaid.length ? 'pending' : 'done',
+    detail: duePrepaid.length ? `${duePrepaid.length} prepaid amortization${duePrepaid.length===1?'':'s'} ${duePrepaid.length===1?'is':'are'} due to be recognized this month.` : 'No prepaid-expense amortizations due right now.',
+    action: ()=>{ modal='prepaidDue'; render(); },
+  });
+
   return items;
 }
 function closeChecklistModal(){
@@ -15074,6 +15638,28 @@ function suggestLedgerForNarration(text, excludeLedgerIds){
   for(const id in tally){ if(!best || tally[id].count>best.count) best = {ledgerId:id, name:tally[id].name, count:tally[id].count}; }
   return (best && best.count>=2) ? best : null;
 }
+// Wires the app's existing suggestGroupForLedgerName() word-overlap heuristic (already shipped for
+// the Ledgers tab's full-page "New Ledger" form -- see updateLedgerGroupSuggestion()) into the two
+// modal-based ledger flows that didn't have it: the "quick add ledger from inside a Voucher" modal and
+// the Alter Ledger modal. As the user types, if existing ledgers with similar-sounding names suggest a
+// Group different from what's currently selected, shows a one-line "Use this" hint under the name
+// field. Deliberately DOM-only (no render() call) so it updates live on every keystroke without losing
+// focus or cursor position -- and purely a suggestion, never applied automatically.
+function wireLedgerGroupSuggestion(nameInputId, groupSelectId, hintId){
+  const nameInput = document.getElementById(nameInputId);
+  const groupSelect = document.getElementById(groupSelectId);
+  const hint = document.getElementById(hintId);
+  if(!nameInput || !groupSelect || !hint) return;
+  nameInput.addEventListener('input', ()=>{
+    const suggestion = suggestGroupForLedgerName(nameInput.value);
+    if(!suggestion || suggestion.groupId===groupSelect.value){ hint.innerHTML=''; return; }
+    hint.innerHTML = `💡 Ledgers like this are usually filed under <b>${escapeHtml(suggestion.name)}</b>. <span class="linklike" style="cursor:pointer;" data-apply-group-suggestion="1">Use this</span>`;
+    hint.querySelector('[data-apply-group-suggestion]')?.addEventListener('click', ()=>{
+      groupSelect.value = suggestion.groupId;
+      hint.innerHTML = '';
+    });
+  });
+}
 // Ghost-text amount suggestion for the Single Entry voucher form (predictive smart defaults): finds
 // the closest matching prior voucher -- preferring one that actually touches the already-picked
 // counterparty ledger, then falling back to narration word overlap (same heuristic as
@@ -15583,6 +16169,7 @@ function quickAddLedgerModal(){
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;margin-top:0;">Create a ledger without leaving this voucher — it'll be picked automatically for the field you came from.</p>
           <div class="field"><label>Ledger Name</label><input type="text" id="quickLedgerName" placeholder="e.g. Electricity Expense"></div>
+          <div id="quickLedgerGroupHint" style="font-size:11px;margin:-6px 0 10px;min-height:14px;"></div>
           <div class="row">
             <div class="field"><label>Under Group</label>
               <select id="quickLedgerGroup">${groupOptionsHtml()}</select>
@@ -15672,7 +16259,9 @@ function alterLedgerModal(){
         <div class="panel-body">
           ${editing ? `<p class="muted" style="font-size:12px;margin-top:0;">Renaming or re-grouping updates every statement, report and voucher that already references this ledger — nothing else needs to change.</p>` : ''}
           <div class="row">
-            <div class="field"><label>Ledger Name</label><input type="text" id="alterLedgerName" value="${escapeAttr(l?l.name:'')}" placeholder="e.g. Electricity Expense"></div>
+            <div class="field"><label>Ledger Name</label><input type="text" id="alterLedgerName" value="${escapeAttr(l?l.name:'')}" placeholder="e.g. Electricity Expense">
+              <div id="alterLedgerGroupHint" style="font-size:11px;margin-top:4px;min-height:14px;"></div>
+            </div>
             <div class="field"><label>Under Group</label>
               <select id="alterLedgerGroup">${groupOptionsHtml(l?l.group:undefined)}</select>
             </div>
@@ -16781,6 +17370,7 @@ function viewDaybook(){
     rows = rows.filter(v=> v.date >= b.start && v.date <= b.end);
   }
   const dueRecurringCount = dueRecurringTemplates(new Date().toISOString().slice(0,10)).length;
+  const duePrepaidCount = duePrepaidAmortizations().length;
   const voucherTypes = Array.from(new Set(rows.map(v=>v.type))).sort();
   const totalDr = rows.reduce((s,v)=>s+v.entries.reduce((a,e)=>a+(Number(e.dr)||0),0),0);
   const monthStr = new Date().toISOString().slice(0,7);
@@ -16812,6 +17402,7 @@ function viewDaybook(){
           ${voucherTypes.map(t=>`<option value="${escapeAttr(t)}" ${daybookTypeFilter===t?'selected':''}>${t}</option>`).join('')}
         </select>
         <button class="btn secondary small" id="openRecurringBtn" type="button">🔁 Recurring Vouchers${dueRecurringCount?` — ${dueRecurringCount} due`:''}</button>
+        <button class="btn secondary small" id="openPrepaidDueBtn" type="button">🗓 Prepaid Amortization${duePrepaidCount?` — ${duePrepaidCount} due`:''}</button>
       </div>
     </div>
     <div class="panel">
@@ -16828,7 +17419,7 @@ function viewDaybook(){
               return e.dr ? `${name} Dr` : `${name} Cr`;
             }).join(', ')}</td>
             <td class="num">₹${fmt(voucherAmount(v))}</td>
-            <td><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button></td>
+            <td><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}</td>
           </tr>`).join('')}
         </table>` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
       </div>
@@ -19063,6 +19654,90 @@ function gstMonthCompareCard(){
     </div>
   `;
 }
+// ---- GST Return Readiness -- a periodic GSTR-1/3B-style summary (output tax collected vs input
+// credit claimed, for one calendar month) cross-checked against the two things that actually block a
+// clean filing: a GST-bearing voucher whose party has no GSTIN on file, and a Sales line item with no
+// HSN linked. Reuses gstBreakdownForVoucher()/voucherHSNSplits() -- the exact functions the live GST
+// Summary panel and the e-Invoice JSON builder already use -- so these figures always agree with the
+// rest of the GST tab; this only adds the period filter and the readiness checklist on top.
+function gstReturnReadinessData(monthKey){
+  const inMonth = d => (d||'').startsWith(monthKey);
+  const sales = state.vouchers.filter(v=>v.type==='Sales' && inMonth(v.date));
+  const purchases = state.vouchers.filter(v=>v.type==='Purchase' && inMonth(v.date));
+
+  let outputTax=0, inputCredit=0, taxableOutward=0, taxableInward=0, salesCount=0, purchaseCount=0;
+  const missingGstinVouchers = [];
+  const missingHsnVouchers = [];
+
+  for(const v of sales){
+    const g = gstBreakdownForVoucher(v);
+    if(g.totalTax<=0) continue;
+    salesCount++;
+    outputTax += g.totalTax;
+    const invoice = voucherAmount(v);
+    const taxable = invoice - g.totalTax;
+    taxableOutward += taxable;
+    const partyEntry = v.entries.find(e=>e.dr>0);
+    const party = partyEntry ? ledgerOf(partyEntry.ledgerId) : null;
+    if(party && !party.gstin) missingGstinVouchers.push({ voucherId:v.id, date:v.date, partyName:party.name, type:'Sales' });
+    const splits = voucherHSNSplits(v, g, taxable);
+    if(splits.some(s=>s.hsn==='(HSN not recorded)')) missingHsnVouchers.push({ voucherId:v.id, date:v.date, type:'Sales' });
+  }
+  for(const v of purchases){
+    const g = gstBreakdownForVoucher(v);
+    if(g.totalTax<=0) continue;
+    purchaseCount++;
+    inputCredit += g.totalTax;
+    const invoice = voucherAmount(v);
+    taxableInward += invoice - g.totalTax;
+    const partyEntry = v.entries.find(e=>e.cr>0);
+    const party = partyEntry ? ledgerOf(partyEntry.ledgerId) : null;
+    if(party && !party.gstin) missingGstinVouchers.push({ voucherId:v.id, date:v.date, partyName:party.name, type:'Purchase' });
+  }
+
+  return {
+    monthKey, taxableOutward:r2(taxableOutward), taxableInward:r2(taxableInward),
+    outputTax:r2(outputTax), inputCredit:r2(inputCredit), net:r2(outputTax-inputCredit),
+    salesCount, purchaseCount, missingGstinVouchers, missingHsnVouchers,
+    ready: missingGstinVouchers.length===0 && missingHsnVouchers.length===0 && (salesCount+purchaseCount)>0,
+  };
+}
+function gstReadinessCard(){
+  const monthKey = gstReadinessMonth || new Date().toISOString().slice(0,7);
+  const monthsWithData = Array.from(new Set(state.vouchers.filter(v=>v.date).map(v=>v.date.slice(0,7)))).sort().reverse();
+  if(!monthsWithData.includes(monthKey)) monthsWithData.unshift(monthKey);
+  const d = gstReturnReadinessData(monthKey);
+  const issueCount = d.missingGstinVouchers.length + d.missingHsnVouchers.length;
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>🧾 GST Return Readiness</h2>
+        <select id="gstReadinessMonthPicker">
+          ${monthsWithData.map(m=>`<option value="${m}" ${m===monthKey?'selected':''}>${new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</option>`).join('')}
+        </select>
+      </div>
+      <div class="panel-body">
+        <div class="grid" style="margin-bottom:12px;">
+          <div class="stat"><div class="label">Taxable Outward</div><div class="val">₹${fmt(d.taxableOutward)}</div></div>
+          <div class="stat"><div class="label">Output Tax</div><div class="val neg">₹${fmt(d.outputTax)}</div></div>
+          <div class="stat"><div class="label">Input Credit</div><div class="val pos">₹${fmt(d.inputCredit)}</div></div>
+          <div class="stat"><div class="label">Net ${d.net>=0?'Payable':'Refundable'}</div><div class="val ${d.net>=0?'neg':'pos'}">₹${fmt(Math.abs(d.net))}</div></div>
+        </div>
+        <div class="muted" style="font-size:12px;margin-bottom:10px;">${d.salesCount} GST sales voucher${d.salesCount===1?'':'s'} · ${d.purchaseCount} GST purchase voucher${d.purchaseCount===1?'':'s'} this month.</div>
+        ${d.ready ? `
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:var(--credit-bg);color:var(--credit);font-size:13px;font-weight:600;">✓ Filing-ready — no missing GSTIN or HSN found for this month.</div>
+        ` : issueCount ? `
+          <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:6px;">⚠️ ${issueCount} thing${issueCount===1?'':'s'} to fix before filing:</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            ${d.missingGstinVouchers.map(x=>`<div data-edit-voucher="${x.voucherId}" style="cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface-strong,#EEF3EF);font-size:12px;display:flex;justify-content:space-between;"><span>${x.type} · ${x.date} · ${escapeHtml(x.partyName)}</span><b>No GSTIN on file</b></div>`).join('')}
+            ${d.missingHsnVouchers.map(x=>`<div data-edit-voucher="${x.voucherId}" style="cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface-strong,#EEF3EF);font-size:12px;display:flex;justify-content:space-between;"><span>${x.type} · ${x.date}</span><b>No HSN on a line item</b></div>`).join('')}
+          </div>
+          <p class="muted" style="font-size:10.5px;margin-top:8px;">Click any row to open that voucher — add the party's GSTIN under Ledgers, or link the item's HSN under Inventory Control.</p>
+        ` : `<div class="muted" style="font-size:12.5px;">No GST vouchers recorded for this month yet.</div>`}
+      </div>
+    </div>
+  `;
+}
 function viewGST(){
   const netGST = gstOutputTotal() - gstInputTotal();
   const outward = state.vouchers.filter(v=>v.type==='Sales').map(v=>({v, g:gstBreakdownForVoucher(v)})).filter(r=>r.g.totalTax>0);
@@ -19104,6 +19779,8 @@ function viewGST(){
     </div>
 
     ${gstShowMonthCompare ? gstMonthCompareCard() : ''}
+
+    ${gstReadinessCard()}
 
     <div class="section-title">Outward Supplies (Sales) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
@@ -20339,6 +21016,52 @@ function attachHandlers(){
     render();
   });
 
+  document.getElementById('openPrepaidDueBtn')?.addEventListener('click', ()=>{
+    modal = 'prepaidDue';
+    render();
+  });
+  document.querySelectorAll('[data-mark-prepaid]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      prepaidMarkDraft = { voucherId: el.dataset.markPrepaid, months: 3 };
+      modal = 'prepaidMark';
+      render();
+    });
+  });
+  if(modal==='prepaidMark'){
+    document.getElementById('prepaidMonthsInput')?.addEventListener('input', (e)=>{
+      if(!prepaidMarkDraft) return;
+      prepaidMarkDraft.months = e.target.value;
+      const v = state.vouchers.find(x=>x.id===prepaidMarkDraft.voucherId);
+      if(!v) return;
+      const months = Math.max(2, Math.min(60, Math.round(Number(e.target.value)||2)));
+      const monthly = r2(voucherAmount(v)/months);
+      const estimateEl = document.getElementById('prepaidMonthlyEstimate');
+      if(estimateEl) estimateEl.textContent = `≈ ₹${fmt(monthly)}/month for ${months} months.`;
+      const confirmBtn = document.getElementById('prepaidMarkConfirmBtn');
+      if(confirmBtn) confirmBtn.textContent = `Confirm — Defer ₹${fmt(r2(monthly*(months-1)))}`;
+    });
+    document.getElementById('prepaidMarkConfirmBtn')?.addEventListener('click', async ()=>{
+      if(!prepaidMarkDraft) return;
+      await markVoucherPrepaid(prepaidMarkDraft.voucherId, prepaidMarkDraft.months);
+      prepaidMarkDraft = null;
+      modal = null;
+      render();
+    });
+  }
+  if(modal==='prepaidDue'){
+    document.getElementById('postAllPrepaidBtn')?.addEventListener('click', async ()=>{
+      await postAllDuePrepaidAmortizations();
+      render();
+    });
+    document.querySelectorAll('[data-post-prepaid]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const [voucherId, monthKey] = el.dataset.postPrepaid.split('|');
+        await postPrepaidAmortization(voucherId, monthKey);
+        render();
+      });
+    });
+  }
+
   document.getElementById('daybookSearchInput')?.addEventListener('input', (e)=>{
     daybookSearchQuery = e.target.value;
     const caret = e.target.selectionStart;
@@ -20441,6 +21164,33 @@ function attachHandlers(){
       render();
     });
   });
+  // Collections Priority "Draft reminder" button sits inside a data-open-party row — stop the click
+  // from bubbling up and opening the party detail modal underneath it.
+  document.querySelectorAll('[data-draft-reminder]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [ledgerId, voucherId] = el.dataset.draftReminder.split('|');
+      const row = collectionsPriorityList().find(r=> r.ledger.id===ledgerId && r.invoice.voucherId===voucherId);
+      if(!row) return;
+      collectionsReminderDraft = { partyName: row.ledger.name, text: draftCollectionsReminderText(row) };
+      modal = 'collectionsReminder';
+      render();
+    });
+  });
+  document.getElementById('openPartyRiskModalBtn')?.addEventListener('click', ()=>{ modal = 'partyRisk'; render(); });
+  if(modal==='collectionsReminder'){
+    document.getElementById('collectionsReminderCopyBtn')?.addEventListener('click', async ()=>{
+      const text = collectionsReminderDraft ? collectionsReminderDraft.text : '';
+      try{
+        await navigator.clipboard.writeText(text);
+        toast('Reminder copied to clipboard', {type:'success'});
+      }catch(err){
+        const ta = document.getElementById('collectionsReminderText');
+        if(ta){ ta.focus(); ta.select(); }
+        toast('Select-all applied — copy with Ctrl/Cmd+C');
+      }
+    });
+  }
   if(view==='assets'){
     document.getElementById('newAssetBtn')?.addEventListener('click', ()=>{
       fixedAssetDraft = { name:'', ledgerId:'', cost:'', purchaseDate: new Date().toISOString().slice(0,10), usefulLifeYears:5, method:'SLM', salvageValue:0 };
@@ -22009,6 +22759,7 @@ function attachHandlers(){
     });
   }
   if(modal==='alterLedger'){
+    wireLedgerGroupSuggestion('alterLedgerName','alterLedgerGroup','alterLedgerGroupHint');
     document.getElementById('alterLedgerSubmit')?.addEventListener('click', async ()=>{
       const editing = alterLedgerId && alterLedgerId!=='new';
       const name = document.getElementById('alterLedgerName').value.trim();
@@ -22086,6 +22837,7 @@ function attachHandlers(){
   }
 
   if(modal==='quickAddLedger'){
+    wireLedgerGroupSuggestion('quickLedgerName','quickLedgerGroup','quickLedgerGroupHint');
     document.getElementById('quickAddLedgerSubmit')?.addEventListener('click', async (e)=>{
       const name = document.getElementById('quickLedgerName').value.trim();
       const group = document.getElementById('quickLedgerGroup').value;
@@ -22617,6 +23369,10 @@ function attachHandlers(){
       const s = currentCompany.invoiceSettings || {};
       invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', logoDataUrl: s.logoDataUrl||'' };
       modal = 'invoiceSettings';
+      render();
+    });
+    document.getElementById('gstReadinessMonthPicker')?.addEventListener('change', e=>{
+      gstReadinessMonth = e.target.value;
       render();
     });
   }
