@@ -20017,7 +20017,13 @@ function viewReconcile(){
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>Transactions up to ${reconcileDateLabel(asOfDate)}</h2></div>
+      <div class="panel-head">
+        <h2>Transactions up to ${reconcileDateLabel(asOfDate)}</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="btn secondary small" id="reconcileSelectAllBtn" type="button" ${summary.rows.length?'':'disabled'} title="Tick Cleared on every transaction below">☑ Select All</button>
+          <button class="btn secondary small" id="reconcileUncheckAllBtn" type="button" ${summary.rows.length?'':'disabled'} title="Untick Cleared on every transaction below">☐ Uncheck All</button>
+        </div>
+      </div>
       <div class="panel-body" style="padding:0;">
         <table>
           <tr><th>Date</th><th>Voucher</th><th>Narration</th><th class="num">Deposit (Dr)</th><th class="num">Payment (Cr)</th><th style="text-align:center;">Cleared</th></tr>
@@ -23444,6 +23450,24 @@ function attachHandlers(){
         toggleBankClear(reconcileLedgerId, el.dataset.clearVoucher, reconcileDraft.date);
         render();
       });
+    });
+    document.getElementById('reconcileSelectAllBtn')?.addEventListener('click', ()=>{
+      const asOf = reconcileDraft.date || new Date().toISOString().slice(0,10);
+      const rows = bankReconcileEntries(reconcileLedgerId, asOf);
+      const toClear = rows.filter(r=>!r.cleared);
+      if(!toClear.length){ toast('Everything is already ticked Cleared'); return; }
+      toClear.forEach(r=>toggleBankClear(reconcileLedgerId, r.voucherId, asOf));
+      toast(`Ticked Cleared on ${toClear.length} transaction${toClear.length===1?'':'s'}`);
+      render();
+    });
+    document.getElementById('reconcileUncheckAllBtn')?.addEventListener('click', ()=>{
+      const asOf = reconcileDraft.date || new Date().toISOString().slice(0,10);
+      const rows = bankReconcileEntries(reconcileLedgerId, asOf);
+      const toUncheck = rows.filter(r=>r.cleared);
+      if(!toUncheck.length){ toast('Nothing is ticked Cleared yet'); return; }
+      toUncheck.forEach(r=>toggleBankClear(reconcileLedgerId, r.voucherId, asOf));
+      toast(`Unticked Cleared on ${toUncheck.length} transaction${toUncheck.length===1?'':'s'}`);
+      render();
     });
     document.getElementById('saveReconcileBtn')?.addEventListener('click', ()=>{
       if(reconcileDraft.balance === '' || reconcileDraft.balance == null){ toast('Enter the statement closing balance first'); return; }
