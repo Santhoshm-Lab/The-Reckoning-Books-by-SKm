@@ -434,7 +434,63 @@
   .company-card-pin:hover{transform:scale(1.15);}
   .company-card-pin.is-pinned{color:var(--gold);}
   .company-card.is-pinned{border-color:var(--gold);}
-  .company-card-recency{margin-top:8px;font-size:10px;color:var(--ink-faint);font-weight:600;}
+  .company-card-recency{margin-top:8px;font-size:10px;color:var(--ink-faint);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* ---- Gateway 2026 round 2: grid/list toggle, sort control, quick-actions (⋮) menu and a
+     Getting Started checklist. All purely additive on top of the card grid above -- the existing
+     pin/search/keyboard-nav behaviour and every class above is untouched. ---- */
+  .gw-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .gw-view-toggle{display:flex;background:var(--surface-strong);border:1px solid var(--border);border-radius:9px;padding:2px;flex-shrink:0;}
+  .gw-view-toggle button{background:transparent;border:none;padding:6px 10px;border-radius:7px;cursor:pointer;color:var(--ink-faint);font-size:13px;line-height:1;transition:all .15s ease;}
+  .gw-view-toggle button.is-active{background:var(--surface);color:var(--accent1);box-shadow:0 1px 4px rgba(20,30,25,0.12);}
+  .gw-view-toggle button:hover:not(.is-active){color:var(--ink-soft);}
+  .gw-sort-select{width:auto;padding:7px 28px 7px 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:12px;font-weight:600;cursor:pointer;flex:0 0 auto;}
+  .gw-sort-select:focus{border-color:var(--accent1);outline:none;}
+
+  .company-card-menu-wrap{position:relative;}
+  .company-card-menu-btn{background:none;border:none;cursor:pointer;font-size:15px;line-height:1;color:var(--ink-faint);
+    opacity:0;transition:opacity .15s ease, color .15s ease, background .15s ease;padding:3px 5px;border-radius:6px;}
+  .company-card:hover .company-card-menu-btn, .company-card:focus-within .company-card-menu-btn, .company-card-menu-btn[aria-expanded="true"]{opacity:1;}
+  .company-card-menu-btn:hover{color:var(--ink);background:var(--surface-strong);}
+  .company-card-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:20;min-width:132px;background:var(--surface);
+    border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 12px 28px rgba(20,30,25,0.2);padding:5px;
+    animation:gwMenuPopIn .14s ease;}
+  @keyframes gwMenuPopIn{from{opacity:0;transform:translateY(-4px) scale(.97);}to{opacity:1;transform:none;}}
+  .company-card-menu button{display:flex;align-items:center;gap:7px;width:100%;background:none;border:none;text-align:left;
+    padding:7px 9px;border-radius:7px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .company-card-menu button:hover{background:var(--surface-strong);}
+  .company-card-menu button.is-danger{color:var(--debit);}
+  .company-card-menu button.is-danger:hover{background:rgba(217,58,58,0.1);}
+
+  /* List view: single-column rows instead of a card grid -- built as its own markup branch in
+     renderGateway() rather than reflowing the grid card with CSS alone, so each layout stays simple. */
+  .company-grid.is-list-view{display:flex;flex-direction:column;gap:9px;}
+  .company-card-row{display:flex;align-items:center;gap:14px;padding:11px 16px;}
+  .company-card-row::before{display:none;}
+  .company-card-row:hover{transform:translateX(3px);}
+  .company-card-row .company-card-icon{width:36px;height:36px;font-size:13px;border-radius:9px;flex-shrink:0;}
+  .company-card-row .company-card-body{flex:1;min-width:0;}
+  .company-card-row .company-card-name{font-size:13.5px;-webkit-line-clamp:1;}
+  .company-card-row .company-card-recency{margin-top:1px;font-size:10.5px;}
+  .company-card-row .company-card-badges{flex-shrink:0;margin:0;}
+  .company-card-row .company-card-stats{flex-shrink:0;margin:0;padding:0;border:none;gap:16px;}
+  .company-card-row .company-card-top-right{flex-shrink:0;}
+  .is-list-view .company-card-add{flex-direction:row;min-height:0;padding:11px 16px;justify-content:flex-start;}
+  .is-list-view .company-card-add .gw-add-icon{width:36px;height:36px;font-size:17px;}
+
+  /* Getting Started checklist -- replaces the plain empty state for a brand-new account with zero
+     companies (existing search-empty / demo-account empty states are untouched). */
+  .gw-getting-started{grid-column:1/-1;max-width:480px;margin:0 auto;background:var(--surface);border:1px solid var(--border);
+    border-radius:16px;padding:22px 24px;}
+  .gw-gs-title{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:3px;}
+  .gw-gs-sub{font-size:12px;color:var(--ink-soft);margin-bottom:14px;}
+  .gw-gs-step{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-top:1px solid var(--border);}
+  .gw-gs-step:first-of-type{border-top:none;}
+  .gw-gs-step-num{width:24px;height:24px;border-radius:50%;background:var(--surface-strong);color:var(--ink-soft);
+    font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+  .gw-gs-step-body{flex:1;}
+  .gw-gs-step-title{font-size:13px;font-weight:700;color:var(--ink);}
+  .gw-gs-step-sub{font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
 
   /* Login / welcome screen */
   .login-shell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:calc(100vh - 50px);padding:40px 20px;}
@@ -548,6 +604,24 @@
   .login-card .btn.btn-busy::after{content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;animation:btnSpin .7s linear infinite;}
   .login-card .btn.secondary.btn-busy::after{border-color:rgba(20,30,25,0.25);border-top-color:var(--ink-soft);}
   @keyframes btnSpin{to{transform:rotate(360deg);}}
+
+  /* ---- Login 2026 round 2: sliding Log In / Sign Up switch, Caps Lock warning, password-suggest
+     and live match hint. All purely additive to the existing form -- submit-time validation, Firebase
+     calls and every existing id are untouched. ---- */
+  .auth-mode-switch{position:relative;display:flex;background:var(--surface-strong);border:1px solid var(--border);border-radius:999px;padding:3px;margin:16px 0 4px;}
+  .auth-mode-switch button{flex:1;position:relative;z-index:1;background:transparent;border:none;padding:9px 0;font-size:12.5px;font-weight:700;color:var(--ink-soft);border-radius:999px;cursor:pointer;transition:color .2s ease;font-family:inherit;}
+  .auth-mode-switch button.is-active{color:#fff;}
+  .auth-mode-switch button:hover:not(.is-active){color:var(--ink);}
+  .auth-mode-switch-thumb{position:absolute;top:3px;left:3px;width:calc(50% - 3px);height:calc(100% - 6px);background:linear-gradient(135deg,var(--accent1),var(--accent2));border-radius:999px;box-shadow:0 3px 10px rgba(44,160,28,0.32);transition:transform .28s cubic-bezier(.22,1,.36,1);}
+  .auth-mode-switch[data-mode="signup"] .auth-mode-switch-thumb{transform:translateX(100%);}
+  .auth-form-anim{animation:authFormIn .32s cubic-bezier(.22,1,.36,1);}
+  @keyframes authFormIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .caps-warning{display:flex;align-items:center;gap:5px;font-size:11px;color:#B97A1A;font-weight:700;margin-top:6px;}
+  .caps-warning[hidden]{display:none;}
+  [data-theme="dark"] .caps-warning{color:var(--gold);}
+  .pw-suggest-btn{background:none;border:none;padding:0;margin:0;font-family:inherit;font-size:11px;font-weight:700;color:var(--accent1);cursor:pointer;text-decoration:underline;}
+  .pw-suggest-btn:hover{color:var(--accent2);}
+  [data-theme="dark"] .pw-suggest-btn{color:var(--credit);}
 
   /* Menu dropdown (View) */
   .menu-dropdown{position:absolute;top:100%;left:0;margin-top:8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:0 12px 28px rgba(20,30,25,0.14);min-width:170px;z-index:60;overflow:hidden;text-align:left;}
@@ -2632,6 +2706,16 @@ let rememberMeChecked = true;
 let resetShowPassword = false;     // show/hide toggle state for this card's own password fields (kept separate from authShowPassword)
 let coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
+// Gateway 2026 round 2: grid/list toggle + sort mode are per-browser display preferences (same
+// localStorage convention as companyOpenedAt/companyPinned above); the quick-actions menu and
+// rename modal state are purely transient (never persisted).
+let gatewayViewMode = (function(){ try{ return localStorage.getItem('rb_gatewayViewMode')==='list' ? 'list' : 'grid'; }catch(e){ return 'grid'; } })();
+let gatewaySortMode = (function(){ try{ const m = localStorage.getItem('rb_gatewaySortMode'); return ['recent','name','ledgers','vouchers'].includes(m) ? m : 'recent'; }catch(e){ return 'recent'; } })();
+let gatewayCardMenuOpenId = null; // id of the company card whose quick-actions (⋮) menu is open, or null
+let companyRenameModalOpen = false;
+let renameCoDraft = { id:'', name:'' };
+let renameCoError = '';
+let renameCoBusy = false;
 let gatewaySearchQuery = '';        // live filter text for the Gateway screen's "Your Companies" grid
 let gatewayFocusedCoId = null;      // id of the company card holding keyboard focus, for roving-tabindex arrow-key navigation
 // Per-browser (localStorage, not synced) company recency + pinning for the Gateway screen — same
@@ -2648,13 +2732,19 @@ function toggleCompanyPinned(companyId){
   companyPinned = companyPinned.includes(companyId) ? companyPinned.filter(id=>id!==companyId) : [...companyPinned, companyId];
   try{ localStorage.setItem('rb_companyPinned', JSON.stringify(companyPinned)); }catch(e){}
 }
-// Pinned companies first (in the order they were pinned), then everything else by most-recently-
-// opened, then anything never opened in this browser keeps the original (server) order last.
-function sortCompaniesForGateway(list){
+// Pinned companies always come first (in the order they were pinned) regardless of sort mode --
+// pinning is a stronger, deliberate signal than any sort order. Within the unpinned remainder,
+// `mode` picks the ordering: 'recent' (default) is the original most-recently-opened-first
+// behaviour, 'name' is alphabetical, 'ledgers'/'vouchers' rank by count of each, most first.
+function sortCompaniesForGateway(list, mode){
+  mode = mode || 'recent';
   return list.slice().sort((a,b)=>{
     const aPin = companyPinned.includes(a.id), bPin = companyPinned.includes(b.id);
     if(aPin !== bPin) return aPin ? -1 : 1;
     if(aPin && bPin) return companyPinned.indexOf(a.id) - companyPinned.indexOf(b.id);
+    if(mode==='name') return (a.name||'').localeCompare(b.name||'');
+    if(mode==='ledgers') return (b.ledgers||[]).length - (a.ledgers||[]).length;
+    if(mode==='vouchers') return (b.vouchers||[]).length - (a.vouchers||[]).length;
     const aOpened = companyOpenedAt[a.id] || '', bOpened = companyOpenedAt[b.id] || '';
     if(aOpened !== bOpened) return bOpened.localeCompare(aOpened);
     return 0;
@@ -2674,6 +2764,20 @@ function relativeTimeAgo(iso){
   const days = Math.floor(hrs/24);
   if(days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+// "Last viewed: <tab>" caption for a Gateway card -- reads the SAME rb_lastTab_<companyId>
+// localStorage entry goToTab()/enterCompanyApp() already maintain for "resume where I left off"
+// (see those functions), so this adds no new data, just a human-readable label for what's already
+// tracked. CMDK_TABS (defined further down, alongside the command palette) is the app's own
+// canonical id -> label map for every tab, kept in sync with the sidebar by that comment's own
+// convention, so it's reused here rather than duplicating a second tab-name list.
+function lastViewedTabLabel(companyId){
+  try{
+    const id = localStorage.getItem('rb_lastTab_'+companyId);
+    if(!id) return '';
+    const tab = (typeof CMDK_TABS!=='undefined' ? CMDK_TABS : []).find(t=>t.id===id);
+    return tab ? tab.label : '';
+  }catch(e){ return ''; }
 }
 let modal = null;          // null | 'editCompany' | 'help' | 'isDetail'
 let lastAutofocusedModal = null; // tracks which modal autofocusModalIfNeeded() last moved focus for
@@ -10481,9 +10585,12 @@ function renderPasswordResetCard(){
     <input type="${pwType}" id="resetNewPassword" placeholder="New password" autocomplete="new-password">
     <button type="button" class="pw-toggle" id="resetTogglePw">${authFieldIcon(resetShowPassword?'eye-off':'eye')}</button>
   </div>
+  <div class="caps-warning" id="resetNewPasswordCapsWarn" hidden>⇪ Caps Lock is on</div>
   <div class="pw-strength" id="resetPwStrength" data-level="0"><div class="pw-strength-bar"><span></span><span></span><span></span><span></span></div><div class="pw-strength-label" id="resetPwStrengthLabel"></div></div>
   <label style="margin-top:12px;">Confirm New Password</label>
   <div class="field-wrap"><span class="field-icon">${authFieldIcon('lock')}</span><input type="${pwType}" id="resetConfirmPassword" placeholder="Re-enter new password" autocomplete="new-password"></div>
+  <div class="caps-warning" id="resetConfirmPasswordCapsWarn" hidden>⇪ Caps Lock is on</div>
+  <div class="field-hint" id="resetPwMatchHint"></div>
   ${passwordResetError ? `<p class="auth-error">${escapeHtml(passwordResetError)}</p>` : ''}
   <button class="btn ${passwordResetBusy?'btn-busy':''}" id="resetSubmitBtn" type="button" style="width:100%;margin-top:16px;" ${passwordResetBusy?'disabled':''}>${passwordResetBusy?'Updating…':'Set New Password →'}</button>
   `;
@@ -10537,6 +10644,131 @@ function wireAuthInlineValidation(){
   wireFieldHint('authUsername','authUsernameHint', isValidUsername, { valid:'Looks good', invalid:'Letters, numbers, dots, dashes and underscores only' });
   wireFieldHint('authMobile','authMobileHint', isValidMobile, { valid:'Looks good', invalid:'Enter exactly 10 digits' });
   wireFieldHint('authEmail','authEmailHint', isValidEmail, { valid:'Looks good', invalid:'Enter a valid email address' });
+}
+// ---- Login page 2026 round 2: Caps Lock warning, live password-match hint, a generated strong
+// password, and Enter-key submit/advance. All purely additive -- none of these change what
+// submitAuth()/submitPasswordReset() actually validate or send. ----
+function wireCapsLockWarning(inputId, warnId){
+  const input = document.getElementById(inputId);
+  const warn = document.getElementById(warnId);
+  if(!input || !warn) return;
+  const check = (e)=>{
+    const on = !!(e.getModifierState && e.getModifierState('CapsLock'));
+    warn.hidden = !on;
+  };
+  input.addEventListener('keydown', check);
+  input.addEventListener('keyup', check);
+  input.addEventListener('blur', ()=>{ warn.hidden = true; });
+}
+function wireAuthCapsLockWarnings(){
+  wireCapsLockWarning('authPassword','authPasswordCapsWarn');
+  wireCapsLockWarning('authConfirmPassword','authConfirmPasswordCapsWarn');
+  wireCapsLockWarning('resetNewPassword','resetNewPasswordCapsWarn');
+  wireCapsLockWarning('resetConfirmPassword','resetConfirmPasswordCapsWarn');
+}
+function wirePasswordMatchHint(pwId, confirmId, hintId){
+  const pwEl = document.getElementById(pwId);
+  const confirmEl = document.getElementById(confirmId);
+  const hint = document.getElementById(hintId);
+  if(!pwEl || !confirmEl || !hint) return;
+  const update = ()=>{
+    const c = confirmEl.value;
+    if(!c){ hint.textContent = ''; hint.className = 'field-hint'; return; }
+    const match = pwEl.value === c;
+    hint.textContent = match ? 'Passwords match' : "Passwords don't match";
+    hint.className = 'field-hint ' + (match ? 'is-valid' : 'is-invalid');
+  };
+  pwEl.addEventListener('input', update);
+  confirmEl.addEventListener('input', update);
+  update();
+}
+function wireAuthPasswordMatch(){
+  wirePasswordMatchHint('authPassword','authConfirmPassword','authPwMatchHint');
+  wirePasswordMatchHint('resetNewPassword','resetConfirmPassword','resetPwMatchHint');
+}
+// Cryptographically random, guaranteed-mixed-class password -- purely a convenience the person can
+// review and edit before submitting; the 6-character submit-time minimum in submitAuth() is
+// completely unaffected by whether this was used.
+function generateStrongPassword(len){
+  len = len || 14;
+  const sets = ['abcdefghijkmnpqrstuvwxyz','ABCDEFGHJKLMNPQRSTUVWXYZ','23456789','!@#$%^&*-_=+?'];
+  const all = sets.join('');
+  const randChar = (str)=>{ const a = new Uint32Array(1); crypto.getRandomValues(a); return str[a[0]%str.length]; };
+  const chars = sets.map(randChar);
+  while(chars.length < len) chars.push(randChar(all));
+  for(let i=chars.length-1;i>0;i--){ const a=new Uint32Array(1); crypto.getRandomValues(a); const j=a[0]%(i+1); const t=chars[i]; chars[i]=chars[j]; chars[j]=t; }
+  return chars.join('');
+}
+function wireAuthGeneratePassword(){
+  document.getElementById('authGeneratePwBtn')?.addEventListener('click', ()=>{
+    const pw = generateStrongPassword(14);
+    const pwEl = document.getElementById('authPassword');
+    const confirmEl = document.getElementById('authConfirmPassword');
+    if(!pwEl || !confirmEl) return;
+    // Same "mutate the live DOM node's .type in place, don't re-render" reasoning as authTogglePw's
+    // own handler -- these password fields carry no value="..." binding, so a renderLogin() here
+    // would silently discard the password we just generated.
+    authShowPassword = true;
+    pwEl.type = 'text'; confirmEl.type = 'text';
+    pwEl.value = pw; confirmEl.value = pw;
+    const toggleBtn = document.getElementById('authTogglePw');
+    if(toggleBtn) toggleBtn.innerHTML = authFieldIcon('eye-off');
+    pwEl.dispatchEvent(new Event('input', {bubbles:true}));
+    confirmEl.dispatchEvent(new Event('input', {bubbles:true}));
+    toast('Suggested a strong password — review it, then continue.');
+  });
+}
+// Enter on any field in `fieldIds` (in order) moves to the next one that actually exists in the DOM
+// right now (a template's fields differ by branch -- step 1 vs step 2, Google completion, etc.);
+// Enter on the last one clicks the given submit button, exactly as clicking it would. Never
+// intercepts Enter inside a <textarea> (multi-line fields want a literal newline).
+function wireEnterAdvance(fieldIds, submitBtnId){
+  const fields = fieldIds.map(id=>document.getElementById(id)).filter(Boolean);
+  fields.forEach((el, i)=>{
+    el.addEventListener('keydown', (e)=>{
+      if(e.key!=='Enter' || e.isComposing) return;
+      e.preventDefault();
+      const next = fields[i+1];
+      if(next){ next.focus(); if(next.select) try{ next.select(); }catch(err){} }
+      else{
+        const btn = document.getElementById(submitBtnId);
+        if(btn && !btn.disabled) btn.click();
+      }
+    });
+  });
+}
+// Exactly one of these branches' fields is ever actually in the DOM at a time (they're mutually
+// exclusive ternary branches in renderLogin() -- plain login vs. signup step 1 vs. signup step 2 vs.
+// Google completion), so this checks for each branch's own distinguishing element and wires only
+// that one chain, rather than wiring every possible chain and relying on missing-element no-ops --
+// two shared field ids across branches (e.g. authUsername/authPassword) made that ambiguous enough
+// to risk a premature submit before every field was filled.
+function wireAuthEnterKeyChains(){
+  if(document.getElementById('googleCompleteBtn')){
+    wireEnterAdvance(['googleName','googleUsername','googleMobile'], 'googleCompleteBtn');
+  }
+  if(document.getElementById('verifyEmailBtn')){
+    wireEnterAdvance(['authName','authUsername','authMobile','authEmail'], 'verifyEmailBtn');
+  }else if(document.getElementById('authConfirmPassword') && document.getElementById('authName')){
+    wireEnterAdvance(['authName','authUsername','authMobile','authPassword','authConfirmPassword'], 'authSubmitBtn');
+  }else if(document.getElementById('authConfirmPassword')){
+    wireEnterAdvance(['authPassword','authConfirmPassword'], 'authSubmitBtn');
+  }else if(document.getElementById('authUsername') && document.getElementById('authPassword')){
+    wireEnterAdvance(['authUsername','authPassword'], 'authSubmitBtn');
+  }
+  if(document.getElementById('resetSubmitBtn')){
+    wireEnterAdvance(['resetNewPassword','resetConfirmPassword'], 'resetSubmitBtn');
+  }
+}
+function wireAuthModeSwitch(){
+  const setMode = (mode)=>{
+    if(authMode===mode) return;
+    authMode = mode;
+    authError = '';
+    renderLogin();
+  };
+  document.getElementById('authModeSwitchLogin')?.addEventListener('click', ()=>setMode('login'));
+  document.getElementById('authModeSwitchSignup')?.addEventListener('click', ()=>setMode('signup'));
 }
 function renderLogin(){
   const app = document.getElementById('app');
@@ -10600,6 +10832,14 @@ function renderLogin(){
             <div class="login-logo">RB</div>
             <h1>The Reckoning Books</h1>
             <div class="login-by">by SKm</div>
+            ${!inPasswordReset && !googleAuthUser && !pendingVerifyUser && !verifyLinkAwaiting ? `
+            <div class="auth-mode-switch" data-mode="${isSignup?'signup':'login'}" role="tablist" aria-label="Choose log in or sign up">
+              <div class="auth-mode-switch-thumb"></div>
+              <button type="button" id="authModeSwitchLogin" class="${!isSignup?'is-active':''}" role="tab" aria-selected="${!isSignup}">Log In</button>
+              <button type="button" id="authModeSwitchSignup" class="${isSignup?'is-active':''}" role="tab" aria-selected="${isSignup}">Sign Up</button>
+            </div>
+            ` : ''}
+            <div class="auth-form-anim">
             ${inPasswordReset ? renderPasswordResetCard() : `
             ${isSignup && !inPasswordReset && !googleAuthUser ? `
             <div class="signup-step-indicator">
@@ -10662,15 +10902,21 @@ function renderLogin(){
             `}
             <p style="margin:6px 0 0;"><a id="signupStartOverLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Not you? Start over</a></p>
 
-            <label style="margin-top:12px;">Password</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+              <label style="margin:0;">Password</label>
+              <button type="button" id="authGeneratePwBtn" class="pw-suggest-btn">⚡ Suggest strong password</button>
+            </div>
             <div class="pw-field-wrap">
               <span class="field-icon">${authFieldIcon('lock')}</span>
               <input type="${pwType}" id="authPassword" placeholder="Create a password" autocomplete="new-password">
               <button type="button" class="pw-toggle" id="authTogglePw">${authFieldIcon(authShowPassword?'eye-off':'eye')}</button>
             </div>
+            <div class="caps-warning" id="authPasswordCapsWarn" hidden>⇪ Caps Lock is on</div>
             <div class="pw-strength" id="authPwStrength" data-level="0"><div class="pw-strength-bar"><span></span><span></span><span></span><span></span></div><div class="pw-strength-label" id="authPwStrengthLabel"></div></div>
             <label style="margin-top:12px;">Confirm Password</label>
             <div class="field-wrap"><span class="field-icon">${authFieldIcon('lock')}</span><input type="${pwType}" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password"></div>
+            <div class="caps-warning" id="authConfirmPasswordCapsWarn" hidden>⇪ Caps Lock is on</div>
+            <div class="field-hint" id="authPwMatchHint"></div>
 
             ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
 
@@ -10709,6 +10955,7 @@ function renderLogin(){
               <input type="${pwType}" id="authPassword" placeholder="Your password" autocomplete="current-password">
               <button type="button" class="pw-toggle" id="authTogglePw">${authFieldIcon(authShowPassword?'eye-off':'eye')}</button>
             </div>
+            <div class="caps-warning" id="authPasswordCapsWarn" hidden>⇪ Caps Lock is on</div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap;">
               <label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;font-weight:500;color:var(--ink-soft);margin:0;">
                 <input type="checkbox" id="rememberMeCheckbox" style="width:auto;" ${rememberMeChecked?'checked':''}> Remember me
@@ -10721,9 +10968,10 @@ function renderLogin(){
             <button class="btn" id="authSubmitBtn" type="button" style="width:100%;margin-top:16px;">Log In →</button>
             `}
 
-            <p class="auth-toggle-line">${isSignup ? 'Already have an account?' : 'New here?'} <a id="authToggleModeLink">${isSignup?'Log in':'Create one'}</a></p>
+            ${(pendingVerifyUser || verifyLinkAwaiting) ? `<p class="auth-toggle-line">${isSignup ? 'Already have an account?' : 'New here?'} <a id="authToggleModeLink">${isSignup?'Log in':'Create one'}</a></p>` : ''}
             `}
             `}
+            </div>
           </div>
           </div>
           <div class="login-footer">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
@@ -10988,9 +11236,9 @@ function renderLogin(){
     }
   };
   document.getElementById('googleCompleteBtn')?.addEventListener('click', googleComplete);
-  ['googleName','googleUsername','googleMobile'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') googleComplete(); });
-  });
+  // Enter-key advancing through Name -> Username -> Mobile -> submit is wireAuthEnterKeyChains()'s
+  // job now (see below) -- it advances field-by-field instead of submitting from whichever field
+  // Enter happened to be pressed in first, same fix as the signup-details block above.
   document.getElementById('googleMobile')?.addEventListener('input', (e)=>{
     e.target.value = e.target.value.replace(/\D/g,'').slice(0,10);
   });
@@ -11055,12 +11303,14 @@ function renderLogin(){
     renderLogin();
   };
   document.getElementById('verifyEmailBtn')?.addEventListener('click', onVerifyEmailClick);
-  ['authName','authUsername','authMobile','authEmail'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') onVerifyEmailClick(); });
-  });
-  ['authPassword','authConfirmPassword'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitAuth(); });
-  });
+  // Enter-key handling for every field on this screen (name/username/mobile/email -> Verify Email;
+  // password/confirm -> submit; etc.) is now wireAuthEnterKeyChains()'s job (see below, near the end
+  // of this wiring section) -- it's branch-aware, so Enter always advances through the fields that
+  // are actually on screen instead of jumping straight to submit/verify from any one of them. This
+  // block used to attach that same behaviour directly, but unconditionally on ids like authUsername/
+  // authEmail that are also reused by OTHER branches (e.g. the plain Log In form's authUsername),
+  // where onVerifyEmailClick has no business running at all -- a real bug wireAuthEnterKeyChains()
+  // fixes rather than duplicates.
   const resetSignupFlow = async ()=>{
     if(pendingVerifyUser){ try{ await fbAuth.signOut(); }catch(e){} }
     pendingVerifyUser = null; pendingVerifyEmail = ''; verifyLinkAwaiting = false; verifyLinkCooldownUntil = 0;
@@ -11152,9 +11402,8 @@ function renderLogin(){
     }
   };
   document.getElementById('resetSubmitBtn')?.addEventListener('click', submitPasswordReset);
-  ['resetNewPassword','resetConfirmPassword'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitPasswordReset(); });
-  });
+  // Enter-key advancing from New Password to Confirm New Password to submit is
+  // wireAuthEnterKeyChains()'s job now (see below), same fix as the two blocks above.
 
   document.getElementById('rememberMeCheckbox')?.addEventListener('change', (e)=>{ rememberMeChecked = e.target.checked; });
   document.getElementById('forgotPasswordLink')?.addEventListener('click', ()=>{
@@ -11200,6 +11449,11 @@ function renderLogin(){
 
   wireAuthPasswordStrength();
   wireAuthInlineValidation();
+  wireAuthCapsLockWarnings();
+  wireAuthPasswordMatch();
+  wireAuthGeneratePassword();
+  wireAuthEnterKeyChains();
+  wireAuthModeSwitch();
 
   if(forgotPasswordOpen){
     document.getElementById('forgotUsernameInput')?.focus();
@@ -11317,6 +11571,30 @@ function companyCreateModal(){
   </div>
   `;
 }
+// Lightweight rename-only modal for the Gateway's per-card quick-actions (⋮) menu -- deliberately
+// NOT the big editCompanyModal() (that form is built around editCoDraft/currentCompany state that
+// assumes a company is already open, and dragging it out-of-context onto the Gateway would risk
+// touching fields the user never meant to change). Mirrors companyCreateModal()'s own structure
+// (dedicated overlay/close ids, own boolean-open state var) so it stays consistent with that
+// established modal pattern.
+function companyRenameModal(){
+  return `
+  <div class="modal-overlay" id="renameCoModalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-card" style="width:420px;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>Rename Company</h2><button class="btn secondary small" id="closeRenameCoBtn" type="button">✕</button></div>
+      <div style="padding:18px;">
+        <label>Company Name</label>
+        <input type="text" id="renameCoInput" placeholder="Company name" value="${escapeAttr(renameCoDraft.name)}">
+        ${renameCoError ? `<p class="auth-error" style="margin-top:8px;">${escapeHtml(renameCoError)}</p>` : ''}
+        <div class="row" style="gap:10px;margin-top:16px;">
+          <button class="btn secondary" id="cancelRenameCoBtn" type="button" style="flex:1;">Cancel</button>
+          <button class="btn ${renameCoBusy?'btn-busy':''}" id="saveRenameCoBtn" type="button" style="flex:1;" ${renameCoBusy?'disabled':''}>${renameCoBusy?'Saving…':'Save'}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
 function renderGateway(){
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -11370,55 +11648,122 @@ function renderGateway(){
       ${(()=>{
         const allMyCompanies = visibleCompanies();
         const q = gatewaySearchQuery.trim().toLowerCase();
-        const myCompanies = sortCompaniesForGateway(q ? allMyCompanies.filter(c=>(c.name||'').toLowerCase().includes(q)) : allMyCompanies);
+        const myCompanies = sortCompaniesForGateway(q ? allMyCompanies.filter(c=>(c.name||'').toLowerCase().includes(q)) : allMyCompanies, gatewaySortMode);
+        const SORT_LABELS = { recent:'Recent', name:'Name A–Z', ledgers:'Most Ledgers', vouchers:'Most Vouchers' };
         return `
       <div class="gw-section-row">
         <div class="gw-section-title">Your Companies</div>
+        <div class="gw-toolbar">
         ${allMyCompanies.length > 1 ? `
         <div class="gw-search-wrap">
           <span class="gw-search-icon">🔎</span>
           <input type="text" id="gwCompanySearchInput" placeholder="Search your companies…" value="${escapeAttr(gatewaySearchQuery)}" autocomplete="off">
           ${gatewaySearchQuery ? `<button class="gw-search-clear" id="gwCompanySearchClear" type="button" title="Clear search">✕</button>` : ''}
         </div>` : ''}
+        ${allMyCompanies.length > 1 ? `
+        <select class="gw-sort-select" id="gwSortSelect" title="Sort companies">
+          ${Object.keys(SORT_LABELS).map(m=>`<option value="${m}" ${gatewaySortMode===m?'selected':''}>Sort: ${SORT_LABELS[m]}</option>`).join('')}
+        </select>` : ''}
+        ${allMyCompanies.length > 1 ? `
+        <div class="gw-view-toggle" role="group" aria-label="Grid or list view">
+          <button type="button" id="gwViewGrid" class="${gatewayViewMode==='grid'?'is-active':''}" aria-pressed="${gatewayViewMode==='grid'}" title="Grid view">⊞</button>
+          <button type="button" id="gwViewList" class="${gatewayViewMode==='list'?'is-active':''}" aria-pressed="${gatewayViewMode==='list'}" title="List view">☰</button>
+        </div>` : ''}
+        </div>
       </div>
-      <div class="company-grid">
+      <div class="company-grid${gatewayViewMode==='list'?' is-list-view':''}">
         ${myCompanies.map((c,i)=>{
           const initials = (c.name||'?').trim().slice(0,2).toUpperCase();
           const palette = ['linear-gradient(135deg,#2CA01C,#1E7A12)','linear-gradient(135deg,#F2994A,#C9701A)','linear-gradient(135deg,#4A90D9,#2563AD)','linear-gradient(135deg,#B15CDE,#7B3FA0)','linear-gradient(135deg,#E0546B,#B23350)','linear-gradient(135deg,#2FB6A6,#1D8377)'];
           const bg = palette[Math.abs((c.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
           const pinned = companyPinned.includes(c.id);
           const openedAgo = relativeTimeAgo(companyOpenedAt[c.id]);
+          const lastLabel = lastViewedTabLabel(c.id);
+          const recencyText = (openedAgo?`Opened ${openedAgo}`:'Not opened yet') + (lastLabel?` · Last viewed: ${lastLabel}`:'');
+          const badgesHtml = `${isSharedDemoId(c.id)?'<span class="pill pos">Sample</span>':''}${c.groupId?'<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}`;
+          // Rename/Delete are Gateway-only shortcuts, so they deliberately stay out of reach for the
+          // shared demo company (unless you're the full Administrator) and for demo sessions entirely --
+          // the exact same protection isReadOnlyMode()/canAccessCompany() give those elsewhere in the app.
+          const canQuickManage = !isDemoUser && (!isSharedDemoId(c.id) || isFullAdmin());
+          const menuOpen = gatewayCardMenuOpenId===c.id;
+          const actionsHtml = `
+                <button class="company-card-pin${pinned?' is-pinned':''}" data-pin-co="${c.id}" type="button" title="${pinned?'Unpin from top':'Pin to top'}" aria-label="${pinned?'Unpin':'Pin'} ${escapeAttr(c.name)}">${pinned?'★':'☆'}</button>
+                ${canQuickManage ? `
+                <div class="company-card-menu-wrap">
+                  <button class="company-card-menu-btn" data-menu-co="${c.id}" type="button" title="More actions" aria-label="More actions for ${escapeAttr(c.name)}" aria-haspopup="true" aria-expanded="${menuOpen}">⋮</button>
+                  ${menuOpen ? `
+                  <div class="company-card-menu" role="menu">
+                    <button type="button" data-rename-co="${c.id}" role="menuitem">✏️ Rename</button>
+                    <button type="button" data-delete-co="${c.id}" role="menuitem" class="is-danger">🗑️ Delete</button>
+                  </div>` : ''}
+                </div>` : ''}
+                <span class="company-card-arrow">→</span>`;
+          if(gatewayViewMode==='list'){
+            return `<div class="company-card company-card-row${pinned?' is-pinned':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*30}ms;">
+              <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
+              <div class="company-card-body">
+                <div class="company-card-name">${escapeHtml(c.name)}</div>
+                <div class="company-card-recency">${recencyText}</div>
+              </div>
+              ${badgesHtml ? `<div class="company-card-badges">${badgesHtml}</div>` : ''}
+              <div class="company-card-stats">
+                <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
+                <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
+              </div>
+              <div class="company-card-top-right">${actionsHtml}</div>
+            </div>`;
+          }
           return `<div class="company-card${pinned?' is-pinned':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*45}ms;">
             <div class="company-card-top">
               <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
-              <div class="company-card-top-right">
-                <button class="company-card-pin${pinned?' is-pinned':''}" data-pin-co="${c.id}" type="button" title="${pinned?'Unpin from top':'Pin to top'}" aria-label="${pinned?'Unpin':'Pin'} ${escapeAttr(c.name)}">${pinned?'★':'☆'}</button>
-                <span class="company-card-arrow">→</span>
-              </div>
+              <div class="company-card-top-right">${actionsHtml}</div>
             </div>
             <div class="company-card-name">${escapeHtml(c.name)}</div>
-            <div class="company-card-badges">
-              ${isSharedDemoId(c.id)?'<span class="pill pos">Sample</span>':''}
-              ${c.groupId?'<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}
-            </div>
+            <div class="company-card-badges">${badgesHtml}</div>
             <div class="company-card-stats">
               <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
               <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
             </div>
-            <div class="company-card-recency">${openedAgo?`Opened ${openedAgo}`:'Not opened yet'}</div>
+            <div class="company-card-recency">${recencyText}</div>
           </div>`;
         }).join('') || (allMyCompanies.length ? `
         <div class="gw-empty-state">
           <div class="gw-empty-icon">🔎</div>
           <div class="gw-empty-title">No companies match "${escapeHtml(gatewaySearchQuery)}"</div>
           <a id="gwCompanySearchClear2" style="cursor:pointer;color:var(--accent1);text-decoration:underline;font-size:12.5px;">Clear search</a>
-        </div>` : `
+        </div>` : (isDemoUser ? `
         <div class="gw-empty-state">
           <div class="gw-empty-icon">🏢</div>
           <div class="gw-empty-title">No companies yet</div>
-          <div class="gw-empty-sub">${isDemoUser ? 'This demo account explores a shared sample company only.' : 'Create your first company to start entering vouchers and tracking your books.'}</div>
-        </div>`)}
-        ${!isDemoUser ? `
+          <div class="gw-empty-sub">This demo account explores a shared sample company only.</div>
+        </div>` : `
+        <div class="gw-getting-started">
+          <div class="gw-gs-title">Let's get your books started</div>
+          <div class="gw-gs-sub">A few quick steps to set up Reckoning Books for your business.</div>
+          <div class="gw-gs-step">
+            <div class="gw-gs-step-num">1</div>
+            <div class="gw-gs-step-body">
+              <div class="gw-gs-step-title">Create your company</div>
+              <div class="gw-gs-step-sub">Name, address and financial year — takes under a minute.</div>
+            </div>
+          </div>
+          <div class="gw-gs-step">
+            <div class="gw-gs-step-num">2</div>
+            <div class="gw-gs-step-body">
+              <div class="gw-gs-step-title">Set up your ledgers</div>
+              <div class="gw-gs-step-sub">Cash, Bank, Capital and the accounts you deal with day to day.</div>
+            </div>
+          </div>
+          <div class="gw-gs-step">
+            <div class="gw-gs-step-num">3</div>
+            <div class="gw-gs-step-body">
+              <div class="gw-gs-step-title">Record your first voucher</div>
+              <div class="gw-gs-step-sub">A sale, a payment or a receipt — your books start moving.</div>
+            </div>
+          </div>
+          <button class="btn" id="gwGettingStartedCreateBtn" type="button" style="width:100%;margin-top:16px;">Create Your First Company →</button>
+        </div>`))}
+        ${!isDemoUser && allMyCompanies.length ? `
         <div class="company-card-add" id="openCreateCoBtn" tabindex="0" role="button" aria-label="Create a new company">
           <div class="gw-add-icon">+</div>
           <div class="gw-add-label">Create Company</div>
@@ -11438,6 +11783,7 @@ function renderGateway(){
     ${modal==='groupAdmin' && groupUserDetailId ? groupUserDetailModal() : ''}
     ${modal==='groupAdmin' && groupAddUserOpen ? groupAddUserModal() : ''}
     ${companyCreateModalOpen ? companyCreateModal() : ''}
+    ${companyRenameModalOpen ? companyRenameModal() : ''}
       </div>
     </div>
   `;
@@ -11471,6 +11817,63 @@ function renderGateway(){
     el.addEventListener('click', (e)=>{
       e.stopPropagation();
       toggleCompanyPinned(el.dataset.pinCo);
+      renderGateway();
+    });
+  });
+  // Grid/List toggle and Sort control are both per-browser display preferences, same convention as
+  // pinning above -- persisted to localStorage, re-rendered immediately, never touching the
+  // companies themselves or anyone else's view of them.
+  document.getElementById('gwViewGrid')?.addEventListener('click', ()=>{
+    if(gatewayViewMode==='grid') return;
+    gatewayViewMode = 'grid';
+    try{ localStorage.setItem('rb_gatewayViewMode','grid'); }catch(e){}
+    renderGateway();
+  });
+  document.getElementById('gwViewList')?.addEventListener('click', ()=>{
+    if(gatewayViewMode==='list') return;
+    gatewayViewMode = 'list';
+    try{ localStorage.setItem('rb_gatewayViewMode','list'); }catch(e){}
+    renderGateway();
+  });
+  document.getElementById('gwSortSelect')?.addEventListener('change', (e)=>{
+    gatewaySortMode = e.target.value;
+    try{ localStorage.setItem('rb_gatewaySortMode', gatewaySortMode); }catch(e){}
+    renderGateway();
+  });
+  document.getElementById('gwGettingStartedCreateBtn')?.addEventListener('click', ()=>{
+    companyCreateModalOpen = true;
+    renderGateway();
+  });
+  // Quick-actions (⋮) menu: toggling one closes any other (gatewayCardMenuOpenId holds at most one
+  // id at a time), and every item stopPropagation()s so it never also triggers the card's own
+  // "open this company" handler underneath it -- same convention as the pin button above.
+  document.querySelectorAll('[data-menu-co]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = el.dataset.menuCo;
+      gatewayCardMenuOpenId = gatewayCardMenuOpenId===id ? null : id;
+      renderGateway();
+    });
+  });
+  document.querySelectorAll('[data-rename-co]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = el.dataset.renameCo;
+      const c = companies.find(x=>x.id===id);
+      if(!c) return;
+      gatewayCardMenuOpenId = null;
+      renameCoDraft = { id, name: c.name || '' };
+      renameCoError = '';
+      companyRenameModalOpen = true;
+      renderGateway();
+    });
+  });
+  document.querySelectorAll('[data-delete-co]').forEach(el=>{
+    el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      gatewayCardMenuOpenId = null;
+      const id = el.dataset.deleteCo;
+      const ok = await deleteCompanyById(id);
       renderGateway();
     });
   });
@@ -11599,6 +12002,40 @@ function renderGateway(){
     await enterCompanyApp(company);
   });
   } // end if(companyCreateModalOpen)
+
+  if(companyRenameModalOpen){
+  const closeRenameModal = ()=>{ companyRenameModalOpen = false; renameCoError = ''; renderGateway(); };
+  document.getElementById('closeRenameCoBtn')?.addEventListener('click', closeRenameModal);
+  document.getElementById('cancelRenameCoBtn')?.addEventListener('click', closeRenameModal);
+  document.getElementById('renameCoModalOverlayBg')?.addEventListener('click', (e)=>{
+    if(e.target.id==='renameCoModalOverlayBg') closeRenameModal();
+  });
+  document.getElementById('renameCoInput')?.addEventListener('input', e=> renameCoDraft.name = e.target.value);
+  const submitRename = async ()=>{
+    const name = (document.getElementById('renameCoInput').value||'').trim();
+    if(!name){ renameCoError = 'Enter a company name.'; renderGateway(); document.getElementById('renameCoInput')?.focus(); return; }
+    const c = companies.find(x=>x.id===renameCoDraft.id);
+    if(!c){ closeRenameModal(); return; }
+    if(name === c.name){ closeRenameModal(); return; }
+    renameCoBusy = true;
+    renameCoError = '';
+    renderGateway();
+    try{
+      await db.collection('companies').doc(c.id).set({ name }, {merge:true});
+      c.name = name;
+      companyRenameModalOpen = false;
+      renameCoBusy = false;
+      toast('Company renamed');
+      renderGateway();
+    }catch(err){
+      renameCoBusy = false;
+      renameCoError = 'Could not rename the company — check your connection and try again.';
+      renderGateway();
+    }
+  };
+  document.getElementById('saveRenameCoBtn')?.addEventListener('click', submitRename);
+  document.getElementById('renameCoInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitRename(); });
+  }
 
   document.getElementById('dismissAnnouncementBtn')?.addEventListener('click', ()=>{
     announcementDismissed = true;
