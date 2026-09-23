@@ -248,7 +248,7 @@
     font-family:inherit;font-size:12.5px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--field);color:var(--ink);width:100%;transition:border-color .15s, box-shadow .15s;
   }
   textarea{resize:vertical;}
-  .pw-field-wrap input{padding-right:56px;}
+  .pw-field-wrap input{padding-right:44px;padding-left:36px;}
   select:focus, input:focus{outline:none;border-color:var(--accent1);box-shadow:0 0 0 3px rgba(44,160,28,0.16);}
   input[type=number]{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;}
   label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-bottom:6px;font-weight:700;}
@@ -448,8 +448,9 @@
   .login-tagline{margin:0 0 20px;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
   .login-card label{text-align:left;}
   .pw-field-wrap{position:relative;}
-  .pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;}
-  .pw-toggle:hover{color:var(--accent1);}
+  .pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--ink-faint);cursor:pointer;padding:0;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:color .15s ease, background .15s ease;}
+  .pw-toggle svg{width:16px;height:16px;}
+  .pw-toggle:hover{color:var(--accent1);background:var(--surface-strong);}
   .auth-error{color:var(--debit);font-size:12px;margin:12px 0 0;font-weight:600;text-align:left;}
   .auth-toggle-line{margin:14px 0 0;font-size:12px;color:var(--ink-soft);text-align:center;}
   .auth-toggle-line a{color:var(--accent1);font-weight:700;cursor:pointer;text-decoration:underline;}
@@ -461,6 +462,68 @@
     .rb-letter-r{top:-4%;}
     .rb-letter-b{bottom:-6%;}
   }
+
+  /* ---- Login 2026: split-screen redesign -- brand panel + icon-accented form. Built entirely from
+     the existing var(--*) tokens so it works in light/dark automatically, same as everything else. ---- */
+  .login-split{display:flex;align-items:stretch;gap:0;width:100%;max-width:920px;box-shadow:0 24px 60px rgba(20,30,25,0.16);border-radius:var(--radius);overflow:hidden;animation:loginCardIn .5s cubic-bezier(.22,1,.36,1);}
+  .login-split .login-card{box-shadow:none;border-radius:0;width:420px;flex:1 1 420px;animation:none;}
+  .login-split .login-card::before{display:none;}
+  .login-brand-panel{flex:1 1 400px;min-width:0;background:linear-gradient(150deg,#173B1E 0%,#1E7A12 55%,#2CA01C 100%);color:#fff;position:relative;overflow:hidden;padding:40px 36px;display:flex;flex-direction:column;justify-content:center;isolation:isolate;}
+  .login-brand-panel .aurora-orb{position:absolute;z-index:0;}
+  .login-brand-panel-inner{position:relative;z-index:1;}
+  .login-brand-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,0.72);margin:0 0 14px;}
+  .login-brand-panel h2{font-size:25px;font-weight:800;line-height:1.28;letter-spacing:-.01em;margin:0 0 14px;}
+  .login-brand-sub{font-size:13px;line-height:1.6;color:rgba(255,255,255,0.85);margin:0 0 26px;max-width:340px;}
+  .login-brand-features{list-style:none;margin:0 0 28px;padding:0;display:flex;flex-direction:column;gap:12px;}
+  .login-brand-features li{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,0.92);}
+  .login-brand-features svg{width:17px;height:17px;flex-shrink:0;color:#FFDE9E;}
+  .login-brand-stats{display:flex;gap:22px;padding-top:22px;border-top:1px solid rgba(255,255,255,0.18);}
+  .login-brand-stats .n{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .login-brand-stats .l{font-size:10px;color:rgba(255,255,255,0.68);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+  @media (max-width:900px){
+    .login-brand-panel{display:none;}
+    .login-split{max-width:380px;box-shadow:none;border-radius:0;animation:none;}
+    .login-split .login-card{box-shadow:0 20px 50px rgba(20,30,25,0.14);border-radius:var(--radius);animation:loginCardIn .5s cubic-bezier(.22,1,.36,1);}
+    .login-split .login-card::before{display:block;}
+  }
+
+  /* ---- Icon-accented inputs: a leading icon inside every text/email/tel field, and inside the
+     existing password wrapper alongside its show/hide toggle. ---- */
+  .field-wrap{position:relative;}
+  .field-wrap .field-icon, .pw-field-wrap .field-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--ink-faint);pointer-events:none;display:flex;transition:color .15s ease;}
+  .field-wrap .field-icon svg, .pw-field-wrap .field-icon svg{width:100%;height:100%;}
+  .field-wrap input{padding-left:36px;}
+  .field-wrap:focus-within .field-icon, .pw-field-wrap:focus-within .field-icon{color:var(--accent1);}
+
+  /* ---- Inline validation hints: quiet, non-blocking feedback under username/mobile/email as the
+     person types -- submit-time validation (isValidUsername/isValidMobile/isValidEmail) is unchanged;
+     these are purely additive. ---- */
+  .field-hint{font-size:11px;margin:5px 2px 0;min-height:13px;color:var(--ink-faint);transition:color .15s ease;}
+  .field-hint.is-valid{color:var(--credit);}
+  .field-hint.is-invalid{color:var(--debit);}
+
+  /* ---- Password strength meter (visual-only guidance; the 6-character minimum stays the only hard rule). ---- */
+  .pw-strength{margin-top:8px;}
+  .pw-strength-bar{display:flex;gap:4px;}
+  .pw-strength-bar span{flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .18s ease;}
+  .pw-strength-label{font-size:10.5px;font-weight:700;margin-top:5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;min-height:13px;}
+  .pw-strength[data-level="1"] .pw-strength-bar span:nth-child(1){background:var(--debit);}
+  .pw-strength[data-level="1"] .pw-strength-label{color:var(--debit);}
+  .pw-strength[data-level="2"] .pw-strength-bar span:nth-child(-n+2){background:var(--gold);}
+  .pw-strength[data-level="2"] .pw-strength-label{color:var(--gold);}
+  .pw-strength[data-level="3"] .pw-strength-bar span:nth-child(-n+3){background:#2E9BD6;}
+  .pw-strength[data-level="3"] .pw-strength-label{color:#2E9BD6;}
+  .pw-strength[data-level="4"] .pw-strength-bar span{background:var(--credit);}
+  .pw-strength[data-level="4"] .pw-strength-label{color:var(--credit);}
+
+  /* ---- Smoother states: a gentle shake when an error message appears, a spinner on a disabled/busy
+     submit button (purely visual -- the disabled attribute and button label logic are unchanged). ---- */
+  .auth-error{animation:authErrorIn .28s ease;}
+  @keyframes authErrorIn{0%{opacity:0;transform:translateX(0);}30%{opacity:1;transform:translateX(-4px);}55%{transform:translateX(3px);}75%{transform:translateX(-2px);}100%{transform:translateX(0);}}
+  .login-card .btn.btn-busy{position:relative;color:transparent !important;pointer-events:none;}
+  .login-card .btn.btn-busy::after{content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;animation:btnSpin .7s linear infinite;}
+  .login-card .btn.secondary.btn-busy::after{border-color:rgba(20,30,25,0.25);border-top-color:var(--ink-soft);}
+  @keyframes btnSpin{to{transform:rotate(360deg);}}
 
   /* Menu dropdown (View) */
   .menu-dropdown{position:absolute;top:100%;left:0;margin-top:8px;background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:0 12px 28px rgba(20,30,25,0.14);min-width:170px;z-index:60;overflow:hidden;text-align:left;}
@@ -9954,6 +10017,19 @@ function wireLandingHeroParallax(){
 /* ---------------- Login — welcome screen shown before Company Info ---------------- */
 // The card shown when this page load is a password-reset link return (see init()'s mode=resetPassword
 // check and handlePasswordResetLink()) — replaces the normal login/signup form entirely while active.
+// ---- Login/signup field icons: small, currentColor SVGs for the icon-accented inputs, the
+// password show/hide toggle, and the eye-off state -- same inline-SVG convention as landingFeatureIcon(). ----
+function authFieldIcon(name){
+  const icons = {
+    user: '<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-4 4.2-6 7.5-6s6.1 2 7.5 6"/>',
+    lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>',
+    phone: '<path d="M6.5 3h3l1.5 4.5-2.2 1.8a13 13 0 0 0 6 6l1.8-2.2L21 15v3a2 2 0 0 1-2.2 2C11 19.5 4.5 13 3.5 5.2A2 2 0 0 1 5.4 3z"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    'eye-off': '<path d="M3 3l18 18"/><path d="M10.6 5.2A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C4 8.3 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4.2-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]||''}</svg>`;
+}
 function renderPasswordResetCard(){
   const pwType = resetShowPassword ? 'text' : 'password';
   if(passwordResetDone){
@@ -9976,14 +10052,66 @@ function renderPasswordResetCard(){
   <p class="login-tagline">Create your new password${passwordResetEmail ? ` for <strong>${escapeHtml(passwordResetEmail)}</strong>` : ''}.</p>
   <label>New Password</label>
   <div class="pw-field-wrap">
+    <span class="field-icon">${authFieldIcon('lock')}</span>
     <input type="${pwType}" id="resetNewPassword" placeholder="New password" autocomplete="new-password">
-    <button type="button" class="pw-toggle" id="resetTogglePw">${resetShowPassword?'Hide':'Show'}</button>
+    <button type="button" class="pw-toggle" id="resetTogglePw">${authFieldIcon(resetShowPassword?'eye-off':'eye')}</button>
   </div>
+  <div class="pw-strength" id="resetPwStrength" data-level="0"><div class="pw-strength-bar"><span></span><span></span><span></span><span></span></div><div class="pw-strength-label" id="resetPwStrengthLabel"></div></div>
   <label style="margin-top:12px;">Confirm New Password</label>
-  <input type="${pwType}" id="resetConfirmPassword" placeholder="Re-enter new password" autocomplete="new-password">
+  <div class="field-wrap"><span class="field-icon">${authFieldIcon('lock')}</span><input type="${pwType}" id="resetConfirmPassword" placeholder="Re-enter new password" autocomplete="new-password"></div>
   ${passwordResetError ? `<p class="auth-error">${escapeHtml(passwordResetError)}</p>` : ''}
-  <button class="btn" id="resetSubmitBtn" type="button" style="width:100%;margin-top:16px;" ${passwordResetBusy?'disabled':''}>${passwordResetBusy?'Updating…':'Set New Password →'}</button>
+  <button class="btn ${passwordResetBusy?'btn-busy':''}" id="resetSubmitBtn" type="button" style="width:100%;margin-top:16px;" ${passwordResetBusy?'disabled':''}>${passwordResetBusy?'Updating…':'Set New Password →'}</button>
   `;
+}
+// ---- Login page 2026: password strength meter + inline field hints. Both are purely visual/
+// informational -- they never block a submit, and the actual validation rules (isValidUsername /
+// isValidMobile / isValidEmail, and the 6-character password minimum enforced in submitAuth /
+// submitPasswordReset) are completely untouched. ----
+function computePasswordStrength(pw){
+  if(!pw) return 0;
+  let score = 0;
+  if(pw.length>=6) score++;
+  if(pw.length>=10) score++;
+  if(/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if(/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  return Math.max(1, Math.min(4, score));
+}
+function wirePasswordStrengthField(inputId, wrapId, labelId){
+  const input = document.getElementById(inputId);
+  const wrap = document.getElementById(wrapId);
+  const label = document.getElementById(labelId);
+  if(!input || !wrap || !label) return;
+  const labels = ['','Weak','Fair','Good','Strong'];
+  const update = ()=>{
+    const level = input.value ? computePasswordStrength(input.value) : 0;
+    wrap.dataset.level = String(level);
+    label.textContent = input.value ? labels[level] : '';
+  };
+  input.addEventListener('input', update);
+  update();
+}
+function wireAuthPasswordStrength(){
+  wirePasswordStrengthField('authPassword','authPwStrength','authPwStrengthLabel');
+  wirePasswordStrengthField('resetNewPassword','resetPwStrength','resetPwStrengthLabel');
+}
+function wireFieldHint(inputId, hintId, validator, messages){
+  const input = document.getElementById(inputId);
+  const hint = document.getElementById(hintId);
+  if(!input || !hint) return;
+  const update = ()=>{
+    const v = input.value.trim();
+    if(!v){ hint.textContent = ''; hint.className = 'field-hint'; return; }
+    const ok = validator(v);
+    hint.textContent = ok ? messages.valid : messages.invalid;
+    hint.className = 'field-hint ' + (ok ? 'is-valid' : 'is-invalid');
+  };
+  input.addEventListener('input', update);
+  update();
+}
+function wireAuthInlineValidation(){
+  wireFieldHint('authUsername','authUsernameHint', isValidUsername, { valid:'Looks good', invalid:'Letters, numbers, dots, dashes and underscores only' });
+  wireFieldHint('authMobile','authMobileHint', isValidMobile, { valid:'Looks good', invalid:'Enter exactly 10 digits' });
+  wireFieldHint('authEmail','authEmailHint', isValidEmail, { valid:'Looks good', invalid:'Enter a valid email address' });
 }
 function renderLogin(){
   const app = document.getElementById('app');
@@ -10022,6 +10150,27 @@ function renderLogin(){
           <span class="winbtns"><span>_</span><span>▢</span><span>✕</span></span>
         </div>
         <div class="login-shell">
+          <div class="login-split">
+          <div class="login-brand-panel">
+            <div class="aurora-orb" style="width:220px;height:220px;top:-8%;right:-10%;background:radial-gradient(circle,rgba(255,255,255,0.16),transparent 70%);animation:auroraDrift1 12s ease-in-out infinite;"></div>
+            <div class="aurora-orb" style="width:200px;height:200px;bottom:-10%;left:-8%;background:radial-gradient(circle,rgba(255,222,158,0.22),transparent 70%);animation:auroraDrift2 14s ease-in-out infinite;"></div>
+            <div class="login-brand-panel-inner">
+              <div class="login-brand-kicker">The Reckoning Books</div>
+              <h2>Accounting that runs your whole business, not just the ledger.</h2>
+              <p class="login-brand-sub">Real double-entry books, GST built in, inventory, payroll and reports — with an AI layer that watches your numbers, not just stores them.</p>
+              <ul class="login-brand-features">
+                <li>${landingFeatureIcon('vouchers')}Real double-entry vouchers, always balanced</li>
+                <li>${landingFeatureIcon('gst')}GST tracked and filing-ready, automatically</li>
+                <li>${landingFeatureIcon('ai')}21 AI-native features watching your books</li>
+                <li>${landingFeatureIcon('security')}Email-verified accounts with a full audit log</li>
+              </ul>
+              <div class="login-brand-stats">
+                <div><div class="n">${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)}</div><div class="l">Modules</div></div>
+                <div><div class="n">${VOUCHER_TYPES.length}</div><div class="l">Voucher Types</div></div>
+                <div><div class="n">21</div><div class="l">AI Features</div></div>
+              </div>
+            </div>
+          </div>
           <div class="login-card">
             <div class="login-logo">RB</div>
             <h1>The Reckoning Books</h1>
@@ -10035,20 +10184,20 @@ function renderLogin(){
               One last step — pick a username and add your mobile number to finish setting up your account.
             </div>
             <label style="margin-top:12px;">Full Name</label>
-            <input type="text" id="googleName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(googleDraft.name)}" autocomplete="name">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="googleName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(googleDraft.name)}" autocomplete="name"></div>
             <label style="margin-top:12px;">Username</label>
-            <input type="text" id="googleUsername" placeholder="Choose a username" value="${escapeAttr(googleDraft.username)}" autocomplete="username">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="googleUsername" placeholder="Choose a username" value="${escapeAttr(googleDraft.username)}" autocomplete="username"></div>
             <label style="margin-top:12px;">Mobile Number</label>
-            <input type="tel" id="googleMobile" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" value="${escapeAttr(googleDraft.mobile)}" autocomplete="tel">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('phone')}</span><input type="tel" id="googleMobile" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" value="${escapeAttr(googleDraft.mobile)}" autocomplete="tel"></div>
 
             ${googleSignInError ? `<p class="auth-error">${escapeHtml(googleSignInError)}</p>` : ''}
 
-            <button class="btn" id="googleCompleteBtn" type="button" style="width:100%;margin-top:16px;" ${googleSignInBusy?'disabled':''}>${googleSignInBusy?'Creating…':'Finish Creating Account →'}</button>
+            <button class="btn ${googleSignInBusy?'btn-busy':''}" id="googleCompleteBtn" type="button" style="width:100%;margin-top:16px;" ${googleSignInBusy?'disabled':''}>${googleSignInBusy?'Creating…':'Finish Creating Account →'}</button>
             <p style="margin:8px 0 0;text-align:center;"><a id="googleCancelLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Not you? Sign out</a></p>
             ` : `
 
             ${!pendingVerifyUser && !verifyLinkAwaiting ? `
-            <button class="btn secondary" id="googleSignInBtn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;" ${googleSignInBusy?'disabled':''}>
+            <button class="btn secondary ${googleSignInBusy?'btn-busy':''}" id="googleSignInBtn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;" ${googleSignInBusy?'disabled':''}>
               <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 6.1 29.5 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.3 0 10.2-2 13.9-5.4l-6.4-5.4C29.4 34.9 26.8 36 24 36c-5.2 0-9.6-3.5-11.2-8.3l-6.6 5.1C9.6 39.5 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.8l6.4 5.4C41.7 36 44 30.5 44 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
               ${googleSignInBusy?'Signing in…':'Continue with Google'}
             </button>
@@ -10066,11 +10215,13 @@ function renderLogin(){
               Your email's confirmed — we just lost the rest of your details along the way (this can happen when the verification link opens in a different browser). Fill them in again to finish — no need to re-verify.
             </div>
             <label style="margin-top:12px;">Full Name</label>
-            <input type="text" id="authName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(authDraft.name)}" autocomplete="name">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(authDraft.name)}" autocomplete="name"></div>
             <label style="margin-top:12px;">Username</label>
-            <input type="text" id="authUsername" placeholder="Choose a username" value="${escapeAttr(authDraft.username)}" autocomplete="username">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authUsername" placeholder="Choose a username" value="${escapeAttr(authDraft.username)}" autocomplete="username"></div>
+            <div class="field-hint" id="authUsernameHint"></div>
             <label style="margin-top:12px;">Mobile Number</label>
-            <input type="tel" id="authMobile" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" value="${escapeAttr(authDraft.mobile)}" autocomplete="tel">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('phone')}</span><input type="tel" id="authMobile" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" value="${escapeAttr(authDraft.mobile)}" autocomplete="tel"></div>
+            <div class="field-hint" id="authMobileHint"></div>
             ` : `
             <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
               <div style="font-size:12.5px;font-weight:600;">${escapeHtml(authDraft.name||'')}</div>
@@ -10081,24 +10232,29 @@ function renderLogin(){
 
             <label style="margin-top:12px;">Password</label>
             <div class="pw-field-wrap">
+              <span class="field-icon">${authFieldIcon('lock')}</span>
               <input type="${pwType}" id="authPassword" placeholder="Create a password" autocomplete="new-password">
-              <button type="button" class="pw-toggle" id="authTogglePw">${authShowPassword?'Hide':'Show'}</button>
+              <button type="button" class="pw-toggle" id="authTogglePw">${authFieldIcon(authShowPassword?'eye-off':'eye')}</button>
             </div>
+            <div class="pw-strength" id="authPwStrength" data-level="0"><div class="pw-strength-bar"><span></span><span></span><span></span><span></span></div><div class="pw-strength-label" id="authPwStrengthLabel"></div></div>
             <label style="margin-top:12px;">Confirm Password</label>
-            <input type="${pwType}" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('lock')}</span><input type="${pwType}" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password"></div>
 
             ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
 
             <button class="btn" id="authSubmitBtn" type="button" style="width:100%;margin-top:16px;">Create Account →</button>
             ` : `
             <label>Full Name</label>
-            <input type="text" id="authName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(authDraft.name)}" autocomplete="name" ${verifyLinkAwaiting?'disabled':''}>
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(authDraft.name)}" autocomplete="name" ${verifyLinkAwaiting?'disabled':''}></div>
             <label style="margin-top:12px;">Username</label>
-            <input type="text" id="authUsername" placeholder="Choose a username" value="${escapeAttr(authDraft.username)}" autocomplete="username" ${verifyLinkAwaiting?'disabled':''}>
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authUsername" placeholder="Choose a username" value="${escapeAttr(authDraft.username)}" autocomplete="username" ${verifyLinkAwaiting?'disabled':''}></div>
+            <div class="field-hint" id="authUsernameHint"></div>
             <label style="margin-top:12px;">Mobile Number</label>
-            <input type="tel" id="authMobile" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" value="${escapeAttr(authDraft.mobile)}" autocomplete="tel" ${verifyLinkAwaiting?'disabled':''}>
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('phone')}</span><input type="tel" id="authMobile" placeholder="10-digit mobile number" maxlength="10" inputmode="numeric" value="${escapeAttr(authDraft.mobile)}" autocomplete="tel" ${verifyLinkAwaiting?'disabled':''}></div>
+            <div class="field-hint" id="authMobileHint"></div>
             <label style="margin-top:12px;">Email</label>
-            <input type="email" id="authEmail" placeholder="you@example.com" value="${escapeAttr(authDraft.email)}" autocomplete="email" ${verifyLinkAwaiting?'disabled':''}>
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('mail')}</span><input type="email" id="authEmail" placeholder="you@example.com" value="${escapeAttr(authDraft.email)}" autocomplete="email" ${verifyLinkAwaiting?'disabled':''}></div>
+            <div class="field-hint" id="authEmailHint"></div>
 
             ${verifyLinkAwaiting ? `
             <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:12px;">
@@ -10109,16 +10265,17 @@ function renderLogin(){
             ${verifyLinkError ? `<p class="auth-error" style="margin:6px 0 0;">${escapeHtml(verifyLinkError)}</p>` : ''}
             ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
 
-            <button class="btn" id="verifyEmailBtn" type="button" style="width:100%;margin-top:16px;" ${verifyBtnDisabled?'disabled':''}>${verifyBtnLabel}</button>
+            <button class="btn ${verifyLinkSending?'btn-busy':''}" id="verifyEmailBtn" type="button" style="width:100%;margin-top:16px;" ${verifyBtnDisabled?'disabled':''}>${verifyBtnLabel}</button>
             ${verifyLinkAwaiting ? `<p style="margin:8px 0 0;text-align:center;"><a id="signupUseDifferentEmailLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Use a different email</a></p>` : ''}
             `) : `
             <label>Username</label>
-            <input type="text" id="authUsername" placeholder="Your username" value="${escapeAttr(authDraft.username || lastUsername)}" autocomplete="username">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authUsername" placeholder="Your username" value="${escapeAttr(authDraft.username || lastUsername)}" autocomplete="username"></div>
 
             <label style="margin-top:12px;">Password</label>
             <div class="pw-field-wrap">
+              <span class="field-icon">${authFieldIcon('lock')}</span>
               <input type="${pwType}" id="authPassword" placeholder="Your password" autocomplete="current-password">
-              <button type="button" class="pw-toggle" id="authTogglePw">${authShowPassword?'Hide':'Show'}</button>
+              <button type="button" class="pw-toggle" id="authTogglePw">${authFieldIcon(authShowPassword?'eye-off':'eye')}</button>
             </div>
             <p style="text-align:right;margin:6px 0 0;"><a id="forgotPasswordLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Forgot password?</a></p>
 
@@ -10130,6 +10287,7 @@ function renderLogin(){
             <p class="auth-toggle-line">${isSignup ? 'Already have an account?' : 'New here?'} <a id="authToggleModeLink">${isSignup?'Log in':'Create one'}</a></p>
             `}
             `}
+          </div>
           </div>
           <div class="login-footer">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
         </div>
@@ -10145,7 +10303,7 @@ function renderLogin(){
             ` : `
             <p class="muted" style="font-size:12.5px;margin-top:0;">Enter your username and we'll email a reset link to the address on that account.</p>
             <label>Username</label>
-            <input type="text" id="forgotUsernameInput" placeholder="Your username" autocomplete="username">
+            <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="forgotUsernameInput" placeholder="Your username" autocomplete="username"></div>
             ${forgotPasswordError ? `<p class="auth-error">${escapeHtml(forgotPasswordError)}</p>` : ''}
             <button class="btn" id="forgotPasswordSubmit" type="button" style="width:100%;margin-top:14px;">Send Reset Link →</button>
             `}
@@ -10183,6 +10341,7 @@ function renderLogin(){
       if(password.length<6){ authError = 'Password must be at least 6 characters.'; renderLogin(); return; }
       if(password!==confirm){ authError = 'Passwords do not match.'; renderLogin(); return; }
       submitBtn.disabled = true;
+      submitBtn.classList.add('btn-busy');
       const usernameKey = username.toLowerCase();
       try{
         const takenDoc = await db.collection('usernames').doc(usernameKey).get();
@@ -10223,6 +10382,7 @@ function renderLogin(){
       authDraft.username = username;
       if(!username || !password){ authError = 'Enter your username and password.'; renderLogin(); return; }
       submitBtn.disabled = true;
+      submitBtn.classList.add('btn-busy');
       // The Administrator account logs in exactly like any other account, below — by username
       // ('admin') and a real password, resolved through the normal usernames/{lower} → email
       // lookup. There is no special-cased bypass here any more.
@@ -10503,7 +10663,7 @@ function renderLogin(){
     authShowPassword = !authShowPassword;
     const newType = authShowPassword ? 'text' : 'password';
     const btn = document.getElementById('authTogglePw');
-    if(btn) btn.textContent = authShowPassword ? 'Hide' : 'Show';
+    if(btn) btn.innerHTML = authFieldIcon(authShowPassword ? 'eye-off' : 'eye');
     ['authPassword','authConfirmPassword'].forEach(id=>{
       const el = document.getElementById(id);
       if(el) el.type = newType;
@@ -10518,7 +10678,7 @@ function renderLogin(){
     resetShowPassword = !resetShowPassword;
     const newType = resetShowPassword ? 'text' : 'password';
     const btn = document.getElementById('resetTogglePw');
-    if(btn) btn.textContent = resetShowPassword ? 'Hide' : 'Show';
+    if(btn) btn.innerHTML = authFieldIcon(resetShowPassword ? 'eye-off' : 'eye');
     ['resetNewPassword','resetConfirmPassword'].forEach(id=>{
       const el = document.getElementById(id);
       if(el) el.type = newType;
@@ -10577,6 +10737,7 @@ function renderLogin(){
     if(!username){ forgotPasswordError = 'Enter your username.'; renderLogin(); return; }
     const submitBtn = document.getElementById('forgotPasswordSubmit');
     submitBtn.disabled = true;
+    submitBtn.classList.add('btn-busy');
     try{
       const doc = await db.collection('usernames').doc(username.toLowerCase()).get();
       if(doc.exists){
@@ -10594,6 +10755,9 @@ function renderLogin(){
   };
   document.getElementById('forgotPasswordSubmit')?.addEventListener('click', submitForgotPassword);
   document.getElementById('forgotUsernameInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitForgotPassword(); });
+
+  wireAuthPasswordStrength();
+  wireAuthInlineValidation();
 
   if(forgotPasswordOpen){
     document.getElementById('forgotUsernameInput')?.focus();
