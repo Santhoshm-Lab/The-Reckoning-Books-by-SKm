@@ -221,6 +221,33 @@
   .num{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap;}
   .num.neg{color:var(--debit);}
   .num.pos{color:var(--credit);}
+  /* Responsive "card" layout for data-heavy tables on narrow (phone) viewports -- Day Book, the
+     Ledger statement, Trial Balance and the GST Outward/Inward Supplies tables opt in via the
+     .rb-card-table class on the <table> plus a data-label attribute on each <td> (rendered as a
+     small caption above the value). Above the breakpoint every one of these rules lives inside the
+     media query, so the class/attributes are inert and desktop/tablet keep the exact same table
+     markup and layout as before -- this is additive at narrow widths only. Per row, a `.ccard-title`
+     td (the row's key identifying field -- voucher date/type, ledger name, GST period) becomes the
+     card's bold header instead of a labelled line; `.ccard-actions` drops the label prefix for a row
+     of action buttons instead. Sorting/filtering/data are untouched -- this only restyles the same
+     <tr>/<td> markup the desktop table already renders. */
+  @media (max-width:760px){
+    .rb-card-table, .rb-card-table tbody{display:block;width:100%;}
+    .rb-card-table tr:first-child{display:none;} /* the <th> header row */
+    .rb-card-table tr{display:block;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;}
+    .rb-card-table tr:hover td{background:transparent;}
+    .rb-card-table tr:last-child{margin-bottom:0;}
+    .rb-card-table td{display:block;padding:4px 0;border:none;text-align:left;white-space:normal;}
+    .rb-card-table td.num{text-align:left;}
+    .rb-card-table td::before{content:attr(data-label);display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:2px;}
+    .rb-card-table td.ccard-title{font-size:14.5px;font-weight:800;color:var(--ink);padding:2px 0;}
+    .rb-card-table td.ccard-title::before{content:none;}
+    .rb-card-table td.ccard-title + td:not(.ccard-title){margin-top:4px;padding-top:10px;border-top:1px dashed var(--border);}
+    .rb-card-table td.ccard-amount{font-size:14.5px;font-weight:800;}
+    .rb-card-table td.ccard-actions{padding-top:10px;margin-top:6px;border-top:1px dashed var(--border);}
+    .rb-card-table td.ccard-actions::before{content:none;}
+    .rb-card-table td.ccard-actions .btn{margin:3px 6px 0 0;}
+  }
   .pill{display:inline-block;padding:4px 11px;border-radius:999px;font-size:10.5px;font-family:inherit;font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;}
   .pill.neg{background:var(--debit-bg);color:var(--debit);}
   .pill.pos{background:var(--credit-bg);color:var(--credit);}
@@ -275,6 +302,12 @@
   .entry-amt-wrap{position:relative;}
   .entry-amt-wrap input{padding-right:32px;}
   .entry-amt-suffix{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-size:11px;font-weight:700;pointer-events:none;}
+  /* Ledger picker + its live balance/running-balance line (entryBalanceMetaText()) -- stacked in the
+     row's own Ledger grid cell so the row's column widths never change. */
+  .e-ledger-cell{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .entry-bal-meta{font-size:10.5px;font-weight:600;color:var(--ink-soft);padding:0 2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .entry-bal-meta:empty{display:none;}
+  .entry-bal-arrow{color:var(--ink-faint);}
   .totals-line{display:flex;justify-content:flex-end;gap:26px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;}
   .totals-line.balanced{color:var(--credit);}
   .totals-line.unbalanced{color:var(--debit);}
@@ -294,6 +327,71 @@
   .totals-line.sticky-balance.unbalanced{border-color:var(--debit);}
   @media (max-width:560px){
     .totals-line.sticky-balance{gap:14px;font-size:12px;padding:10px 14px;bottom:8px;}
+  }
+
+  /* ---------------- POS / Quick Sale (viewPOS()) -- a free-flowing item-browse column plus a
+     fixed-width cart/checkout pane, so browsing/searching items and watching the running total stay
+     visually separate instead of interleaved. Below the tablet breakpoint a 380px pane no longer fits
+     next to anything, so the layout drops to a single stacked column -- items first (what you tap
+     first), cart below. The cart's own line list scrolls internally (.pos-cart-lines) so a long cart
+     never pushes the Total Due / Complete Sale bar out of easy reach. */
+  .pos-layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start;}
+  .pos-browse{display:flex;flex-direction:column;gap:12px;}
+  .pos-group-filters{margin:0;}
+  .pos-item-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .pos-item-btn{height:auto;padding:12px;text-align:left;display:flex;flex-direction:column;gap:5px;align-items:flex-start;}
+  .pos-item-btn.out{opacity:.6;}
+  .pos-item-name{font-weight:700;font-size:12.5px;}
+  .pos-item-rate{font-size:11px;}
+
+  .pos-cart-lines{max-height:320px;overflow-y:auto;padding:14px 16px;}
+  .pos-cart-empty{font-size:12.5px;margin:6px 0;}
+
+  .pos-cart-line{padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);}
+  .pos-cart-line:last-child{margin-bottom:0;}
+  .pos-cart-line-top{display:flex;align-items:flex-start;gap:10px;}
+  .pos-avatar{width:30px;height:30px;border-radius:8px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+  .pos-cart-line-body{flex:1;min-width:0;}
+  .pos-cart-line-head{display:flex;align-items:center;gap:6px;}
+  .pos-cart-line-name{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+  .pos-line-icon-btn{padding:2px 6px;font-size:11px;}
+  .pos-remove-btn{color:var(--debit);}
+  .pos-cart-line-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .pos-qty-stepper{display:flex;align-items:center;gap:4px;}
+  .pos-qty-stepper button{padding:2px 8px;}
+  .pos-qty-stepper input{width:44px;text-align:center;padding:4px;}
+  .pos-qty-presets{display:flex;gap:3px;}
+  .pos-qty-presets button{padding:2px 6px;font-size:10px;}
+  .pos-disc-wrap{display:flex;align-items:center;gap:3px;margin-left:auto;}
+  .pos-disc-wrap label{margin:0;font-size:10px;}
+  .pos-disc-wrap input{width:42px;text-align:center;padding:3px;font-size:11px;}
+  .pos-disc-wrap span{font-size:10px;}
+  .pos-cart-line-amount{display:flex;justify-content:flex-end;margin-top:6px;font-weight:700;font-size:13px;}
+
+  .pos-panel-section{padding:14px 16px 16px;border-top:1px solid var(--border);}
+  .pos-section-label{margin:16px 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+  .pos-checkbox-row{display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;font-weight:500;margin:10px 0;}
+  .pos-checkbox-row input{width:auto;}
+  .pos-checkbox-row.small{font-size:11.5px;margin-top:10px;}
+
+  /* The primary action of the whole screen -- given its own accent-tinted band, a larger total
+     figure in the brand color, and a Complete Sale button that grows to fill the row, so it reads
+     as unmistakably the next thing to tap rather than one option among equals. */
+  .pos-checkout-bar{padding:14px 16px;border-top:2px solid var(--accent1);background:linear-gradient(180deg, color-mix(in srgb, var(--accent1) 8%, transparent), color-mix(in srgb, var(--accent1) 2%, transparent));}
+  .pos-checkout-total{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .pos-checkout-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+  .pos-checkout-amount{font-size:22px;font-weight:800;color:var(--accent1);}
+  .pos-checkout-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .pos-checkout-actions #posCompleteSale{flex:1;min-width:150px;}
+
+  @media (max-width:900px) and (min-width:761px){
+    .pos-layout{grid-template-columns:minmax(0,1fr) 320px;}
+  }
+  @media (max-width:760px){
+    .pos-layout{grid-template-columns:1fr;gap:14px;}
+    .pos-cart-lines{max-height:280px;}
+    .pos-item-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
+    .pos-checkout-actions #posCompleteSale{min-width:0;}
   }
 
   .toast-host{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none;}
@@ -1133,6 +1231,31 @@
   .exception-text{flex:1;min-width:0;}
   .exception-text b{color:var(--ink);}
   .exception-arrow{flex-shrink:0;color:var(--ink-faint);font-size:13px;}
+
+  /* ---- Dashboard layout (visual pass only — every number here still comes from the same
+     dashboardExpenseDriver()/dashboardInsights()/renderDashboardCharts() etc. functions; this just
+     gives their output a consistent grid-based structure instead of each round's card bolting
+     itself on with its own one-off spacing/inline styles). All colors are existing design tokens
+     so light/dark theming stays automatic. */
+  .dash-section{margin-bottom:28px;}
+  .dash-section:last-child{margin-bottom:0;}
+  .dash-alerts{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+  .dash-alert{cursor:pointer;border-radius:var(--radius-sm);padding:11px 16px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border:1px solid;transition:filter .15s ease,transform .1s ease;}
+  .dash-alert:hover{filter:brightness(0.97);}
+  .dash-alert:active{transform:scale(.998);}
+  .dash-alert-text{flex:1;min-width:200px;}
+  .dash-alert-danger{background:var(--debit-bg);border-color:var(--debit);color:var(--debit);}
+  .dash-alert-warn{background:color-mix(in srgb, var(--gold) 16%, transparent);border-color:var(--gold);color:var(--gold);}
+  .dash-alert .btn.secondary{background:var(--surface);flex-shrink:0;}
+  /* Consolidated "Insights & AI" panel -- align-items:start keeps each card sized to its own
+     content instead of every card in a row stretching to match its tallest neighbor. */
+  .dash-insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start;}
+  .dash-insights-grid .insights-card,.dash-insights-grid .exception-card,.dash-insights-grid .panel{margin-bottom:0;}
+  .dash-actions-row{display:flex;gap:10px;flex-wrap:wrap;}
+  @media (max-width:760px){
+    .dash-insights-grid{grid-template-columns:1fr;}
+  }
+
   /* Unified automation activity feed modal (automationFeedModal) */
   .automation-row{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:9px;background:var(--surface-strong);font-size:12.3px;line-height:1.5;}
   .automation-icon{flex-shrink:0;font-size:14px;margin-top:1px;}
@@ -1391,6 +1514,17 @@
     .admin-console-navbtn.active::before{display:none;}
     .admin-console-topbar{padding:16px 16px;}
     .admin-console-body{padding:16px 16px 40px;}
+  }
+
+  /* ---- "Download PDF" invoice button target (see downloadInvoicePDF()) ----
+     A hidden host for the same invoice HTML buildInvoiceHTML() produces. It stays display:none on
+     screen; on print it's the ONLY thing visible -- everything else in the app is hidden -- so
+     choosing "Save as PDF" in the browser's print dialog produces a clean, single-invoice PDF with
+     no app chrome, no external PDF library needed. */
+  #pdfInvoiceRoot{ display:none; }
+  @media print{
+    body.pdf-invoice-active > *:not(#pdfInvoiceRoot){ display:none !important; }
+    body.pdf-invoice-active #pdfInvoiceRoot{ display:block !important; position:fixed; inset:0; margin:0; padding:0; z-index:99999; background:#fff; }
   }
 </style>
 </head>
@@ -3126,17 +3260,49 @@ function recentLedgersFor(voucherType, limit){
     .sort((a,b)=>bucket[b]-bucket[a])
     .slice(0, limit||5);
 }
+// Ledger ids ordered by how recently each was actually posted against in real vouchers (most-recent
+// voucher first, deduped) -- distinct from recentLedgersFor()'s per-browser CLICK-frequency history
+// above: this reads real voucher dates, so it stays correct across devices/browsers and reflects what
+// this company is actually transacting with right now. Looks at vouchers dated within the last `days`
+// days; when that window is too sparse (fewer than `minCount` vouchers -- e.g. a new or lightly-used
+// company) it widens to the most recent `minCount` vouchers overall instead, so the signal is never
+// just empty. Used by ledgerSelectOptionsHtml() to reorder its full ledger list.
+function recentLedgerIdsFromVouchers(days, minCount){
+  if(!state.vouchers || !state.vouchers.length) return [];
+  const sorted = state.vouchers.slice().sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||'').localeCompare(a.createdAt||''));
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - (days||90));
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  let pool = sorted.filter(v=>v.date >= cutoffStr);
+  if(pool.length < (minCount||20)) pool = sorted.slice(0, minCount||20);
+  const order = [], seen = new Set();
+  for(const v of pool){
+    for(const e of (v.entries||[])){
+      if(e.ledgerId && !seen.has(e.ledgerId)){ seen.add(e.ledgerId); order.push(e.ledgerId); }
+    }
+  }
+  return order;
+}
 // Builds a ledger <select>'s full <option> markup: a "Recently Used" optgroup (this voucher type's
 // most-picked ledgers on this browser, from ledgerUsageHistory) above the complete list, so a
 // frequently-used Payment/Sales/Purchase ledger is one click away instead of scrolled-to among 40+
-// rows every time -- entryRow() and singleEntryFields() on the Voucher tab both use this.
+// rows every time -- entryRow() and singleEntryFields() on the Voucher tab both use this. The complete
+// list itself (every ledger -- membership/filtering is untouched) is then ordered by actual-voucher
+// recency via recentLedgerIdsFromVouchers(), falling back to alphabetical for ledgers with no recent
+// activity, instead of the arbitrary order state.ledgers happens to be in.
 function ledgerSelectOptionsHtml(selectedId, voucherType){
   const recentIds = voucherType ? recentLedgersFor(voucherType, 5) : [];
   const opt = l => `<option value="${l.id}" ${selectedId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`;
   const recentHtml = recentIds.length
     ? `<optgroup label="Recently Used">${recentIds.map(id=>opt(ledgerOf(id))).join('')}</optgroup>`
     : '';
-  const allHtml = `<optgroup label="${recentIds.length?'All Ledgers':'Ledgers'}">${state.ledgers.map(opt).join('')}</optgroup>`;
+  const recencyRank = new Map(recentLedgerIdsFromVouchers(90, 20).map((id,idx)=>[id,idx]));
+  const orderedLedgers = state.ledgers.slice().sort((a,b)=>{
+    const ra = recencyRank.has(a.id) ? recencyRank.get(a.id) : Infinity;
+    const rb = recencyRank.has(b.id) ? recencyRank.get(b.id) : Infinity;
+    if(ra !== rb) return ra - rb;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  const allHtml = `<optgroup label="${recentIds.length?'All Ledgers':'Ledgers'}">${orderedLedgers.map(opt).join('')}</optgroup>`;
   return recentHtml + allHtml;
 }
 /* Builds <optgroup>-organized <option> markup for the 28 Tally-standard ledger groups,
@@ -5708,6 +5874,40 @@ function printHTMLDocument(html){
   document.body.appendChild(iframe);
   iframe.srcdoc = html;
 }
+// "Download PDF" for an invoice — a first-class, clearly-labeled alternative to the plain "Print"
+// button next to it. This app has no external PDF library (and deliberately adds none), so this is
+// window.print() targeted at a print-only view of just the invoice: the full invoice HTML (same
+// string buildInvoiceHTML() produces for the iframe-based Print flow above) is mounted into the
+// hidden #pdfInvoiceRoot host already in the page, body.pdf-invoice-active is set so the @media print
+// rule in the main stylesheet hides every other on-screen element, then window.print() is called on
+// the TOP-level window (not an iframe) so the browser's own "Save as PDF" destination in the print
+// dialog produces a clean, single-invoice PDF. Cleans itself up on 'afterprint' (with a timeout
+// fallback for the rare browser that doesn't fire it).
+function downloadInvoicePDF(html){
+  try{
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const styleTag = doc.querySelector('style');
+    const bodyHtml = doc.body ? doc.body.innerHTML : html;
+    let root = document.getElementById('pdfInvoiceRoot');
+    if(!root){ root = document.createElement('div'); root.id = 'pdfInvoiceRoot'; document.body.appendChild(root); }
+    root.innerHTML = (styleTag ? styleTag.outerHTML : '') + bodyHtml;
+    document.body.classList.add('pdf-invoice-active');
+    let done = false;
+    const cleanup = ()=>{
+      if(done) return; done = true;
+      document.body.classList.remove('pdf-invoice-active');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      window.print();
+      setTimeout(cleanup, 2000);
+    }));
+  }catch(e){
+    toast('Could not prepare the PDF — try Print instead.');
+  }
+}
 // Rasterizes one already-rendered, still-attached inline <svg> chart (as produced by this app's
 // svgWaterfallChart/svgMultiLineChart/svgClusteredColumnChart/svgStackedBar/svgHBarChart etc.) to a
 // PNG data URL, for the Financial Performance Report's Word export — Word's HTML renderer doesn't
@@ -7381,6 +7581,9 @@ function invoiceSettingsModal(){
             </select>
           </div>
           <div class="field" style="max-width:160px;"><label>Accent Color</label><input type="color" id="invAccentColor" value="${d.accentColor}" style="height:38px;padding:2px;"></div>
+          <div class="field"><label>Invoice Number Prefix (optional)</label><input type="text" id="invNumberPrefix" value="${escapeAttr(d.numberPrefix||'')}" placeholder="e.g. INV- or SKM/24-25/">
+            <p class="muted" style="font-size:11px;margin:4px 0 0;">Prepended to the invoice sequence number, e.g. "${escapeHtml(d.numberPrefix||'INV/'+fyLabelForDate(new Date().toISOString().slice(0,10))+'/')}0001". Leave blank to keep the default "INV/&lt;FY&gt;/0001" numbering.</p>
+          </div>
           <div class="field">
             <label>Logo (optional, max ${INVOICE_LOGO_MAX_BYTES/1024|0} KB)</label>
             ${d.logoDataUrl ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><img src="${d.logoDataUrl}" style="max-height:44px;max-width:140px;border:1px solid var(--border);border-radius:4px;"><button class="btn small secondary" id="removeInvLogoBtn" type="button">Remove</button></div>` : ''}
@@ -15687,77 +15890,94 @@ function viewDashboard(){
   const overdueTotal = overdue.reduce((s,r)=>s+r.invoice.remaining,0);
   const lowStockCount = reorderSuggestions().length;
 
+  const kpiVisible = dashboardVisibleSections.some(id=>['profit','cash','assets','liab','overdue'].includes(id));
+  const overviewVisible = kpiVisible || isDashboardSectionVisible('monthCompare');
+  const insightsVisible = ['exceptions','insights','cashForecast','collections','partyRisk'].some(isDashboardSectionVisible);
+
   return `
     ${masthead('Dashboard','Overview of the books')}
-    ${overdue.length ? `
-    <div class="insight-banner" data-open-kpi="overdue" style="background:#FBE7E7;border:1px solid var(--debit);color:#7a1f1f;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-      <span>⚠ ${overdue.length} invoice${overdue.length===1?'':'s'} overdue, ₹${fmt(overdueTotal)} outstanding past due date</span>
-      <button class="btn secondary small" data-open-kpi="overdue" type="button" style="background:#fff;color:#7a1f1f;">View Overdue Invoices</button>
-    </div>` : ''}
-    ${lowStockCount ? `
-    <div class="insight-banner" data-dashboard-goto-inventory style="background:#FFF4E0;border:1px solid var(--gold,#F2A900);color:#7a4f00;padding:10px 16px;border-radius:8px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-      <span>📦 ${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level</span>
-      <button class="btn secondary small" data-dashboard-goto-inventory type="button" style="background:#fff;color:#7a4f00;">View Reorder Suggestions</button>
-    </div>` : ''}
-    ${dashboardVisibleSections.some(id=>['profit','cash','assets','liab','overdue'].includes(id)) ? `
-    <div class="bento-grid">
-      ${isDashboardSectionVisible('profit') ? `
-      <div class="stat bento-hero" data-open-kpi="profit">
-        <div>
-          <div class="label">${profit>=0?'Net Profit':'Net Loss'}</div>
-          <div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div>
-        </div>
-        ${dashboardProfitSparkline()}
+
+    ${(overdue.length || lowStockCount) ? `
+    <div class="dash-alerts">
+      ${overdue.length ? `
+      <div class="dash-alert dash-alert-danger" data-open-kpi="overdue">
+        <span class="dash-alert-text">⚠ ${overdue.length} invoice${overdue.length===1?'':'s'} overdue, ₹${fmt(overdueTotal)} outstanding past due date</span>
+        <button class="btn secondary small" data-open-kpi="overdue" type="button">View Overdue Invoices</button>
       </div>` : ''}
-      ${isDashboardSectionVisible('cash') ? `<div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>` : ''}
-      ${isDashboardSectionVisible('assets') ? `<div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>` : ''}
-      ${isDashboardSectionVisible('liab') ? `<div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>` : ''}
-      ${isDashboardSectionVisible('overdue') ? `<div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>` : ''}
+      ${lowStockCount ? `
+      <div class="dash-alert dash-alert-warn" data-dashboard-goto-inventory>
+        <span class="dash-alert-text">📦 ${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level</span>
+        <button class="btn secondary small" data-dashboard-goto-inventory type="button">View Reorder Suggestions</button>
+      </div>` : ''}
     </div>` : ''}
 
-    ${isDashboardSectionVisible('monthCompare') ? monthComparisonStrip() : ''}
-
-    ${isDashboardSectionVisible('exceptions') ? dashboardExceptionQueueCard() : ''}
-
-    ${isDashboardSectionVisible('insights') ? dashboardInsightsCard() : ''}
-
-    ${isDashboardSectionVisible('cashForecast') || isDashboardSectionVisible('collections') ? `
-    <div class="row" style="align-items:flex-start;">
-      ${isDashboardSectionVisible('cashForecast') ? `<div style="flex:1;">${cashFlowForecastCard()}</div>` : ''}
-      ${isDashboardSectionVisible('collections') ? `<div style="flex:1;">${collectionsPriorityCard()}</div>` : ''}
+    ${overviewVisible ? `
+    <div class="dash-section">
+      <div class="section-title">Overview</div>
+      ${kpiVisible ? `
+      <div class="bento-grid">
+        ${isDashboardSectionVisible('profit') ? `
+        <div class="stat bento-hero" data-open-kpi="profit">
+          <div>
+            <div class="label">${profit>=0?'Net Profit':'Net Loss'}</div>
+            <div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div>
+          </div>
+          ${dashboardProfitSparkline()}
+        </div>` : ''}
+        ${isDashboardSectionVisible('cash') ? `<div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>` : ''}
+        ${isDashboardSectionVisible('assets') ? `<div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>` : ''}
+        ${isDashboardSectionVisible('liab') ? `<div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>` : ''}
+        ${isDashboardSectionVisible('overdue') ? `<div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>` : ''}
+      </div>` : ''}
+      ${isDashboardSectionVisible('monthCompare') ? monthComparisonStrip() : ''}
     </div>` : ''}
 
-    ${isDashboardSectionVisible('partyRisk') ? partyRiskCard() : ''}
+    ${insightsVisible ? `
+    <div class="dash-section">
+      <div class="section-title">Insights &amp; AI</div>
+      <div class="dash-insights-grid">
+        ${isDashboardSectionVisible('exceptions') ? dashboardExceptionQueueCard() : ''}
+        ${isDashboardSectionVisible('insights') ? dashboardInsightsCard() : ''}
+        ${isDashboardSectionVisible('cashForecast') ? cashFlowForecastCard() : ''}
+        ${isDashboardSectionVisible('collections') ? collectionsPriorityCard() : ''}
+        ${isDashboardSectionVisible('partyRisk') ? partyRiskCard() : ''}
+      </div>
+    </div>` : ''}
 
-    ${pinnedTilesSection()}
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
-      <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
-      <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
-      <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
-      <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close Checklist</button>
-      <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
-      <button class="btn secondary" id="openDashboardPersonalizeBtn" type="button">⚙️ Personalize Dashboard</button>
+    <div class="dash-section">
+      <div class="section-title">Quick Actions</div>
+      <div class="dash-actions-row">
+        <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
+        <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
+        <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
+        <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close Checklist</button>
+        <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
+        <button class="btn secondary" id="openDashboardPersonalizeBtn" type="button">⚙️ Personalize Dashboard</button>
+      </div>
     </div>
 
-    <div class="row" style="align-items:flex-start;">
-      <div style="flex:1;">${balanceSheetVisualCard()}</div>
-      <div style="flex:1;">${incomeStatementVisualCard()}</div>
-    </div>
+    <div class="dash-section">
+      <div class="section-title">Charts</div>
+      ${pinnedTilesSection()}
+      <div class="row" style="align-items:flex-start;">
+        <div style="flex:1;">${balanceSheetVisualCard()}</div>
+        <div style="flex:1;">${incomeStatementVisualCard()}</div>
+      </div>
 
-    <div class="section-title">Income Statement Visuals <span class="muted" style="font-weight:500;font-size:11px;">— hover a card and click 📌 to pin it above</span></div>
-    <div class="viz-grid">
-      ${pinnableTile('incomeWaterfall', DASHBOARD_TILES.incomeWaterfall.label, incomeWaterfallCard())}
-      ${pinnableTile('incomeTrend', DASHBOARD_TILES.incomeTrend.label, incomeTrendCard())}
-      ${pinnableTile('incomeCombo', DASHBOARD_TILES.incomeCombo.label, incomeComboCard())}
-      ${pinnableTile('expenseTreemap', DASHBOARD_TILES.expenseTreemap.label, expenseTreemapCard())}
-    </div>
+      <div class="section-title">Income Statement Visuals <span class="muted" style="font-weight:500;font-size:11px;">— hover a card and click 📌 to pin it above</span></div>
+      <div class="viz-grid">
+        ${pinnableTile('incomeWaterfall', DASHBOARD_TILES.incomeWaterfall.label, incomeWaterfallCard())}
+        ${pinnableTile('incomeTrend', DASHBOARD_TILES.incomeTrend.label, incomeTrendCard())}
+        ${pinnableTile('incomeCombo', DASHBOARD_TILES.incomeCombo.label, incomeComboCard())}
+        ${pinnableTile('expenseTreemap', DASHBOARD_TILES.expenseTreemap.label, expenseTreemapCard())}
+      </div>
 
-    <div class="section-title">Balance Sheet Visuals</div>
-    <div class="viz-grid">
-      ${pinnableTile('balanceSheetStacked', DASHBOARD_TILES.balanceSheetStacked.label, balanceSheetStackedCard())}
-      ${pinnableTile('assetDonut', DASHBOARD_TILES.assetDonut.label, assetDonutCard())}
-      ${pinnableTile('balanceSheetKPIGauge', DASHBOARD_TILES.balanceSheetKPIGauge.label, balanceSheetKPIGaugeCard())}
+      <div class="section-title">Balance Sheet Visuals</div>
+      <div class="viz-grid">
+        ${pinnableTile('balanceSheetStacked', DASHBOARD_TILES.balanceSheetStacked.label, balanceSheetStackedCard())}
+        ${pinnableTile('assetDonut', DASHBOARD_TILES.assetDonut.label, assetDonutCard())}
+        ${pinnableTile('balanceSheetKPIGauge', DASHBOARD_TILES.balanceSheetKPIGauge.label, balanceSheetKPIGaugeCard())}
+      </div>
     </div>
   `;
 }
@@ -17624,6 +17844,14 @@ function viewVoucher(){
   const showGST = ['Sales','Purchase','Credit Note','Debit Note'].includes(vform.type);
   const editing = !!vform.id;
   const isForeign = vform.currency && vform.currency!=='inr';
+  // "Repeat Last Voucher" quick action -- only offered on a fresh (non-editing) entry, and only when
+  // there's actually a prior voucher of the currently-selected type to copy the structure from. Finds
+  // the most recent one (by date, then createdAt for same-day ties) purely to read from here; clicking
+  // it below only pre-fills vform (see the repeatLastVoucherBtn handler) -- it never posts anything.
+  const repeatCandidate = editing ? null : state.vouchers
+    .filter(v=>v.type===vform.type)
+    .slice()
+    .sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||'').localeCompare(a.createdAt||''))[0] || null;
   // A Payment voucher has a Debit line on a Purchase Accounts ledger: this reads as "I'm paying cash
   // for goods right now", so offer to add the items being purchased — updates Inventory and, on Save,
   // this voucher is recorded as a Purchase (see saveVoucher) so it shows up correctly in GST/stock
@@ -17651,6 +17879,10 @@ function viewVoucher(){
     <div class="vtype-tabs">
       ${VOUCHER_TYPES.map(t=>`<button data-vtype="${t}" class="${vform.type===t?'active':''}">${t}</button>`).join('')}
     </div>
+    ${repeatCandidate ? `
+    <div style="display:flex;justify-content:flex-end;margin:-8px 0 12px;">
+      <button class="btn secondary small" id="repeatLastVoucherBtn" type="button" title="Pre-fills this form from your last ${escapeAttr(vform.type)} voucher, dated ${repeatCandidate.date} — amounts stay blank and the date resets to today, nothing posts automatically">↺ Repeat Last ${escapeHtml(vform.type)} Voucher</button>
+    </div>` : ''}
     ${singleEligible ? `
     <div class="vtype-tabs" style="margin-bottom:10px;">
       <button data-mode="single" type="button" class="${effectiveMode==='single'?'active':''}">Single Entry</button>
@@ -17747,7 +17979,8 @@ function viewVoucher(){
           <button class="btn" id="saveVoucher" title="Shortcut: Alt+S" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
           ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;width:100%;margin-top:2px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
           <button class="btn secondary" id="resetVoucher" type="button" title="Shortcut: Alt+R">${editing?'Cancel Edit':'Clear'}</button>
-          ${vform.type==='Sales' ? `<button class="btn secondary" id="printBillBtn" type="button">🖨️ Generate &amp; Print Bill</button>` : ''}
+          ${vform.type==='Sales' ? `<button class="btn secondary" id="printBillBtn" type="button">🖨️ Generate &amp; Print Bill</button>
+          <button class="btn" id="downloadBillPdfBtn" type="button">⬇ Download PDF</button>` : ''}
         </div>
       </div>
     </div>
@@ -17869,6 +18102,37 @@ function entrySide(e){
   if(Number(e.cr)>0 && !(Number(e.dr)>0)) return 'cr';
   return 'dr';
 }
+// Balance info shown right under each Voucher Entry row's ledger picker: that ledger's actual current
+// balance (via ledgerBalance() -- the same helper the Ledgers/COA/report screens already read, reused
+// rather than recomputed) plus, once this row (or an earlier row on the same ledger, added
+// cumulatively) carries a non-zero draft Dr/Cr, the running balance that ledger would land on if this
+// voucher posts exactly as currently drafted. Shared between the initial HTML (entryRow()) and the
+// live DOM patch (refreshEntryBalanceMeta()) that runs on every ledger pick / Dr-Cr keystroke without a
+// full re-render, the same "patch the DOM directly" approach renderTotalsOnly() already uses for the
+// Dr/Cr totals bar.
+function entryBalanceMetaText(entries, i){
+  const e = entries && entries[i];
+  if(!e || !e.ledgerId || !ledgerOf(e.ledgerId)) return '';
+  const current = ledgerBalance(e.ledgerId);
+  let projected = current;
+  for(let k=0;k<=i;k++){
+    const en = entries[k];
+    if(en && en.ledgerId === e.ledgerId) projected += (Number(en.dr)||0) - (Number(en.cr)||0);
+  }
+  const changed = Math.abs(projected-current) > 0.004;
+  let html = `Bal: ₹${fmt(current)} ${balanceLabel(current)}`;
+  if(changed) html += ` <span class="entry-bal-arrow">→</span> ₹${fmt(projected)} ${balanceLabel(projected)}`;
+  return html;
+}
+// Live-patches every row's balance line (see entryBalanceMetaText()) in place, without a full render()
+// -- called after every ledger pick and every Dr/Cr keystroke in the Voucher Entry grid.
+function refreshEntryBalanceMeta(){
+  if(!vform || !Array.isArray(vform.entries)) return;
+  vform.entries.forEach((e,i)=>{
+    const el = document.querySelector(`.entry-bal-meta[data-i="${i}"]`);
+    if(el) el.innerHTML = entryBalanceMetaText(vform.entries, i);
+  });
+}
 // Double Entry rows are grouped into two blocks -- every ledger being Debited, then every ledger being
 // Credited -- matching how a compound journal entry is written by hand (list every Dr line, then every
 // Cr line, and the two totals must match) instead of exposing a Dr and a Cr box on every single row.
@@ -17892,6 +18156,11 @@ function entryRow(e,i,isLast){
       <option value="">Select ledger…</option>
       ${ledgerSelectOptionsHtml(e.ledgerId, vform.type)}
     </select>`;
+  // Wraps the picker with its live balance/running-balance line (entryBalanceMetaText()) so both sit
+  // in the same grid cell -- the row's column widths (see .entry-row's grid-template-columns) stay
+  // untouched, and on the phone breakpoint where .entry-row collapses to one column this cell simply
+  // stacks select-over-label like everything else in the row.
+  const ledgerCell = `<div class="e-ledger-cell">${ledgerSelect}<div class="entry-bal-meta" data-i="${i}">${entryBalanceMetaText(vform.entries, i)}</div></div>`;
   const trailing = isLast
     ? `<button class="add-side" data-add-side="${side}" title="Add another ${side==='dr'?'Debit':'Credit'} line" aria-label="Add another ${side==='dr'?'Debit':'Credit'} line" type="button">+</button>`
     : `<button class="rm" data-rm="${i}" title="Remove row" aria-label="Remove row">✕</button>`;
@@ -17899,12 +18168,12 @@ function entryRow(e,i,isLast){
   const crCell = `<div class="entry-amt-wrap"><input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Cr.</span></div>`;
   const emptyCell = `<span></span>`;
   if(bothPopulated){
-    return `<div class="entry-row" data-idx="${i}">${ledgerSelect}${drCell}${crCell}${trailing}</div>`;
+    return `<div class="entry-row" data-idx="${i}">${ledgerCell}${drCell}${crCell}${trailing}</div>`;
   }
   if(side==='dr'){
-    return `<div class="entry-row" data-idx="${i}">${ledgerSelect}${drCell}${emptyCell}${trailing}</div>`;
+    return `<div class="entry-row" data-idx="${i}">${ledgerCell}${drCell}${emptyCell}${trailing}</div>`;
   }
-  return `<div class="entry-row" data-idx="${i}">${ledgerSelect}${emptyCell}${crCell}${trailing}</div>`;
+  return `<div class="entry-row" data-idx="${i}">${ledgerCell}${emptyCell}${crCell}${trailing}</div>`;
 }
 function quickAddLedgerModal(){
   return `
@@ -17996,7 +18265,7 @@ function alterLedgerModal(){
   if(editing && !l){ return ''; }
   const openingAbs = l ? Math.abs(l.opening||0) : 0;
   const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
-  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.creditLimit!=null || l.creditDays!=null || l.gstin));
+  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.address || l.shippingAddress));
   return `
     <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
@@ -18046,6 +18315,10 @@ function alterLedgerModal(){
                 <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
                 <div class="field"><label>GSTIN (optional, for parties)</label><input type="text" id="alterLedgerGSTIN" value="${escapeAttr(l&&l.gstin?l.gstin:'')}" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
               </div>
+              <div class="row">
+                <div class="field"><label>Billing Address (optional, prints on invoices)</label><textarea id="alterLedgerAddress" rows="2" placeholder="Building, street, area, city, state, pincode">${escapeHtml(l&&l.address?l.address:'')}</textarea></div>
+                <div class="field"><label>Shipping Address (optional — leave blank to use Billing Address)</label><textarea id="alterLedgerShipAddress" rows="2" placeholder="Only if different from Billing Address">${escapeHtml(l&&l.shippingAddress?l.shippingAddress:'')}</textarea></div>
+              </div>
             </div>
           </details>
           <button class="btn" id="alterLedgerSubmit" type="button" style="margin-top:12px;">${editing?'Save Changes':'Add Ledger'}</button>
@@ -18092,8 +18365,20 @@ function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // isDraft marks the mid-entry case, where there's no saved voucher yet to number for real -- the
 // preview banner and "(assigned on save)" note are the honest alternative to silently promising a
 // number that could still shift if another Sales voucher is saved first.
+// Normalizes one voucher/GST-Calculator line item (which only carries itemId/name/qty/rate/disc) into
+// the shape buildInvoiceHTML's table wants, resolving HSN/SAC and unit off the linked stock item
+// master (Inventory Control) when the line is linked to one -- a custom/unlinked line just prints
+// blank HSN/unit rather than blocking on data that doesn't exist for it.
+function invoiceLineFromItem(it){
+  const master = (it.itemId && it.itemId!=='__custom__') ? state.items.find(m=>m.id===it.itemId) : null;
+  return {
+    name: it.name, qty: it.qty, rate: Number(it.rate)||0, disc: Number(it.disc)||0,
+    hsn: (master && master.hsn) || it.hsn || '',
+    unit: (master && master.unit) || it.unit || '',
+  };
+}
 function buildInvoiceHTML(opts){
-  const { partyName, invoiceNo, isDraft, date, items, subtotal, cgst, sgst, igst, total, narration } = opts;
+  const { partyName, invoiceNo, isDraft, date, items, subtotal, cgst, sgst, igst, total, narration, billingAddress, shippingAddress } = opts;
   const hasTax = (cgst+sgst+igst) > 0;
   const supplyIntra = hasTax && igst<=0;
   const cgstRate = subtotal>0 ? r2(cgst/subtotal*100) : 0;
@@ -18102,13 +18387,23 @@ function buildInvoiceHTML(opts){
   const now = new Date();
   const printedAt = now.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
+  // Per-line HSN/SAC, unit and discount% -- these ride along on each item (hsn/unit resolved from the
+  // linked stock item master, disc% from the voucher/GST-Calculator line itself; see printInvoiceForVoucher
+  // / generateAndPrintBill). All optional -- blank/"—" when an item has no HSN or the line has no discount,
+  // so older data with none of this set still prints exactly as before (minus the two extra blank columns).
+  const anyDisc = items.some(it=>Number(it.disc));
+  const grossTotal = items.reduce((s,it)=> s + (Number(it.qty)||0)*(Number(it.rate)||0), 0);
+  const discountTotal = r2(grossTotal - items.reduce((s,it)=> s + itemLineAmount(it), 0));
   const rows = items.map((it,i)=>`
     <tr>
       <td>${i+1}</td>
       <td>${escapeHtml(it.name)}</td>
+      <td>${it.hsn?escapeHtml(it.hsn):'—'}</td>
+      <td>${it.unit?escapeHtml(it.unit):'—'}</td>
       <td style="text-align:right;">${it.qty}</td>
       <td style="text-align:right;">₹${fmt(Number(it.rate)||0)}</td>
-      <td style="text-align:right;">₹${fmt((Number(it.qty)||0)*(Number(it.rate)||0))}</td>
+      ${anyDisc?`<td style="text-align:right;">${Number(it.disc)?fmt(Number(it.disc))+'%':'—'}</td>`:''}
+      <td style="text-align:right;">₹${fmt(itemLineAmount(it))}</td>
     </tr>`).join('');
   const taxTotalsRows = !hasTax ? '' : (supplyIntra
     ? `<tr><td>CGST @ ${cgstRate}%</td><td style="text-align:right;">₹${fmt(cgst)}</td></tr>
@@ -18186,7 +18481,7 @@ function buildInvoiceHTML(opts){
   .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
   .bill-header.tpl-modern .meta .invtitle{color:#fff;}
   .bill-header.tpl-minimal .meta .invtitle{color:#111;font-weight:400;text-transform:uppercase;letter-spacing:.08em;font-size:12px;}
-  .parties{display:flex;justify-content:space-between;margin-bottom:20px;font-size:12.5px;}
+  .parties{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;font-size:12.5px;}
   .parties h3{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555;}
   table{width:100%;border-collapse:collapse;margin-bottom:18px;}
   th{background:${template==='minimal'?'#fff':'#f0f0f0'};text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid ${template==='minimal'?'#111':'var(--accent)'};}
@@ -18205,18 +18500,26 @@ function buildInvoiceHTML(opts){
     <div>
       <h3>Bill To</h3>
       <div style="font-size:14px;font-weight:bold;">${escapeHtml(partyName)}</div>
+      ${billingAddress?`<div style="font-size:12px;color:#555;margin-top:2px;white-space:pre-line;">${escapeHtml(billingAddress)}</div>`:''}
     </div>
+    ${(shippingAddress && shippingAddress.trim() && shippingAddress.trim()!==(billingAddress||'').trim()) ? `<div>
+      <h3>Ship To</h3>
+      <div style="font-size:14px;font-weight:bold;">${escapeHtml(partyName)}</div>
+      <div style="font-size:12px;color:#555;margin-top:2px;white-space:pre-line;">${escapeHtml(shippingAddress)}</div>
+    </div>` : ''}
     <div style="text-align:right;">
       <h3>Supply Type</h3>
       <div>${!hasTax ? 'No GST on this voucher' : (supplyIntra?'Intrastate (CGST + SGST)':'Interstate (IGST)')}</div>
     </div>
   </div>
   <table>
-    <tr><th>#</th><th>Item</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Rate</th><th style="text-align:right;">Amount</th></tr>
+    <tr><th>#</th><th>Item</th><th>HSN/SAC</th><th>Unit</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Rate</th>${anyDisc?'<th style="text-align:right;">Disc</th>':''}<th style="text-align:right;">Amount</th></tr>
     ${rows}
   </table>
   <table class="totals-table">
-    <tr><td>Subtotal</td><td style="text-align:right;">₹${fmt(subtotal)}</td></tr>
+    ${discountTotal>0?`<tr><td>Subtotal (before discount)</td><td style="text-align:right;">₹${fmt(grossTotal)}</td></tr>
+    <tr><td>Less: Discount</td><td style="text-align:right;">−₹${fmt(discountTotal)}</td></tr>
+    <tr><td>Taxable Value</td><td style="text-align:right;">₹${fmt(subtotal)}</td></tr>`:`<tr><td>Subtotal</td><td style="text-align:right;">₹${fmt(subtotal)}</td></tr>`}
     ${taxTotalsRows}
     <tr class="grand-total"><td>Grand Total</td><td style="text-align:right;">₹${fmt(total)}</td></tr>
   </table>
@@ -18225,13 +18528,17 @@ function buildInvoiceHTML(opts){
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
 </body></html>`;
 }
-function generateAndPrintBill(){
+// Builds the draft/preview invoice HTML off the still-unsaved GST Calculator draft (vform.gst) —
+// shared by both the "Generate & Print Bill" and "Download PDF" buttons on the Voucher form, so
+// they always agree on what the invoice looks like. Returns null (after a toast) if the draft isn't
+// ready yet (no customer / no items) — callers just bail out when that happens.
+function draftInvoiceHTML(){
   const g = vform.gst;
   const items = (g.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
-  if(!g.party){ toast('Select a customer in the GST Calculator first'); return; }
+  if(!g.party){ toast('Select a customer in the GST Calculator first'); return null; }
   const party = ledgerOf(g.party);
-  if(!party){ toast('Select a customer in the GST Calculator first'); return; }
-  if(!items.length){ toast('Add at least one item in the GST Calculator first'); return; }
+  if(!party){ toast('Select a customer in the GST Calculator first'); return null; }
+  if(!items.length){ toast('Add at least one item in the GST Calculator first'); return null; }
 
   const subtotal = itemsSubtotal(items);
   const rate = Number(g.rate)||0;
@@ -18245,13 +18552,20 @@ function generateAndPrintBill(){
   // right preview number as long as nothing else is saved first (see buildInvoiceHTML's isDraft note).
   const invoiceNo = salesVoucherInvoiceNumber({ id:'__draft__', date: vform.date });
 
-  const html = buildInvoiceHTML({
+  return buildInvoiceHTML({
     partyName: party.name, invoiceNo, isDraft: true, date: vform.date,
-    items: items.map(it=>({ name: it.name, qty: it.qty, rate: Number(it.rate)||0 })),
+    items: items.map(it=>invoiceLineFromItem(it)),
     subtotal, cgst, sgst, igst, total, narration: vform.narration,
+    billingAddress: party.address||'', shippingAddress: party.shippingAddress||'',
   });
-
-  printHTMLDocument(html);
+}
+function generateAndPrintBill(){
+  const html = draftInvoiceHTML();
+  if(html) printHTMLDocument(html);
+}
+function downloadDraftInvoicePDF(){
+  const html = draftInvoiceHTML();
+  if(html) downloadInvoicePDF(html);
 }
 
 // Indian financial-year label for a date, e.g. '2026-27', anchored on the company's fyStart/booksFrom
@@ -18359,18 +18673,24 @@ function salesVoucherInvoiceNumber(v){
     .sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
   const idx = sales.findIndex(x=>x.id===v.id);
   const seq = idx>-1 ? idx+1 : sales.length+1;
+  // A company can set its own invoice number prefix under Invoice Template settings (e.g.
+  // "SKM/24-25/") -- it's prepended straight onto the padded sequence number as-is, since a prefix
+  // like that already carries its own FY. No prefix set (the default for every older/existing
+  // company) falls back to the original "INV/<FY>/0001" numbering exactly as before.
+  const customPrefix = (currentCompany && currentCompany.invoiceSettings && currentCompany.invoiceSettings.numberPrefix || '').trim();
+  if(customPrefix) return `${customPrefix}${String(seq).padStart(4,'0')}`;
   return `INV/${fyLabelForDate(v.date)}/${String(seq).padStart(4,'0')}`;
 }
-// Printable/downloadable GST tax invoice for an already-saved Sales voucher — reachable from the Day
-// Book, unlike generateAndPrintBill() above which only works on the live GST Calculator draft while
-// creating a new voucher. Reuses the same visual layout for consistency.
-function printInvoiceForVoucher(voucherId){
+// Shared by printInvoiceForVoucher() and downloadInvoicePDFForVoucher() below — builds the invoice
+// HTML for an already-saved Sales voucher (Day Book reprint), or returns null (after a toast) if the
+// voucher can't be invoiced.
+function invoiceHTMLForVoucher(voucherId){
   const v = state.vouchers.find(x=>x.id===voucherId);
-  if(!v){ toast('Voucher not found'); return; }
-  if(v.type!=='Sales'){ toast('Printable tax invoices are available for Sales vouchers'); return; }
+  if(!v){ toast('Voucher not found'); return null; }
+  if(v.type!=='Sales'){ toast('Printable tax invoices are available for Sales vouchers'); return null; }
   const partyEntry = v.entries.find(e=>e.dr>0);
   const party = partyEntry ? ledgerOf(partyEntry.ledgerId) : null;
-  if(!party){ toast('Could not find the customer ledger on this voucher'); return; }
+  if(!party){ toast('Could not find the customer ledger on this voucher'); return null; }
 
   const g = gstBreakdownForVoucher(v);
   const total = voucherAmount(v);
@@ -18378,13 +18698,26 @@ function printInvoiceForVoucher(voucherId){
   const rawItems = (v.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
   const items = rawItems.length ? rawItems : [{ name: v.narration || 'Sale as per voucher', qty:1, rate: subtotal }];
 
-  const html = buildInvoiceHTML({
+  return buildInvoiceHTML({
     partyName: party.name, invoiceNo: salesVoucherInvoiceNumber(v), isDraft: false, date: v.date,
-    items: items.map(it=>({ name: it.name, qty: it.qty, rate: Number(it.rate)||0 })),
+    items: items.map(it=>invoiceLineFromItem(it)),
     subtotal, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total, narration: v.narration,
+    billingAddress: party.address||'', shippingAddress: party.shippingAddress||'',
   });
-
-  printHTMLDocument(html);
+}
+// Printable GST tax invoice for an already-saved Sales voucher — reachable from the Day Book, unlike
+// generateAndPrintBill() above which only works on the live GST Calculator draft while creating a
+// new voucher. Reuses the same visual layout for consistency.
+function printInvoiceForVoucher(voucherId){
+  const html = invoiceHTMLForVoucher(voucherId);
+  if(html) printHTMLDocument(html);
+}
+// "Download PDF" counterpart to printInvoiceForVoucher() above, for the same saved Sales voucher —
+// see downloadInvoicePDF()'s comment for how the PDF itself is produced (window.print() + a
+// print-only view, no external library).
+function downloadInvoicePDFForVoucher(voucherId){
+  const html = invoiceHTMLForVoucher(voucherId);
+  if(html) downloadInvoicePDF(html);
 }
 
 /* ---------------- Pre-sale Documents: Quotation / Sales Order / Purchase Order / Delivery Challan ----------------
@@ -18853,69 +19186,67 @@ function viewPOS(){
         ${posHeld.map((h,i)=>`<button class="btn secondary small" data-pos-recall="${i}" type="button">${h.items.length} item${h.items.length===1?'':'s'} — ₹${fmt(itemsSubtotal(h.items))}</button>`).join('')}
       </div>
     </div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start;">
-      <div>
+    <div class="pos-layout">
+      <div class="pos-browse">
         <div class="field"><input type="text" id="posSearchInput" placeholder="Scan a barcode, or search items by name…" value="${escapeAttr(pos.search)}" autocomplete="off"></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px;">
-          <button class="btn ${pos.groupFilter?'secondary':''} small" data-pos-group-filter="" type="button">All</button>
-          ${itemGroups.map(g=>`<button class="btn ${pos.groupFilter===g?'':'secondary'} small" data-pos-group-filter="${escapeAttr(g)}" type="button">${escapeHtml(g)}</button>`).join('')}
+        <div class="vtype-tabs pos-group-filters">
+          <button class="${!pos.groupFilter?'active':''}" data-pos-group-filter="" type="button">All</button>
+          ${itemGroups.map(g=>`<button class="${pos.groupFilter===g?'active':''}" data-pos-group-filter="${escapeAttr(g)}" type="button">${escapeHtml(g)}</button>`).join('')}
         </div>
         ${filteredItems.length ? `
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
+        <div class="pos-item-grid">
           ${filteredItems.map(it=>{
             const stock = stockSummaryForItem(it).closing;
             const out = stock<=0;
-            return `<button class="btn secondary" data-pos-add-item="${it.id}" type="button" style="height:auto;padding:12px;text-align:left;display:flex;flex-direction:column;gap:5px;align-items:flex-start;${out?'opacity:.6;':''}">
-              <span style="font-weight:700;font-size:12.5px;">${escapeHtml(it.name)}</span>
-              <span class="muted" style="font-size:11px;">₹${fmt(it.rate!=null?it.rate:(it.openingRate||0))}${it.unit?' / '+escapeHtml(it.unit):''}</span>
+            return `<button class="btn secondary pos-item-btn${out?' out':''}" data-pos-add-item="${it.id}" type="button">
+              <span class="pos-item-name">${escapeHtml(it.name)}</span>
+              <span class="muted pos-item-rate">₹${fmt(it.rate!=null?it.rate:(it.openingRate||0))}${it.unit?' / '+escapeHtml(it.unit):''}</span>
               <span class="pill ${out?'neg':'pos'}" style="font-size:10px;">${out?'Out of stock':fmt(stock)+' in stock'}</span>
             </button>`;
           }).join('')}
         </div>` : emptyState({icon:'🔍', title:'No items match', text:'Try a different search, or add items under Accounts → Item Master.'})}
       </div>
-      <div class="panel">
+      <div class="panel pos-cart-panel">
         <div class="panel-head">
           <h2>Cart</h2>
           <span class="muted" style="font-size:11.5px;">${pos.items.length} line${pos.items.length===1?'':'s'}${pos.items.length?` · <strong style="color:var(--ink);">₹${fmt(total)}</strong>`:''}</span>
         </div>
         <div class="panel-body" style="padding:0;">
-          <div id="posCartLines" style="max-height:320px;overflow-y:auto;padding:14px 16px;">
+          <div id="posCartLines" class="pos-cart-lines">
             ${pos.items.length ? pos.items.map((it,i)=>`
-              <div style="padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface);">
-                <div style="display:flex;align-items:flex-start;gap:10px;">
-                  <div style="width:30px;height:30px;border-radius:8px;background:${posAvatarColor(it.name)};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${escapeHtml((it.name||'?').charAt(0).toUpperCase())}</div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;">
-                      <div style="font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">${escapeHtml(it.name)}</div>
-                      <button class="btn secondary small" data-pos-note-toggle="${i}" type="button" style="padding:2px 6px;font-size:11px;${it.note?'border-color:var(--gold);':''}" title="Add a note">📝</button>
-                      <button class="btn secondary small" data-pos-remove-item="${i}" type="button" style="color:var(--debit);padding:2px 6px;" title="Remove">✕</button>
+              <div class="pos-cart-line">
+                <div class="pos-cart-line-top">
+                  <div class="pos-avatar" style="background:${posAvatarColor(it.name)};">${escapeHtml((it.name||'?').charAt(0).toUpperCase())}</div>
+                  <div class="pos-cart-line-body">
+                    <div class="pos-cart-line-head">
+                      <div class="pos-cart-line-name">${escapeHtml(it.name)}</div>
+                      <button class="btn secondary small pos-line-icon-btn" data-pos-note-toggle="${i}" type="button" style="${it.note?'border-color:var(--gold);':''}" title="Add a note">📝</button>
+                      <button class="btn secondary small pos-line-icon-btn pos-remove-btn" data-pos-remove-item="${i}" type="button" title="Remove">✕</button>
                     </div>
-                    <div class="muted pos-line-meta" style="font-size:10.5px;margin-top:1px;">₹${fmt(it.rate)} each${Number(it.disc)>0?` · ${it.disc}% off`:''}</div>
+                    <div class="muted pos-line-meta">₹${fmt(it.rate)} each${Number(it.disc)>0?` · ${it.disc}% off`:''}</div>
                     ${it.noteOpen ? `<input type="text" class="pos-note-input" data-i="${i}" value="${escapeAttr(it.note||'')}" placeholder="Note for this line…" style="margin-top:6px;width:100%;font-size:11.5px;padding:5px 8px;">` : ''}
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                      <div style="display:flex;align-items:center;gap:4px;">
-                        <button class="btn secondary small" data-pos-qty-dec="${i}" type="button" style="padding:2px 8px;">−</button>
-                        <input type="number" class="pos-qty-input" data-i="${i}" value="${it.qty}" min="1" step="1" style="width:44px;text-align:center;padding:4px;">
-                        <button class="btn secondary small" data-pos-qty-inc="${i}" type="button" style="padding:2px 8px;">+</button>
+                    <div class="pos-cart-line-controls">
+                      <div class="pos-qty-stepper">
+                        <button class="btn secondary small" data-pos-qty-dec="${i}" type="button">−</button>
+                        <input type="number" class="pos-qty-input" data-i="${i}" value="${it.qty}" min="1" step="1">
+                        <button class="btn secondary small" data-pos-qty-inc="${i}" type="button">+</button>
                       </div>
-                      <div style="display:flex;gap:3px;">
-                        ${[2,5,10].map(n=>`<button class="btn secondary small" data-pos-qty-set="${i}" data-qty="${n}" type="button" style="padding:2px 6px;font-size:10px;" title="Set quantity to ${n}">×${n}</button>`).join('')}
+                      <div class="pos-qty-presets">
+                        ${[2,5,10].map(n=>`<button class="btn secondary small" data-pos-qty-set="${i}" data-qty="${n}" type="button" title="Set quantity to ${n}">×${n}</button>`).join('')}
                       </div>
-                      <div style="display:flex;align-items:center;gap:3px;margin-left:auto;">
-                        <label class="muted" style="font-size:10px;">Disc</label>
-                        <input type="number" class="pos-disc-input" data-i="${i}" value="${it.disc||0}" min="0" max="100" step="1" style="width:42px;text-align:center;padding:3px;font-size:11px;">
-                        <span class="muted" style="font-size:10px;">%</span>
+                      <div class="pos-disc-wrap">
+                        <label class="muted">Disc</label>
+                        <input type="number" class="pos-disc-input" data-i="${i}" value="${it.disc||0}" min="0" max="100" step="1">
+                        <span class="muted">%</span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div style="display:flex;justify-content:flex-end;margin-top:6px;">
-                  <div class="pos-line-amount" style="font-weight:700;font-size:13px;">₹${fmt(itemLineAmount(it))}</div>
-                </div>
-              </div>`).join('') : `<p class="muted" style="font-size:12.5px;margin:6px 0;">Tap an item to add it to the cart.</p>`}
+                <div class="pos-cart-line-amount"><span class="pos-line-amount">₹${fmt(itemLineAmount(it))}</span></div>
+              </div>`).join('') : `<p class="muted pos-cart-empty">Tap an item to add it to the cart.</p>`}
           </div>
 
-          <div style="padding:14px 16px 16px;border-top:1px solid var(--border);">
+          <div class="pos-panel-section">
             <details class="disclosure">
               <summary>GST — ${rate}%, ${pos.supply==='intra'?'Intrastate':'Interstate'}</summary>
               <div class="disclosure-body row">
@@ -18934,7 +19265,7 @@ function viewPOS(){
             <div class="totals-line" style="justify-content:space-between;margin-top:10px;"><span class="muted">Subtotal</span><span id="posSubtotal">₹${fmt(subtotal)}</span></div>
             <div class="totals-line" id="posTaxLine" style="justify-content:space-between;">${taxVal>0 ? `<span class="muted">${pos.supply==='intra'?`CGST+SGST @ ${rate}%`:`IGST @ ${rate}%`}</span><span>₹${fmt(taxVal)}</span>` : ''}</div>
 
-            <div style="margin:16px 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);">Customer &amp; Payment</div>
+            <div class="pos-section-label">Customer &amp; Payment</div>
 
             <div class="field"><label>Customer</label>
               <select id="posCustomer" ${pos.newCustomerName?'disabled':''}>
@@ -18943,8 +19274,8 @@ function viewPOS(){
               </select>
             </div>
 
-            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;font-weight:500;margin:10px 0;">
-              <input type="checkbox" id="posCollectPayment" style="width:auto;" ${pos.collectPayment?'checked':''}> Collect payment now
+            <label class="pos-checkbox-row">
+              <input type="checkbox" id="posCollectPayment" ${pos.collectPayment?'checked':''}> Collect payment now
             </label>
 
             ${pos.collectPayment ? `
@@ -18965,17 +19296,17 @@ function viewPOS(){
             </div>
             <p class="muted" style="font-size:11.5px;">Posts the full amount to ${pos.newCustomerName? `a new <strong style="color:var(--ink);">${escapeHtml(pos.newCustomerName.trim())}</strong> ledger (created under Sundry Debtors)` : "the selected customer's ledger"} as a receivable — no Cash/Bank movement recorded now.</p>`}
 
-            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:11.5px;font-weight:500;margin-top:10px;">
-              <input type="checkbox" id="posAlwaysPrint" style="width:auto;" ${currentCompany.posAlwaysPrint!==false?'checked':''}> Print invoice automatically after each sale
+            <label class="pos-checkbox-row small">
+              <input type="checkbox" id="posAlwaysPrint" ${currentCompany.posAlwaysPrint!==false?'checked':''}> Print invoice automatically after each sale
             </label>
           </div>
 
-          <div style="padding:14px 16px;border-top:2px solid var(--border);background:linear-gradient(180deg, rgba(44,160,28,0.05), rgba(44,160,28,0.02));">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
-              <span style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);">Total Due</span>
-              <span id="posGrandTotal" style="font-size:19px;font-weight:800;">₹${fmt(total)}</span>
+          <div class="pos-checkout-bar">
+            <div class="pos-checkout-total">
+              <span class="pos-checkout-label">Total Due</span>
+              <span id="posGrandTotal" class="pos-checkout-amount">₹${fmt(total)}</span>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div class="pos-checkout-actions">
               <button class="btn" id="posCompleteSale" type="button" ${(pos.items.length && !isReadOnlyMode())?'':'disabled'}>✅ Complete Sale</button>
               <button class="btn secondary" id="posHoldSale" type="button" ${pos.items.length?'':'disabled'}>⏸ Hold</button>
               <button class="btn secondary" id="posClearCart" type="button" ${pos.items.length?'':'disabled'}>Clear</button>
@@ -19152,19 +19483,19 @@ function viewDaybook(){
     </div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${filtered.length ? `<table>
+        ${filtered.length ? `<table class="rb-card-table">
           <tr><th>Date</th><th>Type</th><th>Narration</th><th>Entries</th><th class="num">Amount</th><th>Action</th></tr>
           ${filtered.map(v=>`<tr>
-            <td class="muted">${v.date}</td>
-            <td>${v.type}</td>
-            <td>${v.narration||'—'}${itemsSummary(v)}${currencyNote(v)}${v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
-            <td class="muted" style="font-size:12px;">${v.entries.map(e=>{
+            <td class="muted ccard-title" data-label="Date">${v.date}</td>
+            <td class="ccard-title" data-label="Type">${v.type}</td>
+            <td data-label="Narration">${v.narration||'—'}${itemsSummary(v)}${currencyNote(v)}${v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
+            <td class="muted" style="font-size:12px;" data-label="Entries">${v.entries.map(e=>{
               const l = ledgerOf(e.ledgerId);
               const name = l?l.name:'?';
               return e.dr ? `${name} Dr` : `${name} Cr`;
             }).join(', ')}</td>
-            <td class="num">₹${fmt(voucherAmount(v))}</td>
-            <td><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}</td>
+            <td class="num ccard-amount" data-label="Amount">₹${fmt(voucherAmount(v))}</td>
+            <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}</td>
           </tr>`).join('')}
         </table>` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
       </div>
@@ -19306,15 +19637,15 @@ function ledgerStatement(ledgerId){
         </div>
       </div>
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="rb-card-table">
           <tr><th>Date</th><th>Particulars</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr>
-          <tr><td class="muted">—</td><td class="muted">Opening Balance</td><td class="num">${l.opening>0?fmt(l.opening):''}</td><td class="num">${l.opening<0?fmt(l.opening):''}</td><td class="num ${l.opening>=0?'pos':'neg'}">${fmt(l.opening)} ${balanceLabel(l.opening)}</td></tr>
+          <tr><td class="muted ccard-title" data-label="Date">—</td><td class="muted ccard-title" data-label="Particulars">Opening Balance</td><td class="num" data-label="Debit">${l.opening>0?fmt(l.opening):''}</td><td class="num" data-label="Credit">${l.opening<0?fmt(l.opening):''}</td><td class="num ccard-amount ${l.opening>=0?'pos':'neg'}" data-label="Balance">${fmt(l.opening)} ${balanceLabel(l.opening)}</td></tr>
           ${rows.map(r=>`<tr>
-            <td class="muted">${r.date}</td>
-            <td>${r.particulars}</td>
-            <td class="num">${r.dr?fmt(r.dr):''}</td>
-            <td class="num">${r.cr?fmt(r.cr):''}</td>
-            <td class="num ${r.running>=0?'pos':'neg'}">${fmt(r.running)} ${balanceLabel(r.running)}</td>
+            <td class="muted ccard-title" data-label="Date">${r.date}</td>
+            <td class="ccard-title" data-label="Particulars">${r.particulars}</td>
+            <td class="num" data-label="Debit">${r.dr?fmt(r.dr):''}</td>
+            <td class="num" data-label="Credit">${r.cr?fmt(r.cr):''}</td>
+            <td class="num ccard-amount ${r.running>=0?'pos':'neg'}" data-label="Balance">${fmt(r.running)} ${balanceLabel(r.running)}</td>
           </tr>`).join('')}
           ${!rows.length ? `<tr><td colspan="5" class="empty">No transactions on this ledger yet.</td></tr>`:''}
         </table>
@@ -20090,10 +20421,10 @@ function reportTrialBalance(){
   return `
     ${reportHeader('Trial Balance', 'exportTBBtn')}
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Ledger</th><th class="num">Debit</th><th class="num">Credit</th></tr>
-        ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td>${r.l.name}</td><td class="num">${r.b>0?fmt(r.b):''}</td><td class="num">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
-        <tr style="font-weight:600;border-top:2px solid var(--ink);"><td>Total</td><td class="num">₹${fmt(tbDr)}</td><td class="num">₹${fmt(tbCr)}</td></tr>
+        ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
+        <tr style="font-weight:600;border-top:2px solid var(--ink);"><td class="ccard-title" data-label="Ledger">Total</td><td class="num ccard-amount" data-label="Debit">₹${fmt(tbDr)}</td><td class="num ccard-amount" data-label="Credit">₹${fmt(tbCr)}</td></tr>
       </table>
     </div></div>
   `;
@@ -21529,24 +21860,24 @@ function viewGST(){
 
     <div class="section-title">Outward Supplies (Sales) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      ${outward.length ? `<table>
+      ${outward.length ? `<table class="rb-card-table">
         <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
         ${outward.map(({v,g})=>{
           const invoice = voucherAmount(v);
           const taxable = invoice - g.totalTax;
-          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted">${v.date}</td><td>${v.narration||'—'}</td><td class="num">₹${fmt(taxable)}</td><td class="num">₹${fmt(g.cgst)}</td><td class="num">₹${fmt(g.sgst)}</td><td class="num">₹${fmt(g.igst)}</td><td class="num">₹${fmt(invoice)}</td></tr>`;
+          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted ccard-title" data-label="Date">${v.date}</td><td class="ccard-title" data-label="Narration">${v.narration||'—'}</td><td class="num" data-label="Taxable">₹${fmt(taxable)}</td><td class="num" data-label="CGST">₹${fmt(g.cgst)}</td><td class="num" data-label="SGST">₹${fmt(g.sgst)}</td><td class="num" data-label="IGST">₹${fmt(g.igst)}</td><td class="num ccard-amount" data-label="Invoice Total">₹${fmt(invoice)}</td></tr>`;
         }).join('')}
       </table>` : emptyState({icon:'🧾', title:'No GST sales vouchers recorded yet', text:'Apply GST to a Sales voucher to see it here.'})}
     </div></div>
 
     <div class="section-title">Inward Supplies (Purchase) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      ${inward.length ? `<table>
+      ${inward.length ? `<table class="rb-card-table">
         <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
         ${inward.map(({v,g})=>{
           const invoice = voucherAmount(v);
           const taxable = invoice - g.totalTax;
-          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted">${v.date}</td><td>${v.narration||'—'}</td><td class="num">₹${fmt(taxable)}</td><td class="num">₹${fmt(g.cgst)}</td><td class="num">₹${fmt(g.sgst)}</td><td class="num">₹${fmt(g.igst)}</td><td class="num">₹${fmt(invoice)}</td></tr>`;
+          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted ccard-title" data-label="Date">${v.date}</td><td class="ccard-title" data-label="Narration">${v.narration||'—'}</td><td class="num" data-label="Taxable">₹${fmt(taxable)}</td><td class="num" data-label="CGST">₹${fmt(g.cgst)}</td><td class="num" data-label="SGST">₹${fmt(g.sgst)}</td><td class="num" data-label="IGST">₹${fmt(g.igst)}</td><td class="num ccard-amount" data-label="Invoice Total">₹${fmt(invoice)}</td></tr>`;
         }).join('')}
       </table>` : emptyState({icon:'🧾', title:'No GST purchase vouchers recorded yet', text:'Apply GST to a Purchase voucher to see it here.'})}
     </div></div>
@@ -23507,6 +23838,9 @@ function attachHandlers(){
   document.querySelectorAll('[data-print-invoice]').forEach(b=>{
     b.addEventListener('click', ()=> printInvoiceForVoucher(b.dataset.printInvoice));
   });
+  document.querySelectorAll('[data-download-invoice-pdf]').forEach(b=>{
+    b.addEventListener('click', ()=> downloadInvoicePDFForVoucher(b.dataset.downloadInvoicePdf));
+  });
 
   document.querySelectorAll('[data-open-attachments]').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -23850,6 +24184,32 @@ function attachHandlers(){
       const el = document.getElementById('taxPreview');
       if(el) el.textContent = taxPreviewText();
     });
+    // "Repeat Last Voucher": pulls the most recent voucher of the currently-selected type (see the
+    // repeatCandidate computation in viewVoucher()) and copies its shape -- same ledgers in the same
+    // Dr/Cr slots, same narration -- onto the CURRENT draft, with today's date and every amount zeroed
+    // out. Purely a pre-fill: nothing here touches state.vouchers or posts anything, so the person still
+    // has to fill in amounts and press Save/Update themselves, same as starting from scratch.
+    document.getElementById('repeatLastVoucherBtn')?.addEventListener('click', ()=>{
+      const last = state.vouchers
+        .filter(v=>v.type===vform.type)
+        .slice()
+        .sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||'').localeCompare(a.createdAt||''))[0];
+      if(!last){ toast(`No previous ${vform.type} voucher to repeat yet`); return; }
+      vform.date = new Date().toISOString().slice(0,10);
+      vform.narration = last.narration || '';
+      vform.mode = 'double';
+      vform.entries = (last.entries||[]).filter(e=>e.ledgerId).map(e=>({ ledgerId: e.ledgerId, dr:0, cr:0, side: entrySide(e) }));
+      if(vform.entries.length<2){
+        vform.entries = [{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}];
+      }
+      vform.appliedItems = null;
+      vform.costCenterId = last.costCenterId || '';
+      if(vform.type==='Sales') vform.channel = last.channel || '';
+      vform.tax = { enabled:false, sectionCode:'', rate:'' };
+      vform.single = { ledgerA:'', ledgerB:'', amount:'' };
+      toast(`Pre-filled from your last ${vform.type} voucher (${last.date}) — set amounts and Save`, {type:'success'});
+      render();
+    });
     document.getElementById('quickAddLedgerBtn')?.addEventListener('click', ()=>{
       const inSingleMode = !!document.getElementById('singleA');
       if(inSingleMode){
@@ -23881,6 +24241,7 @@ function attachHandlers(){
       vform = null; render();
     });
     document.getElementById('printBillBtn')?.addEventListener('click', ()=>{ generateAndPrintBill(); });
+    document.getElementById('downloadBillPdfBtn')?.addEventListener('click', ()=>{ downloadDraftInvoicePDF(); });
     document.querySelectorAll('.e-ledger').forEach(s=>{
       s.addEventListener('change', e=>{
         const i = +e.target.dataset.i;
@@ -23889,6 +24250,7 @@ function attachHandlers(){
         // shows up or goes away immediately based on whether any Debit-side ledger is now a Purchase
         // Accounts ledger.
         if(vform.type==='Payment') render();
+        else refreshEntryBalanceMeta();
       });
       s.addEventListener('focus', e=>{ quickLedgerFocus = { type:'entry', index: +e.target.dataset.i }; });
       // Enter on a ledger picker jumps straight to that row's own amount field (Dr or Cr, whichever
@@ -24523,6 +24885,8 @@ function attachHandlers(){
       const creditLimitRaw = document.getElementById('alterLedgerCreditLimit').value;
       const creditDaysRaw = document.getElementById('alterLedgerCreditDays').value;
       const gstinRaw = document.getElementById('alterLedgerGSTIN').value.trim().toUpperCase();
+      const addressRaw = document.getElementById('alterLedgerAddress').value.trim();
+      const shipAddressRaw = document.getElementById('alterLedgerShipAddress').value.trim();
       if(!name){ toast('Enter a ledger name'); return; }
       const dupe = state.ledgers.find(x=>x.name.toLowerCase()===name.toLowerCase() && (!editing || x.id!==alterLedgerId));
       if(dupe){ toast(`A ledger named "${dupe.name}" already exists`); return; }
@@ -24538,6 +24902,8 @@ function attachHandlers(){
         if(creditLimitRaw){ l.creditLimit = Number(creditLimitRaw); } else { delete l.creditLimit; }
         if(creditDaysRaw){ l.creditDays = Number(creditDaysRaw); } else { delete l.creditDays; }
         if(gstinRaw){ l.gstin = gstinRaw; } else { delete l.gstin; }
+        if(addressRaw){ l.address = addressRaw; } else { delete l.address; }
+        if(shipAddressRaw){ l.shippingAddress = shipAddressRaw; } else { delete l.shippingAddress; }
         await saveLedgers();
         toast('Ledger updated');
       } else {
@@ -24548,6 +24914,8 @@ function attachHandlers(){
         if(creditLimitRaw) ledger.creditLimit = Number(creditLimitRaw);
         if(creditDaysRaw) ledger.creditDays = Number(creditDaysRaw);
         if(gstinRaw) ledger.gstin = gstinRaw;
+        if(addressRaw) ledger.address = addressRaw;
+        if(shipAddressRaw) ledger.shippingAddress = shipAddressRaw;
         state.ledgers.push(ledger);
         window._selectedLedger = ledger.id;
         await saveLedgers();
@@ -25118,7 +25486,7 @@ function attachHandlers(){
     });
     document.getElementById('openInvSettingsBtn')?.addEventListener('click', ()=>{
       const s = currentCompany.invoiceSettings || {};
-      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', logoDataUrl: s.logoDataUrl||'' };
+      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', logoDataUrl: s.logoDataUrl||'', numberPrefix: s.numberPrefix||'' };
       modal = 'invoiceSettings';
       render();
     });
@@ -25130,6 +25498,7 @@ function attachHandlers(){
   if(modal==='invoiceSettings'){
     document.getElementById('invTemplate')?.addEventListener('change', e=>{ invoiceSettingsDraft.template = e.target.value; });
     document.getElementById('invAccentColor')?.addEventListener('input', e=>{ invoiceSettingsDraft.accentColor = e.target.value; });
+    document.getElementById('invNumberPrefix')?.addEventListener('input', e=>{ invoiceSettingsDraft.numberPrefix = e.target.value; });
     document.getElementById('invFooterNote')?.addEventListener('input', e=>{ invoiceSettingsDraft.footerNote = e.target.value; });
     document.getElementById('removeInvLogoBtn')?.addEventListener('click', ()=>{ invoiceSettingsDraft.logoDataUrl = ''; render(); });
     document.getElementById('invLogoInput')?.addEventListener('change', async e=>{
@@ -25252,6 +25621,7 @@ function updateSingleEntryPreview(){
 }
 
 function renderTotalsOnly(){
+  refreshEntryBalanceMeta();
   const dr = vform.entries.reduce((s,e)=>s+(Number(e.dr)||0),0);
   const cr = vform.entries.reduce((s,e)=>s+(Number(e.cr)||0),0);
   const balanced = Math.abs(dr-cr) < 0.005 && dr > 0;
