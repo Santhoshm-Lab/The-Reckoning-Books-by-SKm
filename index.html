@@ -588,7 +588,7 @@
   .landing-intro-grid{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:start;}
   .landing-intro-grid p{font-size:14px;line-height:1.85;color:var(--ink-soft);margin:0 0 18px;}
   .landing-intro-grid p strong{color:var(--ink);}
-  .landing-stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .landing-stat-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
   .landing-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 14px;text-align:center;}
   .landing-stat .n{font-size:22px;font-weight:900;color:var(--accent1);letter-spacing:-.02em;}
   .landing-stat .l{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:3px;}
@@ -722,6 +722,43 @@
   .landing-faq-a{max-height:0;overflow:hidden;transition:max-height .25s ease;}
   .landing-faq-item.open .landing-faq-a{max-height:260px;}
   .landing-faq-a-inner{padding:0 20px 18px;font-size:12.5px;color:var(--ink-soft);line-height:1.65;}
+
+  /* ================= Landing page 2026.3: full module explorer (category tabs + live search
+     over every shipped module) -- same tokens as every other landing block, nothing new invented. ================= */
+  .landing-modules-section{padding-top:8px;}
+  .landing-mod-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;max-width:1100px;margin:0 auto 26px;}
+  .landing-mod-tabs{display:flex;flex-wrap:wrap;gap:8px;flex:1;min-width:0;}
+  .landing-mod-tab{display:flex;align-items:center;gap:7px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 14px 8px 12px;cursor:pointer;transition:all .15s ease;white-space:nowrap;}
+  .landing-mod-tab svg{width:15px;height:15px;flex-shrink:0;}
+  .landing-mod-tab em{font-style:normal;font-size:10px;font-weight:800;color:var(--ink-faint);background:var(--surface-strong);border-radius:999px;padding:1px 6px;}
+  .landing-mod-tab:hover{border-color:var(--border-strong);color:var(--ink);}
+  .landing-mod-tab.active{background:var(--accent1);border-color:var(--accent1);color:#fff;box-shadow:0 8px 18px rgba(44,160,28,0.28);}
+  .landing-mod-tab.active em{background:rgba(255,255,255,0.25);color:#fff;}
+  .landing-mod-tabs.is-searching .landing-mod-tab{opacity:.5;}
+  .landing-mod-search{position:relative;flex-shrink:0;width:min(320px,100%);}
+  .landing-mod-search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--ink-faint);pointer-events:none;}
+  .landing-mod-search input{width:100%;font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:9px 14px 9px 36px;outline:none;transition:border-color .15s ease,box-shadow .15s ease;}
+  .landing-mod-search input:focus{border-color:var(--accent1);box-shadow:0 0 0 3px rgba(44,160,28,0.14);}
+  .landing-mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;max-width:1180px;margin:0 auto;}
+  .landing-mod-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 16px 15px;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;}
+  .landing-mod-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(20,30,25,0.09);border-color:var(--border-strong);}
+  .landing-mod-card.is-hidden{display:none;}
+  .landing-mod-card-cat{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--accent1);background:rgba(44,160,28,0.1);border-radius:999px;padding:2px 8px;margin-bottom:8px;}
+  .landing-mod-card-cat.hidden{display:none;}
+  .landing-mod-card-icon{width:24px;height:24px;color:var(--accent1);margin-bottom:8px;}
+  .landing-mod-card-icon svg{width:100%;height:100%;}
+  .landing-mod-card h4{margin:0 0 5px;font-size:13px;font-weight:800;color:var(--ink);letter-spacing:-.005em;}
+  .landing-mod-card p{margin:0;font-size:11.5px;line-height:1.55;color:var(--ink-soft);}
+  .landing-mod-empty{text-align:center;color:var(--ink-faint);font-size:13px;padding:40px 20px;}
+  .landing-mod-empty.hidden{display:none;}
+  @media (max-width:640px){
+    .landing-mod-toolbar{flex-direction:column;align-items:stretch;}
+    .landing-mod-search{width:100%;}
+    .landing-mod-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width:420px){
+    .landing-mod-grid{grid-template-columns:1fr;}
+  }
 
   /* ---- GST Format viewer (modal) ---- */
   .fmt-chips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface-strong);}
@@ -9417,6 +9454,11 @@ function landingFeatureIcon(name){
     security: '<path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>',
     check: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
     cross: '<path d="M18 6L6 18M6 6l12 12"/>',
+    orders: '<path d="M9 2h6a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1z"/><path d="M9 12h6M9 16h6"/>',
+    payroll: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',
+    ai: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+    productivity: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   };
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]||''}</svg>`;
 }
@@ -9430,6 +9472,151 @@ const LANDING_FEATURES = [
   { icon:'dashboards', title:'Dashboards That Mean Something', body:'Live, interactive visuals for cash position, profit, ratios and cash flow — not just static numbers.' },
   { icon:'security', title:'Real Accounts, Real Security', body:'Email-verified accounts, an admin panel, and a full audit log — zero installs, runs entirely in your browser.' },
 ];
+
+// ---- Full module explorer: every module in the app, grouped, searchable, filterable by category.
+// Content is grounded in what's actually shipped (cross-checked against the real CMDK_TABS/VOUCHER_TYPES/
+// GROUPS/reports list and the project's own feature changelog) -- nothing here is aspirational. ----
+const LANDING_MODULE_CATEGORIES = [
+  { id:'accounting', label:'Core Accounting', icon:'vouchers', modules:[
+    { name:'Eight Voucher Types', desc:'Payment, Receipt, Contra, Sales, Credit Note, Purchase, Debit Note and Journal — every entry validated to balance before it can save.' },
+    { name:'Ledgers & Chart of Accounts', desc:'Running balance on every account, across 15 Primary Groups and 13 Sub-Groups, Tally-style.' },
+    { name:'Day Book', desc:'A searchable, chronological register of every voucher posted, with edit, print and attach actions.' },
+    { name:'Cost Centers & Budgets', desc:'Tag postings to a cost center and track Budget vs Actual by financial year.' },
+    { name:'Recurring Templates', desc:'Rent, subscriptions and other repeating postings, generated on schedule for your review — nothing posts itself.' },
+    { name:'Voucher Attachments', desc:'Attach a bill or receipt image or PDF to any voucher, straight from the Day Book.' },
+    { name:'Calendar View', desc:'Every voucher plotted on the date it was posted, browsable month by month.' },
+  ]},
+  { id:'compliance', label:'GST & Compliance', icon:'gst', modules:[
+    { name:'Automatic GST', desc:'CGST, SGST and IGST computed on every applicable voucher — no manual tax math.' },
+    { name:'GST Return Readiness Report', desc:'A GSTR-1/3B-style monthly summary of output tax vs. input credit, flagging any voucher missing a GSTIN or HSN.' },
+    { name:'e-Invoice JSON Export', desc:'Generates a ready-to-file e-Invoice payload for eligible Sales vouchers.' },
+    { name:'TDS/TCS Report', desc:'A dedicated summary of tax deducted and collected at source.' },
+    { name:'Configurable Invoice Templates', desc:'Logo, accent color, template and footer note — identical on the live preview and every later reprint.' },
+  ]},
+  { id:'inventory', label:'Inventory & Warehousing', icon:'inventory', modules:[
+    { name:'Multi-Warehouse Stock', desc:'Track stock across locations, with transfers between them.' },
+    { name:'Batch & Serial Registers', desc:'Full traceability for batch- and serial-tracked items.' },
+    { name:'Reorder Alerts', desc:'A low-stock warning before an item actually runs out.' },
+    { name:'Demand Forecasting', desc:'A data-driven read on likely future demand, per item.' },
+    { name:'Dead Stock Detection', desc:'Surfaces items with no movement in a chosen window, so capital isn\'t sitting idle.' },
+    { name:'Item & Stock Management', desc:'Items, units and pricing in one place, tied directly into every voucher.' },
+  ]},
+  { id:'sales', label:'Sales, Orders & POS', icon:'orders', modules:[
+    { name:'Quotations', desc:'Professional quotes that convert straight into a Sales Order.' },
+    { name:'Sales & Purchase Orders', desc:'The full pre-invoice order trail, on both sides of the business.' },
+    { name:'Delivery Challans', desc:'Dispatch documentation, linked back to the order it fulfils.' },
+    { name:'POS / Quick Sale', desc:'A fast, cart-based checkout screen for over-the-counter sales.' },
+    { name:'Hold & Recall Sale', desc:'Park an in-progress sale and pick it back up exactly where you left off.' },
+  ]},
+  { id:'payroll', label:'Payroll & Fixed Assets', icon:'payroll', modules:[
+    { name:'Payroll Management', desc:'Employee records and one-click monthly salary voucher generation.' },
+    { name:'Staff Loans & Full & Final Settlement', desc:'EMI recovery and a complete exit settlement, handled right inside the books.' },
+    { name:'Payroll Register & Tax Reports', desc:'Exportable, month by month.' },
+    { name:'Fixed Asset Register', desc:'Every asset, with automatic depreciation posted by financial year.' },
+    { name:'Prepaid-Expense Amortization', desc:'Defer a payment\'s future-month share and recognize it automatically as each month arrives.' },
+  ]},
+  { id:'reports', label:'Reports & Analytics', icon:'dashboards', modules:[
+    { name:'Trial Balance, P&L & Balance Sheet', desc:'Schedule III-ready, always current.' },
+    { name:'Cash Flow & Ratio Analysis', desc:'Trend charts and liquidity/profitability gauges — not just numbers on a page.' },
+    { name:'Cost Center P&L & Budget vs Actual', desc:'Performance by cost center and financial year.' },
+    { name:'Data Integrity Report', desc:'Checks your books for internal consistency issues before they become a problem.' },
+    { name:'Financial Performance Report', desc:'A consolidated view of how the business is actually doing.' },
+    { name:'Interactive Dashboard', desc:'Live visuals for cash position, profit and trend — personalizable per browser.' },
+    { name:'Excel Export', desc:'Every report, one click, no reformatting afterward.' },
+  ]},
+  { id:'ai', label:'AI-Native Intelligence', icon:'ai', modules:[
+    { name:'Agentic Command Palette', desc:'Type "paid 500 for rent yesterday" and it drafts the voucher for your review — nothing posts itself.' },
+    { name:'Natural-Language Report Builder', desc:'Ask for "top 5 expense categories last quarter as a chart" and get a real chart, right in the chat.' },
+    { name:'Natural-Language Entity Search', desc:'"Who owes me the most" — answered with a direct link to the party.' },
+    { name:'AI Cash-Flow Forecast', desc:'A 30/60/90-day projected cash position, built from open invoices and recurring templates.' },
+    { name:'Duplicate-Payment Guard', desc:'A warning before you save a likely duplicate Payment or Purchase voucher.' },
+    { name:'Month-End Close Checklist', desc:'A live-evaluated checklist for depreciation, accruals, GST and bank reconciliation.' },
+    { name:'Collections Priority & Drafted Reminders', desc:'Ranks overdue customers and drafts a ready-to-copy payment reminder.' },
+    { name:'GL Anomaly & Party Risk Detection', desc:'Flags outlier postings and scores every party\'s risk, 0–100.' },
+    { name:'Predictive Autofill & Auto-Categorization', desc:'A ghost-text amount suggestion as you type, and the right ledger group suggested for a new account.' },
+    { name:'Automation Activity Feed', desc:'Every automatic action the app takes, logged chronologically, with one-click undo.' },
+  ]},
+  { id:'security', label:'Multi-Company & Security', icon:'companies', modules:[
+    { name:'Multi-Company', desc:'Every business, or every client\'s books, from one login — each one fully separate.' },
+    { name:'Multi-Currency', desc:'Ledgers can carry their own currency and exchange rate.' },
+    { name:'Email-Verified Accounts', desc:'No sign-in without a verified email address.' },
+    { name:'Role-Based Admin Panel', desc:'Full Administrator, Group Admin and read-only roles, with per-feature access control.' },
+    { name:'Full Audit Log', desc:'Every admin action and security event, recorded and reviewable.' },
+    { name:'Try the Live Demo', desc:'A real, fully populated company you can explore with no sign-up at all.' },
+  ]},
+  { id:'productivity', label:'Productivity & Data Tools', icon:'productivity', modules:[
+    { name:'Ctrl+K Command Palette', desc:'Jump anywhere, start any voucher, search everything — by keyboard or voice.' },
+    { name:'Keyboard-First Voucher Entry', desc:'Enter and Alt shortcuts post a voucher without ever touching the mouse.' },
+    { name:'Smart Import', desc:'Bank statements or spreadsheets, pre-mapped straight into vouchers.' },
+    { name:'One-Click Backup & Restore', desc:'A company\'s entire books, backed up or restored in a single click.' },
+    { name:'Full Accessibility', desc:'ARIA roles, keyboard-only modal control and focus management throughout.' },
+    { name:'Dark Mode', desc:'Every screen, matched automatically to your system.' },
+  ]},
+];
+function landingModulesSection(){
+  const cats = LANDING_MODULE_CATEGORIES;
+  const totalModules = cats.reduce((n,c)=>n+c.modules.length,0);
+  return `
+    <div class="landing-section landing-modules-section" id="modules" style="padding-top:8px;">
+      <h2 class="reveal">Every module, in one place</h2>
+      <p class="landing-section-sub reveal">${totalModules} modules across ${cats.length} categories — this is the whole app, not a highlights reel. Browse by category or search for what you need.</p>
+      <div class="landing-mod-toolbar reveal">
+        <div class="landing-mod-tabs" role="tablist">
+          ${cats.map((c,i)=>`<button class="landing-mod-tab${i===0?' active':''}" type="button" data-mod-tab="${c.id}" role="tab">${landingFeatureIcon(c.icon)}<span>${escapeHtml(c.label)}</span><em>${c.modules.length}</em></button>`).join('')}
+        </div>
+        <div class="landing-mod-search">
+          ${landingFeatureIcon('search')}
+          <input type="text" id="landingModSearch" placeholder="Search modules — e.g. GST, payroll, reconciliation" autocomplete="off">
+        </div>
+      </div>
+      <div class="landing-mod-grid" id="landingModGrid">
+        ${cats.map(c=>c.modules.map(m=>`
+        <div class="landing-mod-card" data-mod-cat="${c.id}" data-mod-search="${escapeAttr((m.name+' '+m.desc+' '+c.label).toLowerCase())}">
+          <span class="landing-mod-card-cat hidden">${escapeHtml(c.label)}</span>
+          <div class="landing-mod-card-icon">${landingFeatureIcon('check')}</div>
+          <h4>${escapeHtml(m.name)}</h4>
+          <p>${escapeHtml(m.desc)}</p>
+        </div>`).join('')).join('')}
+      </div>
+      <p class="landing-mod-empty hidden" id="landingModEmpty"></p>
+    </div>
+  `;
+}
+// ---- Category tabs + live search over the full module grid: tabs show one category at a time;
+// typing in the search box searches every module regardless of category (and shows each result's
+// category as a small tag) -- clearing the search returns to whichever tab was last active. ----
+function wireLandingModulesExplorer(){
+  const tabs = document.querySelectorAll('[data-mod-tab]');
+  const cards = document.querySelectorAll('.landing-mod-card');
+  const search = document.getElementById('landingModSearch');
+  const emptyMsg = document.getElementById('landingModEmpty');
+  const tabsWrap = document.querySelector('.landing-mod-tabs');
+  if(!tabs.length || !cards.length) return;
+  let activeCat = tabs[0].dataset.modTab;
+  function applyFilter(){
+    const q = (search?.value||'').trim().toLowerCase();
+    let visible = 0;
+    cards.forEach(card=>{
+      const show = q ? card.dataset.modSearch.includes(q) : card.dataset.modCat===activeCat;
+      card.classList.toggle('is-hidden', !show);
+      card.querySelector('.landing-mod-card-cat')?.classList.toggle('hidden', !q);
+      if(show) visible++;
+    });
+    tabs.forEach(t=>t.classList.toggle('active', !q && t.dataset.modTab===activeCat));
+    tabsWrap?.classList.toggle('is-searching', !!q);
+    if(emptyMsg){
+      emptyMsg.classList.toggle('hidden', visible>0);
+      if(visible===0) emptyMsg.textContent = `No modules match "${search.value.trim()}".`;
+    }
+  }
+  tabs.forEach(t=>t.addEventListener('click', ()=>{
+    activeCat = t.dataset.modTab;
+    if(search) search.value = '';
+    applyFilter();
+  }));
+  search?.addEventListener('input', applyFilter);
+  applyFilter();
+}
 
 // ---- How It Works: 3-step flow (2026 redesign) ----
 const LANDING_STEPS = [
@@ -9551,6 +9738,7 @@ function renderLanding(){
         <div class="landing-nav-links">
           <a href="#how-it-works">How It Works</a>
           <a href="#features">Features</a>
+          <a href="#modules">All Modules</a>
           <a href="#showcase">See It In Action</a>
           <a href="#faq">FAQ</a>
         </div>
@@ -9570,6 +9758,7 @@ function renderLanding(){
         <button class="landing-mobile-menu-close" id="landingMobileMenuClose" type="button" aria-label="Close menu">×</button>
         <a href="#how-it-works" data-mobile-nav-link="1">How It Works</a>
         <a href="#features" data-mobile-nav-link="1">Features</a>
+        <a href="#modules" data-mobile-nav-link="1">All Modules</a>
         <a href="#showcase" data-mobile-nav-link="1">See It In Action</a>
         <a href="#faq" data-mobile-nav-link="1">FAQ</a>
         <button class="btn secondary" id="landingMobileTryDemoBtn" type="button">Try Demo</button>
@@ -9608,8 +9797,9 @@ function renderLanding(){
         <div class="landing-stat-strip">
           <div class="landing-stat"><div class="n" data-count="${VOUCHER_TYPES.length}">0</div><div class="l">Voucher Types</div></div>
           <div class="landing-stat"><div class="n" data-count="${GROUPS.length}">0</div><div class="l">Ledger Groups, Tally-style</div></div>
-          <div class="landing-stat"><div class="n" data-count="${LANDING_FEATURES.length}">0</div><div class="l">Core Modules</div></div>
-          <div class="landing-stat"><div class="n" data-count="9">0</div><div class="l">Report Types</div></div>
+          <div class="landing-stat"><div class="n" data-count="10">0</div><div class="l">Report Types</div></div>
+          <div class="landing-stat"><div class="n" data-count="21">0</div><div class="l">AI-Native Features</div></div>
+          <div class="landing-stat"><div class="n" data-count="${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)}">0</div><div class="l">Modules, Total</div></div>
         </div>
       </div>
 
@@ -9636,6 +9826,8 @@ function renderLanding(){
           </div>`).join('')}
         </div>
       </div>
+
+      ${landingModulesSection()}
 
       ${landingShowcaseSection()}
 
@@ -9698,6 +9890,7 @@ function renderLanding(){
   wireLandingFaqAccordion();
   wireLandingShowcaseTabs();
   wireLandingHeroParallax();
+  wireLandingModulesExplorer();
 }
 // ---- Mobile slide-out menu: burger opens it, scrim/close/any link closes it ----
 function wireLandingMobileMenu(){
