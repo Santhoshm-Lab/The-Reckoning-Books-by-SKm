@@ -12857,8 +12857,12 @@ function renderGateway(){
         if(!isFullAdmin()) return;
         const tid = el.dataset.provisionTicket;
         const t = supportTickets.find(x=>x.id===tid);
-        if(!t || !t.targetUserId){ toast('This ticket has no account to provision.'); return; }
-        const u = users.find(x=>x.id===t.targetUserId);
+        // Older tickets raised before targetUserId existed as its own field don't have one — but a
+        // seat-request ticket's raiser (userId) IS the account being asked about, so fall back to that
+        // rather than refusing to provision a ticket just because it predates the structured field.
+        const targetId = t ? (t.targetUserId || t.userId) : null;
+        if(!t || !targetId){ toast('This ticket has no account to provision.'); return; }
+        const u = users.find(x=>x.id===targetId);
         if(!u){ toast('Could not find that account anymore — it may have been deleted.'); return; }
         // Read the admin's actually-chosen seat count from the inline number input (synced from the
         // quick-pick dropdown, or hand-typed) rather than always granting the ticket's own fixed
@@ -13738,20 +13742,34 @@ function adminSupportTab(){
         <td>${escapeHtml(t.userName||'—')}${t.username?`<div class="muted" style="font-size:10px;">@${escapeHtml(t.username)}</div>`:''}</td>
         <td><span class="pill ${a.kind==='group'?'':'neg'}" title="${escapeAttr(a.title)}">${escapeHtml(a.label)}</span></td>
         <td>${escapeHtml(t.subject||'—')}${t.escalated?` <span class="pill neg" title="${t.escalatedBy?('Escalated by '+escapeAttr(t.escalatedBy)+(t.escalatedAt?(' · '+fmtTimestamp(t.escalatedAt)):'')):''}">Escalated</span>`:''}
-          ${t.type==='seat_increase' ? `
+          ${(()=>{
+            // Recognize a seat-request ticket by its structured type field WHEN PRESENT, but also fall
+            // back to matching its subject line — older tickets raised before the structured type/
+            // targetUserId/currentLimit/requestedLimit fields existed still say "Seat limit increase
+            // request" and otherwise look exactly like one, so without this fallback they'd be stuck
+            // showing only a plain "Add Reply" button forever, no matter how the app code is updated.
+            const looksLikeSeatRequest = t.type==='seat_increase' || /seat limit increase request/i.test(t.subject||'');
+            if(!looksLikeSeatRequest) return '';
+            const targetId = t.targetUserId || t.userId;
+            const targetUser = targetId ? users.find(x=>x.id===targetId) : null;
+            const derivedCurrent = t.currentLimit!=null ? t.currentLimit : (targetUser ? (targetUser.groupUserLimit||3) : null);
+            const derivedRequested = t.requestedLimit!=null ? t.requestedLimit : (derivedCurrent!=null ? derivedCurrent+10 : null);
+            return `
           <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);" title="Seats at the time of this request → seats requested">${t.currentLimit!=null?t.currentLimit:'—'} → ${t.requestedLimit!=null?t.requestedLimit:'—'} seats</span>
+            <span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);" title="Seats at the time of this request → seats requested">${derivedCurrent!=null?derivedCurrent:'—'} → ${derivedRequested!=null?derivedRequested:'—'} seats</span>
             ${t.provisioned
-              ? `<span class="pill pos" title="${t.provisionedAt?('Provisioned '+escapeAttr(fmtTimestamp(t.provisionedAt))):''}">✅ Provisioned to ${t.provisionedLimit!=null?t.provisionedLimit:t.requestedLimit}</span>`
+              ? `<span class="pill pos" title="${t.provisionedAt?('Provisioned '+escapeAttr(fmtTimestamp(t.provisionedAt))):''}">✅ Provisioned to ${t.provisionedLimit!=null?t.provisionedLimit:derivedRequested}</span>`
               : (isFullAdmin() ? `
                 <select data-provision-preset="${escapeAttr(t.id)}" title="Quick-pick a seat count" style="font-size:11px;padding:4px 6px;max-width:180px;">
-                  ${seatProvisionPresetOptions(t, users.find(x=>x.id===t.targetUserId))}
+                  ${seatProvisionPresetOptions({currentLimit:derivedCurrent, requestedLimit:derivedRequested}, targetUser)}
                 </select>
-                <input type="number" data-provision-input="${escapeAttr(t.id)}" min="0" max="500" value="${t.requestedLimit!=null?t.requestedLimit:((t.currentLimit!=null?t.currentLimit:3)+10)}" style="width:62px;font-size:11px;padding:4px 6px;" title="Exact seat count to set — type any number, higher or lower than the current limit">
+                <input type="number" data-provision-input="${escapeAttr(t.id)}" min="0" max="500" value="${derivedRequested!=null?derivedRequested:((derivedCurrent!=null?derivedCurrent:3)+10)}" style="width:62px;font-size:11px;padding:4px 6px;" title="Type the exact total seat count to set — any number, higher or lower than the current limit">
                 <button class="btn small" data-provision-ticket="${escapeAttr(t.id)}" type="button" title="Set this account's seat limit to the number above and resolve this ticket, in one step">⚡ Provision</button>
+                <span class="muted" style="font-size:10px;width:100%;">Pick a preset above, or type any exact number in the box, then Provision — works to raise or lower the limit.</span>
               ` : '')}
           </div>
-          ` : ''}
+          `;
+          })()}
         </td>
         <td class="muted" style="font-size:11.5px;max-width:260px;">${escapeHtml(t.message||'')}
           ${editingTicketId===t.id ? `
