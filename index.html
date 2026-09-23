@@ -759,6 +759,39 @@
   .landing-showcase-caption{text-align:center;max-width:520px;margin:22px auto 0;font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
   .landing-showcase-caption strong{color:var(--ink);}
 
+  /* ---- Product showcase 2026: scroll-driven "pin and scrub" story, Apple-product-page style --
+     native position:sticky + a scroll-progress listener (wireLandingScrollStory()), no canvas frame
+     sequence (only 3 real screenshots exist, not hundreds) and no external animation library, staying
+     consistent with this app's fully self-contained, zero-dependency convention. Falls back to the
+     plain tabbed browser-mock (.landing-story-fallback, unchanged, same wireLandingShowcaseTabs()) on
+     narrow screens and under prefers-reduced-motion, so the content is always fully visible either way,
+     never scroll-jacked, and never dependent on JavaScript actually running. ---- */
+  .landing-story-fallback{display:none;}
+  .landing-story-rail{display:flex;justify-content:center;gap:10px;margin-bottom:22px;}
+  .landing-story-dot{width:9px;height:9px;border-radius:50%;background:var(--border-strong);border:none;cursor:pointer;padding:0;transition:background .2s ease,transform .2s ease;}
+  .landing-story-dot:hover{background:var(--ink-faint);}
+  .landing-story-dot.active{background:var(--accent1);transform:scale(1.35);}
+  .landing-story-sticky{position:sticky;top:78px;padding:6px 0 30px;}
+  .landing-story-grid{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:44px;align-items:center;}
+  .landing-story-textwrap{position:relative;min-height:210px;}
+  .landing-story-text{position:absolute;inset:0;opacity:0;transform:translateY(16px);transition:opacity .45s ease,transform .45s ease;pointer-events:none;}
+  .landing-story-text.is-active{opacity:1;transform:none;pointer-events:auto;}
+  .landing-story-text .eyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--accent1);margin:0 0 10px;}
+  .landing-story-text h3{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:0 0 12px;color:var(--ink);line-height:1.25;}
+  .landing-story-text p{font-size:13px;line-height:1.65;color:var(--ink-soft);margin:0;}
+  .landing-story-mockwrap .browser-mock{margin:0;}
+  .landing-story-mockwrap .browser-mock-body{position:relative;min-height:220px;}
+  .landing-story-mockwrap .browser-mock-body img{position:absolute;inset:0;width:100%;height:auto;opacity:0;transform:scale(.97);transition:opacity .5s ease,transform .5s ease;}
+  .landing-story-mockwrap .browser-mock-body img.is-active{position:relative;opacity:1;transform:scale(1);}
+  @media (max-width:899px){
+    .landing-story-desktop{display:none;}
+    .landing-story-fallback{display:block;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .landing-story-desktop{display:none;}
+    .landing-story-fallback{display:block;}
+  }
+
   /* ---- Comparison: The Reckoning Books vs. a spreadsheet ---- */
   .landing-compare-table{max-width:820px;margin:0 auto;border-radius:16px;overflow:hidden;border:1px solid var(--border);background:var(--surface);}
   .landing-compare-row{display:grid;grid-template-columns:1.3fr 1fr 1fr;align-items:center;}
@@ -2352,6 +2385,7 @@ let dashCountersAnimated = false; // only count-up the stat tiles once per compa
 // replaces them instead of stacking duplicates on `window`.
 let landingScrollHandler = null;
 let landingRevealObserver = null;
+let landingStoryScrollHandler = null; // the scroll-driven product-showcase story's own scroll listener
 let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
 let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
 let pinnedTiles = (function(){ try{ return JSON.parse(localStorage.getItem('rb_pinnedTiles')||'[]'); }catch(e){ return []; } })(); // dashboard viz-card ids pinned to the top "Pinned" section
@@ -9706,29 +9740,69 @@ function landingHowItWorksSection(){
 
 // ---- Product showcase: tabbed browser-chrome mockup, real screenshots of the live app ----
 const LANDING_SHOWCASE_SHOTS = [
-  { id:'dashboard', label:'Dashboard', url:'reckoning-books.web.app/dashboard', b64:LANDING_SHOT_DASHBOARD_B64, caption:'<strong>Live, not static.</strong> Net profit, cash position, an exception queue that flags what actually needs attention, and a 30/60/90-day cash-flow forecast — computed from your real books, every time you open it.' },
-  { id:'voucher', label:'Voucher Entry', url:'reckoning-books.web.app/voucher', b64:LANDING_SHOT_VOUCHER_B64, caption:'<strong>The GST Calculator is the entry screen.</strong> Add items, and tax, totals and the underlying debit/credit posting all update together — nothing to reconcile by hand afterward.' },
-  { id:'reports', label:'Reports', url:'reckoning-books.web.app/reports', b64:LANDING_SHOT_REPORTS_B64, caption:'<strong>Ratio analysis, visualised.</strong> Liquidity and profitability trends, gauges against a safe zone, and the full ratio table underneath — not just a static PDF.' },
+  { id:'dashboard', label:'Dashboard', headline:'Live, not static.', url:'reckoning-books.web.app/dashboard', b64:LANDING_SHOT_DASHBOARD_B64, caption:'<strong>Live, not static.</strong> Net profit, cash position, an exception queue that flags what actually needs attention, and a 30/60/90-day cash-flow forecast — computed from your real books, every time you open it.' },
+  { id:'voucher', label:'Voucher Entry', headline:'The GST Calculator is the entry screen.', url:'reckoning-books.web.app/voucher', b64:LANDING_SHOT_VOUCHER_B64, caption:'<strong>The GST Calculator is the entry screen.</strong> Add items, and tax, totals and the underlying debit/credit posting all update together — nothing to reconcile by hand afterward.' },
+  { id:'reports', label:'Reports', headline:'Ratio analysis, visualised.', url:'reckoning-books.web.app/reports', b64:LANDING_SHOT_REPORTS_B64, caption:'<strong>Ratio analysis, visualised.</strong> Liquidity and profitability trends, gauges against a safe zone, and the full ratio table underneath — not just a static PDF.' },
 ];
+// ---- Scroll-driven story body copy: the same reviewed caption text, minus its own leading
+// <strong>headline</strong> (used verbatim as the story panel's own <h3>), so nothing new is
+// authored here -- just the existing, already-vetted copy split into headline + supporting line.
+function landingStoryBody(shot){
+  return shot.caption.replace(/^<strong>[^<]*<\/strong>\s*/, '');
+}
 function landingShowcaseSection(){
   const shots = LANDING_SHOWCASE_SHOTS;
   return `
     <div class="landing-section" id="showcase" style="padding-top:8px;">
       <h2 class="reveal">See it for yourself</h2>
-      <p class="landing-section-sub reveal">Real screens from the live app — this is exactly what opens after you sign in.</p>
-      <div class="landing-showcase-tabs reveal">
-        ${shots.map((s,i)=>`<button class="landing-showcase-tab${i===0?' active':''}" type="button" data-showcase-tab="${s.id}">${escapeHtml(s.label)}</button>`).join('')}
-      </div>
-      <div class="browser-mock reveal" id="landingBrowserMock">
-        <div class="browser-mock-bar">
-          <div class="browser-mock-dots"><span></span><span></span><span></span></div>
-          <div class="browser-mock-url" id="landingBrowserMockUrl">${escapeHtml(shots[0].url)}</div>
+      <p class="landing-section-sub reveal">Real screens from the live app — this is exactly what opens after you sign in. Scroll to walk through it.</p>
+
+      <div class="landing-story landing-story-desktop reveal">
+        <div class="landing-story-steps" style="height:${shots.length * 90}vh;">
+          <div class="landing-story-sticky">
+            <div class="landing-story-rail">
+              ${shots.map((s,i)=>`<button class="landing-story-dot${i===0?' active':''}" type="button" data-story-dot="${i}" aria-label="Jump to ${escapeAttr(s.label)}"></button>`).join('')}
+            </div>
+            <div class="landing-story-grid">
+              <div class="landing-story-textwrap">
+                ${shots.map((s,i)=>`
+                <div class="landing-story-text${i===0?' is-active':''}" data-story-text="${i}">
+                  <div class="eyebrow">${escapeHtml(s.label)}</div>
+                  <h3>${escapeHtml(s.headline)}</h3>
+                  <p>${landingStoryBody(s)}</p>
+                </div>`).join('')}
+              </div>
+              <div class="landing-story-mockwrap">
+                <div class="browser-mock">
+                  <div class="browser-mock-bar">
+                    <div class="browser-mock-dots"><span></span><span></span><span></span></div>
+                    <div class="browser-mock-url" id="landingStoryMockUrl">${escapeHtml(shots[0].url)}</div>
+                  </div>
+                  <div class="browser-mock-body">
+                    ${shots.map((s,i)=>`<img data-story-img="${i}" class="${i===0?'is-active':''}" src="data:image/webp;base64,${s.b64}" alt="${escapeAttr(s.label)} screenshot of The Reckoning Books">`).join('')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="browser-mock-body">
-          <img id="landingBrowserMockImg" src="data:image/webp;base64,${shots[0].b64}" alt="${escapeAttr(shots[0].label)} screenshot of The Reckoning Books">
-        </div>
       </div>
-      <p class="landing-showcase-caption reveal" id="landingShowcaseCaption">${shots[0].caption}</p>
+
+      <div class="landing-story-fallback">
+        <div class="landing-showcase-tabs reveal">
+          ${shots.map((s,i)=>`<button class="landing-showcase-tab${i===0?' active':''}" type="button" data-showcase-tab="${s.id}">${escapeHtml(s.label)}</button>`).join('')}
+        </div>
+        <div class="browser-mock reveal" id="landingBrowserMock">
+          <div class="browser-mock-bar">
+            <div class="browser-mock-dots"><span></span><span></span><span></span></div>
+            <div class="browser-mock-url" id="landingBrowserMockUrl">${escapeHtml(shots[0].url)}</div>
+          </div>
+          <div class="browser-mock-body">
+            <img id="landingBrowserMockImg" src="data:image/webp;base64,${shots[0].b64}" alt="${escapeAttr(shots[0].label)} screenshot of The Reckoning Books">
+          </div>
+        </div>
+        <p class="landing-showcase-caption reveal" id="landingShowcaseCaption">${shots[0].caption}</p>
+      </div>
     </div>
   `;
 }
@@ -9952,6 +10026,7 @@ function renderLanding(){
   wireLandingMobileMenu();
   wireLandingFaqAccordion();
   wireLandingShowcaseTabs();
+  wireLandingScrollStory();
   wireLandingHeroParallax();
   wireLandingModulesExplorer();
 }
@@ -9996,6 +10071,62 @@ function wireLandingShowcaseTabs(){
       if(captionEl) captionEl.innerHTML = shot.caption;
     });
   });
+}
+// ---- Product showcase story: the scroll-driven "pin and scrub" version of the showcase above.
+// A tall spacer (.landing-story-steps, N*90vh) holds a position:sticky panel in view while the
+// page scrolls through it; a single passive, rAF-throttled scroll listener turns how far the user
+// has scrolled through that spacer into a 0..(N-1) chapter index, and toggles a plain `.is-active`
+// class on that chapter's text block, screenshot, and rail dot -- CSS transitions do the actual
+// cross-fade/scale. No scroll-jacking (the browser's native scroll is never intercepted or
+// overridden) and no canvas frame sequence (there are 3 real screenshots here, not hundreds of
+// pre-rendered frames -- that technique is for continuous rotate/zoom shots, not a features tour).
+// Bails out entirely under prefers-reduced-motion or below the desktop breakpoint, matching
+// wireLandingHeroParallax()'s convention -- the CSS fallback (.landing-story-fallback, the plain
+// tabbed browser-mock) already shows everything in both of those cases regardless.
+function wireLandingScrollStory(){
+  if(landingStoryScrollHandler){ window.removeEventListener('scroll', landingStoryScrollHandler); landingStoryScrollHandler = null; }
+  let reduceMotion = false;
+  try{ reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduceMotion) return;
+  const steps = document.querySelector('.landing-story-steps');
+  const texts = document.querySelectorAll('[data-story-text]');
+  const imgs = document.querySelectorAll('[data-story-img]');
+  const dots = document.querySelectorAll('[data-story-dot]');
+  const urlEl = document.getElementById('landingStoryMockUrl');
+  if(!steps || !texts.length || !imgs.length) return;
+  const n = texts.length;
+  const isDesktop = ()=> !window.matchMedia || window.matchMedia('(min-width:900px)').matches;
+  const setActive = (idx)=>{
+    texts.forEach(t=>t.classList.toggle('is-active', Number(t.dataset.storyText)===idx));
+    imgs.forEach(im=>im.classList.toggle('is-active', Number(im.dataset.storyImg)===idx));
+    dots.forEach(d=>d.classList.toggle('active', Number(d.dataset.storyDot)===idx));
+    const shot = LANDING_SHOWCASE_SHOTS[idx];
+    if(urlEl && shot) urlEl.textContent = shot.url;
+  };
+  let ticking = false;
+  const update = ()=>{
+    ticking = false;
+    if(!isDesktop()) return; // narrow viewport: CSS fallback is showing instead, nothing to compute
+    const rect = steps.getBoundingClientRect();
+    const total = rect.height - window.innerHeight;
+    if(total<=0){ setActive(0); return; }
+    const scrolled = Math.min(Math.max(-rect.top, 0), total);
+    const idx = Math.min(n-1, Math.max(0, Math.round((scrolled/total)*(n-1))));
+    setActive(idx);
+  };
+  const onScroll = ()=>{ if(!ticking){ ticking = true; requestAnimationFrame(update); } };
+  landingStoryScrollHandler = onScroll;
+  window.addEventListener('scroll', onScroll, {passive:true});
+  const scrollToChapter = (idx)=>{
+    const total = steps.offsetHeight - window.innerHeight;
+    if(total<=0) return;
+    const y = steps.getBoundingClientRect().top + window.scrollY + (idx/(n-1))*total;
+    window.scrollTo({ top: y, behavior:'smooth' });
+  };
+  dots.forEach(dot=>{
+    dot.addEventListener('click', ()=>scrollToChapter(Number(dot.dataset.storyDot)));
+  });
+  update();
 }
 // ---- Subtle cursor-parallax on the hero illustration only (the aurora orbs already run their own
 // CSS keyframe drift -- adding a second, JS-driven transform to the same elements would just fight
