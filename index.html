@@ -410,7 +410,31 @@
   .company-card-add:hover .gw-add-icon{background:var(--accent1);color:#fff;transform:rotate(90deg);}
   .company-card-add .gw-add-label{font-size:12.5px;font-weight:700;}
   .gw-empty-state{grid-column:1/-1;text-align:center;padding:36px 20px;color:var(--ink-faint);font-size:13px;}
+  .gw-empty-icon{font-size:32px;margin-bottom:10px;opacity:.7;}
+  .gw-empty-title{font-size:14px;font-weight:800;color:var(--ink-soft);margin-bottom:4px;}
+  .gw-empty-sub{font-size:12px;color:var(--ink-faint);max-width:320px;margin:0 auto;}
   .rb-greeting strong{color:var(--accent1);font-weight:800;}
+  .gw-section-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+  .gw-section-row .gw-section-title{margin-bottom:0;}
+  .gw-search-wrap{position:relative;display:flex;align-items:center;min-width:220px;}
+  .gw-search-wrap input{padding:8px 34px 8px 32px;border-radius:10px;border:1px solid var(--border);background:var(--surface);
+    color:var(--ink);font-size:12.5px;width:100%;min-width:220px;}
+  .gw-search-wrap input:focus{border-color:var(--accent1);outline:none;}
+  .gw-search-icon{position:absolute;left:10px;font-size:12px;opacity:.6;pointer-events:none;}
+  .gw-search-clear{position:absolute;right:8px;background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:12px;
+    padding:4px;line-height:1;border-radius:50%;}
+  .gw-search-clear:hover{color:var(--ink);background:var(--surface-strong);}
+  .company-card{outline:none;}
+  .company-card:focus-visible{border-color:var(--accent1);box-shadow:0 0 0 3px var(--accent1-soft, rgba(44,160,28,0.25)), 0 16px 32px rgba(20,30,25,0.16);transform:translateY(-4px);}
+  .company-card-add:focus-visible{border-color:var(--accent1);outline:none;box-shadow:0 0 0 3px var(--accent1-soft, rgba(44,160,28,0.25));}
+  .company-card-top-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+  .company-card-pin{background:none;border:none;cursor:pointer;font-size:16px;line-height:1;color:var(--ink-faint);
+    opacity:0;transition:opacity .15s ease, color .15s ease, transform .15s ease;padding:2px;}
+  .company-card:hover .company-card-pin, .company-card:focus-within .company-card-pin, .company-card-pin.is-pinned{opacity:1;}
+  .company-card-pin:hover{transform:scale(1.15);}
+  .company-card-pin.is-pinned{color:var(--gold);}
+  .company-card.is-pinned{border-color:var(--gold);}
+  .company-card-recency{margin-top:8px;font-size:10px;color:var(--ink-faint);font-weight:600;}
 
   /* Login / welcome screen */
   .login-shell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:calc(100vh - 50px);padding:40px 20px;}
@@ -681,9 +705,26 @@
   .landing-cta-banner .btn{background:#fff;color:var(--accent2);padding:13px 26px;font-size:13.5px;box-shadow:0 10px 26px rgba(0,0,0,0.2);}
   .landing-cta-banner .btn:hover{background:#F4F7F5;}
 
-  .landing-footer{text-align:center;padding:26px 20px;font-size:11.5px;color:var(--ink-faint);letter-spacing:.02em;background:var(--bg);}
-  .landing-footer strong{color:var(--accent1);font-weight:800;}
-  .landing-footer em{font-style:italic;opacity:.85;}
+  .landing-footer-main{background:var(--bg);border-top:1px solid var(--border);padding:48px 28px 0;}
+  .landing-footer-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.3fr;gap:32px;max-width:1120px;margin:0 auto;padding-bottom:36px;}
+  .landing-footer-logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;color:var(--ink);margin-bottom:10px;}
+  .landing-footer-logo img{width:24px;height:24px;border-radius:6px;}
+  .landing-footer-brand p{font-size:12px;color:var(--ink-faint);line-height:1.6;max-width:260px;margin:0;}
+  .landing-footer-heading{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:12px;}
+  .landing-footer-col{display:flex;flex-direction:column;gap:9px;}
+  .landing-footer-col a{font-size:12.5px;color:var(--ink-soft);text-decoration:none;width:fit-content;transition:color .15s ease;}
+  .landing-footer-col a:hover{color:var(--accent1);}
+  .landing-footer-newsletter-sub{font-size:11.5px;color:var(--ink-faint);line-height:1.5;margin:0 0 12px;}
+  .landing-newsletter-form{display:flex;gap:6px;}
+  .landing-newsletter-form input{flex:1;min-width:0;padding:9px 11px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:12px;}
+  .landing-newsletter-form input:focus{border-color:var(--accent1);outline:none;}
+  .landing-newsletter-form .btn{padding:9px 14px;font-size:12px;flex-shrink:0;}
+  .landing-newsletter-notice{margin-top:9px;font-size:11.5px;color:var(--accent1);font-weight:600;}
+  .landing-footer-bottom{border-top:1px solid var(--border);text-align:center;padding:20px;font-size:11.5px;color:var(--ink-faint);letter-spacing:.02em;
+    display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;}
+  .landing-footer-bottom strong{color:var(--accent1);font-weight:800;}
+  .landing-footer-tagline{opacity:.75;}
+  .landing-footer-tagline::before{content:'—';margin-right:6px;}
 
   @media (max-width:900px){
     .landing-hero-inner{grid-template-columns:1fr;}
@@ -693,12 +734,18 @@
     .landing-visual-inner{grid-template-columns:1fr;}
     .landing-visual-copy h2{text-align:center;}
     .landing-stat-strip{grid-template-columns:1fr 1fr;}
+    .landing-footer-grid{grid-template-columns:1fr 1fr;}
+    .landing-footer-brand{grid-column:1/-1;}
   }
   @media (max-width:560px){
     .landing-feature-grid{grid-template-columns:1fr;}
     .landing-nav{padding:16px 18px;}
     .landing-hero-inner{padding:22px 18px 0;}
     .landing-section{padding:48px 18px;}
+    .landing-footer-main{padding:36px 18px 0;}
+    .landing-footer-grid{grid-template-columns:1fr;gap:26px;}
+    .landing-footer-tagline::before{display:none;}
+    .landing-footer-bottom{flex-direction:column;gap:2px;}
   }
 
   /* ================= Landing page 2026.2 refresh: nav links + mobile menu, How It Works,
@@ -1176,6 +1223,15 @@
      fix), gets a branded top accent, a subtle glowing logo, and a gentle entrance on first paint. ---- */
   .login-card{overflow:hidden;animation:loginCardIn .5s cubic-bezier(.22,1,.36,1);}
   @keyframes loginCardIn{from{opacity:0;transform:translateY(18px) scale(.98);}to{opacity:1;transform:none;}}
+  .reset-success-badge{width:52px;height:52px;border-radius:50%;background:var(--accent1);color:#fff;display:flex;
+    align-items:center;justify-content:center;margin:4px auto 16px;animation:resetSuccessPop .45s cubic-bezier(.22,1.4,.36,1);}
+  .reset-success-badge svg{width:26px;height:26px;}
+  @keyframes resetSuccessPop{from{opacity:0;transform:scale(.4);}to{opacity:1;transform:scale(1);}}
+  .signup-step-indicator{display:flex;align-items:center;gap:6px;margin-bottom:14px;}
+  .signup-step-indicator .step-dot{width:7px;height:7px;border-radius:50%;background:var(--border-strong);transition:background .2s ease,transform .2s ease;}
+  .signup-step-indicator .step-dot.is-active{background:var(--accent1);transform:scale(1.3);}
+  .signup-step-indicator .step-dot.is-done{background:var(--accent1);}
+  .signup-step-indicator .step-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-left:2px;}
   .login-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent1),var(--gold));}
   .login-logo{animation:loginLogoGlow 2.6s ease-in-out infinite;}
   @keyframes loginLogoGlow{0%,100%{box-shadow:0 8px 20px rgba(44,160,28,0.28);}50%{box-shadow:0 8px 26px rgba(44,160,28,0.5);}}
@@ -2500,9 +2556,58 @@ let passwordResetEmail = '';       // the email address that code belongs to (re
 let passwordResetError = '';       // invalid/expired-code message, or an inline error while setting the new password
 let passwordResetBusy = false;     // true while confirmPasswordReset() is in flight
 let passwordResetDone = false;     // true once the new password has been set successfully
+// "Remember me" on the plain login form -- Firebase's JS SDK already defaults every sign-in to
+// LOCAL persistence (signed in indefinitely, surviving a browser restart), so this checkbox's real
+// job is the opposite of what it looks like: it lets someone OPT OUT into a session-only login on a
+// shared/public machine. Defaults to checked so unchecking is the one deliberate action, and nobody
+// who never touches this gets any change to the sign-in behavior they already had.
+let rememberMeChecked = true;
 let resetShowPassword = false;     // show/hide toggle state for this card's own password fields (kept separate from authShowPassword)
 let coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
+let gatewaySearchQuery = '';        // live filter text for the Gateway screen's "Your Companies" grid
+let gatewayFocusedCoId = null;      // id of the company card holding keyboard focus, for roving-tabindex arrow-key navigation
+// Per-browser (localStorage, not synced) company recency + pinning for the Gateway screen — same
+// "personal display preference, never touches anyone else's view" convention as rb_pinnedTiles /
+// rb_dashboardSections. Kept as two small maps rather than folding into company docs themselves,
+// since neither is really data about the company -- it's data about how THIS browser uses it.
+let companyOpenedAt = (function(){ try{ return JSON.parse(localStorage.getItem('rb_companyOpened')||'{}'); }catch(e){ return {}; } })();
+let companyPinned = (function(){ try{ return JSON.parse(localStorage.getItem('rb_companyPinned')||'[]'); }catch(e){ return []; } })();
+function recordCompanyOpened(companyId){
+  companyOpenedAt[companyId] = new Date().toISOString();
+  try{ localStorage.setItem('rb_companyOpened', JSON.stringify(companyOpenedAt)); }catch(e){}
+}
+function toggleCompanyPinned(companyId){
+  companyPinned = companyPinned.includes(companyId) ? companyPinned.filter(id=>id!==companyId) : [...companyPinned, companyId];
+  try{ localStorage.setItem('rb_companyPinned', JSON.stringify(companyPinned)); }catch(e){}
+}
+// Pinned companies first (in the order they were pinned), then everything else by most-recently-
+// opened, then anything never opened in this browser keeps the original (server) order last.
+function sortCompaniesForGateway(list){
+  return list.slice().sort((a,b)=>{
+    const aPin = companyPinned.includes(a.id), bPin = companyPinned.includes(b.id);
+    if(aPin !== bPin) return aPin ? -1 : 1;
+    if(aPin && bPin) return companyPinned.indexOf(a.id) - companyPinned.indexOf(b.id);
+    const aOpened = companyOpenedAt[a.id] || '', bOpened = companyOpenedAt[b.id] || '';
+    if(aOpened !== bOpened) return bOpened.localeCompare(aOpened);
+    return 0;
+  });
+}
+// Friendly "how long ago" caption for a card's last-opened stamp -- deliberately coarse (minutes /
+// hours / days), matching the app's other relative-time captions rather than a raw timestamp.
+function relativeTimeAgo(iso){
+  if(!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if(ms < 0 || isNaN(ms)) return '';
+  const mins = Math.floor(ms/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs/24);
+  if(days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 let modal = null;          // null | 'editCompany' | 'help' | 'isDetail'
 let lastAutofocusedModal = null; // tracks which modal autofocusModalIfNeeded() last moved focus for
                                   // (see its own comment) -- reset to null whenever modal closes.
@@ -2565,6 +2670,13 @@ let contactSupportSending = false;
 let contactSupportNotice = '';
 let helpTab = 'info';    // 'info' | 'tickets' — which section is active inside the tabbed Help modal
 let myTickets = [];      // cache of the current user's own support tickets, loaded when the Tickets tab opens
+// Landing-page footer "Stay Updated" newsletter signup — a public, unauthenticated write (unlike a
+// support ticket, a landing visitor filling this in has no account yet at all) into its own
+// newsletterSignups collection, so it needs its own narrow Firestore rule (see the reference rules
+// text on the Settings tab): create-only, no read/update/delete from the client, ever.
+let newsletterEmail = '';
+let newsletterSending = false;
+let newsletterNotice = '';
 let myTicketUpdateIds = new Set(); // "<ticketId>_<updatedAt>" keys already toasted this session — avoids re-toasting the same admin update on every 30s poll, while still catching the NEXT update to that same ticket
 const DEFAULT_FEATURE_FLAGS = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false, gstRequiresPaid:false, assetsRequiresPaid:false, partiesRequiresPaid:false, ordersRequiresPaid:false, payrollRequiresPaid:false, posRequiresPaid:false };
 let featureFlags = { ...DEFAULT_FEATURE_FLAGS }; // settings/featureFlags doc
@@ -3081,8 +3193,9 @@ function roleLabel(u){
 
 /* ---------------- Group Admin panel (Support role) ----------------
    A 'support' user is a scoped group admin: they see and manage only the users they personally
-   created (users/{uid}.groupOwnerId === their own uid), up to their own groupUserLimit (default 10,
-   raisable only by a full Administrator — see the Users tab's drill-down in the full Admin Panel).
+   created (users/{uid}.groupOwnerId === their own uid), up to their own groupUserLimit (default 3,
+   raisable only by a full Administrator — see the Users tab's drill-down in the full Admin Panel, or
+   the one-click "Provision" action on a "Seat limit increase request" ticket in the Support tab).
    Every loader below queries by that scope directly rather than reading a whole collection and
    filtering client-side, so the query SHAPE matches what the Firestore rules can validate (see
    RECOMMENDED_FIRESTORE_RULES's groupOwnerOf() helper) — the rules are the real enforcement; this
@@ -3171,7 +3284,7 @@ function computeGroupAdminStats(){
   const blocked = groupMembers.filter(u=>u.blocked).length;
   const weekAgo = Date.now() - 7*24*60*60*1000;
   const newThisWeek = groupMembers.filter(u=>u.createdAt && new Date(u.createdAt).getTime()>=weekAgo).length;
-  const limit = (currentUser && currentUser.groupUserLimit) || 10;
+  const limit = (currentUser && currentUser.groupUserLimit) || 3;
   return { totalUsers: groupMembers.length, limit, totalCompanies, blocked, newThisWeek };
 }
 // Lets a Support (group admin) user create a real, ready-to-use account for one of their own group
@@ -3323,6 +3436,11 @@ function wireContactSupportHandlers(rerender){
 // schema or Firestore-rules change: the existing "allow create: userId == request.auth.uid" rule
 // already covers a Support account creating a ticket about itself, and it shows up automatically in
 // the full Admin's existing (unscoped) Support tab, distinguishable by its subject.
+// Files a "Seat limit increase request" as a structured ticket — carries type/targetUserId/
+// currentLimit/requestedLimit as real fields (not just prose in the message) so the full Admin's
+// Support tab can offer a one-click "Provision" action that grants exactly what was asked and
+// resolves the ticket in a single step, instead of the admin having to read the message, go find
+// this account under Users > Details, and raise the limit there by hand.
 async function submitSeatIncreaseRequest(){
   if(!currentUser) return;
   const stats = computeGroupAdminStats();
@@ -3330,10 +3448,15 @@ async function submitSeatIncreaseRequest(){
   const subject = 'Seat limit increase request';
   const message = `${currentUser.name} (@${currentUser.username})${currentUser.groupName?` — group "${currentUser.groupName}"`:''} `+
     `is requesting a higher user limit. Currently at ${stats.totalUsers} of ${stats.limit} users used. `+
-    `Requesting an increase to ${requestedLimit} (adjust as needed from this ticket, then raise the limit from Users > this account's Details).`;
-  await submitSupportTicket(subject, message);
+    `Requesting an increase to ${requestedLimit} — use the Provision button on this ticket to grant it in one step.`;
+  await submitSupportTicket(subject, message, {
+    type: 'seat_increase',
+    targetUserId: currentUser.id,
+    currentLimit: stats.limit,
+    requestedLimit,
+  });
 }
-async function submitSupportTicket(subject, message){
+async function submitSupportTicket(subject, message, extra){
   const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
   await db.collection('supportTickets').doc(id).set({
     id,
@@ -3347,6 +3470,17 @@ async function submitSupportTicket(subject, message){
     seenByUser: true, // the user just raised it themselves — nothing to notify them about yet
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    ...(extra || {}),
+  });
+}
+// Landing-page "Stay Updated" newsletter signup -- deliberately its own tiny collection rather than
+// reusing supportTickets, since the person filling this in may have no account at all yet. Public,
+// create-only write (see the newsletterSignups rule on the Settings tab's reference rules text) --
+// nothing the client can ever read back.
+async function submitNewsletterSignup(email){
+  const id = 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  await db.collection('newsletterSignups').doc(id).set({
+    id, email, createdAt: new Date().toISOString(), source: 'landing_footer',
   });
 }
 
@@ -4420,7 +4554,7 @@ async function refreshCurrentSession(btnId){
         Object.assign(currentUser, {
           role, isAdmin: role==='admin' || role==='support',
           name: profile.name || currentUser.name, plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
-          groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '',
+          groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '',
           groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null,
         });
       }
@@ -4571,6 +4705,7 @@ function showCompanyOpeningSkeleton(companyName){
 async function enterCompanyApp(company, opts={}){
   currentCompany = company;
   if(opts.adminViewOnly) adminViewOnlyCompanyId = company.id;
+  else recordCompanyOpened(company.id); // Gateway's "recently opened" ordering -- a read-only admin peek doesn't count as genuine usage
   showCompanyOpeningSkeleton(company.name);
   await loadState();
   // Read-only sessions (admin view-only, or anyone but the Administrator opening the shared demo
@@ -9838,6 +9973,35 @@ function landingComparisonSection(){
   `;
 }
 
+// ---- "Security & Trust" section — the client-side/Firebase architecture angle isn't mentioned
+// anywhere else on the landing page (the FAQ's "Is my data secure?" answer only covers email
+// verification/audit log/company separation), so this adds genuinely new information rather than
+// repeating it. Every point below is a real, already-shipped capability, cross-checked against the
+// actual app: email verification (auth flow), the audit log (logAudit(), Admin Panel), and Excel/
+// backup export (downloadCSV, company backup/restore) all exist today; nothing here is aspirational. ----
+const LANDING_SECURITY_POINTS = [
+  { icon:'check', title:'Your books, your infrastructure', body:'The Reckoning Books runs as static files talking straight to your own Firebase project — there is no separate application server sitting between you and your books.' },
+  { icon:'check', title:'Every account is real', body:'Signup requires a verified email address before an account can create or edit anything in a company — no anonymous back door.' },
+  { icon:'check', title:'A full, unerasable audit log', body:'Every admin action — role changes, company reassignment, user creation — is written to an audit log that even a full Administrator cannot edit or delete.' },
+  { icon:'check', title:'No lock-in, ever', body:'Every report exports to Excel on demand, and a full company backup is one click away — your data is always yours to take with you.' },
+];
+function landingSecuritySection(){
+  return `
+    <div class="landing-section" id="security" style="padding-top:8px;">
+      <h2 class="reveal">Runs in your browser. Nothing hidden.</h2>
+      <p class="landing-section-sub reveal">No mystery server holding your books hostage — just your browser talking directly to infrastructure you control.</p>
+      <div class="landing-feature-grid reveal-stagger">
+        ${LANDING_SECURITY_POINTS.map(p=>`
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon">${landingFeatureIcon(p.icon)}</div>
+          <h3>${escapeHtml(p.title)}</h3>
+          <p>${escapeHtml(p.body)}</p>
+        </div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
 // ---- FAQ accordion (all answers describe features that actually ship today) ----
 const LANDING_FAQ = [
   { q:'Is The Reckoning Books free to use?', a:'Yes — create a free account with no credit card and explore every core bookkeeping feature. Some advanced modules can be gated to Paid or Lifetime plans depending on how your organization sets it up.' },
@@ -9877,6 +10041,7 @@ function renderLanding(){
           <a href="#features">Features</a>
           <a href="#modules">All Modules</a>
           <a href="#showcase">See It In Action</a>
+          <a href="#security">Security</a>
           <a href="#faq">FAQ</a>
         </div>
         <div class="landing-nav-actions">
@@ -9897,6 +10062,7 @@ function renderLanding(){
         <a href="#features" data-mobile-nav-link="1">Features</a>
         <a href="#modules" data-mobile-nav-link="1">All Modules</a>
         <a href="#showcase" data-mobile-nav-link="1">See It In Action</a>
+        <a href="#security" data-mobile-nav-link="1">Security</a>
         <a href="#faq" data-mobile-nav-link="1">FAQ</a>
         <button class="btn secondary" id="landingMobileTryDemoBtn" type="button">Try Demo</button>
         <button class="btn secondary" id="landingMobileLoginBtn" type="button">Log In</button>
@@ -9985,6 +10151,7 @@ function renderLanding(){
       </div>
 
       ${landingComparisonSection()}
+      ${landingSecuritySection()}
       ${landingFaqSection()}
 
       <div class="landing-cta-banner reveal">
@@ -9997,7 +10164,43 @@ function renderLanding(){
         </div>
       </div>
 
-      <div class="landing-footer">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
+      <div class="landing-footer-main">
+        <div class="landing-footer-grid">
+          <div class="landing-footer-brand">
+            <div class="landing-footer-logo"><img src="data:image/png;base64,${LOGO_ICON_B64}" alt="The Reckoning Books"> The Reckoning Books</div>
+            <p>Real double-entry bookkeeping, built for people who take their books seriously.</p>
+            <p style="margin-top:10px;"><a href="mailto:thereckoningbooks@gmail.com" style="color:var(--ink-soft);text-decoration:none;">thereckoningbooks@gmail.com</a></p>
+          </div>
+          <div class="landing-footer-col">
+            <div class="landing-footer-heading">Product</div>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#features">Features</a>
+            <a href="#modules">All Modules</a>
+            <a href="#showcase">See It In Action</a>
+            <a href="#security">Security</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <div class="landing-footer-col">
+            <div class="landing-footer-heading">Get Started</div>
+            <a id="landingFooterTryDemoBtn" style="cursor:pointer;">Try Demo</a>
+            <a id="landingFooterLoginBtn" style="cursor:pointer;">Log In</a>
+            <a id="landingFooterSignupBtn" style="cursor:pointer;">Create Account</a>
+          </div>
+          <div class="landing-footer-col landing-footer-newsletter">
+            <div class="landing-footer-heading">Stay Updated</div>
+            <p class="landing-footer-newsletter-sub">New features, straight to your inbox — no spam, unsubscribe any time.</p>
+            <form id="landingNewsletterForm" class="landing-newsletter-form">
+              <input type="email" id="landingNewsletterEmail" placeholder="you@company.com" value="${escapeAttr(newsletterEmail)}" required>
+              <button class="btn small" type="submit" ${newsletterSending?'disabled':''}>${newsletterSending?'Sending…':'Subscribe'}</button>
+            </form>
+            ${newsletterNotice ? `<div class="landing-newsletter-notice">${escapeHtml(newsletterNotice)}</div>` : ''}
+          </div>
+        </div>
+        <div class="landing-footer-bottom">
+          <span>© ${new Date().getFullYear()} The Reckoning Books. Built by <strong>Santhosh Kumar M</strong>.</span>
+          <span class="landing-footer-tagline">Accounting at the speed of business</span>
+        </div>
+      </div>
     </div>
   `;
 
@@ -10018,6 +10221,29 @@ function renderLanding(){
   document.getElementById('landingMobileLoginBtn')?.addEventListener('click', ()=>goToLogin('login'));
   document.getElementById('landingMobileSignupBtn')?.addEventListener('click', ()=>goToLogin('signup'));
   document.getElementById('landingMobileTryDemoBtn')?.addEventListener('click', demoLogin);
+  document.getElementById('landingFooterLoginBtn')?.addEventListener('click', ()=>goToLogin('login'));
+  document.getElementById('landingFooterSignupBtn')?.addEventListener('click', ()=>goToLogin('signup'));
+  document.getElementById('landingFooterTryDemoBtn')?.addEventListener('click', demoLogin);
+  document.getElementById('landingNewsletterForm')?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const input = document.getElementById('landingNewsletterEmail');
+    const email = (input?.value || '').trim();
+    if(!isValidEmail(email)){ newsletterNotice = 'Please enter a valid email address.'; renderLanding(); return; }
+    newsletterEmail = email;
+    newsletterSending = true;
+    newsletterNotice = '';
+    renderLanding();
+    try{
+      await submitNewsletterSignup(email);
+      newsletterEmail = '';
+      newsletterNotice = "You're on the list — thanks!";
+    }catch(err){
+      console.error('Newsletter signup failed:', err);
+      newsletterNotice = 'Could not sign up right now — please try again in a moment.';
+    }
+    newsletterSending = false;
+    renderLanding();
+  });
   wireInstallButton('landingInstallWrapNav', 'landingInstallBtnNav', 'landingInstallMenuNav');
   wireInstallButton('landingInstallWrapHero', 'landingInstallBtnHero', 'landingInstallMenuHero');
   wireLandingNavScroll('#landingNav');
@@ -10165,8 +10391,9 @@ function renderPasswordResetCard(){
   const pwType = resetShowPassword ? 'text' : 'password';
   if(passwordResetDone){
     return `
-    <p class="login-tagline">Your password has been updated.</p>
-    <div class="muted" style="font-size:12.5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+    <div class="reset-success-badge">${landingFeatureIcon('check')}</div>
+    <p class="login-tagline" style="text-align:center;">Your password has been updated.</p>
+    <div class="muted" style="font-size:12.5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;">
       You can now log in with your new password.
     </div>
     <button class="btn" id="resetGoToLoginBtn" type="button" style="width:100%;margin-top:16px;">Go to Log In →</button>
@@ -10307,6 +10534,13 @@ function renderLogin(){
             <h1>The Reckoning Books</h1>
             <div class="login-by">by SKm</div>
             ${inPasswordReset ? renderPasswordResetCard() : `
+            ${isSignup && !inPasswordReset && !googleAuthUser ? `
+            <div class="signup-step-indicator">
+              <span class="step-dot${!pendingVerifyUser?' is-active':' is-done'}"></span>
+              <span class="step-dot${pendingVerifyUser?' is-active':''}"></span>
+              <span class="step-label">Step ${pendingVerifyUser?'2':'1'} of 2 — ${pendingVerifyUser?'Set a password':'Verify your email'}</span>
+            </div>
+            ` : ''}
             <p class="login-tagline">${googleAuthUser ? 'Almost there — just a couple of details left.' : (isSignup ? 'Create your account to start keeping the books.' : 'Log in to continue.')}</p>
 
             ${googleAuthUser ? `
@@ -10408,7 +10642,12 @@ function renderLogin(){
               <input type="${pwType}" id="authPassword" placeholder="Your password" autocomplete="current-password">
               <button type="button" class="pw-toggle" id="authTogglePw">${authFieldIcon(authShowPassword?'eye-off':'eye')}</button>
             </div>
-            <p style="text-align:right;margin:6px 0 0;"><a id="forgotPasswordLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Forgot password?</a></p>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:12px;font-weight:500;color:var(--ink-soft);margin:0;">
+                <input type="checkbox" id="rememberMeCheckbox" style="width:auto;" ${rememberMeChecked?'checked':''}> Remember me
+              </label>
+              <a id="forgotPasswordLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Forgot password?</a>
+            </div>
 
             ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
 
@@ -10526,6 +10765,10 @@ function renderLogin(){
           return;
         }
         const { email } = lookupDoc.data();
+        // See rememberMeChecked's own comment -- LOCAL (the default either way) survives a browser
+        // restart, SESSION signs out the moment the browser closes. Set before the actual sign-in
+        // call so it applies to the session about to be created, not the one just ending.
+        try{ await fbAuth.setPersistence(rememberMeChecked ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION); }catch(e){}
         const cred = await fbAuth.signInWithEmailAndPassword(email, password);
         const profDoc = await db.collection('users').doc(cred.user.uid).get();
         const profile = profDoc.exists ? profDoc.data() : { name: username, username, role:'user' };
@@ -10537,7 +10780,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
+        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
         lastUsername = username;
         authDraft = { name:'', username:'', mobile:'', email:'' };
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
@@ -10593,7 +10836,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
+        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
         lastUsername = profile.username || lastUsername;
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
         try{ await db.collection('users').doc(cred.user.uid).update({ lastLoginAt: new Date().toISOString() }); }catch(e){}
@@ -10846,6 +11089,7 @@ function renderLogin(){
     document.getElementById(id)?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitPasswordReset(); });
   });
 
+  document.getElementById('rememberMeCheckbox')?.addEventListener('change', (e)=>{ rememberMeChecked = e.target.checked; });
   document.getElementById('forgotPasswordLink')?.addEventListener('click', ()=>{
     forgotPasswordOpen = true;
     forgotPasswordError = '';
@@ -11056,16 +11300,34 @@ function renderGateway(){
       `;
     })() : ''}
     <div class="gw-wrap">
-      <div class="gw-section-title">Your Companies</div>
+      ${(()=>{
+        const allMyCompanies = visibleCompanies();
+        const q = gatewaySearchQuery.trim().toLowerCase();
+        const myCompanies = sortCompaniesForGateway(q ? allMyCompanies.filter(c=>(c.name||'').toLowerCase().includes(q)) : allMyCompanies);
+        return `
+      <div class="gw-section-row">
+        <div class="gw-section-title">Your Companies</div>
+        ${allMyCompanies.length > 1 ? `
+        <div class="gw-search-wrap">
+          <span class="gw-search-icon">🔎</span>
+          <input type="text" id="gwCompanySearchInput" placeholder="Search your companies…" value="${escapeAttr(gatewaySearchQuery)}" autocomplete="off">
+          ${gatewaySearchQuery ? `<button class="gw-search-clear" id="gwCompanySearchClear" type="button" title="Clear search">✕</button>` : ''}
+        </div>` : ''}
+      </div>
       <div class="company-grid">
-        ${(()=>{ const myCompanies = visibleCompanies(); return myCompanies.map((c,i)=>{
+        ${myCompanies.map((c,i)=>{
           const initials = (c.name||'?').trim().slice(0,2).toUpperCase();
           const palette = ['linear-gradient(135deg,#2CA01C,#1E7A12)','linear-gradient(135deg,#F2994A,#C9701A)','linear-gradient(135deg,#4A90D9,#2563AD)','linear-gradient(135deg,#B15CDE,#7B3FA0)','linear-gradient(135deg,#E0546B,#B23350)','linear-gradient(135deg,#2FB6A6,#1D8377)'];
           const bg = palette[Math.abs((c.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
-          return `<div class="company-card" data-select-co="${c.id}" style="animation-delay:${Math.min(i,10)*45}ms;">
+          const pinned = companyPinned.includes(c.id);
+          const openedAgo = relativeTimeAgo(companyOpenedAt[c.id]);
+          return `<div class="company-card${pinned?' is-pinned':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*45}ms;">
             <div class="company-card-top">
               <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
-              <span class="company-card-arrow">→</span>
+              <div class="company-card-top-right">
+                <button class="company-card-pin${pinned?' is-pinned':''}" data-pin-co="${c.id}" type="button" title="${pinned?'Unpin from top':'Pin to top'}" aria-label="${pinned?'Unpin':'Pin'} ${escapeAttr(c.name)}">${pinned?'★':'☆'}</button>
+                <span class="company-card-arrow">→</span>
+              </div>
             </div>
             <div class="company-card-name">${escapeHtml(c.name)}</div>
             <div class="company-card-badges">
@@ -11076,15 +11338,28 @@ function renderGateway(){
               <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
               <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
             </div>
+            <div class="company-card-recency">${openedAgo?`Opened ${openedAgo}`:'Not opened yet'}</div>
           </div>`;
-        }).join('') || `<div class="gw-empty-state">No companies yet — create your first one to begin →</div>`; })()}
+        }).join('') || (allMyCompanies.length ? `
+        <div class="gw-empty-state">
+          <div class="gw-empty-icon">🔎</div>
+          <div class="gw-empty-title">No companies match "${escapeHtml(gatewaySearchQuery)}"</div>
+          <a id="gwCompanySearchClear2" style="cursor:pointer;color:var(--accent1);text-decoration:underline;font-size:12.5px;">Clear search</a>
+        </div>` : `
+        <div class="gw-empty-state">
+          <div class="gw-empty-icon">🏢</div>
+          <div class="gw-empty-title">No companies yet</div>
+          <div class="gw-empty-sub">${isDemoUser ? 'This demo account explores a shared sample company only.' : 'Create your first company to start entering vouchers and tracking your books.'}</div>
+        </div>`)}
         ${!isDemoUser ? `
-        <div class="company-card-add" id="openCreateCoBtn">
+        <div class="company-card-add" id="openCreateCoBtn" tabindex="0" role="button" aria-label="Create a new company">
           <div class="gw-add-icon">+</div>
           <div class="gw-add-label">Create Company</div>
         </div>` : ''}
       </div>
       ${isDemoUser ? `<div class="muted" style="font-size:11.5px;margin-top:16px;text-align:center;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>` : ''}
+        `;
+      })()}
     </div>
     <div class="rb-credit">Created by <strong>SKm</strong></div>
     ${modal==='help' ? helpModal() : ''}
@@ -11113,6 +11388,45 @@ function renderGateway(){
     renderGateway();
   });
   document.getElementById('gwDemoSignupLink')?.addEventListener('click', ()=> exitDemoSession('signup'));
+  document.getElementById('gwCompanySearchInput')?.addEventListener('input', (e)=>{
+    gatewaySearchQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    renderGateway();
+    const el = document.getElementById('gwCompanySearchInput');
+    if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+  });
+  const clearGwSearch = ()=>{ gatewaySearchQuery = ''; renderGateway(); document.getElementById('gwCompanySearchInput')?.focus(); };
+  document.getElementById('gwCompanySearchClear')?.addEventListener('click', clearGwSearch);
+  document.getElementById('gwCompanySearchClear2')?.addEventListener('click', clearGwSearch);
+  // Pin/unpin is a per-browser display preference (see companyPinned above) -- stopPropagation so
+  // clicking the star never also triggers the card's own "open this company" handler underneath it.
+  document.querySelectorAll('[data-pin-co]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleCompanyPinned(el.dataset.pinCo);
+      renderGateway();
+    });
+  });
+  // Keyboard-first navigation for the company grid, matching the rest of the app's keyboard-first
+  // philosophy (Ctrl+K, Alt+S, the voucher form's Enter-chain): arrow keys rove focus between cards
+  // in DOM order (grid-wrapping is left to the browser's own visual layout, so Right/Down and
+  // Left/Up both simply mean "next"/"previous" card -- simple and predictable rather than trying to
+  // reverse-engineer the current column count), Enter/Space activates whichever card has focus.
+  const gwGrid = document.querySelector('.company-grid');
+  gwGrid?.addEventListener('keydown', (e)=>{
+    const focusable = Array.from(gwGrid.querySelectorAll('[data-select-co], #openCreateCoBtn'));
+    const idx = focusable.indexOf(document.activeElement);
+    if(['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'].includes(e.key)){
+      e.preventDefault();
+      if(idx===-1){ focusable[0]?.focus(); return; }
+      const dir = (e.key==='ArrowRight'||e.key==='ArrowDown') ? 1 : -1;
+      const next = focusable[(idx + dir + focusable.length) % focusable.length];
+      next?.focus();
+    } else if((e.key==='Enter' || e.key===' ') && idx!==-1){
+      e.preventDefault();
+      document.activeElement.click();
+    }
+  });
   if(companyCreateModalOpen){
   document.getElementById('closeCreateCoBtn')?.addEventListener('click', ()=>{
     companyCreateModalOpen = false;
@@ -12027,6 +12341,36 @@ function renderGateway(){
         }
       });
     });
+    document.querySelectorAll('[data-provision-ticket]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        if(!isFullAdmin()) return;
+        const tid = el.dataset.provisionTicket;
+        const t = supportTickets.find(x=>x.id===tid);
+        if(!t || !t.targetUserId){ toast('This ticket has no account to provision.'); return; }
+        const u = users.find(x=>x.id===t.targetUserId);
+        if(!u){ toast('Could not find that account anymore — it may have been deleted.'); return; }
+        const nextLimit = Math.max(0, Math.min(500, Number(t.requestedLimit) || 0));
+        el.disabled = true;
+        try{
+          const now = new Date().toISOString();
+          await db.collection('users').doc(u.id).set({ groupUserLimit: nextLimit }, {merge:true});
+          u.groupUserLimit = nextLimit;
+          const autoNote = t.adminNote || `Provisioned — seat limit raised to ${nextLimit}.`;
+          await db.collection('supportTickets').doc(tid).set({
+            status: 'resolved', provisioned: true, provisionedAt: now, provisionedLimit: nextLimit,
+            adminNote: autoNote, updatedAt: now, seenByUser: false,
+          }, {merge:true});
+          Object.assign(t, { status:'resolved', provisioned:true, provisionedAt: now, provisionedLimit: nextLimit, adminNote: autoNote, seenByUser:false });
+          await logAudit('group_limit_changed', `Provisioned ${u.name}'s group user limit to ${nextLimit} from a seat-increase ticket`, u.id, u.name);
+          toast(`Seat limit raised to ${nextLimit} — ticket resolved`);
+          renderGateway();
+        }catch(err){
+          console.error('Provision seat request failed:', err);
+          toast('Could not provision that request — ' + (err && (err.code || err.message) || 'unknown error'));
+          el.disabled = false;
+        }
+      });
+    });
     document.querySelectorAll('[data-edit-ticket-note]').forEach(el=>{
       el.addEventListener('click', ()=>{
         const tid = el.dataset.editTicketNote;
@@ -12264,7 +12608,7 @@ function renderGateway(){
       }
     });
     document.getElementById('openGroupAddUserBtn')?.addEventListener('click', ()=>{
-      const limit = (currentUser && currentUser.groupUserLimit) || 10;
+      const limit = (currentUser && currentUser.groupUserLimit) || 3;
       if(groupMembers.length >= limit) return; // belt-and-braces — the button is disabled at the cap already
       groupAddUserDraft = { name:'', username:'', mobile:'', email:'', password:'' };
       groupAddUserError = '';
@@ -12418,7 +12762,7 @@ function renderGateway(){
       if(groupAddUserBusy) return;
       const submitBtnEl = document.getElementById('groupAddUserSubmitBtn');
       if(submitBtnEl) submitBtnEl.disabled = true;
-      const limit = (currentUser && currentUser.groupUserLimit) || 10;
+      const limit = (currentUser && currentUser.groupUserLimit) || 3;
       if(groupMembers.length >= limit){ groupAddUserError = `You've reached your limit of ${limit} users — ask an Administrator to raise it.`; renderGateway(); return; }
       const draft = {
         name: (document.getElementById('groupAddUserName')?.value || '').trim(),
@@ -12834,7 +13178,16 @@ function adminSupportTab(){
         <td class="muted" style="font-size:11px;white-space:nowrap;">${fmtTimestamp(t.createdAt)}</td>
         <td>${escapeHtml(t.userName||'—')}${t.username?`<div class="muted" style="font-size:10px;">@${escapeHtml(t.username)}</div>`:''}</td>
         <td><span class="pill ${a.kind==='group'?'':'neg'}" title="${escapeAttr(a.title)}">${escapeHtml(a.label)}</span></td>
-        <td>${escapeHtml(t.subject||'—')}${t.escalated?` <span class="pill neg" title="${t.escalatedBy?('Escalated by '+escapeAttr(t.escalatedBy)+(t.escalatedAt?(' · '+fmtTimestamp(t.escalatedAt)):'')):''}">Escalated</span>`:''}</td>
+        <td>${escapeHtml(t.subject||'—')}${t.escalated?` <span class="pill neg" title="${t.escalatedBy?('Escalated by '+escapeAttr(t.escalatedBy)+(t.escalatedAt?(' · '+fmtTimestamp(t.escalatedAt)):'')):''}">Escalated</span>`:''}
+          ${t.type==='seat_increase' ? `
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);" title="Seats at the time of this request → seats requested">${t.currentLimit!=null?t.currentLimit:'—'} → ${t.requestedLimit!=null?t.requestedLimit:'—'} seats</span>
+            ${t.provisioned
+              ? `<span class="pill pos" title="${t.provisionedAt?('Provisioned '+escapeAttr(fmtTimestamp(t.provisionedAt))):''}">✅ Provisioned to ${t.provisionedLimit!=null?t.provisionedLimit:t.requestedLimit}</span>`
+              : (isFullAdmin() ? `<button class="btn small" data-provision-ticket="${escapeAttr(t.id)}" type="button" title="Raise this account's seat limit to ${t.requestedLimit!=null?t.requestedLimit:'—'} and resolve this ticket, in one step">⚡ Provision → ${t.requestedLimit!=null?t.requestedLimit:'—'}</button>` : '')}
+          </div>
+          ` : ''}
+        </td>
         <td class="muted" style="font-size:11.5px;max-width:260px;">${escapeHtml(t.message||'')}
           ${editingTicketId===t.id ? `
             <textarea data-ticket-note="${escapeAttr(t.id)}" rows="2" placeholder="Reply — the ticket's owner will see this" style="margin-top:6px;font-size:11px;">${escapeHtml(ticketNoteDraft)}</textarea>
@@ -13039,6 +13392,15 @@ service cloud.firestore {
         || (isSignedIn() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenByUser']));
       allow delete: if isAdmin();
     }
+    match /newsletterSignups/{signupId} {
+      // Public, create-only: a landing-page visitor filling in "Stay Updated" has no account yet at
+      // all, so this can't require isSignedIn() the way supportTickets does. The client never reads,
+      // updates or deletes these — only a full Administrator can (e.g. from the Firebase Console),
+      // which is the entire reason this is its own narrow collection instead of piggybacking on
+      // something broader.
+      allow create: if request.resource.data.email is string && request.resource.data.email.size() < 200;
+      allow get, list, update, delete: if isAdmin();
+    }
     match /errorLog/{entryId} {
       allow get, list: if isAdmin();
       allow create: if isSignedIn();
@@ -13175,7 +13537,7 @@ function adminGroupTreeModal(){
       <div class="panel-head"><h2>Group: ${escapeHtml(support.name)}</h2><button class="btn secondary small" id="groupTreeCloseBtn" type="button">✕</button></div>
       <div style="padding:16px 18px;overflow-y:auto;flex:1;min-height:0;">
         <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;">
-          <div class="stat"><div class="label">Members</div><div class="val">${members.length} / ${support.groupUserLimit||10}</div></div>
+          <div class="stat"><div class="label">Members</div><div class="val">${members.length} / ${support.groupUserLimit||3}</div></div>
           <div class="stat"><div class="label">Shared Companies</div><div class="val">${groupCompanyCount}</div></div>
           <div class="stat"><div class="label">Blocked</div><div class="val ${blockedInGroup?'neg':''}">${blockedInGroup}</div></div>
         </div>
@@ -13404,9 +13766,9 @@ function adminUserDetailModal(){
           ` : `<div class="empty">Owns no companies.</div>`}
           ${u.role==='support' ? `
           <div class="section-title">Group Admin Limit</div>
-          <p class="muted" style="font-size:12px;margin-top:0;">This Support user's own scoped "Admin" panel — the group of accounts they can create and manage themselves. Currently at ${users.filter(x=>x.groupOwnerId===u.id).length} of ${u.groupUserLimit||10}.</p>
+          <p class="muted" style="font-size:12px;margin-top:0;">This Support user's own scoped "Admin" panel — the group of accounts they can create and manage themselves. Currently at ${users.filter(x=>x.groupOwnerId===u.id).length} of ${u.groupUserLimit||3}.</p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="number" id="groupUserLimitInput" min="0" max="500" value="${escapeAttr(String(u.groupUserLimit||10))}" style="max-width:120px;" ${isFullAdmin()?'':'disabled'}>
+            <input type="number" id="groupUserLimitInput" min="0" max="500" value="${escapeAttr(String(u.groupUserLimit||3))}" style="max-width:120px;" ${isFullAdmin()?'':'disabled'}>
             <button class="btn secondary small" id="saveGroupUserLimitBtn" type="button" ${isFullAdmin()?'':'disabled'}>Save Limit</button>
           </div>
           ` : ''}
@@ -24356,7 +24718,7 @@ async function restoreSessionFor(fbUser){
       id: fbUser.uid, name: profile.name || fbUser.displayName || '', username: profile.username || '',
       isAdmin: role==='admin' || role==='support', role,
       plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
-      groupUserLimit: profile.groupUserLimit || 10, groupName: profile.groupName || '',
+      groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '',
       groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null,
     };
     isDemoUser = profile.username === DEMO_ACCOUNT_USERNAME;
