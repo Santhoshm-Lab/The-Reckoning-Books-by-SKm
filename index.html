@@ -1634,11 +1634,27 @@ const EMAIL_DOMAIN = '@reckoningbooks.local'; // admin's fixed synthetic email o
    one-click in-browser install on Chrome/Edge/Android before falling back to the
    packaged .exe/.AppImage/.dmg downloads — see wireInstallButton()'s click handler. */
 let deferredPwaInstallPrompt = null;
+// Persisted across visits (and readable immediately if this page IS the installed app) so the
+// install button can say "Installed" instead of confusingly falling back to the packaged-
+// download menu once there's no more beforeinstallprompt event left to capture.
+function isPwaAlreadyInstalled(){
+  try{
+    if(localStorage.getItem('rb_pwaInstalled')==='1') return true;
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    if(navigator.standalone===true) return true; // iOS Safari's own "added to home screen" flag
+  }catch(e){}
+  return false;
+}
 window.addEventListener('beforeinstallprompt', (e)=>{
   e.preventDefault();
   deferredPwaInstallPrompt = e;
 });
-window.addEventListener('appinstalled', ()=>{ deferredPwaInstallPrompt = null; });
+window.addEventListener('appinstalled', ()=>{
+  deferredPwaInstallPrompt = null;
+  try{ localStorage.setItem('rb_pwaInstalled', '1'); }catch(e){}
+  // Refresh the button label from "Install..." to "Installed" immediately, without needing a reload.
+  if(typeof screen!=='undefined' && screen==='landing' && typeof renderLanding==='function') renderLanding();
+});
 if('serviceWorker' in navigator && location.protocol==='https:'){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
@@ -10057,6 +10073,13 @@ function wireInstallButton(wrapId, btnId, menuId){
   const openMenu = ()=>{ menu.hidden = false; };
   btn.addEventListener('click', (e)=>{
     e.stopPropagation();
+    if(isPwaAlreadyInstalled()){
+      // Nothing left to install -- the packaged-download menu below (which would otherwise show
+      // "Coming soon" for any platform without a hosted installer, e.g. macOS) would be actively
+      // misleading here, since the app is already on this device.
+      toast('Already installed — look for The Reckoning Books’ icon on your device.');
+      return;
+    }
     if(deferredPwaInstallPrompt){
       // A real, one-click in-browser install is available (Chrome/Edge/Android) -- offer
       // that instead of a packaged-installer download; the menu below is unnecessary here.
@@ -10456,7 +10479,7 @@ function renderLanding(){
           <button class="btn secondary small" id="landingLoginBtn" type="button">Log In</button>
           <button class="btn small" id="landingSignupBtn" type="button">Create Account</button>
           <div class="landing-install-wrap nav" id="landingInstallWrapNav">
-            <button class="btn secondary small" id="landingInstallBtnNav" type="button">⭳ Install The Reckoning Books</button>
+            <button class="btn secondary small" id="landingInstallBtnNav" type="button">${isPwaAlreadyInstalled() ? '✓ Installed' : '⭳ Install The Reckoning Books'}</button>
             <div class="landing-install-menu" id="landingInstallMenuNav" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
           </div>
         </div>
@@ -10489,7 +10512,7 @@ function renderLanding(){
               <button class="btn secondary" id="landingHeroTryDemoBtn" type="button">Try Demo →</button>
               <button class="btn secondary" id="landingHeroLoginBtn" type="button">Log In</button>
               <div class="landing-install-wrap hero" id="landingInstallWrapHero">
-                <button class="btn secondary" id="landingInstallBtnHero" type="button">⭳ Install Desktop App</button>
+                <button class="btn secondary" id="landingInstallBtnHero" type="button">${isPwaAlreadyInstalled() ? '✓ Installed' : '⭳ Install Desktop App'}</button>
                 <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
               </div>
             </div>
