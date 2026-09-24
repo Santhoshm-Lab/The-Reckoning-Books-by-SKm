@@ -263,6 +263,49 @@
      bankReconcileEntries()'s autoMatched field) -- plain-language + a number, never a raw decimal,
      with the full "why" as a native tooltip so it stays out of the way until asked for. */
   .match-badge{display:inline-block;margin-left:7px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.01em;background:color-mix(in srgb, var(--accent1) 14%, transparent);color:var(--accent1);cursor:help;vertical-align:middle;}
+
+  /* ---- Module UI/UX pass (twenty-fourth+ follow-up): shared components reused across
+     Ledgers/COA, Day Book, Reports, GST, Inventory, Parties, Fixed Assets and Reconcile.
+     Everything below is built only from the existing token palette (green/red/gold/grey) --
+     no new hues -- so it is automatically correct in dark mode. */
+
+  /* Voucher-type badge (vtypeBadge() JS helper) -- a colored pill instead of plain text,
+     grouping the 8 VOUCHER_TYPES into inflow/outflow/adjustment/neutral at a glance. */
+  .vtype-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.01em;white-space:nowrap;}
+  .vtype-badge.vt-in{background:var(--credit-bg);color:var(--credit);}
+  .vtype-badge.vt-out{background:var(--debit-bg);color:var(--debit);}
+  .vtype-badge.vt-adj{background:color-mix(in srgb, var(--gold) 16%, transparent);color:var(--gold);}
+  .vtype-badge.vt-neutral{background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border-strong);}
+
+  /* Toolbar row shared by every module's list screen: an icon-prefixed search box plus,
+     where useful, a row of filter chips (replacing a plain <select> for a handful of options). */
+  .module-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .module-search{position:relative;flex:1;min-width:200px;}
+  .module-search input{width:100%;padding-left:33px;}
+  .module-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--ink-faint);pointer-events:none;}
+  .filter-chips{display:flex;gap:6px;flex-wrap:wrap;}
+  .filter-chip{padding:6.5px 14px;border-radius:999px;font-size:11.5px;font-weight:700;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:border-color .15s ease, color .15s ease, background .15s ease, box-shadow .15s ease;}
+  .filter-chip:hover{border-color:var(--accent1);color:var(--ink);}
+  .filter-chip.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:var(--accent2);box-shadow:0 2px 7px rgba(44,160,28,.28);}
+
+  /* Single-value progress bar -- stock level vs reorder point, depreciation-elapsed vs useful
+     life -- a lighter-weight alternative to a full SVG chart for one number per table row. */
+  .mini-bar{display:block;width:100%;max-width:96px;height:6px;border-radius:999px;background:var(--border);overflow:hidden;}
+  .mini-bar-fill{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent2),var(--accent1));}
+  .mini-bar-fill.warn{background:var(--gold);}
+  .mini-bar-fill.danger{background:var(--debit);}
+  .mini-bar-label{display:block;font-size:9.5px;color:var(--ink-faint);margin-top:3px;font-weight:700;}
+
+  /* Multi-segment composition bar -- a party's outstanding balance split across ageing buckets --
+     stacked left-to-right, current-to-oldest, green through to red. */
+  .mini-bar-stack{display:flex;width:100%;max-width:120px;height:8px;border-radius:999px;overflow:hidden;background:var(--border);}
+  .mini-bar-stack span{display:block;height:100%;}
+
+  /* Circular "percent cleared" indicator for Bank Reconciliation, built from a conic-gradient
+     (no SVG/JS math needed) -- set the --pct custom property per instance (0-100). */
+  .recon-ring{--pct:0;width:60px;height:60px;border-radius:50%;background:conic-gradient(var(--accent1) calc(var(--pct)*1%), var(--border) 0);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s ease;}
+  .recon-ring-inner{width:46px;height:46px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;}
+
   .muted{color:var(--ink-faint);}
   .empty{padding:28px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
 
@@ -19543,6 +19586,24 @@ function gstPreview(g){
   return `<p class="muted" style="font-size:12.5px;" id="gstPreviewBox">${inner}</p>`;
 }
 
+/* Colored pill for a voucher type -- groups the 8 VOUCHER_TYPES into inflow (green), outflow
+   (red), adjustment note (gold) and neutral (grey) so Day Book/GST tables read at a glance
+   instead of requiring the type column to be read as plain text. */
+function vtypeBadge(type){
+  const cls = ({
+    'Receipt':'vt-in','Sales':'vt-in',
+    'Payment':'vt-out','Purchase':'vt-out',
+    'Credit Note':'vt-adj','Debit Note':'vt-adj',
+    'Journal':'vt-neutral','Contra':'vt-neutral',
+  })[type] || 'vt-neutral';
+  return `<span class="vtype-badge ${cls}">${escapeHtml(type)}</span>`;
+}
+/* Small inline search-icon-prefixed <input>, shared by every module's toolbar so the search
+   affordance looks and behaves the same everywhere (Day Book, Ledgers, Inventory, Parties). */
+function moduleSearchBox(id, placeholder, value){
+  return `<div class="module-search">${landingFeatureIcon('search')}<input type="text" id="${id}" placeholder="${escapeAttr(placeholder)}" value="${escapeAttr(value||'')}"></div>`;
+}
+
 function viewDaybook(){
   let rows = state.vouchers.slice().reverse();
   if(activeFY){
@@ -19575,14 +19636,16 @@ function viewDaybook(){
       <div class="stat"><div class="label">Recurring Due</div><div class="val ${dueRecurringCount?'neg':''}">${dueRecurringCount}</div></div>
     </div>
     <div class="panel">
-      <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="daybookSearchInput" placeholder="Search narration or ledger…" value="${escapeAttr(daybookSearchQuery)}" style="flex:1;min-width:200px;">
-        <select id="daybookTypeFilterSelect" style="width:auto;min-width:140px;">
-          <option value="">All types</option>
-          ${voucherTypes.map(t=>`<option value="${escapeAttr(t)}" ${daybookTypeFilter===t?'selected':''}>${t}</option>`).join('')}
-        </select>
-        <button class="btn secondary small" id="openRecurringBtn" type="button">🔁 Recurring Vouchers${dueRecurringCount?` — ${dueRecurringCount} due`:''}</button>
-        <button class="btn secondary small" id="openPrepaidDueBtn" type="button">🗓 Prepaid Amortization${duePrepaidCount?` — ${duePrepaidCount} due`:''}</button>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="module-toolbar">
+          ${moduleSearchBox('daybookSearchInput','Search narration or ledger…',daybookSearchQuery)}
+          <button class="btn secondary small" id="openRecurringBtn" type="button">🔁 Recurring Vouchers${dueRecurringCount?` — ${dueRecurringCount} due`:''}</button>
+          <button class="btn secondary small" id="openPrepaidDueBtn" type="button">🗓 Prepaid Amortization${duePrepaidCount?` — ${duePrepaidCount} due`:''}</button>
+        </div>
+        <div class="filter-chips">
+          <button type="button" class="filter-chip ${daybookTypeFilter===''?'active':''}" data-daybook-type-chip="">All types</button>
+          ${voucherTypes.map(t=>`<button type="button" class="filter-chip ${daybookTypeFilter===t?'active':''}" data-daybook-type-chip="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join('')}
+        </div>
       </div>
     </div>
     <div class="panel">
@@ -19591,7 +19654,7 @@ function viewDaybook(){
           <tr><th>Date</th><th>Type</th><th>Narration</th><th>Entries</th><th class="num">Amount</th><th>Action</th></tr>
           ${filtered.map(v=>`<tr>
             <td class="muted ccard-title" data-label="Date">${v.date}</td>
-            <td class="ccard-title" data-label="Type">${v.type}</td>
+            <td class="ccard-title" data-label="Type">${vtypeBadge(v.type)}</td>
             <td data-label="Narration">${v.narration||'—'}${itemsSummary(v)}${currencyNote(v)}${v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
             <td class="muted" style="font-size:12px;" data-label="Entries">${v.entries.map(e=>{
               const l = ledgerOf(e.ledgerId);
@@ -19677,6 +19740,16 @@ function viewCalendar(){
   `;
 }
 
+/* Dot color for a ledger's top-level category (Capital/Assets/Liabilities/Expenses/Income) --
+   built entirely from existing tokens: green shades for capital/assets, credit-green for income,
+   debit-red for expenses, gold for liabilities (an obligation, worth a touch of caution). */
+function ledgerCategoryColor(l){
+  const cat = groupOf(l.group)?.cat || '';
+  return ({
+    Assets:'var(--accent1)', Capital:'var(--accent2)', Income:'var(--credit)',
+    Expenses:'var(--debit)', Liabilities:'var(--gold)',
+  })[cat] || 'var(--ink-faint)';
+}
 function viewLedgers(){
   const sel = view==='ledgers' && window._selectedLedger ? window._selectedLedger : (state.ledgers[0] && state.ledgers[0].id);
   const q = ledgerSearchQuery.trim().toLowerCase();
@@ -19687,16 +19760,19 @@ function viewLedgers(){
       <div style="flex:0 0 240px;">
         <div class="panel">
           <div class="panel-body" style="padding:8px;">
-            <input type="text" id="ledgerSearchInput" value="${escapeAttr(ledgerSearchQuery)}" placeholder="Search ledgers…" style="margin-bottom:6px;">
-            <button class="btn small secondary" id="newLedgerFromLedgersTabBtn" type="button" style="width:100%;margin-bottom:6px;">+ New Ledger</button>
+            ${moduleSearchBox('ledgerSearchInput','Search ledgers…',ledgerSearchQuery)}
+            <button class="btn small secondary" id="newLedgerFromLedgersTabBtn" type="button" style="width:100%;margin-top:6px;">+ New Ledger</button>
           </div>
           <div class="panel-body" style="padding:0 6px 6px;">
             ${visible.map(l=>{
               const b = ledgerBalance(l.id);
               return `<div class="linklike ledger-row ${sel===l.id?'selected':''}" data-select-ledger="${l.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px 9px 8px;border-radius:3px;${sel===l.id?'background:var(--surface-strong);':''}text-decoration:none;cursor:pointer;">
-                <span>
-                  <div>${l.name}</div>
-                  <div class="muted" style="font-size:10.5px;">${groupOf(l.group)?groupOf(l.group).name:l.group}</div>
+                <span style="display:flex;align-items:flex-start;gap:7px;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${ledgerCategoryColor(l)};flex-shrink:0;margin-top:5px;"></span>
+                  <span>
+                    <div>${l.name}</div>
+                    <div class="muted" style="font-size:10.5px;">${groupOf(l.group)?groupOf(l.group).name:l.group}</div>
+                  </span>
                 </span>
                 <span class="num ${b>=0?'pos':'neg'}" style="font-size:12px;white-space:nowrap;">${fmt(b)} ${balanceLabel(b)}</span>
               </div>`;
@@ -19980,7 +20056,7 @@ function viewCOA(){
                 ? `<span data-toggle-msme="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${l.isMSME?'✓ MSME':'Mark MSME'}</span>`
                 : '—';
               const partyLabel = l.partyType==='customer' ? '✓ Customer' : l.partyType==='supplier' ? '✓ Supplier' : 'Not a party';
-              return `<tr><td><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td>${l.name}</td><td class="muted">${groupOf(l.group).name}</td><td class="muted">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted">${msmeCell}</td><td class="muted"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ${b>=0?'pos':'neg'}">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
+              return `<tr><td><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${ledgerCategoryColor(l)};margin-right:7px;"></span>${l.name}</td><td class="muted">${groupOf(l.group).name}</td><td class="muted">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted">${msmeCell}</td><td class="muted"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ${b>=0?'pos':'neg'}">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
             }).join('') || `<tr><td colspan="7" class="empty">No ledgers in this category yet.</td></tr>`}
           </table>
         </div>
@@ -19988,7 +20064,7 @@ function viewCOA(){
     `).join('')}
 
     <details class="disclosure" ${state.currencies.some(c=>c.id!=='inr')?'open':''}>
-      <summary>Foreign Currencies ${state.currencies.length>1?`<span class="pill" style="margin-left:6px;">${state.currencies.length-1}</span>`:''}</summary>
+      <summary>💱 Foreign Currencies ${state.currencies.length>1?`<span class="pill" style="margin-left:6px;">${state.currencies.length-1}</span>`:''}</summary>
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
@@ -20023,7 +20099,7 @@ function viewCOA(){
     </details>
 
     <details class="disclosure" ${state.costCenters.length?'open':''}>
-      <summary>Cost Centers / Dimensions ${state.costCenters.length?`<span class="pill" style="margin-left:6px;">${state.costCenters.length}</span>`:''}</summary>
+      <summary>🏷 Cost Centers / Dimensions ${state.costCenters.length?`<span class="pill" style="margin-left:6px;">${state.costCenters.length}</span>`:''}</summary>
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
@@ -20050,7 +20126,7 @@ function viewCOA(){
     </details>
 
     <details class="disclosure" ${state.budgets.length?'open':''}>
-      <summary>Budgets ${state.budgets.length?`<span class="pill" style="margin-left:6px;">${state.budgets.length}</span>`:''}</summary>
+      <summary>🎯 Budgets ${state.budgets.length?`<span class="pill" style="margin-left:6px;">${state.budgets.length}</span>`:''}</summary>
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
@@ -20316,7 +20392,7 @@ function viewInventory(){
     })()}
 
     ${summaries.length>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
-      <input type="text" id="inventorySearchInput" placeholder="Search items by name, HSN or unit…" value="${escapeAttr(inventorySearchQuery)}">
+      ${moduleSearchBox('inventorySearchInput','Search items by name, HSN or unit…',inventorySearchQuery)}
     </div></div>` : ''}
     ${(()=>{
       const q = inventorySearchQuery.trim().toLowerCase();
@@ -20334,8 +20410,13 @@ function viewInventory(){
                 const out = summary.closing<=0;
                 const low = !out && item.reorderLevel!=null && summary.closing<=item.reorderLevel;
                 const statusBadge = out ? `<span class="pill neg">Out of Stock</span>` : low ? `<span class="pill neg">Low Stock</span>` : `<span class="pill pos">OK</span>`;
+                const stockBar = item.reorderLevel!=null ? (()=>{
+                  const pct = Math.max(0, Math.min(100, (summary.closing/(item.reorderLevel*2||1))*100));
+                  const cls = out ? 'danger' : low ? 'warn' : '';
+                  return `<span class="mini-bar" title="${fmt(summary.closing)} on hand vs reorder level ${fmt(item.reorderLevel)}"><span class="mini-bar-fill ${cls}" style="width:${pct.toFixed(0)}%;"></span></span>`;
+                })() : '';
                 return `<tr>
-                  <td data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div></td>
+                  <td data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div>${stockBar}</td>
                   <td class="num">${fmt(summary.opening)}</td>
                   <td class="num">${summary.inward?fmt(summary.inward):'—'}</td>
                   <td class="num">${summary.outward?fmt(summary.outward):'—'}</td>
@@ -20487,35 +20568,42 @@ function viewReports(){
 function reportsLanding(){
   const integrityCount = dataIntegrityChecks().length;
   const cards = [
-    {id:'trialBalance', icon:'⚖️', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.'},
-    {id:'incomeStatement', icon:'📈', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.'},
-    {id:'balanceSheet', icon:'🏛️', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.'},
-    {id:'ratios', icon:'📊', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.'},
-    {id:'cashFlow', icon:'💧', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.'},
-    {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.'},
-    {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.'},
-    {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.'},
-    {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', badge: integrityCount>0 ? integrityCount : null},
-    {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size, Ratio, DuPont, Cash Flow, Variance, Break-even and Benchmarking analysis, with interpretation — downloadable as PDF or Word.'},
+    {id:'trialBalance', icon:'⚖️', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.', group:'Core Financial Statements'},
+    {id:'incomeStatement', icon:'📈', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.', group:'Core Financial Statements'},
+    {id:'balanceSheet', icon:'🏛️', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
+    {id:'cashFlow', icon:'💧', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
+    {id:'ratios', icon:'📊', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
+    {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size, Ratio, DuPont, Cash Flow, Variance, Break-even and Benchmarking analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
+    {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
+    {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
+    {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
+    {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', badge: integrityCount>0 ? integrityCount : null, group:'Compliance & Data Quality'},
   ];
+  const groups = ['Core Financial Statements','Analysis & Insights','Management Reports','Compliance & Data Quality'];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
       <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Export All (Excel)</button>
     </div>
-    <div class="grid report-card-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
-      ${cards.map(c=>`
-        <div class="panel report-card" data-open-report="${c.id}" style="cursor:pointer;margin-bottom:0;position:relative;">
-          ${c.badge ? `<span class="pill neg" style="position:absolute;top:14px;right:14px;">${c.badge} issue${c.badge===1?'':'s'}</span>` : ''}
-          <div class="panel-body">
-            <div style="font-size:26px;margin-bottom:8px;">${c.icon}</div>
-            <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--ink);">${c.title}</div>
-            <div class="muted" style="font-size:11.5px;line-height:1.5;">${c.desc}</div>
-            <div class="linklike" style="margin-top:10px;font-size:12px;">View Report →</div>
+    ${groups.map(g=>{
+      const inGroup = cards.filter(c=>c.group===g);
+      if(!inGroup.length) return '';
+      return `
+      <div class="section-title">${g}</div>
+      <div class="grid report-card-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-bottom:18px;">
+        ${inGroup.map(c=>`
+          <div class="panel report-card" data-open-report="${c.id}" style="cursor:pointer;margin-bottom:0;position:relative;">
+            ${c.badge ? `<span class="pill neg" style="position:absolute;top:14px;right:14px;">${c.badge} issue${c.badge===1?'':'s'}</span>` : ''}
+            <div class="panel-body">
+              <div style="font-size:26px;margin-bottom:8px;">${c.icon}</div>
+              <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--ink);">${c.title}</div>
+              <div class="muted" style="font-size:11.5px;line-height:1.5;">${c.desc}</div>
+              <div class="linklike" style="margin-top:10px;font-size:12px;">View Report →</div>
+            </div>
           </div>
-        </div>
-      `).join('')}
-    </div>
+        `).join('')}
+      </div>`;
+    }).join('')}
   `;
 }
 function reportTrialBalance(){
@@ -21951,6 +22039,12 @@ function viewGST(){
           <tr><td>IGST</td><td class="num">₹${fmt(-ledgerBalance('l_oigst'))}</td><td class="num">₹${fmt(ledgerBalance('l_iigst'))}</td></tr>
           <tr style="font-weight:600;border-top:2px solid var(--ink);"><td>Total</td><td class="num">₹${fmt(gstOutputTotal())}</td><td class="num">₹${fmt(gstInputTotal())}</td></tr>
         </table>
+        ${(gstOutputTotal()>0 || gstInputTotal()>0) ? `<div style="padding:14px 16px 4px;">
+          ${svgStackedBar([
+            {label:'Output Tax (Payable)', value: gstOutputTotal(), color:'var(--debit)'},
+            {label:'Input Credit', value: gstInputTotal(), color:'var(--credit)'},
+          ], {height:22})}
+        </div>` : ''}
         <div style="padding:12px 16px;border-top:1px solid var(--rule);display:flex;justify-content:flex-end;gap:10px;align-items:center;">
           <span class="muted" style="font-size:12.5px;">Net GST ${netGST>=0?'Payable':'Refundable / Carried Forward'}</span>
           <span class="pill ${netGST>=0?'pos':'neg'}" style="font-size:13px;">₹${fmt(netGST)}</span>
@@ -22182,7 +22276,16 @@ function viewReconcile(){
     </div>
 
     <div class="panel">
-      <div class="panel-head"><h2>Summary — ${escapeHtml(ledger.name)}</h2><span class="pill ${!hasBalance ? '' : (summary.reconciled?'pos reconciled-pop':'neg')}">${hasBalance ? (summary.reconciled?'✓ Reconciled':'⚠ Difference ₹'+fmt(Math.abs(summary.difference))) : 'Enter statement balance'}</span></div>
+      <div class="panel-head">
+        <div style="display:flex;align-items:center;gap:12px;">
+          ${summary.rows.length ? (()=>{
+            const clearedPct = Math.round(summary.rows.filter(r=>r.cleared).length / summary.rows.length * 100);
+            return `<span class="recon-ring" style="--pct:${clearedPct};" title="${clearedPct}% of transactions ticked Cleared"><span class="recon-ring-inner">${clearedPct}%</span></span>`;
+          })() : ''}
+          <h2 style="margin:0;">Summary — ${escapeHtml(ledger.name)}</h2>
+        </div>
+        <span class="pill ${!hasBalance ? '' : (summary.reconciled?'pos reconciled-pop':'neg')}">${hasBalance ? (summary.reconciled?'✓ Reconciled':'⚠ Difference ₹'+fmt(Math.abs(summary.difference))) : 'Enter statement balance'}</span>
+      </div>
       <div class="panel-body" style="padding:0;">
         <table>
           <tr><td>Balance as per Bank Statement (${reconcileDateLabel(asOfDate)})</td><td class="num">₹${fmt(statementBalance)}</td></tr>
@@ -22210,7 +22313,7 @@ function viewReconcile(){
           ${summary.rows.map(r=>`
           <tr>
             <td class="muted">${r.date}</td>
-            <td class="muted">${escapeHtml(r.type)}</td>
+            <td>${vtypeBadge(r.type)}</td>
             <td>${escapeHtml(r.narration||'—')}${r.autoMatched ? `<span class="match-badge" title="${escapeAttr(r.matchReason||'Auto-matched against the imported bank statement')}">🔗 ${r.matchConfidence!=null ? r.matchConfidence+'% ' : ''}auto-matched</span>` : ''}</td>
             <td class="num">${r.dr?'₹'+fmt(r.dr):''}</td>
             <td class="num">${r.cr?'₹'+fmt(r.cr):''}</td>
@@ -22294,8 +22397,11 @@ function viewAssets(){
             const bookValue = ledger ? ledgerBalance(ledger.id) : null;
             const posted = (a.postedFYs||[]).includes(currentFY);
             const dueDep = assetDepreciationForFY(a, currentFY);
+            const cost = Number(a.cost)||0;
+            const depPct = (cost>0 && bookValue!=null) ? Math.max(0, Math.min(100, (1 - bookValue/cost)*100)) : null;
+            const depBar = depPct!=null ? `<span class="mini-bar" title="${depPct.toFixed(0)}% depreciated"><span class="mini-bar-fill ${depPct>=90?'warn':''}" style="width:${depPct.toFixed(0)}%;"></span></span><span class="mini-bar-label">${depPct.toFixed(0)}% depreciated</span>` : '';
             return `<tr>
-              <td>${escapeHtml(a.name)}</td>
+              <td>${escapeHtml(a.name)}${depBar}</td>
               <td class="muted">${ledger ? escapeHtml(ledger.name) : '<span style="color:var(--debit);">Ledger deleted</span>'}</td>
               <td class="num">₹${fmt(Number(a.cost)||0)}</td>
               <td class="muted">${a.method}</td>
@@ -23114,12 +23220,25 @@ async function voidFnfSettlement(fnfId){
   render();
 }
 
+/* Left-to-right, current-to-oldest composition bar for one party's outstanding balance --
+   a quick "how much of this is aged" read before scanning the four bucket columns. */
+function ageingCompositionBar(buckets, total){
+  if(!total) return '';
+  const segs = [
+    {v:buckets['0-30']||0, c:'var(--credit)'},
+    {v:buckets['31-60']||0, c:'color-mix(in srgb, var(--gold) 55%, var(--credit))'},
+    {v:buckets['61-90']||0, c:'var(--gold)'},
+    {v:buckets['90+']||0, c:'var(--debit)'},
+  ];
+  return `<span class="mini-bar-stack" title="0-30: ₹${fmt(buckets['0-30']||0)} · 31-60: ₹${fmt(buckets['31-60']||0)} · 61-90: ₹${fmt(buckets['61-90']||0)} · 90+: ₹${fmt(buckets['90+']||0)}">${segs.map(s=>s.v?`<span style="width:${(s.v/total*100).toFixed(1)}%;background:${s.c};"></span>`:'').join('')}</span>`;
+}
 function partyAgeingTable(rows, emptyMsg){
   if(!rows.length) return `<div class="empty">${emptyMsg}</div>`;
   return `<table>
-    <tr><th>Party</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
+    <tr><th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
     ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
       <td>${escapeHtml(r.ledger.name)}</td>
+      <td>${ageingCompositionBar(r.summary.buckets, r.summary.total)}</td>
       <td class="num">${r.summary.buckets['0-30']?'₹'+fmt(r.summary.buckets['0-30']):'—'}</td>
       <td class="num">${r.summary.buckets['31-60']?'₹'+fmt(r.summary.buckets['31-60']):'—'}</td>
       <td class="num ${r.summary.buckets['61-90']?'neg':''}">${r.summary.buckets['61-90']?'₹'+fmt(r.summary.buckets['61-90']):'—'}</td>
@@ -23153,7 +23272,7 @@ function viewParties(){
       <div class="stat"><div class="label">90+ Days Overdue</div><div class="val ${overdueCount?'neg':''}">${overdueCount}</div></div>
     </div>
     ${(customers.length+suppliers.length)>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
-      <input type="text" id="partiesSearchInput" placeholder="Search customers or suppliers by name…" value="${escapeAttr(partiesSearchQuery)}">
+      ${moduleSearchBox('partiesSearchInput','Search customers or suppliers by name…',partiesSearchQuery)}
     </div></div>` : ''}
     <div class="section-title">Receivables (Customers) — Outstanding ₹${fmt(totalReceivable)}</div>
     <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.')}</div></div>
@@ -23255,9 +23374,11 @@ function attachHandlers(){
     const el = document.getElementById('daybookSearchInput');
     if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
   });
-  document.getElementById('daybookTypeFilterSelect')?.addEventListener('change', e=>{
-    daybookTypeFilter = e.target.value;
-    render();
+  document.querySelectorAll('[data-daybook-type-chip]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      daybookTypeFilter = el.dataset.daybookTypeChip;
+      render();
+    });
   });
   document.getElementById('itemMasterSearchInput')?.addEventListener('input', (e)=>{
     itemMasterSearchQuery = e.target.value;
