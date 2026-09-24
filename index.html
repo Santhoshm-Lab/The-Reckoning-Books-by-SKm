@@ -890,6 +890,13 @@
   .landing-footer-logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:14px;color:var(--ink);margin-bottom:10px;}
   .landing-footer-logo img{width:24px;height:24px;border-radius:6px;}
   .landing-footer-brand p{font-size:12px;color:var(--ink-faint);line-height:1.6;max-width:260px;margin:0;}
+  .landing-footer-social{display:flex;gap:10px;margin-top:16px;}
+  .landing-footer-social a{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border);transition:all .18s ease;flex-shrink:0;}
+  .landing-footer-social a svg{width:17px;height:17px;}
+  .landing-footer-social a:hover,.landing-footer-social a:focus-visible{background:var(--accent1);color:#fff;border-color:var(--accent1);
+    transform:translateY(-2px);box-shadow:0 6px 16px rgba(44,160,28,.28);}
+  .landing-footer-social a:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
   .landing-footer-heading{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);margin-bottom:12px;}
   .landing-footer-col{display:flex;flex-direction:column;gap:9px;}
   .landing-footer-col a{font-size:12.5px;color:var(--ink-soft);text-decoration:none;width:fit-content;transition:color .15s ease;}
@@ -1634,27 +1641,11 @@ const EMAIL_DOMAIN = '@reckoningbooks.local'; // admin's fixed synthetic email o
    one-click in-browser install on Chrome/Edge/Android before falling back to the
    packaged .exe/.AppImage/.dmg downloads — see wireInstallButton()'s click handler. */
 let deferredPwaInstallPrompt = null;
-// Persisted across visits (and readable immediately if this page IS the installed app) so the
-// install button can say "Installed" instead of confusingly falling back to the packaged-
-// download menu once there's no more beforeinstallprompt event left to capture.
-function isPwaAlreadyInstalled(){
-  try{
-    if(localStorage.getItem('rb_pwaInstalled')==='1') return true;
-    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
-    if(navigator.standalone===true) return true; // iOS Safari's own "added to home screen" flag
-  }catch(e){}
-  return false;
-}
 window.addEventListener('beforeinstallprompt', (e)=>{
   e.preventDefault();
   deferredPwaInstallPrompt = e;
 });
-window.addEventListener('appinstalled', ()=>{
-  deferredPwaInstallPrompt = null;
-  try{ localStorage.setItem('rb_pwaInstalled', '1'); }catch(e){}
-  // Refresh the button label from "Install..." to "Installed" immediately, without needing a reload.
-  if(typeof screen!=='undefined' && screen==='landing' && typeof renderLanding==='function') renderLanding();
-});
+window.addEventListener('appinstalled', ()=>{ deferredPwaInstallPrompt = null; });
 if('serviceWorker' in navigator && location.protocol==='https:'){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('service-worker.js').catch(()=>{});
@@ -10073,13 +10064,6 @@ function wireInstallButton(wrapId, btnId, menuId){
   const openMenu = ()=>{ menu.hidden = false; };
   btn.addEventListener('click', (e)=>{
     e.stopPropagation();
-    if(isPwaAlreadyInstalled()){
-      // Nothing left to install -- the packaged-download menu below (which would otherwise show
-      // "Coming soon" for any platform without a hosted installer, e.g. macOS) would be actively
-      // misleading here, since the app is already on this device.
-      toast('Already installed — look for The Reckoning Books’ icon on your device.');
-      return;
-    }
     if(deferredPwaInstallPrompt){
       // A real, one-click in-browser install is available (Chrome/Edge/Android) -- offer
       // that instead of a packaged-installer download; the menu below is unnecessary here.
@@ -10121,6 +10105,8 @@ function landingFeatureIcon(name){
     ai: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 15.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
     productivity: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+    youtube: '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9.3l5.2 2.7-5.2 2.7V9.3z" fill="currentColor" stroke="none"/>',
+    linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="7.6" cy="8" r="1" fill="currentColor" stroke="none"/><path d="M7.6 11v7"/><path d="M11.6 18v-4.2a2 2 0 0 1 4 0V18"/><path d="M11.6 12v.1"/>',
   };
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name]||''}</svg>`;
 }
@@ -10479,7 +10465,7 @@ function renderLanding(){
           <button class="btn secondary small" id="landingLoginBtn" type="button">Log In</button>
           <button class="btn small" id="landingSignupBtn" type="button">Create Account</button>
           <div class="landing-install-wrap nav" id="landingInstallWrapNav">
-            <button class="btn secondary small" id="landingInstallBtnNav" type="button">${isPwaAlreadyInstalled() ? '✓ Installed' : '⭳ Install The Reckoning Books'}</button>
+            <button class="btn secondary small" id="landingInstallBtnNav" type="button">⭳ Install The Reckoning Books</button>
             <div class="landing-install-menu" id="landingInstallMenuNav" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
           </div>
         </div>
@@ -10512,7 +10498,7 @@ function renderLanding(){
               <button class="btn secondary" id="landingHeroTryDemoBtn" type="button">Try Demo →</button>
               <button class="btn secondary" id="landingHeroLoginBtn" type="button">Log In</button>
               <div class="landing-install-wrap hero" id="landingInstallWrapHero">
-                <button class="btn secondary" id="landingInstallBtnHero" type="button">${isPwaAlreadyInstalled() ? '✓ Installed' : '⭳ Install Desktop App'}</button>
+                <button class="btn secondary" id="landingInstallBtnHero" type="button">⭳ Install Desktop App</button>
                 <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
               </div>
             </div>
@@ -10600,6 +10586,10 @@ function renderLanding(){
             <div class="landing-footer-logo"><img src="data:image/png;base64,${LOGO_ICON_B64}" alt="The Reckoning Books"> The Reckoning Books</div>
             <p>Real double-entry bookkeeping, built for people who take their books seriously.</p>
             <p style="margin-top:10px;"><a href="mailto:thereckoningbooks@gmail.com" style="color:var(--ink-soft);text-decoration:none;">thereckoningbooks@gmail.com</a></p>
+            <div class="landing-footer-social">
+              <a href="https://www.youtube.com/@TheReckoningBooksbySkm" target="_blank" rel="noopener noreferrer" aria-label="The Reckoning Books on YouTube" title="YouTube">${landingFeatureIcon('youtube')}</a>
+              <a href="https://www.linkedin.com/company/thereckoningbooks" target="_blank" rel="noopener noreferrer" aria-label="The Reckoning Books on LinkedIn" title="LinkedIn">${landingFeatureIcon('linkedin')}</a>
+            </div>
           </div>
           <div class="landing-footer-col">
             <div class="landing-footer-heading">Product</div>
