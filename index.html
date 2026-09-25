@@ -6518,11 +6518,22 @@ function diRerender(){
   if(screen==='app') render();
   else if(screen==='gateway') renderGateway();
 }
-async function diLoadThread(threadId){
+async function diLoadThread(threadId, threadType, groupOwnerId){
   if(!threadId) return;
   diLoading = true; diError = ''; diRerender();
   try{
-    const snap = await db.collection('interchangeMessages').where('threadId','==',threadId).get();
+    // Deliberately filtered on groupOwnerId + threadType -- the SAME two fields the
+    // interchangeMessages security rule itself checks -- rather than on threadId (which encodes
+    // both but isn't a field the rule inspects). Firestore only allows a list/query request when it
+    // can prove every possible result satisfies the rule from the query's own where() clauses; a
+    // query that filters on a field the rule never looks at gets rejected with permission-denied
+    // for every non-admin caller, even though the rule is otherwise correct and published. This is
+    // the same reason companies are queried by ownerId/groupId (see loadCompanies()) instead of some
+    // derived id -- match the query's filter fields to the rule's fields, always.
+    const snap = await db.collection('interchangeMessages')
+      .where('groupOwnerId','==',groupOwnerId)
+      .where('threadType','==',threadType)
+      .get();
     const rows = [];
     snap.forEach(doc=> rows.push({ id: doc.id, ...doc.data() }));
     rows.sort((a,b)=> (a.createdAt||'').localeCompare(b.createdAt||''));
@@ -6568,7 +6579,7 @@ async function diSendMessage(threadId, threadType, groupOwnerId, text, attachmen
     diInputDraft = '';
     diPendingAttachment = null;
     diMarkSeen(threadId, now);
-    await diLoadThread(threadId);
+    await diLoadThread(threadId, threadType, groupOwnerId);
   }catch(e){
     console.error('Data Interchange — send failed:', e);
     diError = 'Could not send' + diErrDetail(e) + ' — check your connection and try again.';
@@ -11645,13 +11656,14 @@ function wireDIWidget(){
       if(currentUser.role==='admin'){
         if(diActiveAdminThreadId){
           const tid = diAdminThreadId(diActiveAdminThreadId);
-          diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+          diLoadThread(tid, 'admin', diActiveAdminThreadId).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
         } else {
           diLoadAdminThreads();
         }
       } else {
         const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
-        if(tid) diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+        const tType = diTab==='admin' ? 'admin' : 'group';
+        if(tid) diLoadThread(tid, tType, diMyGroupOwnerId()).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
       }
     }
     diRerender();
@@ -11665,8 +11677,9 @@ function wireDIWidget(){
       diPendingAttachment = null;
       diError = '';
       const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
+      const tType = diTab==='admin' ? 'admin' : 'group';
       diRerender();
-      if(tid) diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+      if(tid) diLoadThread(tid, tType, diMyGroupOwnerId()).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
     });
   });
   document.querySelectorAll('[data-di-open-thread]').forEach(el=>{
@@ -11676,7 +11689,7 @@ function wireDIWidget(){
       diError = '';
       const tid = diAdminThreadId(diActiveAdminThreadId);
       diRerender();
-      diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+      diLoadThread(tid, 'admin', diActiveAdminThreadId).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
     });
   });
   document.getElementById('diBackToInbox')?.addEventListener('click', ()=>{
