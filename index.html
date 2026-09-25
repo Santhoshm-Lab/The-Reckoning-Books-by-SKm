@@ -10974,11 +10974,25 @@ function qaWidget(){
 function diWidget(){
   if(!currentUser) return '';
   return `
-    <div id="diFab" title="Data Interchange — send messages and files" role="button" tabindex="0" aria-label="Data Interchange — message your group${currentUser.role==='support'?' or Admin':''}" style="position:fixed;right:86px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent2,#1B5E20);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">
-      <span style="position:relative;">📨${diUnreadBadge ? `<span style="position:absolute;top:-6px;right:-9px;width:11px;height:11px;border-radius:50%;background:#D64545;border:2px solid var(--surface,#fff);"></span>` : ''}</span>
+    <div id="diFab" title="Data Interchange — send messages and files" role="button" tabindex="0" aria-label="Data Interchange — message your group${currentUser.role==='support'?' or Admin':''}" style="position:fixed;right:86px;bottom:22px;width:52px;height:52px;border-radius:50%;background:${DI_COLOR};color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">
+      <span style="position:relative;line-height:0;">${diFabIconSvg()}${diUnreadBadge ? `<span style="position:absolute;top:-6px;right:-9px;width:11px;height:11px;border-radius:50%;background:#D64545;border:2px solid var(--surface,#fff);"></span>` : ''}</span>
     </div>
     ${diOpen ? diPanel() : ''}
   `;
+}
+// Deliberately its own color family, not var(--accent1)/(--accent2) (both shades of the app's brand
+// green, already used by "Ask Your Books") -- a genuinely different hue is what actually makes two
+// floating bubbles read as two different things at a glance, not just two slightly different greens.
+const DI_COLOR = '#2563EB';
+// A two-people "group message" glyph -- chosen over a second speech-bubble icon (Ask Your Books
+// already owns that shape) so the two bubbles are distinguishable by silhouette, not just by color.
+function diFabIconSvg(){
+  return `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="9" cy="8.5" r="3.2" fill="#fff" opacity="0.55"/>
+    <path d="M3.3 19c0-3.1 2.6-5.2 5.7-5.2s5.7 2.1 5.7 5.2" stroke="#fff" stroke-width="1.7" stroke-linecap="round" fill="none" opacity="0.55"/>
+    <circle cx="15.6" cy="7.3" r="2.7" fill="#fff"/>
+    <path d="M10.6 19.4c.3-2.8 2.6-4.7 5-4.7 2.7 0 5 2 5 4.9" stroke="#fff" stroke-width="1.9" stroke-linecap="round" fill="none"/>
+  </svg>`;
 }
 function diAttachmentHtml(att){
   if(!att) return '';
@@ -10996,7 +11010,7 @@ function diAdminInboxHtml(){
           const unread = t.lastSenderId && t.lastSenderId!==currentUser.id && (t.updatedAt||'') > diGetLastSeen(t.id);
           return `
           <div data-di-open-thread="${escapeAttr(t.groupOwnerId)}" style="padding:9px 12px;border-bottom:1px solid var(--border,#E1E7E3);cursor:pointer;display:flex;gap:8px;align-items:flex-start;">
-            ${unread ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--accent2,#1B5E20);flex-shrink:0;margin-top:5px;"></span>` : `<span style="width:7px;flex-shrink:0;"></span>`}
+            ${unread ? `<span style="width:7px;height:7px;border-radius:50%;background:${DI_COLOR};flex-shrink:0;margin-top:5px;"></span>` : `<span style="width:7px;flex-shrink:0;"></span>`}
             <div style="min-width:0;flex:1;">
               <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;">
                 <strong style="font-size:12px;${unread?'':'font-weight:600;'}">${escapeHtml(t.supportName||'Support account')}</strong>
@@ -11034,7 +11048,7 @@ function diPanel(){
   const showingInbox = role==='admin' && !diActiveAdminThreadId;
   return `
     <div id="diPanelEl" style="position:fixed;right:86px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:460px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:500;">
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--accent2,#1B5E20);color:#fff;">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;gap:8px;background:${DI_COLOR};color:#fff;">
         <div style="min-width:0;">
           <strong style="font-size:13px;">${escapeHtml(headerTitle)}</strong>
           ${!showingInbox && headerSub ? `<div style="font-size:10.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(headerSub)}</div>` : ''}
@@ -11043,8 +11057,8 @@ function diPanel(){
       </div>
       ${role==='support' ? `
       <div style="display:flex;border-bottom:1px solid var(--border,#E1E7E3);">
-        <span data-di-tab="group" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='group'?'color:var(--accent2,#1B5E20);border-bottom:2px solid var(--accent2,#1B5E20);':'color:var(--ink-soft);'}">My Group</span>
-        <span data-di-tab="admin" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='admin'?'color:var(--accent2,#1B5E20);border-bottom:2px solid var(--accent2,#1B5E20);':'color:var(--ink-soft);'}">Message Admin</span>
+        <span data-di-tab="group" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='group'?`color:${DI_COLOR};border-bottom:2px solid ${DI_COLOR};`:'color:var(--ink-soft);'}">My Group</span>
+        <span data-di-tab="admin" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='admin'?`color:${DI_COLOR};border-bottom:2px solid ${DI_COLOR};`:'color:var(--ink-soft);'}">Message Admin</span>
       </div>` : ''}
       ${showingInbox ? diAdminInboxHtml() : `
       <div id="diMessagesEl" style="flex:1;overflow-y:auto;padding:10px 12px;font-size:12.5px;line-height:1.5;">
@@ -11055,7 +11069,7 @@ function diPanel(){
           msgs.map(m=>`
             <div style="margin-bottom:10px;display:flex;flex-direction:column;${m.senderId===currentUser.id?'align-items:flex-end;':'align-items:flex-start;'}">
               ${m.senderId!==currentUser.id ? `<div class="muted" style="font-size:10px;margin-bottom:2px;">${escapeHtml(m.senderName||'')}${m.senderRole==='support'?' · Support':m.senderRole==='admin'?' · Admin':''}</div>` : ''}
-              <div style="max-width:85%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;${m.senderId===currentUser.id ? 'background:var(--accent2,#1B5E20);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${m.text?escapeHtml(m.text):''}${m.attachment ? `<div style="margin-top:${m.text?'6px':'0'};">${diAttachmentHtml(m.attachment)}</div>` : ''}</div>
+              <div style="max-width:85%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;${m.senderId===currentUser.id ? `background:${DI_COLOR};color:#fff;` : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${m.text?escapeHtml(m.text):''}${m.attachment ? `<div style="margin-top:${m.text?'6px':'0'};">${diAttachmentHtml(m.attachment)}</div>` : ''}</div>
               <div class="muted" style="font-size:9.5px;margin-top:2px;">${fmtTimestamp(m.createdAt)}</div>
             </div>
           `).join('')}
