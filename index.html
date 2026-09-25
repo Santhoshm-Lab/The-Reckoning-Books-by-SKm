@@ -263,6 +263,9 @@
      bankReconcileEntries()'s autoMatched field) -- plain-language + a number, never a raw decimal,
      with the full "why" as a native tooltip so it stays out of the way until asked for. */
   .match-badge{display:inline-block;margin-left:7px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.01em;background:color-mix(in srgb, var(--accent1) 14%, transparent);color:var(--accent1);cursor:help;vertical-align:middle;}
+  /* Variant for a long-outstanding (>RECON_STALE_DAYS) Reconcile row -- see explainReconciliationDifference() --
+     amber instead of the accent green so it reads as "worth a look", not "confirmed" like an auto-match badge. */
+  .match-badge.stale-badge{background:color-mix(in srgb, var(--gold) 16%, transparent);color:var(--gold);}
 
   /* ---- Module UI/UX pass (twenty-fourth+ follow-up): shared components reused across
      Ledgers/COA, Day Book, Reports, GST, Inventory, Parties, Fixed Assets and Reconcile.
@@ -8963,6 +8966,122 @@ function saveReconciliationRecord(ledgerId, asOfDate, statementBalance){
   return s;
 }
 
+// An outstanding item still sitting there this many days after its own voucher date is unusual
+// enough to flag -- a genuine timing difference (an issued cheque not yet presented, a deposit not
+// yet credited) normally clears within days to a couple of weeks, not months.
+const RECON_STALE_DAYS = 45;
+// AI-assisted reconciliation: when Balance-as-per-Bank and Balance-as-per-Books still don't tie out
+// after every known outstanding item is accounted for, the gap is almost always one of a handful of
+// familiar things -- a bank charge/SMS-alert fee the bank deducted that was never entered as a
+// voucher, interest the bank credited that was never entered, or an outstanding item that's been
+// sitting there so long it's more likely a duplicate entry or a wrong tick than a genuine timing
+// difference. This walks the same numbers bankReconciliationSummary() already computes and turns
+// them into a plain-English explanation, plus a ready-to-post adjusting Journal that would close the
+// gap -- exactly the entry a person would work out by hand, just done for them. It never posts
+// anything itself -- see createReconciliationAdjustment() for the one place that actually happens,
+// and only on an explicit click.
+function explainReconciliationDifference(ledgerId, asOfDate, statementBalance){
+  const summary = bankReconciliationSummary(ledgerId, asOfDate, statementBalance);
+  if(Math.abs(summary.difference) < 0.005) return { hasDifference:false, summary };
+  const amount = r2(Math.abs(summary.difference));
+  // difference = actual book balance − (statement balance + outstanding items). Positive means the
+  // books currently show MORE cash than the bank statement (adjusted for what's still outstanding)
+  // accounts for -- the classic sign of a bank charge, SMS/alert fee, or failed-cheque charge the
+  // bank deducted that was never entered in the books. Negative is the mirror case -- the bank has
+  // credited something (interest, a direct deposit) that hasn't been entered yet.
+  const direction = summary.difference > 0 ? 'deduct' : 'add';
+  const daysAgo = (d)=> Math.round((new Date(asOfDate+'T00:00:00') - new Date(d+'T00:00:00')) / 86400000);
+  const reasons = [];
+
+  // 1) Has this same ledger shown a similar-sized unresolved gap before? A repeating gap of about the
+  // same size is the strongest signal of all -- almost always a recurring bank charge or fee that
+  // keeps getting missed, not a one-off mistake.
+  const priorSimilar = state.reconciliations
+    .filter(r=>r.ledgerId===ledgerId && r.date<asOfDate && Math.abs(r.difference)>=0.005)
+    .sort((a,b)=> b.date<a.date?-1:1)[0];
+  if(priorSimilar && Math.abs(Math.abs(priorSimilar.difference) - amount) <= Math.max(5, amount*0.15)){
+    reasons.push(`You had a very similar-sized difference (₹${fmt(Math.abs(priorSimilar.difference))}) last time this account was reconciled, on ${priorSimilar.date} — that pattern usually means a recurring bank charge, SMS/alert fee, or interest that never gets entered as a voucher.`);
+  }
+
+  // 2) Is there a single outstanding item, sitting there a long time, whose amount happens to equal
+  // the gap almost exactly? That's a strong sign it isn't really outstanding at all -- more likely
+  // entered twice, or ticked the wrong way, than still genuinely in transit at the bank.
+  const staleMatch = summary.rows.find(r=>!r.cleared && daysAgo(r.date)>RECON_STALE_DAYS && Math.abs((r.dr||r.cr)-amount)<0.5);
+  if(staleMatch){
+    reasons.push(`"${staleMatch.narration||'An entry'}" dated ${staleMatch.date} (₹${fmt(staleMatch.dr||staleMatch.cr)}) has been outstanding for ${daysAgo(staleMatch.date)} days and is almost exactly the size of this gap — worth checking it wasn't entered twice, or wasn't already cleared by the bank and just missed on the tick-off.`);
+  }
+
+  // 3) Any other outstanding items sitting there unusually long, regardless of amount -- surfaced
+  // separately so they're never missed just because none of them matches the gap exactly.
+  const staleItems = summary.rows.filter(r=>!r.cleared && daysAgo(r.date)>RECON_STALE_DAYS && r!==staleMatch);
+
+  // 4) Fall back to a size-based heuristic when nothing more specific stood out.
+  if(!reasons.length){
+    reasons.push(amount <= 2000
+      ? (direction==='deduct'
+          ? `A gap this small (₹${fmt(amount)}) is most often a bank charge, SMS/alert fee, or annual maintenance charge the bank deducted directly — these rarely arrive as a document, so they're easy to miss entering.`
+          : `A gap this small (₹${fmt(amount)}) is most often interest the bank credited directly to the account — banks post this automatically and it's easy to forget to enter as a voucher.`)
+      : (direction==='deduct'
+          ? `A gap this size (₹${fmt(amount)}) is larger than a typical bank charge — worth double-checking for a payment that was missed entirely, entered twice, or a wrong statement closing balance, before assuming it's just a fee.`
+          : `A gap this size (₹${fmt(amount)}) is larger than typical interest — worth double-checking for a deposit or receipt that hasn't been entered yet, or a wrong statement closing balance.`));
+  }
+
+  const proposedVoucher = {
+    direction, amount,
+    ledgerName: direction==='deduct' ? 'Bank Charges' : 'Interest Received',
+    groupId: direction==='deduct' ? 'iexp' : 'dinc',
+    narration: direction==='deduct'
+      ? `Bank charges (AI-assisted reconciliation adjustment — ${ledgerOf(ledgerId).name})`
+      : `Interest received (AI-assisted reconciliation adjustment — ${ledgerOf(ledgerId).name})`,
+  };
+
+  return {
+    hasDifference: true, summary, amount, direction, reasons, staleItems, proposedVoucher,
+    headline: direction==='deduct'
+      ? `The books show ₹${fmt(amount)} more than the bank statement accounts for`
+      : `The bank statement shows ₹${fmt(amount)} more than the books account for`,
+  };
+}
+// Posts the adjusting Journal explainReconciliationDifference() proposed, and immediately ticks it
+// Cleared on this Reconcile screen -- so accepting the suggestion moves the difference straight to
+// ₹0 rather than adding one more transaction still waiting to be ticked by hand. The explanation is
+// recomputed fresh here (never trusted from a stale render) so this only ever posts what the numbers
+// actually call for at the moment of the click. Goes through the same voucher-audit-trail and
+// Automation Activity (with Undo) as every other automated posting in this app.
+async function createReconciliationAdjustment(ledgerId, asOfDate, statementBalance){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  if(currentCompany.lockDate && asOfDate <= currentCompany.lockDate){
+    toast(`Can't post — vouchers dated on or before ${currentCompany.lockDate} are locked. Change the lock date from Edit Company.`);
+    return;
+  }
+  const explanation = explainReconciliationDifference(ledgerId, asOfDate, statementBalance);
+  if(!explanation.hasDifference){ toast('This account is already fully reconciled — nothing to adjust'); return; }
+  const pv = explanation.proposedVoucher;
+  const { ledger: counterLedger } = ensureLedgerByName(pv.ledgerName, pv.groupId);
+  const entries = pv.direction==='deduct'
+    ? [{ledgerId:counterLedger.id, dr:pv.amount, cr:0},{ledgerId, dr:0, cr:pv.amount}]
+    : [{ledgerId, dr:pv.amount, cr:0},{ledgerId:counterLedger.id, dr:0, cr:pv.amount}];
+  const v = {
+    id: uid('v'), date: asOfDate, type: 'Journal', narration: pv.narration,
+    entries, createdAt: new Date().toISOString(), fromReconciliation: true,
+  };
+  state.vouchers.push(v);
+  toggleBankClear(ledgerId, v.id, asOfDate, {
+    autoMatched: true, matchConfidence: 90,
+    matchReason: `AI-proposed adjustment to clear the reconciliation difference — ${explanation.headline}`,
+  });
+  await saveLedgers();
+  await saveVouchers();
+  logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
+  const bankName = ledgerOf(ledgerId).name;
+  logAutomation('🤖', `AI posted a ₹${fmt(pv.amount)} reconciliation adjustment (${pv.ledgerName}) on ${bankName} and marked it Cleared`, async ()=>{
+    state.vouchers = state.vouchers.filter(x=>x.id!==v.id);
+    toggleBankClear(ledgerId, v.id, asOfDate);
+    await saveVouchers();
+  });
+  toast('✓ Adjustment entry posted and cleared', {type:'success'});
+}
+
 /* ---------------- recurring vouchers ---------------- */
 // Adds one period to a YYYY-MM-DD date string. Monthly/yearly clamp to the shortest month involved
 // (31 Jan -> 28/29 Feb) rather than overflowing into the next month — a template scheduled for the
@@ -12540,7 +12659,8 @@ function reconcileHelpModal(){
             • <strong style="color:var(--ink);">−</strong> payments/cheques in your books the bank hasn't presented yet<br>
             • = Balance as per Books (calculated) — this should match your ledger's real balance<br><br>
             If it matches, you'll see <strong style="color:var(--ink);">✓ Reconciled</strong>. If there's a gap, the <strong style="color:var(--ink);">Unreconciled Difference</strong> tells you something still needs explaining — usually a bank charge, interest, or a direct debit/credit that's on the statement but not yet entered as a voucher, or occasionally just a wrong tick above.<br><br>
-            Once it looks right, hit <strong style="color:var(--ink);">💾 Save Reconciliation</strong> to log this statement date, balance and difference into the history table — a running record you can check back on later, month by month.
+            Once it looks right, hit <strong style="color:var(--ink);">💾 Save Reconciliation</strong> to log this statement date, balance and difference into the history table — a running record you can check back on later, month by month.<br><br>
+            If a gap remains after you've ticked everything you can see on the statement, a <strong style="color:var(--ink);">🤖 AI Explanation</strong> panel appears with a plain-English guess at what's causing it (a recurring bank charge, interest never entered, an old outstanding item that looks like a duplicate) and a ready-made adjusting Journal entry you can post with one click — it only ever runs when you click <strong style="color:var(--ink);">✓ Create &amp; Clear This Entry</strong>, and can be undone from Automation Activity afterwards.
           </p>
           <p class="muted" style="font-size:11.5px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
             This is a manual tick-off tool, not automatic bank-feed matching — you confirm each item against your real statement. The cleared/uncleared status is stored separately from the voucher itself, so editing a voucher later never wipes out its reconciliation history.
@@ -13919,13 +14039,13 @@ function renderLogin(){
               <ul class="login-brand-features">
                 <li>${landingFeatureIcon('vouchers')}Real double-entry vouchers, always balanced</li>
                 <li>${landingFeatureIcon('gst')}GST tracked and filing-ready, automatically</li>
-                <li>${landingFeatureIcon('ai')}22 AI-native features watching your books</li>
+                <li>${landingFeatureIcon('ai')}23 AI-native features watching your books</li>
                 <li>${landingFeatureIcon('security')}Email-verified accounts with a full audit log</li>
               </ul>
               <div class="login-brand-stats">
                 <div><div class="n">${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)}</div><div class="l">Modules</div></div>
                 <div><div class="n">${VOUCHER_TYPES.length}</div><div class="l">Voucher Types</div></div>
-                <div><div class="n">22</div><div class="l">AI Features</div></div>
+                <div><div class="n">23</div><div class="l">AI Features</div></div>
               </div>
             </div>
           </div>
@@ -25147,6 +25267,34 @@ function viewReconcile(){
       <p class="muted" style="font-size:11.5px;padding:0 16px 12px;">${!hasBalance ? 'Enter the closing balance from your bank statement above to see how it lines up with the books.' : (Math.abs(summary.difference)<0.005 ? 'This account is fully reconciled as of the statement date — every difference is explained by items still outstanding below.' : 'A non-zero difference usually means something is on the bank statement but not yet in your books (bank charges, interest, a direct debit/credit) — or a transaction below is ticked the wrong way.')}</p>
     </div>
 
+    ${hasBalance && !summary.reconciled ? (()=>{
+      const explanation = explainReconciliationDifference(reconcileLedgerId, asOfDate, statementBalance);
+      if(!explanation.hasDifference) return '';
+      const entryLabel = explanation.direction==='deduct'
+        ? `Dr ${escapeHtml(explanation.proposedVoucher.ledgerName)} / Cr ${escapeHtml(ledger.name)}`
+        : `Dr ${escapeHtml(ledger.name)} / Cr ${escapeHtml(explanation.proposedVoucher.ledgerName)}`;
+      return `
+      <div class="panel" style="border-color:color-mix(in srgb, var(--accent1) 35%, var(--border));">
+        <div class="panel-head">
+          <h2>🤖 AI Explanation</h2>
+          <span class="pill" style="background:color-mix(in srgb, var(--accent1) 14%, transparent);color:var(--accent1);">${escapeHtml(explanation.headline)}</span>
+        </div>
+        <div class="panel-body">
+          <ul style="margin:0 0 12px;padding-left:18px;font-size:12.5px;line-height:1.65;">
+            ${explanation.reasons.map(r=>`<li>${escapeHtml(r)}</li>`).join('')}
+          </ul>
+          ${explanation.staleItems.length ? `
+          <p class="muted" style="font-size:11.5px;margin:0 0 12px;">Also outstanding a long time (over ${RECON_STALE_DAYS} days) — worth a second look: ${explanation.staleItems.map(r=>`${escapeHtml(r.narration||r.type)} (₹${fmt(r.dr||r.cr)}, ${r.date})`).join('; ')}.</p>
+          ` : ''}
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;">
+            <div style="flex:1;min-width:220px;font-size:12.5px;">Proposed entry: <strong>Journal</strong> — ${entryLabel} — ₹${fmt(explanation.amount)}, dated ${reconcileDateLabel(asOfDate)}</div>
+            <button class="btn small" id="aiReconcileFixBtn" type="button" data-ai-fix-ledger="${reconcileLedgerId}" data-ai-fix-date="${asOfDate}" data-ai-fix-balance="${statementBalance}">✓ Create &amp; Clear This Entry</button>
+          </div>
+          <p class="muted" style="font-size:10.5px;margin:8px 0 0;">A suggestion, not a silent change — nothing posts until you click the button. It's added as a normal, fully editable Journal voucher (findable in Day Book, and undoable from Automation Activity).</p>
+        </div>
+      </div>`;
+    })() : ''}
+
     <div class="panel">
       <div class="panel-head">
         <h2>Transactions up to ${reconcileDateLabel(asOfDate)}</h2>
@@ -25158,15 +25306,18 @@ function viewReconcile(){
       <div class="panel-body" style="padding:0;">
         <table>
           <tr><th>Date</th><th>Voucher</th><th>Narration</th><th class="num">Deposit (Dr)</th><th class="num">Payment (Cr)</th><th style="text-align:center;">Cleared</th></tr>
-          ${summary.rows.map(r=>`
+          ${summary.rows.map(r=>{
+            const staleDays = !r.cleared ? Math.round((new Date(asOfDate+'T00:00:00') - new Date(r.date+'T00:00:00')) / 86400000) : 0;
+            const isStale = !r.cleared && staleDays > RECON_STALE_DAYS;
+            return `
           <tr>
             <td class="muted">${r.date}</td>
             <td>${vtypeBadge(r.type)}</td>
-            <td>${escapeHtml(r.narration||'—')}${r.autoMatched ? `<span class="match-badge" title="${escapeAttr(r.matchReason||'Auto-matched against the imported bank statement')}">🔗 ${r.matchConfidence!=null ? r.matchConfidence+'% ' : ''}auto-matched</span>` : ''}</td>
+            <td>${escapeHtml(r.narration||'—')}${r.autoMatched ? `<span class="match-badge" title="${escapeAttr(r.matchReason||'Auto-matched against the imported bank statement')}">🔗 ${r.matchConfidence!=null ? r.matchConfidence+'% ' : ''}auto-matched</span>` : ''}${isStale ? `<span class="match-badge stale-badge" title="Outstanding for ${staleDays} days — check it isn't a duplicate entry or a wrong tick">⏳ outstanding ${staleDays}d</span>` : ''}</td>
             <td class="num">${r.dr?'₹'+fmt(r.dr):''}</td>
             <td class="num">${r.cr?'₹'+fmt(r.cr):''}</td>
             <td style="text-align:center;"><input type="checkbox" data-clear-voucher="${r.voucherId}" ${r.cleared?'checked':''}></td>
-          </tr>`).join('') || `<tr><td colspan="6" class="empty">No transactions on this account up to this date yet.</td></tr>`}
+          </tr>`;}).join('') || `<tr><td colspan="6" class="empty">No transactions on this account up to this date yet.</td></tr>`}
         </table>
       </div>
     </div>
@@ -28832,6 +28983,11 @@ function attachHandlers(){
       if(reconcileDraft.balance === '' || reconcileDraft.balance == null){ toast('Enter the statement closing balance first'); return; }
       saveReconciliationRecord(reconcileLedgerId, reconcileDraft.date, Number(reconcileDraft.balance)||0);
       toast('Reconciliation saved');
+      render();
+    });
+    document.getElementById('aiReconcileFixBtn')?.addEventListener('click', async (e)=>{
+      const btn = e.currentTarget;
+      await createReconciliationAdjustment(btn.dataset.aiFixLedger, btn.dataset.aiFixDate, Number(btn.dataset.aiFixBalance)||0);
       render();
     });
   }
