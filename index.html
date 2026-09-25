@@ -14355,7 +14355,7 @@ function renderLogin(){
         await db.collection('users').doc(pendingVerifyUser.uid).set(profile);
         await db.collection('usernames').doc(usernameKey).set({ email });
         lastUsername = username;
-        currentUser = { id: pendingVerifyUser.uid, name, username, isAdmin:false, role:'user', plan:'free', planExpiry:null };
+        currentUser = { id: pendingVerifyUser.uid, name, username, mobile, email, isAdmin:false, role:'user', plan:'free', planExpiry:null };
         authDraft = { name:'', username:'', mobile:'', email:'' };
         pendingVerifyUser = null; pendingVerifyEmail = ''; verifyLinkAwaiting = false; verifyLinkCooldownUntil = 0;
         verifyLinkNotice = ''; verifyLinkError = '';
@@ -14409,7 +14409,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
+        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, mobile: profile.mobile || '', email: profile.email || email || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
         lastUsername = username;
         authDraft = { name:'', username:'', mobile:'', email:'' };
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
@@ -14465,7 +14465,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
+        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', mobile: profile.mobile || '', email: profile.email || cred.user.email || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
         lastUsername = profile.username || lastUsername;
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
         try{ await db.collection('users').doc(cred.user.uid).update({ lastLoginAt: new Date().toISOString() }); }catch(e){}
@@ -14528,7 +14528,7 @@ function renderLogin(){
       await db.collection('users').doc(googleAuthUser.uid).set(profile);
       await db.collection('usernames').doc(usernameKey).set({ email });
       lastUsername = username;
-      currentUser = { id: googleAuthUser.uid, name, username, isAdmin:false, role:'user', plan:'free', planExpiry:null };
+      currentUser = { id: googleAuthUser.uid, name, username, mobile, email, isAdmin:false, role:'user', plan:'free', planExpiry:null };
       try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
       await ensureSkDemoCompany();
       await loadCompanies();
@@ -29266,6 +29266,7 @@ async function restoreSessionFor(fbUser){
     const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
     currentUser = {
       id: fbUser.uid, name: profile.name || fbUser.displayName || '', username: profile.username || '',
+      mobile: profile.mobile || '', email: profile.email || fbUser.email || '',
       isAdmin: role==='admin' || role==='support', role,
       plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
       groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '',
