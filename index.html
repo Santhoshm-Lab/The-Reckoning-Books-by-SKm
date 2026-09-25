@@ -6528,7 +6528,8 @@ async function diLoadThread(threadId){
     rows.sort((a,b)=> (a.createdAt||'').localeCompare(b.createdAt||''));
     diMessages[threadId] = rows;
   }catch(e){
-    diError = 'Could not load messages — check your connection and try again.';
+    console.error('Data Interchange — load messages failed:', e);
+    diError = 'Could not load messages' + diErrDetail(e) + ' — check your connection and try again.';
   }
   diLoading = false;
   diRerender();
@@ -6569,7 +6570,8 @@ async function diSendMessage(threadId, threadType, groupOwnerId, text, attachmen
     diMarkSeen(threadId, now);
     await diLoadThread(threadId);
   }catch(e){
-    diError = 'Could not send — check your connection and try again.';
+    console.error('Data Interchange — send failed:', e);
+    diError = 'Could not send' + diErrDetail(e) + ' — check your connection and try again.';
   }
   diSending = false;
   diRerender();
@@ -6597,10 +6599,19 @@ async function diLoadAdminThreads(){
     rows.sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
     diAdminThreads = rows;
   }catch(e){
-    diError = 'Could not load conversations — check your connection and try again.';
+    console.error('Data Interchange — load conversations failed:', e);
+    diError = 'Could not load conversations' + diErrDetail(e) + ' — check your connection and try again.';
   }
   diLoading = false;
   diRerender();
+}
+// Turns a caught error into a short, visible " (permission-denied)"-style suffix, so a rules/config
+// problem shows up right in the panel instead of only in the browser console -- meant to be read once
+// by whoever set the app up (it names the raw Firestore error code), then the underlying cause fixed.
+function diErrDetail(e){
+  if(!e) return '';
+  const code = e.code || '';
+  return code ? ` (${code})` : '';
 }
 function diLastSeenKey(threadId){ return 'rb_diLastSeen_' + threadId; }
 function diGetLastSeen(threadId){
