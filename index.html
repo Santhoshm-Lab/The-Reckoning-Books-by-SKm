@@ -1595,9 +1595,2315 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+/* qrcode-generator v2.0.4 by Kazuhiko Arase, MIT licensed -- https://github.com/kazuhikoarase/qrcode-generator */
+/* eslint-disable */
+(function(){
+//---------------------------------------------------------------------
+//
+// QR Code Generator for JavaScript
+//
+// Copyright (c) 2009 Kazuhiko Arase
+//
+// URL: http://www.d-project.com/
+//
+// Licensed under the MIT license:
+//  http://www.opensource.org/licenses/mit-license.php
+//
+// The word 'QR Code' is registered trademark of
+// DENSO WAVE INCORPORATED
+//  http://www.denso-wave.com/qrcode/faqpatent-e.html
+//
+//---------------------------------------------------------------------
+
+var qrcode = function() {
+
+  //---------------------------------------------------------------------
+  // qrcode
+  //---------------------------------------------------------------------
+
+  /**
+   * qrcode
+   * @param typeNumber 1 to 40
+   * @param errorCorrectionLevel 'L','M','Q','H'
+   */
+  var qrcode = function(typeNumber, errorCorrectionLevel) {
+
+    var PAD0 = 0xEC;
+    var PAD1 = 0x11;
+
+    var _typeNumber = typeNumber;
+    var _errorCorrectionLevel = QRErrorCorrectionLevel[errorCorrectionLevel];
+    var _modules = null;
+    var _moduleCount = 0;
+    var _dataCache = null;
+    var _dataList = [];
+
+    var _this = {};
+
+    var makeImpl = function(test, maskPattern) {
+
+      _moduleCount = _typeNumber * 4 + 17;
+      _modules = function(moduleCount) {
+        var modules = new Array(moduleCount);
+        for (var row = 0; row < moduleCount; row += 1) {
+          modules[row] = new Array(moduleCount);
+          for (var col = 0; col < moduleCount; col += 1) {
+            modules[row][col] = null;
+          }
+        }
+        return modules;
+      }(_moduleCount);
+
+      setupPositionProbePattern(0, 0);
+      setupPositionProbePattern(_moduleCount - 7, 0);
+      setupPositionProbePattern(0, _moduleCount - 7);
+      setupPositionAdjustPattern();
+      setupTimingPattern();
+      setupTypeInfo(test, maskPattern);
+
+      if (_typeNumber >= 7) {
+        setupTypeNumber(test);
+      }
+
+      if (_dataCache == null) {
+        _dataCache = createData(_typeNumber, _errorCorrectionLevel, _dataList);
+      }
+
+      mapData(_dataCache, maskPattern);
+    };
+
+    var setupPositionProbePattern = function(row, col) {
+
+      for (var r = -1; r <= 7; r += 1) {
+
+        if (row + r <= -1 || _moduleCount <= row + r) continue;
+
+        for (var c = -1; c <= 7; c += 1) {
+
+          if (col + c <= -1 || _moduleCount <= col + c) continue;
+
+          if ( (0 <= r && r <= 6 && (c == 0 || c == 6) )
+              || (0 <= c && c <= 6 && (r == 0 || r == 6) )
+              || (2 <= r && r <= 4 && 2 <= c && c <= 4) ) {
+            _modules[row + r][col + c] = true;
+          } else {
+            _modules[row + r][col + c] = false;
+          }
+        }
+      }
+    };
+
+    var getBestMaskPattern = function() {
+
+      var minLostPoint = 0;
+      var pattern = 0;
+
+      for (var i = 0; i < 8; i += 1) {
+
+        makeImpl(true, i);
+
+        var lostPoint = QRUtil.getLostPoint(_this);
+
+        if (i == 0 || minLostPoint > lostPoint) {
+          minLostPoint = lostPoint;
+          pattern = i;
+        }
+      }
+
+      return pattern;
+    };
+
+    var setupTimingPattern = function() {
+
+      for (var r = 8; r < _moduleCount - 8; r += 1) {
+        if (_modules[r][6] != null) {
+          continue;
+        }
+        _modules[r][6] = (r % 2 == 0);
+      }
+
+      for (var c = 8; c < _moduleCount - 8; c += 1) {
+        if (_modules[6][c] != null) {
+          continue;
+        }
+        _modules[6][c] = (c % 2 == 0);
+      }
+    };
+
+    var setupPositionAdjustPattern = function() {
+
+      var pos = QRUtil.getPatternPosition(_typeNumber);
+
+      for (var i = 0; i < pos.length; i += 1) {
+
+        for (var j = 0; j < pos.length; j += 1) {
+
+          var row = pos[i];
+          var col = pos[j];
+
+          if (_modules[row][col] != null) {
+            continue;
+          }
+
+          for (var r = -2; r <= 2; r += 1) {
+
+            for (var c = -2; c <= 2; c += 1) {
+
+              if (r == -2 || r == 2 || c == -2 || c == 2
+                  || (r == 0 && c == 0) ) {
+                _modules[row + r][col + c] = true;
+              } else {
+                _modules[row + r][col + c] = false;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    var setupTypeNumber = function(test) {
+
+      var bits = QRUtil.getBCHTypeNumber(_typeNumber);
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+      }
+
+      for (var i = 0; i < 18; i += 1) {
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+        _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+      }
+    };
+
+    var setupTypeInfo = function(test, maskPattern) {
+
+      var data = (_errorCorrectionLevel << 3) | maskPattern;
+      var bits = QRUtil.getBCHTypeInfo(data);
+
+      // vertical
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 6) {
+          _modules[i][8] = mod;
+        } else if (i < 8) {
+          _modules[i + 1][8] = mod;
+        } else {
+          _modules[_moduleCount - 15 + i][8] = mod;
+        }
+      }
+
+      // horizontal
+      for (var i = 0; i < 15; i += 1) {
+
+        var mod = (!test && ( (bits >> i) & 1) == 1);
+
+        if (i < 8) {
+          _modules[8][_moduleCount - i - 1] = mod;
+        } else if (i < 9) {
+          _modules[8][15 - i - 1 + 1] = mod;
+        } else {
+          _modules[8][15 - i - 1] = mod;
+        }
+      }
+
+      // fixed module
+      _modules[_moduleCount - 8][8] = (!test);
+    };
+
+    var mapData = function(data, maskPattern) {
+
+      var inc = -1;
+      var row = _moduleCount - 1;
+      var bitIndex = 7;
+      var byteIndex = 0;
+      var maskFunc = QRUtil.getMaskFunction(maskPattern);
+
+      for (var col = _moduleCount - 1; col > 0; col -= 2) {
+
+        if (col == 6) col -= 1;
+
+        while (true) {
+
+          for (var c = 0; c < 2; c += 1) {
+
+            if (_modules[row][col - c] == null) {
+
+              var dark = false;
+
+              if (byteIndex < data.length) {
+                dark = ( ( (data[byteIndex] >>> bitIndex) & 1) == 1);
+              }
+
+              var mask = maskFunc(row, col - c);
+
+              if (mask) {
+                dark = !dark;
+              }
+
+              _modules[row][col - c] = dark;
+              bitIndex -= 1;
+
+              if (bitIndex == -1) {
+                byteIndex += 1;
+                bitIndex = 7;
+              }
+            }
+          }
+
+          row += inc;
+
+          if (row < 0 || _moduleCount <= row) {
+            row -= inc;
+            inc = -inc;
+            break;
+          }
+        }
+      }
+    };
+
+    var createBytes = function(buffer, rsBlocks) {
+
+      var offset = 0;
+
+      var maxDcCount = 0;
+      var maxEcCount = 0;
+
+      var dcdata = new Array(rsBlocks.length);
+      var ecdata = new Array(rsBlocks.length);
+
+      for (var r = 0; r < rsBlocks.length; r += 1) {
+
+        var dcCount = rsBlocks[r].dataCount;
+        var ecCount = rsBlocks[r].totalCount - dcCount;
+
+        maxDcCount = Math.max(maxDcCount, dcCount);
+        maxEcCount = Math.max(maxEcCount, ecCount);
+
+        dcdata[r] = new Array(dcCount);
+
+        for (var i = 0; i < dcdata[r].length; i += 1) {
+          dcdata[r][i] = 0xff & buffer.getBuffer()[i + offset];
+        }
+        offset += dcCount;
+
+        var rsPoly = QRUtil.getErrorCorrectPolynomial(ecCount);
+        var rawPoly = qrPolynomial(dcdata[r], rsPoly.getLength() - 1);
+
+        var modPoly = rawPoly.mod(rsPoly);
+        ecdata[r] = new Array(rsPoly.getLength() - 1);
+        for (var i = 0; i < ecdata[r].length; i += 1) {
+          var modIndex = i + modPoly.getLength() - ecdata[r].length;
+          ecdata[r][i] = (modIndex >= 0)? modPoly.getAt(modIndex) : 0;
+        }
+      }
+
+      var totalCodeCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalCodeCount += rsBlocks[i].totalCount;
+      }
+
+      var data = new Array(totalCodeCount);
+      var index = 0;
+
+      for (var i = 0; i < maxDcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < dcdata[r].length) {
+            data[index] = dcdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      for (var i = 0; i < maxEcCount; i += 1) {
+        for (var r = 0; r < rsBlocks.length; r += 1) {
+          if (i < ecdata[r].length) {
+            data[index] = ecdata[r][i];
+            index += 1;
+          }
+        }
+      }
+
+      return data;
+    };
+
+    var createData = function(typeNumber, errorCorrectionLevel, dataList) {
+
+      var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, errorCorrectionLevel);
+
+      var buffer = qrBitBuffer();
+
+      for (var i = 0; i < dataList.length; i += 1) {
+        var data = dataList[i];
+        buffer.put(data.getMode(), 4);
+        buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+        data.write(buffer);
+      }
+
+      // calc num max data.
+      var totalDataCount = 0;
+      for (var i = 0; i < rsBlocks.length; i += 1) {
+        totalDataCount += rsBlocks[i].dataCount;
+      }
+
+      if (buffer.getLengthInBits() > totalDataCount * 8) {
+        throw 'code length overflow. ('
+          + buffer.getLengthInBits()
+          + '>'
+          + totalDataCount * 8
+          + ')';
+      }
+
+      // end code
+      if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) {
+        buffer.put(0, 4);
+      }
+
+      // padding
+      while (buffer.getLengthInBits() % 8 != 0) {
+        buffer.putBit(false);
+      }
+
+      // padding
+      while (true) {
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD0, 8);
+
+        if (buffer.getLengthInBits() >= totalDataCount * 8) {
+          break;
+        }
+        buffer.put(PAD1, 8);
+      }
+
+      return createBytes(buffer, rsBlocks);
+    };
+
+    _this.addData = function(data, mode) {
+
+      mode = mode || 'Byte';
+
+      var newData = null;
+
+      switch(mode) {
+      case 'Numeric' :
+        newData = qrNumber(data);
+        break;
+      case 'Alphanumeric' :
+        newData = qrAlphaNum(data);
+        break;
+      case 'Byte' :
+        newData = qr8BitByte(data);
+        break;
+      case 'Kanji' :
+        newData = qrKanji(data);
+        break;
+      default :
+        throw 'mode:' + mode;
+      }
+
+      _dataList.push(newData);
+      _dataCache = null;
+    };
+
+    _this.isDark = function(row, col) {
+      if (row < 0 || _moduleCount <= row || col < 0 || _moduleCount <= col) {
+        throw row + ',' + col;
+      }
+      return _modules[row][col];
+    };
+
+    _this.getModuleCount = function() {
+      return _moduleCount;
+    };
+
+    _this.make = function() {
+      if (_typeNumber < 1) {
+        var typeNumber = 1;
+
+        for (; typeNumber < 40; typeNumber++) {
+          var rsBlocks = QRRSBlock.getRSBlocks(typeNumber, _errorCorrectionLevel);
+          var buffer = qrBitBuffer();
+
+          for (var i = 0; i < _dataList.length; i++) {
+            var data = _dataList[i];
+            buffer.put(data.getMode(), 4);
+            buffer.put(data.getLength(), QRUtil.getLengthInBits(data.getMode(), typeNumber) );
+            data.write(buffer);
+          }
+
+          var totalDataCount = 0;
+          for (var i = 0; i < rsBlocks.length; i++) {
+            totalDataCount += rsBlocks[i].dataCount;
+          }
+
+          if (buffer.getLengthInBits() <= totalDataCount * 8) {
+            break;
+          }
+        }
+
+        _typeNumber = typeNumber;
+      }
+
+      makeImpl(false, getBestMaskPattern() );
+    };
+
+    _this.createTableTag = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var qrHtml = '';
+
+      qrHtml += '<table style="';
+      qrHtml += ' border-width: 0px; border-style: none;';
+      qrHtml += ' border-collapse: collapse;';
+      qrHtml += ' padding: 0px; margin: ' + margin + 'px;';
+      qrHtml += '">';
+      qrHtml += '<tbody>';
+
+      for (var r = 0; r < _this.getModuleCount(); r += 1) {
+
+        qrHtml += '<tr>';
+
+        for (var c = 0; c < _this.getModuleCount(); c += 1) {
+          qrHtml += '<td style="';
+          qrHtml += ' border-width: 0px; border-style: none;';
+          qrHtml += ' border-collapse: collapse;';
+          qrHtml += ' padding: 0px; margin: 0px;';
+          qrHtml += ' width: ' + cellSize + 'px;';
+          qrHtml += ' height: ' + cellSize + 'px;';
+          qrHtml += ' background-color: ';
+          qrHtml += _this.isDark(r, c)? '#000000' : '#ffffff';
+          qrHtml += ';';
+          qrHtml += '"/>';
+        }
+
+        qrHtml += '</tr>';
+      }
+
+      qrHtml += '</tbody>';
+      qrHtml += '</table>';
+
+      return qrHtml;
+    };
+
+    _this.createSvgTag = function(cellSize, margin, alt, title) {
+
+      var opts = {};
+      if (typeof arguments[0] == 'object') {
+        // Called by options.
+        opts = arguments[0];
+        // overwrite cellSize and margin.
+        cellSize = opts.cellSize;
+        margin = opts.margin;
+        alt = opts.alt;
+        title = opts.title;
+      }
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      // Compose alt property surrogate
+      alt = (typeof alt === 'string') ? {text: alt} : alt || {};
+      alt.text = alt.text || null;
+      alt.id = (alt.text) ? alt.id || 'qrcode-description' : null;
+
+      // Compose title property surrogate
+      title = (typeof title === 'string') ? {text: title} : title || {};
+      title.text = title.text || null;
+      title.id = (title.text) ? title.id || 'qrcode-title' : null;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var c, mc, r, mr, qrSvg='', rect;
+
+      rect = 'l' + cellSize + ',0 0,' + cellSize +
+        ' -' + cellSize + ',0 0,-' + cellSize + 'z ';
+
+      qrSvg += '<svg version="1.1" xmlns="http://www.w3.org/2000/svg"';
+      qrSvg += !opts.scalable ? ' width="' + size + 'px" height="' + size + 'px"' : '';
+      qrSvg += ' viewBox="0 0 ' + size + ' ' + size + '" ';
+      qrSvg += ' preserveAspectRatio="xMinYMin meet"';
+      qrSvg += (title.text || alt.text) ? ' role="img" aria-labelledby="' +
+          escapeXml([title.id, alt.id].join(' ').trim() ) + '"' : '';
+      qrSvg += '>';
+      qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
+          escapeXml(title.text) + '</title>' : '';
+      qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
+          escapeXml(alt.text) + '</description>' : '';
+      qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
+      qrSvg += '<path d="';
+
+      for (r = 0; r < _this.getModuleCount(); r += 1) {
+        mr = r * cellSize + margin;
+        for (c = 0; c < _this.getModuleCount(); c += 1) {
+          if (_this.isDark(r, c) ) {
+            mc = c*cellSize+margin;
+            qrSvg += 'M' + mc + ',' + mr + rect;
+          }
+        }
+      }
+
+      qrSvg += '" stroke="transparent" fill="black"/>';
+      qrSvg += '</svg>';
+
+      return qrSvg;
+    };
+
+    _this.createDataURL = function(cellSize, margin) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      return createDataURL(size, size, function(x, y) {
+        if (min <= x && x < max && min <= y && y < max) {
+          var c = Math.floor( (x - min) / cellSize);
+          var r = Math.floor( (y - min) / cellSize);
+          return _this.isDark(r, c)? 0 : 1;
+        } else {
+          return 1;
+        }
+      } );
+    };
+
+    _this.createImgTag = function(cellSize, margin, alt) {
+
+      cellSize = cellSize || 2;
+      margin = (typeof margin == 'undefined')? cellSize * 4 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+
+      var img = '';
+      img += '<img';
+      img += '\u0020src="';
+      img += _this.createDataURL(cellSize, margin);
+      img += '"';
+      img += '\u0020width="';
+      img += size;
+      img += '"';
+      img += '\u0020height="';
+      img += size;
+      img += '"';
+      if (alt) {
+        img += '\u0020alt="';
+        img += escapeXml(alt);
+        img += '"';
+      }
+      img += '/>';
+
+      return img;
+    };
+
+    var escapeXml = function(s) {
+      var escaped = '';
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charAt(i);
+        switch(c) {
+        case '<': escaped += '&lt;'; break;
+        case '>': escaped += '&gt;'; break;
+        case '&': escaped += '&amp;'; break;
+        case '"': escaped += '&quot;'; break;
+        default : escaped += c; break;
+        }
+      }
+      return escaped;
+    };
+
+    var _createHalfASCII = function(margin) {
+      var cellSize = 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r1, r2, p;
+
+      var blocks = {
+        '██': '█',
+        '█ ': '▀',
+        ' █': '▄',
+        '  ': ' '
+      };
+
+      var blocksLastLineNoMargin = {
+        '██': '▀',
+        '█ ': '▀',
+        ' █': ' ',
+        '  ': ' '
+      };
+
+      var ascii = '';
+      for (y = 0; y < size; y += 2) {
+        r1 = Math.floor((y - min) / cellSize);
+        r2 = Math.floor((y + 1 - min) / cellSize);
+        for (x = 0; x < size; x += 1) {
+          p = '█';
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r1, Math.floor((x - min) / cellSize))) {
+            p = ' ';
+          }
+
+          if (min <= x && x < max && min <= y+1 && y+1 < max && _this.isDark(r2, Math.floor((x - min) / cellSize))) {
+            p += ' ';
+          }
+          else {
+            p += '█';
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          ascii += (margin < 1 && y+1 >= max) ? blocksLastLineNoMargin[p] : blocks[p];
+        }
+
+        ascii += '\n';
+      }
+
+      if (size % 2 && margin > 0) {
+        return ascii.substring(0, ascii.length - size - 1) + Array(size+1).join('▀');
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.createASCII = function(cellSize, margin) {
+      cellSize = cellSize || 1;
+
+      if (cellSize < 2) {
+        return _createHalfASCII(margin);
+      }
+
+      cellSize -= 1;
+      margin = (typeof margin == 'undefined')? cellSize * 2 : margin;
+
+      var size = _this.getModuleCount() * cellSize + margin * 2;
+      var min = margin;
+      var max = size - margin;
+
+      var y, x, r, p;
+
+      var white = Array(cellSize+1).join('██');
+      var black = Array(cellSize+1).join('  ');
+
+      var ascii = '';
+      var line = '';
+      for (y = 0; y < size; y += 1) {
+        r = Math.floor( (y - min) / cellSize);
+        line = '';
+        for (x = 0; x < size; x += 1) {
+          p = 1;
+
+          if (min <= x && x < max && min <= y && y < max && _this.isDark(r, Math.floor((x - min) / cellSize))) {
+            p = 0;
+          }
+
+          // Output 2 characters per pixel, to create full square. 1 character per pixels gives only half width of square.
+          line += p ? white : black;
+        }
+
+        for (r = 0; r < cellSize; r += 1) {
+          ascii += line + '\n';
+        }
+      }
+
+      return ascii.substring(0, ascii.length-1);
+    };
+
+    _this.renderTo2dContext = function(context, cellSize) {
+      cellSize = cellSize || 2;
+      var length = _this.getModuleCount();
+      for (var row = 0; row < length; row++) {
+        for (var col = 0; col < length; col++) {
+          context.fillStyle = _this.isDark(row, col) ? 'black' : 'white';
+          context.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrcode.stringToBytes
+  //---------------------------------------------------------------------
+
+  qrcode.stringToBytesFuncs = {
+    'default' : function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        bytes.push(c & 0xff);
+      }
+      return bytes;
+    }
+  };
+
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['default'];
+
+  //---------------------------------------------------------------------
+  // qrcode.createStringToBytes
+  //---------------------------------------------------------------------
+
+  /**
+   * @param unicodeData base64 string of byte array.
+   * [16bit Unicode],[16bit Bytes], ...
+   * @param numChars
+   */
+  qrcode.createStringToBytes = function(unicodeData, numChars) {
+
+    // create conversion map.
+
+    var unicodeMap = function() {
+
+      var bin = base64DecodeInputStream(unicodeData);
+      var read = function() {
+        var b = bin.read();
+        if (b == -1) throw 'eof';
+        return b;
+      };
+
+      var count = 0;
+      var unicodeMap = {};
+      while (true) {
+        var b0 = bin.read();
+        if (b0 == -1) break;
+        var b1 = read();
+        var b2 = read();
+        var b3 = read();
+        var k = String.fromCharCode( (b0 << 8) | b1);
+        var v = (b2 << 8) | b3;
+        unicodeMap[k] = v;
+        count += 1;
+      }
+      if (count != numChars) {
+        throw count + ' != ' + numChars;
+      }
+
+      return unicodeMap;
+    }();
+
+    var unknownChar = '?'.charCodeAt(0);
+
+    return function(s) {
+      var bytes = [];
+      for (var i = 0; i < s.length; i += 1) {
+        var c = s.charCodeAt(i);
+        if (c < 128) {
+          bytes.push(c);
+        } else {
+          var b = unicodeMap[s.charAt(i)];
+          if (typeof b == 'number') {
+            if ( (b & 0xff) == b) {
+              // 1byte
+              bytes.push(b);
+            } else {
+              // 2bytes
+              bytes.push(b >>> 8);
+              bytes.push(b & 0xff);
+            }
+          } else {
+            bytes.push(unknownChar);
+          }
+        }
+      }
+      return bytes;
+    };
+  };
+
+  //---------------------------------------------------------------------
+  // QRMode
+  //---------------------------------------------------------------------
+
+  var QRMode = {
+    MODE_NUMBER :    1 << 0,
+    MODE_ALPHA_NUM : 1 << 1,
+    MODE_8BIT_BYTE : 1 << 2,
+    MODE_KANJI :     1 << 3
+  };
+
+  //---------------------------------------------------------------------
+  // QRErrorCorrectionLevel
+  //---------------------------------------------------------------------
+
+  var QRErrorCorrectionLevel = {
+    L : 1,
+    M : 0,
+    Q : 3,
+    H : 2
+  };
+
+  //---------------------------------------------------------------------
+  // QRMaskPattern
+  //---------------------------------------------------------------------
+
+  var QRMaskPattern = {
+    PATTERN000 : 0,
+    PATTERN001 : 1,
+    PATTERN010 : 2,
+    PATTERN011 : 3,
+    PATTERN100 : 4,
+    PATTERN101 : 5,
+    PATTERN110 : 6,
+    PATTERN111 : 7
+  };
+
+  //---------------------------------------------------------------------
+  // QRUtil
+  //---------------------------------------------------------------------
+
+  var QRUtil = function() {
+
+    var PATTERN_POSITION_TABLE = [
+      [],
+      [6, 18],
+      [6, 22],
+      [6, 26],
+      [6, 30],
+      [6, 34],
+      [6, 22, 38],
+      [6, 24, 42],
+      [6, 26, 46],
+      [6, 28, 50],
+      [6, 30, 54],
+      [6, 32, 58],
+      [6, 34, 62],
+      [6, 26, 46, 66],
+      [6, 26, 48, 70],
+      [6, 26, 50, 74],
+      [6, 30, 54, 78],
+      [6, 30, 56, 82],
+      [6, 30, 58, 86],
+      [6, 34, 62, 90],
+      [6, 28, 50, 72, 94],
+      [6, 26, 50, 74, 98],
+      [6, 30, 54, 78, 102],
+      [6, 28, 54, 80, 106],
+      [6, 32, 58, 84, 110],
+      [6, 30, 58, 86, 114],
+      [6, 34, 62, 90, 118],
+      [6, 26, 50, 74, 98, 122],
+      [6, 30, 54, 78, 102, 126],
+      [6, 26, 52, 78, 104, 130],
+      [6, 30, 56, 82, 108, 134],
+      [6, 34, 60, 86, 112, 138],
+      [6, 30, 58, 86, 114, 142],
+      [6, 34, 62, 90, 118, 146],
+      [6, 30, 54, 78, 102, 126, 150],
+      [6, 24, 50, 76, 102, 128, 154],
+      [6, 28, 54, 80, 106, 132, 158],
+      [6, 32, 58, 84, 110, 136, 162],
+      [6, 26, 54, 82, 110, 138, 166],
+      [6, 30, 58, 86, 114, 142, 170]
+    ];
+    var G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    var G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+    var G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+
+    var _this = {};
+
+    var getBCHDigit = function(data) {
+      var digit = 0;
+      while (data != 0) {
+        digit += 1;
+        data >>>= 1;
+      }
+      return digit;
+    };
+
+    _this.getBCHTypeInfo = function(data) {
+      var d = data << 10;
+      while (getBCHDigit(d) - getBCHDigit(G15) >= 0) {
+        d ^= (G15 << (getBCHDigit(d) - getBCHDigit(G15) ) );
+      }
+      return ( (data << 10) | d) ^ G15_MASK;
+    };
+
+    _this.getBCHTypeNumber = function(data) {
+      var d = data << 12;
+      while (getBCHDigit(d) - getBCHDigit(G18) >= 0) {
+        d ^= (G18 << (getBCHDigit(d) - getBCHDigit(G18) ) );
+      }
+      return (data << 12) | d;
+    };
+
+    _this.getPatternPosition = function(typeNumber) {
+      return PATTERN_POSITION_TABLE[typeNumber - 1];
+    };
+
+    _this.getMaskFunction = function(maskPattern) {
+
+      switch (maskPattern) {
+
+      case QRMaskPattern.PATTERN000 :
+        return function(i, j) { return (i + j) % 2 == 0; };
+      case QRMaskPattern.PATTERN001 :
+        return function(i, j) { return i % 2 == 0; };
+      case QRMaskPattern.PATTERN010 :
+        return function(i, j) { return j % 3 == 0; };
+      case QRMaskPattern.PATTERN011 :
+        return function(i, j) { return (i + j) % 3 == 0; };
+      case QRMaskPattern.PATTERN100 :
+        return function(i, j) { return (Math.floor(i / 2) + Math.floor(j / 3) ) % 2 == 0; };
+      case QRMaskPattern.PATTERN101 :
+        return function(i, j) { return (i * j) % 2 + (i * j) % 3 == 0; };
+      case QRMaskPattern.PATTERN110 :
+        return function(i, j) { return ( (i * j) % 2 + (i * j) % 3) % 2 == 0; };
+      case QRMaskPattern.PATTERN111 :
+        return function(i, j) { return ( (i * j) % 3 + (i + j) % 2) % 2 == 0; };
+
+      default :
+        throw 'bad maskPattern:' + maskPattern;
+      }
+    };
+
+    _this.getErrorCorrectPolynomial = function(errorCorrectLength) {
+      var a = qrPolynomial([1], 0);
+      for (var i = 0; i < errorCorrectLength; i += 1) {
+        a = a.multiply(qrPolynomial([1, QRMath.gexp(i)], 0) );
+      }
+      return a;
+    };
+
+    _this.getLengthInBits = function(mode, type) {
+
+      if (1 <= type && type < 10) {
+
+        // 1 - 9
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 10;
+        case QRMode.MODE_ALPHA_NUM : return 9;
+        case QRMode.MODE_8BIT_BYTE : return 8;
+        case QRMode.MODE_KANJI     : return 8;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 27) {
+
+        // 10 - 26
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 12;
+        case QRMode.MODE_ALPHA_NUM : return 11;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 10;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else if (type < 41) {
+
+        // 27 - 40
+
+        switch(mode) {
+        case QRMode.MODE_NUMBER    : return 14;
+        case QRMode.MODE_ALPHA_NUM : return 13;
+        case QRMode.MODE_8BIT_BYTE : return 16;
+        case QRMode.MODE_KANJI     : return 12;
+        default :
+          throw 'mode:' + mode;
+        }
+
+      } else {
+        throw 'type:' + type;
+      }
+    };
+
+    _this.getLostPoint = function(qrcode) {
+
+      var moduleCount = qrcode.getModuleCount();
+
+      var lostPoint = 0;
+
+      // LEVEL1
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount; col += 1) {
+
+          var sameCount = 0;
+          var dark = qrcode.isDark(row, col);
+
+          for (var r = -1; r <= 1; r += 1) {
+
+            if (row + r < 0 || moduleCount <= row + r) {
+              continue;
+            }
+
+            for (var c = -1; c <= 1; c += 1) {
+
+              if (col + c < 0 || moduleCount <= col + c) {
+                continue;
+              }
+
+              if (r == 0 && c == 0) {
+                continue;
+              }
+
+              if (dark == qrcode.isDark(row + r, col + c) ) {
+                sameCount += 1;
+              }
+            }
+          }
+
+          if (sameCount > 5) {
+            lostPoint += (3 + sameCount - 5);
+          }
+        }
+      };
+
+      // LEVEL2
+
+      for (var row = 0; row < moduleCount - 1; row += 1) {
+        for (var col = 0; col < moduleCount - 1; col += 1) {
+          var count = 0;
+          if (qrcode.isDark(row, col) ) count += 1;
+          if (qrcode.isDark(row + 1, col) ) count += 1;
+          if (qrcode.isDark(row, col + 1) ) count += 1;
+          if (qrcode.isDark(row + 1, col + 1) ) count += 1;
+          if (count == 0 || count == 4) {
+            lostPoint += 3;
+          }
+        }
+      }
+
+      // LEVEL3
+
+      for (var row = 0; row < moduleCount; row += 1) {
+        for (var col = 0; col < moduleCount - 6; col += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row, col + 1)
+              &&  qrcode.isDark(row, col + 2)
+              &&  qrcode.isDark(row, col + 3)
+              &&  qrcode.isDark(row, col + 4)
+              && !qrcode.isDark(row, col + 5)
+              &&  qrcode.isDark(row, col + 6) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount - 6; row += 1) {
+          if (qrcode.isDark(row, col)
+              && !qrcode.isDark(row + 1, col)
+              &&  qrcode.isDark(row + 2, col)
+              &&  qrcode.isDark(row + 3, col)
+              &&  qrcode.isDark(row + 4, col)
+              && !qrcode.isDark(row + 5, col)
+              &&  qrcode.isDark(row + 6, col) ) {
+            lostPoint += 40;
+          }
+        }
+      }
+
+      // LEVEL4
+
+      var darkCount = 0;
+
+      for (var col = 0; col < moduleCount; col += 1) {
+        for (var row = 0; row < moduleCount; row += 1) {
+          if (qrcode.isDark(row, col) ) {
+            darkCount += 1;
+          }
+        }
+      }
+
+      var ratio = Math.abs(100 * darkCount / moduleCount / moduleCount - 50) / 5;
+      lostPoint += ratio * 10;
+
+      return lostPoint;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // QRMath
+  //---------------------------------------------------------------------
+
+  var QRMath = function() {
+
+    var EXP_TABLE = new Array(256);
+    var LOG_TABLE = new Array(256);
+
+    // initialize tables
+    for (var i = 0; i < 8; i += 1) {
+      EXP_TABLE[i] = 1 << i;
+    }
+    for (var i = 8; i < 256; i += 1) {
+      EXP_TABLE[i] = EXP_TABLE[i - 4]
+        ^ EXP_TABLE[i - 5]
+        ^ EXP_TABLE[i - 6]
+        ^ EXP_TABLE[i - 8];
+    }
+    for (var i = 0; i < 255; i += 1) {
+      LOG_TABLE[EXP_TABLE[i] ] = i;
+    }
+
+    var _this = {};
+
+    _this.glog = function(n) {
+
+      if (n < 1) {
+        throw 'glog(' + n + ')';
+      }
+
+      return LOG_TABLE[n];
+    };
+
+    _this.gexp = function(n) {
+
+      while (n < 0) {
+        n += 255;
+      }
+
+      while (n >= 256) {
+        n -= 255;
+      }
+
+      return EXP_TABLE[n];
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrPolynomial
+  //---------------------------------------------------------------------
+
+  function qrPolynomial(num, shift) {
+
+    if (typeof num.length == 'undefined') {
+      throw num.length + '/' + shift;
+    }
+
+    var _num = function() {
+      var offset = 0;
+      while (offset < num.length && num[offset] == 0) {
+        offset += 1;
+      }
+      var _num = new Array(num.length - offset + shift);
+      for (var i = 0; i < num.length - offset; i += 1) {
+        _num[i] = num[i + offset];
+      }
+      return _num;
+    }();
+
+    var _this = {};
+
+    _this.getAt = function(index) {
+      return _num[index];
+    };
+
+    _this.getLength = function() {
+      return _num.length;
+    };
+
+    _this.multiply = function(e) {
+
+      var num = new Array(_this.getLength() + e.getLength() - 1);
+
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        for (var j = 0; j < e.getLength(); j += 1) {
+          num[i + j] ^= QRMath.gexp(QRMath.glog(_this.getAt(i) ) + QRMath.glog(e.getAt(j) ) );
+        }
+      }
+
+      return qrPolynomial(num, 0);
+    };
+
+    _this.mod = function(e) {
+
+      if (_this.getLength() - e.getLength() < 0) {
+        return _this;
+      }
+
+      var ratio = QRMath.glog(_this.getAt(0) ) - QRMath.glog(e.getAt(0) );
+
+      var num = new Array(_this.getLength() );
+      for (var i = 0; i < _this.getLength(); i += 1) {
+        num[i] = _this.getAt(i);
+      }
+
+      for (var i = 0; i < e.getLength(); i += 1) {
+        num[i] ^= QRMath.gexp(QRMath.glog(e.getAt(i) ) + ratio);
+      }
+
+      // recursive call
+      return qrPolynomial(num, 0).mod(e);
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // QRRSBlock
+  //---------------------------------------------------------------------
+
+  var QRRSBlock = function() {
+
+    var RS_BLOCK_TABLE = [
+
+      // L
+      // M
+      // Q
+      // H
+
+      // 1
+      [1, 26, 19],
+      [1, 26, 16],
+      [1, 26, 13],
+      [1, 26, 9],
+
+      // 2
+      [1, 44, 34],
+      [1, 44, 28],
+      [1, 44, 22],
+      [1, 44, 16],
+
+      // 3
+      [1, 70, 55],
+      [1, 70, 44],
+      [2, 35, 17],
+      [2, 35, 13],
+
+      // 4
+      [1, 100, 80],
+      [2, 50, 32],
+      [2, 50, 24],
+      [4, 25, 9],
+
+      // 5
+      [1, 134, 108],
+      [2, 67, 43],
+      [2, 33, 15, 2, 34, 16],
+      [2, 33, 11, 2, 34, 12],
+
+      // 6
+      [2, 86, 68],
+      [4, 43, 27],
+      [4, 43, 19],
+      [4, 43, 15],
+
+      // 7
+      [2, 98, 78],
+      [4, 49, 31],
+      [2, 32, 14, 4, 33, 15],
+      [4, 39, 13, 1, 40, 14],
+
+      // 8
+      [2, 121, 97],
+      [2, 60, 38, 2, 61, 39],
+      [4, 40, 18, 2, 41, 19],
+      [4, 40, 14, 2, 41, 15],
+
+      // 9
+      [2, 146, 116],
+      [3, 58, 36, 2, 59, 37],
+      [4, 36, 16, 4, 37, 17],
+      [4, 36, 12, 4, 37, 13],
+
+      // 10
+      [2, 86, 68, 2, 87, 69],
+      [4, 69, 43, 1, 70, 44],
+      [6, 43, 19, 2, 44, 20],
+      [6, 43, 15, 2, 44, 16],
+
+      // 11
+      [4, 101, 81],
+      [1, 80, 50, 4, 81, 51],
+      [4, 50, 22, 4, 51, 23],
+      [3, 36, 12, 8, 37, 13],
+
+      // 12
+      [2, 116, 92, 2, 117, 93],
+      [6, 58, 36, 2, 59, 37],
+      [4, 46, 20, 6, 47, 21],
+      [7, 42, 14, 4, 43, 15],
+
+      // 13
+      [4, 133, 107],
+      [8, 59, 37, 1, 60, 38],
+      [8, 44, 20, 4, 45, 21],
+      [12, 33, 11, 4, 34, 12],
+
+      // 14
+      [3, 145, 115, 1, 146, 116],
+      [4, 64, 40, 5, 65, 41],
+      [11, 36, 16, 5, 37, 17],
+      [11, 36, 12, 5, 37, 13],
+
+      // 15
+      [5, 109, 87, 1, 110, 88],
+      [5, 65, 41, 5, 66, 42],
+      [5, 54, 24, 7, 55, 25],
+      [11, 36, 12, 7, 37, 13],
+
+      // 16
+      [5, 122, 98, 1, 123, 99],
+      [7, 73, 45, 3, 74, 46],
+      [15, 43, 19, 2, 44, 20],
+      [3, 45, 15, 13, 46, 16],
+
+      // 17
+      [1, 135, 107, 5, 136, 108],
+      [10, 74, 46, 1, 75, 47],
+      [1, 50, 22, 15, 51, 23],
+      [2, 42, 14, 17, 43, 15],
+
+      // 18
+      [5, 150, 120, 1, 151, 121],
+      [9, 69, 43, 4, 70, 44],
+      [17, 50, 22, 1, 51, 23],
+      [2, 42, 14, 19, 43, 15],
+
+      // 19
+      [3, 141, 113, 4, 142, 114],
+      [3, 70, 44, 11, 71, 45],
+      [17, 47, 21, 4, 48, 22],
+      [9, 39, 13, 16, 40, 14],
+
+      // 20
+      [3, 135, 107, 5, 136, 108],
+      [3, 67, 41, 13, 68, 42],
+      [15, 54, 24, 5, 55, 25],
+      [15, 43, 15, 10, 44, 16],
+
+      // 21
+      [4, 144, 116, 4, 145, 117],
+      [17, 68, 42],
+      [17, 50, 22, 6, 51, 23],
+      [19, 46, 16, 6, 47, 17],
+
+      // 22
+      [2, 139, 111, 7, 140, 112],
+      [17, 74, 46],
+      [7, 54, 24, 16, 55, 25],
+      [34, 37, 13],
+
+      // 23
+      [4, 151, 121, 5, 152, 122],
+      [4, 75, 47, 14, 76, 48],
+      [11, 54, 24, 14, 55, 25],
+      [16, 45, 15, 14, 46, 16],
+
+      // 24
+      [6, 147, 117, 4, 148, 118],
+      [6, 73, 45, 14, 74, 46],
+      [11, 54, 24, 16, 55, 25],
+      [30, 46, 16, 2, 47, 17],
+
+      // 25
+      [8, 132, 106, 4, 133, 107],
+      [8, 75, 47, 13, 76, 48],
+      [7, 54, 24, 22, 55, 25],
+      [22, 45, 15, 13, 46, 16],
+
+      // 26
+      [10, 142, 114, 2, 143, 115],
+      [19, 74, 46, 4, 75, 47],
+      [28, 50, 22, 6, 51, 23],
+      [33, 46, 16, 4, 47, 17],
+
+      // 27
+      [8, 152, 122, 4, 153, 123],
+      [22, 73, 45, 3, 74, 46],
+      [8, 53, 23, 26, 54, 24],
+      [12, 45, 15, 28, 46, 16],
+
+      // 28
+      [3, 147, 117, 10, 148, 118],
+      [3, 73, 45, 23, 74, 46],
+      [4, 54, 24, 31, 55, 25],
+      [11, 45, 15, 31, 46, 16],
+
+      // 29
+      [7, 146, 116, 7, 147, 117],
+      [21, 73, 45, 7, 74, 46],
+      [1, 53, 23, 37, 54, 24],
+      [19, 45, 15, 26, 46, 16],
+
+      // 30
+      [5, 145, 115, 10, 146, 116],
+      [19, 75, 47, 10, 76, 48],
+      [15, 54, 24, 25, 55, 25],
+      [23, 45, 15, 25, 46, 16],
+
+      // 31
+      [13, 145, 115, 3, 146, 116],
+      [2, 74, 46, 29, 75, 47],
+      [42, 54, 24, 1, 55, 25],
+      [23, 45, 15, 28, 46, 16],
+
+      // 32
+      [17, 145, 115],
+      [10, 74, 46, 23, 75, 47],
+      [10, 54, 24, 35, 55, 25],
+      [19, 45, 15, 35, 46, 16],
+
+      // 33
+      [17, 145, 115, 1, 146, 116],
+      [14, 74, 46, 21, 75, 47],
+      [29, 54, 24, 19, 55, 25],
+      [11, 45, 15, 46, 46, 16],
+
+      // 34
+      [13, 145, 115, 6, 146, 116],
+      [14, 74, 46, 23, 75, 47],
+      [44, 54, 24, 7, 55, 25],
+      [59, 46, 16, 1, 47, 17],
+
+      // 35
+      [12, 151, 121, 7, 152, 122],
+      [12, 75, 47, 26, 76, 48],
+      [39, 54, 24, 14, 55, 25],
+      [22, 45, 15, 41, 46, 16],
+
+      // 36
+      [6, 151, 121, 14, 152, 122],
+      [6, 75, 47, 34, 76, 48],
+      [46, 54, 24, 10, 55, 25],
+      [2, 45, 15, 64, 46, 16],
+
+      // 37
+      [17, 152, 122, 4, 153, 123],
+      [29, 74, 46, 14, 75, 47],
+      [49, 54, 24, 10, 55, 25],
+      [24, 45, 15, 46, 46, 16],
+
+      // 38
+      [4, 152, 122, 18, 153, 123],
+      [13, 74, 46, 32, 75, 47],
+      [48, 54, 24, 14, 55, 25],
+      [42, 45, 15, 32, 46, 16],
+
+      // 39
+      [20, 147, 117, 4, 148, 118],
+      [40, 75, 47, 7, 76, 48],
+      [43, 54, 24, 22, 55, 25],
+      [10, 45, 15, 67, 46, 16],
+
+      // 40
+      [19, 148, 118, 6, 149, 119],
+      [18, 75, 47, 31, 76, 48],
+      [34, 54, 24, 34, 55, 25],
+      [20, 45, 15, 61, 46, 16]
+    ];
+
+    var qrRSBlock = function(totalCount, dataCount) {
+      var _this = {};
+      _this.totalCount = totalCount;
+      _this.dataCount = dataCount;
+      return _this;
+    };
+
+    var _this = {};
+
+    var getRsBlockTable = function(typeNumber, errorCorrectionLevel) {
+
+      switch(errorCorrectionLevel) {
+      case QRErrorCorrectionLevel.L :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 0];
+      case QRErrorCorrectionLevel.M :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 1];
+      case QRErrorCorrectionLevel.Q :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 2];
+      case QRErrorCorrectionLevel.H :
+        return RS_BLOCK_TABLE[(typeNumber - 1) * 4 + 3];
+      default :
+        return undefined;
+      }
+    };
+
+    _this.getRSBlocks = function(typeNumber, errorCorrectionLevel) {
+
+      var rsBlock = getRsBlockTable(typeNumber, errorCorrectionLevel);
+
+      if (typeof rsBlock == 'undefined') {
+        throw 'bad rs block @ typeNumber:' + typeNumber +
+            '/errorCorrectionLevel:' + errorCorrectionLevel;
+      }
+
+      var length = rsBlock.length / 3;
+
+      var list = [];
+
+      for (var i = 0; i < length; i += 1) {
+
+        var count = rsBlock[i * 3 + 0];
+        var totalCount = rsBlock[i * 3 + 1];
+        var dataCount = rsBlock[i * 3 + 2];
+
+        for (var j = 0; j < count; j += 1) {
+          list.push(qrRSBlock(totalCount, dataCount) );
+        }
+      }
+
+      return list;
+    };
+
+    return _this;
+  }();
+
+  //---------------------------------------------------------------------
+  // qrBitBuffer
+  //---------------------------------------------------------------------
+
+  var qrBitBuffer = function() {
+
+    var _buffer = [];
+    var _length = 0;
+
+    var _this = {};
+
+    _this.getBuffer = function() {
+      return _buffer;
+    };
+
+    _this.getAt = function(index) {
+      var bufIndex = Math.floor(index / 8);
+      return ( (_buffer[bufIndex] >>> (7 - index % 8) ) & 1) == 1;
+    };
+
+    _this.put = function(num, length) {
+      for (var i = 0; i < length; i += 1) {
+        _this.putBit( ( (num >>> (length - i - 1) ) & 1) == 1);
+      }
+    };
+
+    _this.getLengthInBits = function() {
+      return _length;
+    };
+
+    _this.putBit = function(bit) {
+
+      var bufIndex = Math.floor(_length / 8);
+      if (_buffer.length <= bufIndex) {
+        _buffer.push(0);
+      }
+
+      if (bit) {
+        _buffer[bufIndex] |= (0x80 >>> (_length % 8) );
+      }
+
+      _length += 1;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrNumber
+  //---------------------------------------------------------------------
+
+  var qrNumber = function(data) {
+
+    var _mode = QRMode.MODE_NUMBER;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _data;
+
+      var i = 0;
+
+      while (i + 2 < data.length) {
+        buffer.put(strToNum(data.substring(i, i + 3) ), 10);
+        i += 3;
+      }
+
+      if (i < data.length) {
+        if (data.length - i == 1) {
+          buffer.put(strToNum(data.substring(i, i + 1) ), 4);
+        } else if (data.length - i == 2) {
+          buffer.put(strToNum(data.substring(i, i + 2) ), 7);
+        }
+      }
+    };
+
+    var strToNum = function(s) {
+      var num = 0;
+      for (var i = 0; i < s.length; i += 1) {
+        num = num * 10 + chatToNum(s.charAt(i) );
+      }
+      return num;
+    };
+
+    var chatToNum = function(c) {
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      }
+      throw 'illegal char :' + c;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrAlphaNum
+  //---------------------------------------------------------------------
+
+  var qrAlphaNum = function(data) {
+
+    var _mode = QRMode.MODE_ALPHA_NUM;
+    var _data = data;
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _data.length;
+    };
+
+    _this.write = function(buffer) {
+
+      var s = _data;
+
+      var i = 0;
+
+      while (i + 1 < s.length) {
+        buffer.put(
+          getCode(s.charAt(i) ) * 45 +
+          getCode(s.charAt(i + 1) ), 11);
+        i += 2;
+      }
+
+      if (i < s.length) {
+        buffer.put(getCode(s.charAt(i) ), 6);
+      }
+    };
+
+    var getCode = function(c) {
+
+      if ('0' <= c && c <= '9') {
+        return c.charCodeAt(0) - '0'.charCodeAt(0);
+      } else if ('A' <= c && c <= 'Z') {
+        return c.charCodeAt(0) - 'A'.charCodeAt(0) + 10;
+      } else {
+        switch (c) {
+        case ' ' : return 36;
+        case '$' : return 37;
+        case '%' : return 38;
+        case '*' : return 39;
+        case '+' : return 40;
+        case '-' : return 41;
+        case '.' : return 42;
+        case '/' : return 43;
+        case ':' : return 44;
+        default :
+          throw 'illegal char :' + c;
+        }
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qr8BitByte
+  //---------------------------------------------------------------------
+
+  var qr8BitByte = function(data) {
+
+    var _mode = QRMode.MODE_8BIT_BYTE;
+    var _data = data;
+    var _bytes = qrcode.stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return _bytes.length;
+    };
+
+    _this.write = function(buffer) {
+      for (var i = 0; i < _bytes.length; i += 1) {
+        buffer.put(_bytes[i], 8);
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // qrKanji
+  //---------------------------------------------------------------------
+
+  var qrKanji = function(data) {
+
+    var _mode = QRMode.MODE_KANJI;
+    var _data = data;
+
+    var stringToBytes = qrcode.stringToBytesFuncs['SJIS'];
+    if (!stringToBytes) {
+      throw 'sjis not supported.';
+    }
+    !function(c, code) {
+      // self test for sjis support.
+      var test = stringToBytes(c);
+      if (test.length != 2 || ( (test[0] << 8) | test[1]) != code) {
+        throw 'sjis not supported.';
+      }
+    }('\u53cb', 0x9746);
+
+    var _bytes = stringToBytes(data);
+
+    var _this = {};
+
+    _this.getMode = function() {
+      return _mode;
+    };
+
+    _this.getLength = function(buffer) {
+      return ~~(_bytes.length / 2);
+    };
+
+    _this.write = function(buffer) {
+
+      var data = _bytes;
+
+      var i = 0;
+
+      while (i + 1 < data.length) {
+
+        var c = ( (0xff & data[i]) << 8) | (0xff & data[i + 1]);
+
+        if (0x8140 <= c && c <= 0x9FFC) {
+          c -= 0x8140;
+        } else if (0xE040 <= c && c <= 0xEBBF) {
+          c -= 0xC140;
+        } else {
+          throw 'illegal char at ' + (i + 1) + '/' + c;
+        }
+
+        c = ( (c >>> 8) & 0xff) * 0xC0 + (c & 0xff);
+
+        buffer.put(c, 13);
+
+        i += 2;
+      }
+
+      if (i < data.length) {
+        throw 'illegal char at ' + (i + 1);
+      }
+    };
+
+    return _this;
+  };
+
+  //=====================================================================
+  // GIF Support etc.
+  //
+
+  //---------------------------------------------------------------------
+  // byteArrayOutputStream
+  //---------------------------------------------------------------------
+
+  var byteArrayOutputStream = function() {
+
+    var _bytes = [];
+
+    var _this = {};
+
+    _this.writeByte = function(b) {
+      _bytes.push(b & 0xff);
+    };
+
+    _this.writeShort = function(i) {
+      _this.writeByte(i);
+      _this.writeByte(i >>> 8);
+    };
+
+    _this.writeBytes = function(b, off, len) {
+      off = off || 0;
+      len = len || b.length;
+      for (var i = 0; i < len; i += 1) {
+        _this.writeByte(b[i + off]);
+      }
+    };
+
+    _this.writeString = function(s) {
+      for (var i = 0; i < s.length; i += 1) {
+        _this.writeByte(s.charCodeAt(i) );
+      }
+    };
+
+    _this.toByteArray = function() {
+      return _bytes;
+    };
+
+    _this.toString = function() {
+      var s = '';
+      s += '[';
+      for (var i = 0; i < _bytes.length; i += 1) {
+        if (i > 0) {
+          s += ',';
+        }
+        s += _bytes[i];
+      }
+      s += ']';
+      return s;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64EncodeOutputStream
+  //---------------------------------------------------------------------
+
+  var base64EncodeOutputStream = function() {
+
+    var _buffer = 0;
+    var _buflen = 0;
+    var _length = 0;
+    var _base64 = '';
+
+    var _this = {};
+
+    var writeEncoded = function(b) {
+      _base64 += String.fromCharCode(encode(b & 0x3f) );
+    };
+
+    var encode = function(n) {
+      if (n < 0) {
+        // error.
+      } else if (n < 26) {
+        return 0x41 + n;
+      } else if (n < 52) {
+        return 0x61 + (n - 26);
+      } else if (n < 62) {
+        return 0x30 + (n - 52);
+      } else if (n == 62) {
+        return 0x2b;
+      } else if (n == 63) {
+        return 0x2f;
+      }
+      throw 'n:' + n;
+    };
+
+    _this.writeByte = function(n) {
+
+      _buffer = (_buffer << 8) | (n & 0xff);
+      _buflen += 8;
+      _length += 1;
+
+      while (_buflen >= 6) {
+        writeEncoded(_buffer >>> (_buflen - 6) );
+        _buflen -= 6;
+      }
+    };
+
+    _this.flush = function() {
+
+      if (_buflen > 0) {
+        writeEncoded(_buffer << (6 - _buflen) );
+        _buffer = 0;
+        _buflen = 0;
+      }
+
+      if (_length % 3 != 0) {
+        // padding
+        var padlen = 3 - _length % 3;
+        for (var i = 0; i < padlen; i += 1) {
+          _base64 += '=';
+        }
+      }
+    };
+
+    _this.toString = function() {
+      return _base64;
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // base64DecodeInputStream
+  //---------------------------------------------------------------------
+
+  var base64DecodeInputStream = function(str) {
+
+    var _str = str;
+    var _pos = 0;
+    var _buffer = 0;
+    var _buflen = 0;
+
+    var _this = {};
+
+    _this.read = function() {
+
+      while (_buflen < 8) {
+
+        if (_pos >= _str.length) {
+          if (_buflen == 0) {
+            return -1;
+          }
+          throw 'unexpected end of file./' + _buflen;
+        }
+
+        var c = _str.charAt(_pos);
+        _pos += 1;
+
+        if (c == '=') {
+          _buflen = 0;
+          return -1;
+        } else if (c.match(/^\s$/) ) {
+          // ignore if whitespace.
+          continue;
+        }
+
+        _buffer = (_buffer << 6) | decode(c.charCodeAt(0) );
+        _buflen += 6;
+      }
+
+      var n = (_buffer >>> (_buflen - 8) ) & 0xff;
+      _buflen -= 8;
+      return n;
+    };
+
+    var decode = function(c) {
+      if (0x41 <= c && c <= 0x5a) {
+        return c - 0x41;
+      } else if (0x61 <= c && c <= 0x7a) {
+        return c - 0x61 + 26;
+      } else if (0x30 <= c && c <= 0x39) {
+        return c - 0x30 + 52;
+      } else if (c == 0x2b) {
+        return 62;
+      } else if (c == 0x2f) {
+        return 63;
+      } else {
+        throw 'c:' + c;
+      }
+    };
+
+    return _this;
+  };
+
+  //---------------------------------------------------------------------
+  // gifImage (B/W)
+  //---------------------------------------------------------------------
+
+  var gifImage = function(width, height) {
+
+    var _width = width;
+    var _height = height;
+    var _data = new Array(width * height);
+
+    var _this = {};
+
+    _this.setPixel = function(x, y, pixel) {
+      _data[y * _width + x] = pixel;
+    };
+
+    _this.write = function(out) {
+
+      //---------------------------------
+      // GIF Signature
+
+      out.writeString('GIF87a');
+
+      //---------------------------------
+      // Screen Descriptor
+
+      out.writeShort(_width);
+      out.writeShort(_height);
+
+      out.writeByte(0x80); // 2bit
+      out.writeByte(0);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Global Color Map
+
+      // black
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+      out.writeByte(0x00);
+
+      // white
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+      out.writeByte(0xff);
+
+      //---------------------------------
+      // Image Descriptor
+
+      out.writeString(',');
+      out.writeShort(0);
+      out.writeShort(0);
+      out.writeShort(_width);
+      out.writeShort(_height);
+      out.writeByte(0);
+
+      //---------------------------------
+      // Local Color Map
+
+      //---------------------------------
+      // Raster Data
+
+      var lzwMinCodeSize = 2;
+      var raster = getLZWRaster(lzwMinCodeSize);
+
+      out.writeByte(lzwMinCodeSize);
+
+      var offset = 0;
+
+      while (raster.length - offset > 255) {
+        out.writeByte(255);
+        out.writeBytes(raster, offset, 255);
+        offset += 255;
+      }
+
+      out.writeByte(raster.length - offset);
+      out.writeBytes(raster, offset, raster.length - offset);
+      out.writeByte(0x00);
+
+      //---------------------------------
+      // GIF Terminator
+      out.writeString(';');
+    };
+
+    var bitOutputStream = function(out) {
+
+      var _out = out;
+      var _bitLength = 0;
+      var _bitBuffer = 0;
+
+      var _this = {};
+
+      _this.write = function(data, length) {
+
+        if ( (data >>> length) != 0) {
+          throw 'length over';
+        }
+
+        while (_bitLength + length >= 8) {
+          _out.writeByte(0xff & ( (data << _bitLength) | _bitBuffer) );
+          length -= (8 - _bitLength);
+          data >>>= (8 - _bitLength);
+          _bitBuffer = 0;
+          _bitLength = 0;
+        }
+
+        _bitBuffer = (data << _bitLength) | _bitBuffer;
+        _bitLength = _bitLength + length;
+      };
+
+      _this.flush = function() {
+        if (_bitLength > 0) {
+          _out.writeByte(_bitBuffer);
+        }
+      };
+
+      return _this;
+    };
+
+    var getLZWRaster = function(lzwMinCodeSize) {
+
+      var clearCode = 1 << lzwMinCodeSize;
+      var endCode = (1 << lzwMinCodeSize) + 1;
+      var bitLength = lzwMinCodeSize + 1;
+
+      // Setup LZWTable
+      var table = lzwTable();
+
+      for (var i = 0; i < clearCode; i += 1) {
+        table.add(String.fromCharCode(i) );
+      }
+      table.add(String.fromCharCode(clearCode) );
+      table.add(String.fromCharCode(endCode) );
+
+      var byteOut = byteArrayOutputStream();
+      var bitOut = bitOutputStream(byteOut);
+
+      // clear code
+      bitOut.write(clearCode, bitLength);
+
+      var dataIndex = 0;
+
+      var s = String.fromCharCode(_data[dataIndex]);
+      dataIndex += 1;
+
+      while (dataIndex < _data.length) {
+
+        var c = String.fromCharCode(_data[dataIndex]);
+        dataIndex += 1;
+
+        if (table.contains(s + c) ) {
+
+          s = s + c;
+
+        } else {
+
+          bitOut.write(table.indexOf(s), bitLength);
+
+          if (table.size() < 0xfff) {
+
+            if (table.size() == (1 << bitLength) ) {
+              bitLength += 1;
+            }
+
+            table.add(s + c);
+          }
+
+          s = c;
+        }
+      }
+
+      bitOut.write(table.indexOf(s), bitLength);
+
+      // end code
+      bitOut.write(endCode, bitLength);
+
+      bitOut.flush();
+
+      return byteOut.toByteArray();
+    };
+
+    var lzwTable = function() {
+
+      var _map = {};
+      var _size = 0;
+
+      var _this = {};
+
+      _this.add = function(key) {
+        if (_this.contains(key) ) {
+          throw 'dup key:' + key;
+        }
+        _map[key] = _size;
+        _size += 1;
+      };
+
+      _this.size = function() {
+        return _size;
+      };
+
+      _this.indexOf = function(key) {
+        return _map[key];
+      };
+
+      _this.contains = function(key) {
+        return typeof _map[key] != 'undefined';
+      };
+
+      return _this;
+    };
+
+    return _this;
+  };
+
+  var createDataURL = function(width, height, getPixel) {
+    var gif = gifImage(width, height);
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        gif.setPixel(x, y, getPixel(x, y) );
+      }
+    }
+
+    var b = byteArrayOutputStream();
+    gif.write(b);
+
+    var base64 = base64EncodeOutputStream();
+    var bytes = b.toByteArray();
+    for (var i = 0; i < bytes.length; i += 1) {
+      base64.writeByte(bytes[i]);
+    }
+    base64.flush();
+
+    return 'data:image/gif;base64,' + base64;
+  };
+
+  //---------------------------------------------------------------------
+  // returns qrcode function.
+
+  return qrcode;
+}();
+
+// multibyte support
+!function() {
+
+  qrcode.stringToBytesFuncs['UTF-8'] = function(s) {
+    // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+    function toUTF8Array(str) {
+      var utf8 = [];
+      for (var i=0; i < str.length; i++) {
+        var charcode = str.charCodeAt(i);
+        if (charcode < 0x80) utf8.push(charcode);
+        else if (charcode < 0x800) {
+          utf8.push(0xc0 | (charcode >> 6),
+              0x80 | (charcode & 0x3f));
+        }
+        else if (charcode < 0xd800 || charcode >= 0xe000) {
+          utf8.push(0xe0 | (charcode >> 12),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+        // surrogate pair
+        else {
+          i++;
+          // UTF-16 encodes 0x10000-0x10FFFF by
+          // subtracting 0x10000 and splitting the
+          // 20 bits of 0x0-0xFFFFF into two halves
+          charcode = 0x10000 + (((charcode & 0x3ff)<<10)
+            | (str.charCodeAt(i) & 0x3ff));
+          utf8.push(0xf0 | (charcode >>18),
+              0x80 | ((charcode>>12) & 0x3f),
+              0x80 | ((charcode>>6) & 0x3f),
+              0x80 | (charcode & 0x3f));
+        }
+      }
+      return utf8;
+    }
+    return toUTF8Array(s);
+  };
+
+}();
+
+(function (factory) {
+  if (typeof define === 'function' && define.amd) {
+      define([], factory);
+  } else if (typeof exports === 'object') {
+      module.exports = factory();
+  }
+}(function () {
+    return qrcode;
+}));
+
+window.qrcodeLib = qrcode;
+})();
+</script>
 <script>
 /* ---------------------------------------------------------------
    STORAGE SHIM
@@ -2782,6 +5088,20 @@ let state = {
   // org/user-security history (who signed in, who edited a company); this one is this company's own
   // "what did the automation do" trail. See logAutomation()/automationActivityFeedCard().
   automationLog: [],
+  // [{id, at (ISO timestamp), action:'create'|'update'|'delete', voucherId, by (uid), byName, summary,
+  // before, after}] -- a permanent, per-voucher edit history, separate from automationLog (which is
+  // "what the app's automation did") and from the platform-wide logAudit()/auditLog collection (which
+  // is account/security history). before/after are compact snapshots {date,type,narration,total,entries},
+  // never the full voucher object. Newest first, capped at 1000. See logVoucherAudit()/voucherHistoryFor().
+  voucherAuditLog: [],
+  // [{id, date, type, narration, entries, items?, currency?, fxRate?, foreignAmount?, costCenterId?,
+  // channel?, submittedBy (uid), submittedByName, submittedAt}] -- vouchers awaiting maker-checker
+  // approval (see currentCompany.approvalSettings / voucherNeedsApproval()). Deliberately a SEPARATE
+  // array from state.vouchers so no existing consumer (ledgerBalance(), every report, Day Book, GST,
+  // stock) needs to change to exclude unposted amounts -- they simply never see this array. Once
+  // approved, an entry is moved into state.vouchers unchanged (plus approvedBy/approvedAt) and removed
+  // from here; once rejected, it's removed from here and only remembered in voucherAuditLog/automationLog.
+  pendingVouchers: [],
 };
 let view = 'dashboard';
 // ---- Advanced UI/UX state: dashboard counter animation (darkMode is declared
@@ -3212,6 +5532,10 @@ let attachmentsVoucherId = null; // which voucher the Attachments modal is open 
 let attachmentsCache = {}; // voucherId -> [{id, filename, mimeType, size, uploadedAt, dataUrl}], lazy-loaded per voucher from its own Firestore subcollection
 let attachmentsLoading = false; // true while the current voucher's attachment list is being fetched
 let invoiceSettingsDraft = null; // null = modal closed | {template, accentColor, footerNote, logoDataUrl}
+let voucherHistoryId = null; // which voucher the "History" (voucherAuditLog) modal is open for
+let approvalSettingsDraft = null; // null = not editing | {enabled, threshold, types:[]} draft while the Approvals modal's Settings panel is open
+let manageAccessUserId = null; // which group member's per-module permission row is expanded in the Manage Access modal
+let ocrScanState = null; // null = modal closed | {status:'idle'|'reading'|'done'|'error', progress, fileName, extracted:{amount,date,vendorLedgerId,vendorText,rawText}}
 /* ---------------- Employee Documents vault (encrypted secure document storage) ----------------
    Reuses the same companies/{id}/attachments subcollection as voucher attachments (see that block
    below), keyed by employeeId instead of voucherId, so no new Firestore rule is needed. Unlike
@@ -4350,11 +6674,48 @@ function isSharedDemoId(id){ return SHARED_DEMO_COMPANY_IDS.includes(id); }
 function isReadOnlyMode(){
   if(adminViewOnlyCompanyId) return true;
   if(currentCompany && isSharedDemoId(currentCompany.id) && !isFullAdmin()) return true;
+  if(view && memberModuleAccess(view)==='view') return true;
   return false;
 }
 function readOnlyToastMessage(){
   if(adminViewOnlyCompanyId) return "You're viewing this company in read-only mode — changes aren't saved.";
+  if(view && memberModuleAccess(view)==='view') return "Your access to this section is View Only — ask your group admin to change it under Access.";
   return "This is a shared demo company — only the administrator can make changes here.";
+}
+// ---- Granular per-module RBAC (beyond admin/support/user) ----
+// Every tab that can be individually restricted per group member, for the "Manage Access" panel a
+// Support (group-owner) account gets on a company it shares with its group. Deliberately excludes
+// 'dashboard' (always visible, it's just a summary) and 'voucher'/'pos' are included since entering
+// vouchers is exactly the kind of thing a group admin may want to restrict for a junior member.
+const MODULE_ACCESS_LIST = [
+  {id:'voucher', label:'Voucher Entry'}, {id:'pos', label:'POS / Quick Sale'}, {id:'daybook', label:'Day Book'},
+  {id:'calendar', label:'Calendar'}, {id:'ledgers', label:'Ledgers'}, {id:'coa', label:'Chart of Accounts'},
+  {id:'inventory', label:'Inventory Control'}, {id:'reports', label:'Reports'}, {id:'gst', label:'GST'},
+  {id:'reconcile', label:'Reconcile'}, {id:'assets', label:'Assets'}, {id:'parties', label:'Parties'},
+  {id:'orders', label:'Orders'}, {id:'payroll', label:'Payroll Management'},
+];
+// 'full' | 'view' | 'hidden' for currentUser on the given module of the currently open company. Only
+// meaningful for a plain 'user' account working inside a company shared by their group -- the group's
+// Support (owner) account, and anyone in an unshared company of their own, always get 'full'. Unset
+// (no currentCompany.memberPermissions, or no entry for this user/module) also means 'full' -- this
+// is an opt-in restriction, so every company that predates this feature keeps working exactly as before.
+function memberModuleAccess(moduleId){
+  if(!currentUser || currentUser.role!=='user' || !currentUser.groupOwnerId) return 'full';
+  const perms = currentCompany && currentCompany.memberPermissions;
+  if(!perms) return 'full';
+  const forUser = perms[currentUser.id];
+  if(!forUser) return 'full';
+  return forUser[moduleId] || 'full';
+}
+function isModuleHidden(moduleId){ return memberModuleAccess(moduleId)==='hidden'; }
+function moduleAccessDeniedView(label){
+  return `
+    <div class="panel"><div class="panel-body" style="text-align:center;padding:48px 24px;">
+      <div style="font-size:32px;margin-bottom:10px;">🔐</div>
+      <h2 style="margin:0 0 8px;font-size:16px;">${escapeHtml(label)} isn't available on your account</h2>
+      <p class="muted" style="font-size:12.5px;max-width:420px;margin:0 auto;">Your group admin has restricted access to this section. Ask them to change it under Access if you need it.</p>
+    </div></div>
+  `;
 }
 /* ---------------- "SKm Group of Companies" — the shared demo company ----------------
    Built to showcase every one of the 28 Tally-standard ledger groups (all 15 Primary Groups and
@@ -5220,6 +7581,95 @@ function logAutomation(icon, text, undo){
 // not persisted or put on `state` -- a function can't survive a save/reload, and pretending it could
 // (e.g. by disabling the button silently) would be worse than just not offering Undo after a reload.
 let automationUndoHandlers = {};
+async function saveVoucherAuditLog(){
+  // Best-effort like saveAutomationLog() -- an edit-history hiccup shouldn't block the voucher save
+  // it's recording, so this is deliberately silent on failure.
+  if(isReadOnlyMode()) return;
+  try{ await db.collection('companies').doc(currentCompany.id).set({ voucherAuditLog: state.voucherAuditLog }, {merge:true}); }
+  catch(e){ /* logging is best-effort */ }
+}
+// Compact, human-diffable snapshot of a voucher for the audit trail -- never the full object, just
+// enough to show what changed (date/type/narration/entries/total).
+function voucherAuditSnapshot(v){
+  if(!v) return null;
+  return {
+    date: v.date, type: v.type, narration: v.narration||'',
+    total: r2((v.entries||[]).reduce((s,e)=>s+(Number(e.dr)||0),0)),
+    entries: (v.entries||[]).map(e=>({ ledger: (ledgerOf(e.ledgerId)||{}).name || e.ledgerId, dr: Number(e.dr)||0, cr: Number(e.cr)||0 })),
+  };
+}
+// Records one create/update/delete against a voucher. `before`/`after` are already-built snapshots
+// (voucherAuditSnapshot()) or null -- callers capture `before` from the voucher as it stood immediately
+// before mutating it, since the update path replaces state.vouchers[idx] wholesale rather than merging.
+function logVoucherAudit(action, voucherId, before, after){
+  const entry = {
+    id: uid('va'), at: new Date().toISOString(), action, voucherId,
+    by: currentUser ? currentUser.id : null, byName: currentUser ? (currentUser.name||currentUser.username) : 'Unknown',
+    before: before||null, after: after||null,
+  };
+  state.voucherAuditLog.unshift(entry);
+  if(state.voucherAuditLog.length>1000) state.voucherAuditLog.length = 1000;
+  saveVoucherAuditLog();
+  return entry.id;
+}
+// Every audit-log entry for one voucher id, newest first -- drives the "History" button on each
+// Day Book row.
+function voucherHistoryFor(voucherId){
+  return state.voucherAuditLog.filter(e=>e.voucherId===voucherId);
+}
+// ---- Maker-checker approval (currentCompany.approvalSettings: {enabled, threshold, types:[]}) ----
+// Whether a brand-new voucher of this type/amount must be routed to state.pendingVouchers instead of
+// posted directly. Admin/Support accounts are the "checkers" and always post straight through (they're
+// also the only ones who can approve); a plain 'user' account is the "maker" this gate applies to.
+// types:[] (empty/unset) means "every voucher type".
+function voucherNeedsApproval(type, entries){
+  const s = currentCompany && currentCompany.approvalSettings;
+  if(!s || !s.enabled) return false;
+  if(!currentUser || currentUser.role!=='user') return false;
+  if(Array.isArray(s.types) && s.types.length && !s.types.includes(type)) return false;
+  const total = (entries||[]).reduce((sum,e)=>sum+(Number(e.dr)||0),0);
+  return total >= (Number(s.threshold)||0);
+}
+// Whether currentUser is allowed to approve/reject pending vouchers for the open company -- the same
+// admin/support "checker" boundary as voucherNeedsApproval() above.
+function canApproveVouchers(){ return !!(currentUser && (currentUser.role==='admin' || currentUser.role==='support')); }
+async function approvePendingVoucher(pvId){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  if(!canApproveVouchers()){ toast('Only an Administrator or Support account can approve vouchers'); return; }
+  const idx = state.pendingVouchers.findIndex(p=>p.id===pvId);
+  if(idx<0) return;
+  const pv = state.pendingVouchers[idx];
+  if(currentCompany.lockDate && pv.date <= currentCompany.lockDate){
+    toast(`Can't post — vouchers dated on or before ${currentCompany.lockDate} are locked.`);
+    return;
+  }
+  const v = { id: uid('v'), date: pv.date, type: pv.type, narration: pv.narration, entries: pv.entries, createdAt: new Date().toISOString(), approvedBy: currentUser.id, approvedByName: currentUser.name||currentUser.username, submittedBy: pv.submittedBy, submittedByName: pv.submittedByName };
+  if(pv.items) v.items = pv.items;
+  if(pv.currency){ v.currency = pv.currency; v.fxRate = pv.fxRate; v.foreignAmount = pv.foreignAmount; }
+  if(pv.costCenterId) v.costCenterId = pv.costCenterId;
+  if(pv.channel) v.channel = pv.channel;
+  state.vouchers.push(v);
+  state.pendingVouchers.splice(idx,1);
+  await saveVouchers();
+  await savePendingVouchers();
+  logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
+  logAutomation('✅', `Approved ${pv.type} voucher for ₹${fmt(v.entries.reduce((s,e)=>s+(Number(e.dr)||0),0))} (submitted by ${pv.submittedByName||'a user'})`);
+  toast('✓ Voucher approved and posted', {type:'success'});
+  render();
+}
+async function rejectPendingVoucher(pvId){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  if(!canApproveVouchers()){ toast('Only an Administrator or Support account can reject vouchers'); return; }
+  const idx = state.pendingVouchers.findIndex(p=>p.id===pvId);
+  if(idx<0) return;
+  const pv = state.pendingVouchers[idx];
+  if(!confirm(`Reject this ${pv.type} voucher for ₹${fmt(pv.entries.reduce((s,e)=>s+(Number(e.dr)||0),0))}? It will not be posted.`)) return;
+  state.pendingVouchers.splice(idx,1);
+  await savePendingVouchers();
+  logAutomation('🚫', `Rejected ${pv.type} voucher for ₹${fmt(pv.entries.reduce((s,e)=>s+(Number(e.dr)||0),0))} (submitted by ${pv.submittedByName||'a user'}) by ${currentUser.name||currentUser.username}`);
+  toast('Voucher rejected', {type:'success'});
+  render();
+}
 async function saveReconciliations(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   try{ await db.collection('companies').doc(currentCompany.id).set({ reconciliations: state.reconciliations }, {merge:true}); }
@@ -5229,6 +7679,11 @@ async function saveRecurringTemplates(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   try{ await db.collection('companies').doc(currentCompany.id).set({ recurringTemplates: state.recurringTemplates }, {merge:true}); }
   catch(e){ toast('Could not save recurring templates'); }
+}
+async function savePendingVouchers(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  try{ await db.collection('companies').doc(currentCompany.id).set({ pendingVouchers: state.pendingVouchers }, {merge:true}); }
+  catch(e){ toast('Could not save the pending approval'); }
 }
 async function saveFixedAssets(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -5387,6 +7842,177 @@ function attachmentsModal(){
             </tr>`).join('')}
           </table>` : `<div class="empty">No attachments yet.</div>`}
           <div class="field" style="margin-top:12px;"><label>Add an attachment</label><input type="file" id="attachmentFileInput" accept="image/*,.pdf"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// One line of a before/after snapshot diff for the History modal -- entries/total/narration/date/type,
+// each shown only when it actually changed (or, on a pure create/delete, just the "after"/"before" as-is).
+function voucherAuditDiffHtml(entry){
+  const b = entry.before, a = entry.after;
+  const fmtEntries = s => s ? s.entries.map(e=>`${escapeHtml(e.ledger)} ${e.dr?'Dr ₹'+fmt(e.dr):'Cr ₹'+fmt(e.cr)}`).join(', ') : '';
+  if(entry.action==='create') return `<div style="font-size:12px;">${escapeHtml(a.type)} dated ${a.date}, ₹${fmt(a.total)} — ${fmtEntries(a)}${a.narration?`<div class="muted">"${escapeHtml(a.narration)}"</div>`:''}</div>`;
+  if(entry.action==='delete') return `<div style="font-size:12px;">Deleted — was ${escapeHtml(b.type)} dated ${b.date}, ₹${fmt(b.total)} — ${fmtEntries(b)}</div>`;
+  const rows = [];
+  if(b.date!==a.date) rows.push(`Date: ${b.date} → ${a.date}`);
+  if(b.type!==a.type) rows.push(`Type: ${escapeHtml(b.type)} → ${escapeHtml(a.type)}`);
+  if(b.total!==a.total) rows.push(`Amount: ₹${fmt(b.total)} → ₹${fmt(a.total)}`);
+  if((b.narration||'')!==(a.narration||'')) rows.push(`Narration: "${escapeHtml(b.narration||'')}" → "${escapeHtml(a.narration||'')}"`);
+  if(fmtEntries(b)!==fmtEntries(a)) rows.push(`Entries: ${fmtEntries(b)} → ${fmtEntries(a)}`);
+  return rows.length ? `<div style="font-size:12px;">${rows.join('<br>')}</div>` : `<div class="muted" style="font-size:12px;">Saved again — no field changes detected.</div>`;
+}
+function voucherHistoryModal(){
+  const history = voucherHistoryFor(voucherHistoryId);
+  const v = state.vouchers.find(x=>x.id===voucherHistoryId);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:560px;max-height:80vh;display:flex;flex-direction:column;padding:0;">
+        <div class="panel-head" style="padding:16px 20px;"><h2>Voucher History</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div style="padding:0 20px 20px;overflow-y:auto;">
+          <p class="muted" style="font-size:12px;">${v?`${escapeHtml(v.type)} dated ${v.date} — every create/edit/delete recorded against this voucher, newest first.`:`This voucher no longer exists — showing its recorded history.`}</p>
+          ${history.length ? history.map(e=>`
+            <div style="border-left:2px solid var(--accent1,#2CA01C);padding:4px 0 4px 12px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;gap:8px;">
+                <strong style="font-size:12px;text-transform:capitalize;">${e.action==='create'?'Created':e.action==='delete'?'Deleted':'Edited'}</strong>
+                <span class="muted" style="font-size:11px;">${fmtTimestamp(e.at)} · ${escapeHtml(e.byName||'Unknown')}</span>
+              </div>
+              ${voucherAuditDiffHtml(e)}
+            </div>`).join('') : `<div class="empty">No history recorded for this voucher yet.</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Maker-checker: Approvals modal ----
+const ALL_VOUCHER_TYPES_FOR_APPROVAL = ['Payment','Receipt','Sales','Purchase','Journal','Contra','Credit Note','Debit Note'];
+function approvalsModal(){
+  const canApprove = canApproveVouchers();
+  const pending = state.pendingVouchers.slice().sort((a,b)=> a.date<b.date?1:-1);
+  const s = currentCompany.approvalSettings || {enabled:false, threshold:0, types:[]};
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:640px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+        <div class="panel-head" style="padding:16px 20px;"><h2>Approvals${pending.length?` <span class="pill" style="font-size:10.5px;">${pending.length} pending</span>`:''}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
+          ${canApprove ? `
+          <details style="margin-bottom:14px;" ${approvalSettingsDraft?'open':''}>
+            <summary style="cursor:pointer;font-size:12.5px;font-weight:600;">⚙ Approval Rules</summary>
+            <div style="padding:10px 0 4px;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:8px;">
+                <input type="checkbox" id="approvalEnabledChk" ${s.enabled?'checked':''}> Require approval for new vouchers entered by regular ('User') accounts
+              </label>
+              <div class="field" style="max-width:200px;"><label>Threshold amount (₹)</label><input type="number" id="approvalThresholdInput" value="${s.threshold||0}" min="0" step="100"></div>
+              <div class="field"><label>Applies to voucher types (none checked = all types)</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  ${ALL_VOUCHER_TYPES_FOR_APPROVAL.map(t=>`<label style="display:flex;align-items:center;gap:4px;font-size:11.5px;border:1px solid var(--border);border-radius:6px;padding:3px 8px;"><input type="checkbox" data-approval-type="${escapeAttr(t)}" ${(s.types||[]).includes(t)?'checked':''}> ${escapeHtml(t)}</label>`).join('')}
+                </div>
+              </div>
+              <button class="btn small" id="saveApprovalSettingsBtn" type="button" style="margin-top:8px;">Save Rules</button>
+            </div>
+          </details>` : ''}
+          ${pending.length ? pending.map(pv=>`
+            <div class="panel" style="margin-bottom:10px;">
+              <div class="panel-body" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+                <div>
+                  <div><strong>${vtypeBadge(pv.type)}</strong> <span style="font-size:13px;">₹${fmt(pv.entries.reduce((s2,e)=>s2+(Number(e.dr)||0),0))}</span> <span class="muted" style="font-size:11.5px;">dated ${pv.date}</span></div>
+                  <div class="muted" style="font-size:11.5px;margin-top:2px;">${escapeHtml(pv.narration||'')}</div>
+                  <div class="muted" style="font-size:11px;margin-top:4px;">${pv.entries.map(e=>{const l=ledgerOf(e.ledgerId);return `${l?escapeHtml(l.name):'?'} ${e.dr?'Dr ₹'+fmt(e.dr):'Cr ₹'+fmt(e.cr)}`;}).join(', ')}</div>
+                  <div class="muted" style="font-size:10.5px;margin-top:4px;">Submitted by ${escapeHtml(pv.submittedByName||'a user')} · ${fmtTimestamp(pv.submittedAt)}</div>
+                </div>
+                ${canApprove ? `<div style="display:flex;gap:6px;flex-shrink:0;">
+                  <button class="btn small" data-approve-voucher="${pv.id}" type="button">✓ Approve</button>
+                  <button class="btn small secondary" data-reject-voucher="${pv.id}" type="button">✕ Reject</button>
+                </div>` : `<span class="pill" style="font-size:10.5px;">Awaiting approval</span>`}
+              </div>
+            </div>`).join('') : `<div class="empty">No vouchers waiting for approval.</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Manage Access modal (granular per-module RBAC for a Support account's group, per company) ----
+function manageAccessModal(){
+  const members = groupMembers.filter(u=>u.role!=='support');
+  const perms = currentCompany.memberPermissions || {};
+  const selected = manageAccessUserId ? members.find(m=>m.id===manageAccessUserId) : null;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:680px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+        <div class="panel-head" style="padding:16px 20px;"><h2>Manage Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
+          <p class="muted" style="font-size:12px;">Restrict what each member of your group can see or do in this company, module by module. Unset = Full Access, so nothing changes for a member until you set something here.</p>
+          ${!members.length ? `<div class="empty">No group members yet — add users from the Admin panel first.</div>` : `
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="min-width:180px;flex-shrink:0;">
+              ${members.map(m=>{
+                const restricted = perms[m.id] && Object.values(perms[m.id]).some(v=>v && v!=='full');
+                return `<button type="button" class="btn small ${m.id===manageAccessUserId?'':'secondary'}" data-select-access-member="${m.id}" style="width:100%;text-align:left;margin-bottom:6px;display:flex;justify-content:space-between;">
+                  <span>${escapeHtml(m.name||m.username)}</span>${restricted?'<span title="Has restrictions">🔐</span>':''}
+                </button>`;
+              }).join('')}
+            </div>
+            <div style="flex:1;min-width:280px;">
+              ${selected ? `
+                <p style="font-size:12.5px;margin-top:0;"><strong>${escapeHtml(selected.name||selected.username)}</strong> <span class="muted">@${escapeHtml(selected.username||'')}</span></p>
+                <table>
+                  <tr><th>Module</th><th style="width:150px;">Access</th></tr>
+                  ${MODULE_ACCESS_LIST.map(mod=>{
+                    const cur = (perms[selected.id] && perms[selected.id][mod.id]) || 'full';
+                    return `<tr><td style="font-size:12.5px;">${escapeHtml(mod.label)}</td><td>
+                      <select data-access-module="${mod.id}" style="font-size:11.5px;padding:3px 6px;">
+                        <option value="full" ${cur==='full'?'selected':''}>Full Access</option>
+                        <option value="view" ${cur==='view'?'selected':''}>View Only</option>
+                        <option value="hidden" ${cur==='hidden'?'selected':''}>Hidden</option>
+                      </select>
+                    </td></tr>`;
+                  }).join('')}
+                </table>
+                <button class="btn small" id="saveMemberAccessBtn" type="button" style="margin-top:10px;">Save Access for ${escapeHtml(selected.name||selected.username)}</button>
+              ` : `<div class="empty">Select a member on the left to set their access for this company.</div>`}
+            </div>
+          </div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ---- Receipt/Bill OCR modal (Tesseract.js) ----
+function ocrScanModal(){
+  const s = ocrScanState || { status:'idle' };
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:480px;">
+        <div class="panel-head"><h2>📷 Scan Receipt/Bill</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          ${s.status==='idle' ? `
+            <p class="muted" style="font-size:12px;margin-top:0;">Take a photo (or upload one) of a receipt or bill — this reads it entirely in your browser (no image is uploaded anywhere) and drafts a Payment/Purchase voucher for you to review before anything is saved.</p>
+            <input type="file" id="ocrFileInput" accept="image/*" capture="environment">
+          ` : s.status==='reading' ? `
+            <p class="muted" style="font-size:12.5px;margin-top:0;">Reading "${escapeHtml(s.fileName||'receipt')}"…</p>
+            <div style="background:var(--surface-strong);border-radius:6px;height:8px;overflow:hidden;"><div style="background:var(--accent1,#2CA01C);height:100%;width:${Math.round((s.progress||0)*100)}%;transition:width .2s;"></div></div>
+            <p class="muted" style="font-size:11px;margin-top:6px;">${Math.round((s.progress||0)*100)}%</p>
+          ` : s.status==='error' ? `
+            <p style="font-size:12.5px;color:var(--debit);margin-top:0;">Couldn't read that image — try a clearer, well-lit photo, or enter the voucher manually.</p>
+            <input type="file" id="ocrFileInput" accept="image/*" capture="environment">
+          ` : s.status==='done' ? `
+            <p class="muted" style="font-size:12px;margin-top:0;">Here's what was found — check it over, then draft a voucher from it.</p>
+            <div class="field"><label>Amount (₹)</label><input type="number" id="ocrAmountInput" step="0.01" value="${s.extracted.amount||''}"></div>
+            <div class="field"><label>Date</label><input type="date" id="ocrDateInput" value="${s.extracted.date||''}"></div>
+            <div class="field"><label>Vendor / Paid To</label>
+              <select id="ocrVendorSelect">
+                <option value="">— Pick a ledger —</option>
+                ${state.ledgers.map(l=>`<option value="${l.id}" ${s.extracted.vendorLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+              </select>
+              ${s.extracted.vendorText ? `<p class="muted" style="font-size:11px;margin-top:4px;">Read from receipt as "${escapeHtml(s.extracted.vendorText)}"${s.extracted.vendorLedgerId?' — matched automatically':' — no matching ledger found, pick one or create it first'}</p>` : ''}
+            </div>
+            <details style="margin-top:6px;"><summary style="cursor:pointer;font-size:11.5px;color:var(--ink-faint);">Raw OCR text</summary><pre style="font-size:10.5px;white-space:pre-wrap;max-height:140px;overflow-y:auto;background:var(--surface-strong);padding:8px;border-radius:6px;">${escapeHtml(s.extracted.rawText||'')}</pre></details>
+            <button class="btn" id="ocrDraftVoucherBtn" type="button" style="width:100%;margin-top:10px;">Draft Voucher From This</button>
+          ` : ''}
         </div>
       </div>
     </div>
@@ -6365,6 +8991,25 @@ function entriesForRecurring(type, ledgerA, ledgerB, amt){
   if(type==='Receipt') return [{ledgerId:ledgerA,dr:amt,cr:0},{ledgerId:ledgerB,dr:0,cr:amt}];
   return [{ledgerId:ledgerB,dr:amt,cr:0},{ledgerId:ledgerA,dr:0,cr:amt}]; // Payment or Contra
 }
+// Sales-with-items recurring template -> voucher entries, using the exact same items-and-GST-split
+// math as the Voucher form's GST Calculator (applyGST(), vform.type==='Sales' branch) so a generated
+// recurring invoice posts identically to one entered by hand: party Dr (total), Sales ledger Cr
+// (taxable value), plus CGST+SGST (intrastate) or IGST (interstate) on top.
+function entriesForRecurringSales(t){
+  const items = t.items||[];
+  const amt = itemsSubtotal(items);
+  const rate = Number(t.gstRate)||0;
+  const taxVal = r2(amt*rate/100);
+  const total = r2(amt+taxVal);
+  const entries = [{ledgerId:t.partyLedgerId, dr:total, cr:0}, {ledgerId:t.taxableLedger, dr:0, cr:r2(amt)}];
+  if(t.gstSupply==='intra' && taxVal>0){
+    entries.push({ledgerId:'l_ocgst', dr:0, cr:r2(taxVal/2)});
+    entries.push({ledgerId:'l_osgst', dr:0, cr:r2(taxVal/2)});
+  } else if(taxVal>0){
+    entries.push({ledgerId:'l_oigst', dr:0, cr:taxVal});
+  }
+  return entries;
+}
 // Generates a voucher for every elapsed due date of every active template, up to today — so if the
 // books haven't been opened in a while, catching up creates one voucher per missed period rather
 // than just one. Returns how many vouchers were created.
@@ -6376,14 +9021,29 @@ function generateDueVouchers(){
     if(!t.active) continue;
     let guard = 0;
     while(t.nextDueDate && t.nextDueDate<=today && guard<60){
-      const amt = Number(t.amount)||0;
-      if(t.ledgerA && t.ledgerB && amt>0){
-        state.vouchers.push({
-          id: uid('v'), date: t.nextDueDate, type: t.type,
-          narration: t.narration || t.name, entries: entriesForRecurring(t.type, t.ledgerA, t.ledgerB, amt),
-          createdAt: now, fromRecurring: t.id,
-        });
-        count++;
+      if(t.type==='Sales' && t.items && t.items.length){
+        if(t.partyLedgerId && t.taxableLedger){
+          const v = {
+            id: uid('v'), date: t.nextDueDate, type: 'Sales',
+            narration: t.narration || t.name, entries: entriesForRecurringSales(t),
+            items: t.items.map(it=>({...it})), createdAt: now, fromRecurring: t.id,
+          };
+          state.vouchers.push(v);
+          logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
+          count++;
+        }
+      } else {
+        const amt = Number(t.amount)||0;
+        if(t.ledgerA && t.ledgerB && amt>0){
+          const v = {
+            id: uid('v'), date: t.nextDueDate, type: t.type,
+            narration: t.narration || t.name, entries: entriesForRecurring(t.type, t.ledgerA, t.ledgerB, amt),
+            createdAt: now, fromRecurring: t.id,
+          };
+          state.vouchers.push(v);
+          logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
+          count++;
+        }
       }
       t.lastGeneratedDate = t.nextDueDate;
       t.nextDueDate = advanceDate(t.nextDueDate, t.frequency);
@@ -7678,6 +10338,8 @@ function invoiceSettingsModal(){
             <input type="file" id="invLogoInput" accept="image/*">
           </div>
           <div class="field"><label>Footer Note (terms, bank details, thank-you message)</label><textarea id="invFooterNote" rows="3" placeholder="e.g. Payment due within 15 days. Bank: HDFC, A/c 1234567890, IFSC HDFC0001234.">${escapeHtml(d.footerNote||'')}</textarea></div>
+          <div class="field"><label>UPI ID / VPA (optional — adds a scan-to-pay QR to every printed invoice)</label><input type="text" id="invUpiVpa" value="${escapeAttr(d.upiVpa||'')}" placeholder="e.g. yourbusiness@okhdfcbank"></div>
+          <div class="field"><label>Payee Name shown to the payer</label><input type="text" id="invUpiPayeeName" value="${escapeAttr(d.upiPayeeName||'')}" placeholder="Defaults to ${escapeAttr(currentCompany.name)}"></div>
           <button class="btn" id="saveInvSettingsBtn" type="button" style="width:100%;margin-top:6px;">Save Template</button>
         </div>
       </div>
@@ -8513,6 +11175,8 @@ function render(){
       <span id="menuView" style="position:relative;">View${viewMenuOpen?viewDropdown():''}</span>
       <span id="menuBackup">Backup</span>
       <span id="menuHelp">Help</span>
+      ${(canApproveVouchers() || state.pendingVouchers.some(p=>p.submittedBy===(currentUser&&currentUser.id))) ? `<span id="menuApprovals">Approvals${state.pendingVouchers.length?` (${state.pendingVouchers.length})`:''}</span>` : ''}
+      ${currentUser && currentUser.role==='support' && currentCompany.groupId===currentUser.id ? `<span id="menuManageAccess">Access</span>` : ''}
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
       ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
@@ -8600,6 +11264,10 @@ function render(){
     ${modal==='eway' ? eWayBillTransportModal() : ''}
     ${modal==='attachments' ? attachmentsModal() : ''}
     ${modal==='invoiceSettings' ? invoiceSettingsModal() : ''}
+    ${modal==='voucherHistory' ? voucherHistoryModal() : ''}
+    ${modal==='approvals' ? approvalsModal() : ''}
+    ${modal==='manageAccess' ? manageAccessModal() : ''}
+    ${modal==='ocrScan' ? ocrScanModal() : ''}
     ${modal==='commandPalette' ? commandPaletteModal() : ''}
     ${qaWidget()}
   `;
@@ -8678,6 +11346,16 @@ function render(){
   document.getElementById('menuBackup').addEventListener('click', ()=>{
     restoreFile = null;
     modal = 'backup';
+    render();
+  });
+  document.getElementById('menuApprovals')?.addEventListener('click', ()=>{
+    modal = 'approvals';
+    render();
+  });
+  document.getElementById('menuManageAccess')?.addEventListener('click', async ()=>{
+    manageAccessUserId = null;
+    if(!groupMembers.length) await loadGroupAdminData();
+    modal = 'manageAccess';
     render();
   });
   document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
@@ -8892,12 +11570,14 @@ function tabIcon(id){
   return `<svg class="tab-icon" viewBox="0 0 24 24">${icons[id]||''}</svg>`;
 }
 function tab(id,label,shortcutLetter){
+  if(isModuleHidden(id)) return ''; // RBAC: this member has no access to this module at all -- omit the tab entirely, not just lock it
   const idx = shortcutLetter ? label.toLowerCase().indexOf(shortcutLetter.toLowerCase()) : -1;
   const labelHtml = idx>=0
     ? `${escapeHtml(label.slice(0,idx))}<b>${escapeHtml(label[idx])}</b>${escapeHtml(label.slice(idx+1))}`
     : escapeHtml(label);
   const gated = isTabGated(id);
-  return `<button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${gated?'Paid-plan feature':'Shortcut: '+(shortcutLetter||'')}">${tabIcon(id)}<span>${labelHtml}${gated?' 🔒':''}</span></button>`;
+  const viewOnly = memberModuleAccess(id)==='view';
+  return `<button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${gated?'Paid-plan feature':viewOnly?'View Only for your account':'Shortcut: '+(shortcutLetter||'')}">${tabIcon(id)}<span>${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span></button>`;
 }
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
@@ -8907,6 +11587,10 @@ function goToTab(id){
   if(!id || view===id) return;
   if(isTabGated(id)){
     toast(`${GATED_TAB_LABELS[id]||id} is a Paid-plan feature — contact the administrator to upgrade.`);
+    return;
+  }
+  if(isModuleHidden(id)){
+    toast(`Your account doesn't have access to this section — ask your group admin.`);
     return;
   }
   view = id;
@@ -9097,6 +11781,70 @@ function parseTransactionPhrase(text){
   }
 
   return { raw, isPayment, amount, date, subject, moneyLedger, counterLedger };
+}
+// ---- Receipt/Bill OCR (Tesseract.js, in-browser) ----
+// Pulls a best-effort amount/date/vendor out of raw OCR text from a scanned receipt or bill photo.
+// Deliberately heuristic (regex + simple substring matching, same style as parseTransactionPhrase()
+// above) rather than a real NLP model -- it hands the result to the Voucher form's Action-Preview-style
+// draft for the user to review and correct before anything is ever saved, exactly like every other
+// "AI" feature in this app.
+function parseOcrReceiptText(text){
+  const raw = (text||'').replace(/\r/g,'');
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+
+  // Amount: prefer a number on a line mentioning total/amount/grand total/balance due/net payable;
+  // fall back to the single largest currency-looking number anywhere in the text (a receipt's total
+  // is almost always its biggest number).
+  const numRe = /(?:₹|rs\.?|inr)?\s*([\d]{1,3}(?:[,\d]{0,10})?(?:\.\d{1,2})?)/gi;
+  function numbersIn(s){
+    const out = [];
+    let m;
+    numRe.lastIndex = 0;
+    while((m = numRe.exec(s))){
+      const n = parseFloat(m[1].replace(/,/g,''));
+      if(n>0) out.push(n);
+    }
+    return out;
+  }
+  let amount = null;
+  const totalLine = lines.find(l=>/\b(grand\s*total|total\s*amount|amount\s*due|balance\s*due|net\s*payable|total)\b/i.test(l) && !/subtotal|sub-total/i.test(l));
+  if(totalLine){ const ns = numbersIn(totalLine); if(ns.length) amount = Math.max(...ns); }
+  if(amount==null){ const all = numbersIn(raw); if(all.length) amount = Math.max(...all); }
+
+  // Date: try a handful of common receipt formats (DD/MM/YYYY, DD-MM-YY, YYYY-MM-DD, "12 Jan 2026").
+  let date = null;
+  const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  const isoM = raw.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  const dmyM = !isoM && raw.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  const textM = !isoM && !dmyM && raw.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})[,\s]+(\d{2,4})\b/);
+  if(isoM){
+    date = `${isoM[1]}-${String(+isoM[2]).padStart(2,'0')}-${String(+isoM[3]).padStart(2,'0')}`;
+  } else if(dmyM){
+    let yr = +dmyM[3]; if(yr<100) yr += yr<70?2000:1900;
+    date = `${yr}-${String(+dmyM[2]).padStart(2,'0')}-${String(+dmyM[1]).padStart(2,'0')}`;
+  } else if(textM){
+    const mon = MONTHS[textM[2].slice(0,3).toLowerCase()];
+    let yr = +textM[3]; if(yr<100) yr += 2000;
+    if(mon) date = `${yr}-${String(mon).padStart(2,'0')}-${String(+textM[1]).padStart(2,'0')}`;
+  }
+  const today = new Date().toISOString().slice(0,10);
+  if(!date || date>today || date<'2000-01-01') date = today;
+
+  // Vendor: the first substantial line (receipts print the business name at the top, before the
+  // address/GSTIN/items), then a simple substring match against existing ledgers -- same style as
+  // parseTransactionPhrase()'s counterparty lookup.
+  const vendorText = lines.find(l=>l.length>=3 && !/^\d+$/.test(l) && !/^(tel|phone|gstin|fssai|invoice|bill|receipt)\b/i.test(l)) || '';
+  let vendorLedgerId = null;
+  if(vendorText){
+    const vLower = vendorText.toLowerCase();
+    const match = state.ledgers.find(l=>{
+      const nameLower = l.name.toLowerCase();
+      return nameLower.length>2 && (vLower.includes(nameLower) || nameLower.includes(vLower));
+    });
+    if(match) vendorLedgerId = match.id;
+  }
+
+  return { amount, date, vendorText, vendorLedgerId, rawText: raw };
 }
 function cmdkResults(){
   const q = cmdkQuery.trim().toLowerCase();
@@ -9942,6 +12690,7 @@ function recurringDraftForm(){
   const d = recurringDraft;
   const labelA = d.type==='Payment' ? 'Paid From (Cash/Bank)' : d.type==='Receipt' ? 'Received In (Cash/Bank)' : 'From Account';
   const labelB = d.type==='Payment' ? 'Paid To (Account)' : d.type==='Receipt' ? 'Received From (Account)' : 'To Account';
+  const isSales = d.type==='Sales';
   return `
     <div class="section-title" style="margin-top:16px;">New Recurring Template</div>
     <div class="row">
@@ -9951,9 +12700,11 @@ function recurringDraftForm(){
           <option value="Payment" ${d.type==='Payment'?'selected':''}>Payment</option>
           <option value="Receipt" ${d.type==='Receipt'?'selected':''}>Receipt</option>
           <option value="Contra" ${d.type==='Contra'?'selected':''}>Contra</option>
+          <option value="Sales" ${d.type==='Sales'?'selected':''}>Sales (with items + GST)</option>
         </select>
       </div>
     </div>
+    ${isSales ? recurringSalesFields(d) : `
     <div class="row">
       <div class="field"><label>${labelA}</label>
         <select id="rTplLedgerA"><option value="">Select ledger…</option>${state.ledgers.map(l=>`<option value="${l.id}" ${d.ledgerA===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select>
@@ -9964,6 +12715,8 @@ function recurringDraftForm(){
     </div>
     <div class="row">
       <div class="field"><label>Amount (₹)</label><input type="number" id="rTplAmount" step="0.01" value="${escapeAttr(String(d.amount))}"></div>
+    </div>`}
+    <div class="row">
       <div class="field"><label>Frequency</label>
         <select id="rTplFrequency">
           <option value="weekly" ${d.frequency==='weekly'?'selected':''}>Weekly</option>
@@ -9978,6 +12731,50 @@ function recurringDraftForm(){
       <button class="btn small" id="saveRecurringBtn" type="button">Save Template</button>
       <button class="btn secondary small" id="cancelRecurringBtn" type="button">Cancel</button>
     </div>
+  `;
+}
+// Sales-specific fields for a recurring template -- customer, GST rate/supply type, and a simple
+// item-line list. Deliberately a lighter item picker than the full Voucher form's GST Calculator (no
+// batch/serial/warehouse) since a recurring invoice is usually a flat monthly retainer/subscription
+// line, not a stock dispatch -- but it reuses the exact same itemsSubtotal()/GST-split math as
+// applyGST() so the generated voucher posts identically to one entered by hand (see entriesForRecurringSales()).
+function recurringSalesFields(d){
+  const items = d.items||[];
+  const subtotal = itemsSubtotal(items);
+  const rate = Number(d.gstRate)||0;
+  const tax = r2(subtotal*rate/100);
+  return `
+    <div class="row">
+      <div class="field"><label>Customer</label>
+        <select id="rTplParty"><option value="">Select customer…</option>${state.ledgers.map(l=>`<option value="${l.id}" ${d.partyLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Sales Ledger</label>
+        <select id="rTplTaxableLedger"><option value="">Select ledger…</option>${state.ledgers.map(l=>`<option value="${l.id}" ${d.taxableLedger===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>GST Rate (%)</label><input type="number" id="rTplGstRate" step="0.01" value="${escapeAttr(String(d.gstRate||0))}"></div>
+      <div class="field"><label>Supply Type</label>
+        <select id="rTplGstSupply">
+          <option value="intra" ${d.gstSupply==='intra'?'selected':''}>Intrastate (CGST+SGST)</option>
+          <option value="inter" ${d.gstSupply!=='intra'?'selected':''}>Interstate (IGST)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Item Lines</label>
+      <table style="margin-bottom:0;">
+        <tr><th>Item / Description</th><th style="width:70px;">Qty</th><th style="width:90px;">Rate</th><th style="width:80px;">Amount</th><th></th></tr>
+        ${items.map((it,i)=>`<tr>
+          <td><input type="text" data-r-item-name="${i}" value="${escapeAttr(it.name||'')}" placeholder="e.g. Monthly Retainer" style="font-size:12px;"></td>
+          <td><input type="number" data-r-item-qty="${i}" value="${it.qty||1}" step="0.01" style="font-size:12px;"></td>
+          <td><input type="number" data-r-item-rate="${i}" value="${it.rate||0}" step="0.01" style="font-size:12px;"></td>
+          <td class="num" style="font-size:12px;">₹${fmt(itemLineAmount(it))}</td>
+          <td><button class="btn small secondary" data-r-item-rm="${i}" type="button">✕</button></td>
+        </tr>`).join('')}
+      </table>
+      <button class="btn small secondary" id="rAddItemBtn" type="button" style="margin-top:6px;">+ Add Item</button>
+    </div>
+    <p class="muted" style="font-size:12px;">Subtotal ₹${fmt(subtotal)} + GST ₹${fmt(tax)} = <strong>₹${fmt(subtotal+tax)}</strong> per invoice generated.</p>
   `;
 }
 
@@ -15239,6 +18036,7 @@ function groupAdminAuditTab(){
 
 function renderView(){
   if(isTabGated(view)) return paidFeatureLockedView(GATED_TAB_LABELS[view]||view);
+  if(isModuleHidden(view)) return moduleAccessDeniedView((MODULE_ACCESS_LIST.find(m=>m.id===view)||{}).label || view);
   switch(view){
     case 'dashboard': return viewDashboard();
     case 'voucher': return viewVoucher();
@@ -18026,9 +20824,10 @@ function viewVoucher(){
     <div class="vtype-tabs">
       ${VOUCHER_TYPES.map(t=>`<button data-vtype="${t}" class="${vform.type===t?'active':''}">${t}</button>`).join('')}
     </div>
-    ${repeatCandidate ? `
-    <div style="display:flex;justify-content:flex-end;margin:-8px 0 12px;">
-      <button class="btn secondary small" id="repeatLastVoucherBtn" type="button" title="Pre-fills this form from your last ${escapeAttr(vform.type)} voucher, dated ${repeatCandidate.date} — amounts stay blank and the date resets to today, nothing posts automatically">↺ Repeat Last ${escapeHtml(vform.type)} Voucher</button>
+    ${(repeatCandidate || !editing) ? `
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:-8px 0 12px;flex-wrap:wrap;">
+      ${!editing ? `<button class="btn secondary small" id="scanReceiptBtn" type="button" title="Photograph or upload a receipt/bill — reads the amount, date and vendor with on-device OCR, then drafts a voucher for you to review">📷 Scan Receipt/Bill</button>` : ''}
+      ${repeatCandidate ? `<button class="btn secondary small" id="repeatLastVoucherBtn" type="button" title="Pre-fills this form from your last ${escapeAttr(vform.type)} voucher, dated ${repeatCandidate.date} — amounts stay blank and the date resets to today, nothing posts automatically">↺ Repeat Last ${escapeHtml(vform.type)} Voucher</button>` : ''}
     </div>` : ''}
     ${singleEligible ? `
     <div class="vtype-tabs" style="margin-bottom:10px;">
@@ -18524,6 +21323,33 @@ function invoiceLineFromItem(it){
     unit: (master && master.unit) || it.unit || '',
   };
 }
+// ---- UPI QR / payment link (invoiceSettings.upiVpa/upiPayeeName) ----
+// Standard UPI "intent" deep-link -- any UPI app (GPay/PhonePe/Paytm/BHIM/...) opens this straight
+// into a pre-filled payment screen when scanned. pa=payee VPA, pn=payee name, am=amount, cu=currency,
+// tn=transaction note (here: the invoice number). Values are URI-encoded individually, per the spec.
+function upiIntentUrl(vpa, payeeName, amount, note){
+  const params = [
+    `pa=${encodeURIComponent(vpa)}`,
+    `pn=${encodeURIComponent(payeeName||'')}`,
+    `am=${encodeURIComponent(r2(amount).toFixed(2))}`,
+    `cu=INR`,
+  ];
+  if(note) params.push(`tn=${encodeURIComponent(note)}`);
+  return `upi://pay?${params.join('&')}`;
+}
+// Renders the given text as an inline, self-contained <svg> QR code -- using the qrcode-generator
+// library bundled directly into this page (see the <script> block right after the Firebase CDN tags),
+// so it never depends on network access at print time, unlike the rest of this printed invoice's
+// otherwise-static HTML. Returns '' if the library somehow isn't available (never blocks printing).
+function qrCodeSvg(text, cellSize){
+  try{
+    if(typeof window==='undefined' || !window.qrcodeLib) return '';
+    const qr = window.qrcodeLib(0, 'M'); // typeNumber 0 = auto-size to fit the data
+    qr.addData(text);
+    qr.make();
+    return qr.createSvgTag(cellSize||4, 0);
+  }catch(e){ return ''; }
+}
 function buildInvoiceHTML(opts){
   const { partyName, invoiceNo, isDraft, date, items, subtotal, cgst, sgst, igst, total, narration, billingAddress, shippingAddress } = opts;
   const hasTax = (cgst+sgst+igst) > 0;
@@ -18563,6 +21389,25 @@ function buildInvoiceHTML(opts){
   const footerNote = isettings.footerNote || '';
   const logo = isettings.logoDataUrl ? `<img src="${isettings.logoDataUrl}" style="max-height:56px;max-width:180px;display:block;">` : '';
   const invoiceNoLine = isDraft ? `Preview No: ${invoiceNo} (assigned on save)` : `Invoice No: ${invoiceNo}`;
+  // UPI QR / payment link — only shown once a payee UPI VPA is set under Invoice Template settings.
+  // The QR is a plain scannable UPI "intent" link (pa/pn/am/cu/tn) rendered as an inline <svg> at
+  // print time (see qrCodeSvg()/upiIntentUrl()) -- no external image host, so it still works offline
+  // once the invoice is printed or saved as a PDF.
+  const upiVpa = (isettings.upiVpa||'').trim();
+  let upiBlock = '';
+  if(upiVpa && total>0){
+    const upiUrl = upiIntentUrl(upiVpa, isettings.upiPayeeName||currentCompany.name, total, invoiceNo);
+    const svg = qrCodeSvg(upiUrl, 4);
+    if(svg) upiBlock = `
+      <div class="upi-pay-block">
+        <div class="upi-qr">${svg}</div>
+        <div class="upi-pay-info">
+          <div style="font-weight:bold;font-size:12.5px;">Pay by UPI</div>
+          <div class="muted" style="font-size:11px;margin-top:2px;">Scan with any UPI app to pay ₹${fmt(total)}</div>
+          <div class="muted" style="font-size:11px;margin-top:2px;">${escapeHtml(upiVpa)}</div>
+        </div>
+      </div>`;
+  }
 
   const headerHtml = template==='modern' ? `
     <div class="bill-header tpl-modern">
@@ -18638,6 +21483,8 @@ function buildInvoiceHTML(opts){
   .grand-total td{font-weight:bold;font-size:15px;border-top:2px solid var(--accent);padding-top:8px;color:${template==='minimal'?'var(--accent)':'#111'};}
   .footer{margin-top:30px;font-size:10.5px;color:#777;border-top:1px solid #ddd;padding-top:10px;}
   .footer-note{margin-top:14px;font-size:12px;color:#444;white-space:pre-line;}
+  .upi-pay-block{display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 12px;border:1px dashed var(--accent);border-radius:8px;width:fit-content;}
+  .upi-pay-block .upi-qr svg{display:block;width:88px;height:88px;}
   @media print{ body{padding:0;} .bill-header.tpl-modern{margin-top:0;} .draft-banner{display:none;} }
 </style>
 </head><body>
@@ -18670,6 +21517,7 @@ function buildInvoiceHTML(opts){
     ${taxTotalsRows}
     <tr class="grand-total"><td>Grand Total</td><td style="text-align:right;">₹${fmt(total)}</td></tr>
   </table>
+  ${upiBlock}
   ${narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(narration)}</div>`:''}
   ${footerNote?`<div class="footer-note">${escapeHtml(footerNote)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
@@ -19662,7 +22510,7 @@ function viewDaybook(){
               return e.dr ? `${name} Dr` : `${name} Cr`;
             }).join(', ')}</td>
             <td class="num ccard-amount" data-label="Amount">₹${fmt(voucherAmount(v))}</td>
-            <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}</td>
+            <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}${voucherHistoryFor(v.id).length?` <button class="btn small secondary" data-voucher-history="${v.id}" type="button" title="${voucherHistoryFor(v.id).length} edit${voucherHistoryFor(v.id).length===1?'':'s'} recorded">🕘 History</button>`:''}</td>
           </tr>`).join('')}
         </table>` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
       </div>
@@ -24008,7 +26856,8 @@ function attachHandlers(){
 
   if(modal==='recurring'){
     document.getElementById('newRecurringBtn')?.addEventListener('click', ()=>{
-      recurringDraft = { name:'', type:'Payment', ledgerA:'', ledgerB:'', amount:'', narration:'', frequency:'monthly', nextDueDate: new Date().toISOString().slice(0,10) };
+      recurringDraft = { name:'', type:'Payment', ledgerA:'', ledgerB:'', amount:'', narration:'', frequency:'monthly', nextDueDate: new Date().toISOString().slice(0,10),
+        partyLedgerId:'', taxableLedger:'', gstRate:0, gstSupply:'intra', items:[] };
       render();
     });
     document.getElementById('cancelRecurringBtn')?.addEventListener('click', ()=>{ recurringDraft = null; render(); });
@@ -24020,18 +26869,55 @@ function attachHandlers(){
     document.getElementById('rTplFrequency')?.addEventListener('change', e=> recurringDraft.frequency = e.target.value);
     document.getElementById('rTplStart')?.addEventListener('change', e=> recurringDraft.nextDueDate = e.target.value);
     document.getElementById('rTplNarration')?.addEventListener('input', e=> recurringDraft.narration = e.target.value);
+    // ---- Sales-with-items fields (recurringSalesFields()) ----
+    document.getElementById('rTplParty')?.addEventListener('change', e=> recurringDraft.partyLedgerId = e.target.value);
+    document.getElementById('rTplTaxableLedger')?.addEventListener('change', e=> recurringDraft.taxableLedger = e.target.value);
+    document.getElementById('rTplGstRate')?.addEventListener('input', e=>{ recurringDraft.gstRate = e.target.value; render(); });
+    document.getElementById('rTplGstSupply')?.addEventListener('change', e=> recurringDraft.gstSupply = e.target.value);
+    document.getElementById('rAddItemBtn')?.addEventListener('click', ()=>{
+      recurringDraft.items = recurringDraft.items || [];
+      recurringDraft.items.push({ name:'', qty:1, rate:0 });
+      render();
+    });
+    document.querySelectorAll('[data-r-item-name]').forEach(el=>{
+      el.addEventListener('input', e=>{ recurringDraft.items[+e.target.dataset.rItemName].name = e.target.value; });
+    });
+    document.querySelectorAll('[data-r-item-qty]').forEach(el=>{
+      el.addEventListener('input', e=>{ recurringDraft.items[+e.target.dataset.rItemQty].qty = e.target.value; render(); });
+    });
+    document.querySelectorAll('[data-r-item-rate]').forEach(el=>{
+      el.addEventListener('input', e=>{ recurringDraft.items[+e.target.dataset.rItemRate].rate = e.target.value; render(); });
+    });
+    document.querySelectorAll('[data-r-item-rm]').forEach(el=>{
+      el.addEventListener('click', ()=>{ recurringDraft.items.splice(+el.dataset.rItemRm,1); render(); });
+    });
     document.getElementById('saveRecurringBtn')?.addEventListener('click', async ()=>{
       const d = recurringDraft;
       if(!d.name.trim()){ toast('Enter a name for this template'); return; }
-      if(!d.ledgerA || !d.ledgerB){ toast('Select both ledgers'); return; }
-      if(d.ledgerA===d.ledgerB){ toast('The two ledgers must be different'); return; }
-      if(!(Number(d.amount)>0)){ toast('Enter an amount greater than zero'); return; }
       if(!d.nextDueDate){ toast('Select a start date'); return; }
-      state.recurringTemplates.push({
-        id: uid('rtpl'), name: d.name.trim(), type: d.type, ledgerA: d.ledgerA, ledgerB: d.ledgerB,
-        amount: Number(d.amount), narration: d.narration.trim(), frequency: d.frequency,
-        nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, createdAt: new Date().toISOString(),
-      });
+      if(d.type==='Sales'){
+        const items = (d.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
+        if(!d.partyLedgerId || !d.taxableLedger){ toast('Select a customer and a Sales ledger'); return; }
+        if(!items.length){ toast('Add at least one item with a quantity'); return; }
+        state.recurringTemplates.push({
+          id: uid('rtpl'), name: d.name.trim(), type: 'Sales',
+          partyLedgerId: d.partyLedgerId, taxableLedger: d.taxableLedger,
+          gstRate: Number(d.gstRate)||0, gstSupply: d.gstSupply||'intra',
+          items: items.map(it=>({ name: it.name, qty: Number(it.qty)||0, rate: Number(it.rate)||0 })),
+          amount: r2(itemsSubtotal(items) * (1 + (Number(d.gstRate)||0)/100)), // display-only total, kept in sync with items at generation time
+          narration: d.narration.trim(), frequency: d.frequency,
+          nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, createdAt: new Date().toISOString(),
+        });
+      } else {
+        if(!d.ledgerA || !d.ledgerB){ toast('Select both ledgers'); return; }
+        if(d.ledgerA===d.ledgerB){ toast('The two ledgers must be different'); return; }
+        if(!(Number(d.amount)>0)){ toast('Enter an amount greater than zero'); return; }
+        state.recurringTemplates.push({
+          id: uid('rtpl'), name: d.name.trim(), type: d.type, ledgerA: d.ledgerA, ledgerB: d.ledgerB,
+          amount: Number(d.amount), narration: d.narration.trim(), frequency: d.frequency,
+          nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, createdAt: new Date().toISOString(),
+        });
+      }
       await saveRecurringTemplates();
       recurringDraft = null;
       toast('Recurring template saved');
@@ -24075,6 +26961,96 @@ function attachHandlers(){
       loadAttachmentsForVoucher(attachmentsVoucherId);
     });
   });
+  document.querySelectorAll('[data-voucher-history]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      voucherHistoryId = b.dataset.voucherHistory;
+      modal = 'voucherHistory';
+      render();
+    });
+  });
+  if(modal==='approvals'){
+    document.querySelectorAll('[data-approve-voucher]').forEach(b=>{
+      b.addEventListener('click', ()=> approvePendingVoucher(b.dataset.approveVoucher));
+    });
+    document.querySelectorAll('[data-reject-voucher]').forEach(b=>{
+      b.addEventListener('click', ()=> rejectPendingVoucher(b.dataset.rejectVoucher));
+    });
+    document.getElementById('saveApprovalSettingsBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const enabled = !!document.getElementById('approvalEnabledChk')?.checked;
+      const threshold = Number(document.getElementById('approvalThresholdInput')?.value)||0;
+      const types = Array.from(document.querySelectorAll('[data-approval-type]:checked')).map(el=>el.dataset.approvalType);
+      currentCompany.approvalSettings = { enabled, threshold, types };
+      approvalSettingsDraft = null;
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Approval rules saved', {type:'success'});
+      render();
+    });
+  }
+  if(modal==='manageAccess'){
+    document.querySelectorAll('[data-select-access-member]').forEach(b=>{
+      b.addEventListener('click', ()=>{ manageAccessUserId = b.dataset.selectAccessMember; render(); });
+    });
+    document.getElementById('saveMemberAccessBtn')?.addEventListener('click', async ()=>{
+      if(!manageAccessUserId) return;
+      const next = {};
+      document.querySelectorAll('[data-access-module]').forEach(el=>{ next[el.dataset.accessModule] = el.value; });
+      currentCompany.memberPermissions = currentCompany.memberPermissions || {};
+      currentCompany.memberPermissions[manageAccessUserId] = next;
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Access updated', {type:'success'});
+      render();
+    });
+  }
+  if(modal==='ocrScan'){
+    document.getElementById('ocrFileInput')?.addEventListener('change', async e=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      if(typeof Tesseract === 'undefined'){
+        toast('OCR library failed to load — check your internet connection and try again');
+        return;
+      }
+      ocrScanState = { status:'reading', progress:0, fileName:file.name };
+      render();
+      try{
+        const result = await Tesseract.recognize(file, 'eng', {
+          logger: msg=>{
+            if(msg.status==='recognizing text' && ocrScanState && ocrScanState.status==='reading'){
+              ocrScanState.progress = msg.progress||0;
+              const bar = document.querySelector('#modalOverlayBg [style*="width:"]');
+              if(bar) bar.style.width = `${Math.round((msg.progress||0)*100)}%`;
+            }
+          },
+        });
+        const extracted = parseOcrReceiptText(result.data.text);
+        ocrScanState = { status:'done', fileName:file.name, extracted };
+        render();
+      }catch(err){
+        ocrScanState = { status:'error' };
+        render();
+      }
+    });
+    document.getElementById('ocrAmountInput')?.addEventListener('input', e=>{ ocrScanState.extracted.amount = e.target.value; });
+    document.getElementById('ocrDateInput')?.addEventListener('change', e=>{ ocrScanState.extracted.date = e.target.value; });
+    document.getElementById('ocrVendorSelect')?.addEventListener('change', e=>{ ocrScanState.extracted.vendorLedgerId = e.target.value; });
+    document.getElementById('ocrDraftVoucherBtn')?.addEventListener('click', ()=>{
+      const ex = ocrScanState.extracted;
+      const amount = Number(ex.amount)||0;
+      if(!amount){ toast('Enter an amount before drafting'); return; }
+      modal = null;
+      view = 'voucher';
+      vform = null;
+      render(); // fresh blank vform from viewVoucher()'s lazy-init
+      vform.type = 'Payment';
+      vform.date = ex.date || new Date().toISOString().slice(0,10);
+      vform.mode = 'single';
+      vform.narration = ex.vendorText ? `Scanned receipt — ${ex.vendorText}` : 'Scanned receipt';
+      vform.single.ledgerB = ex.vendorLedgerId || '';
+      vform.single.amount = amount;
+      toast('Drafted from your receipt — pick "Paid From", double-check everything, then Save', {type:'success'});
+      render();
+    });
+  }
   if(modal==='attachments'){
     document.getElementById('attachmentFileInput')?.addEventListener('change', e=>{
       const file = e.target.files[0];
@@ -24200,6 +27176,12 @@ function attachHandlers(){
       const id = b.dataset.deleteVoucher;
       const v = state.vouchers.find(x=>x.id===id);
       if(!v) return;
+      // Period locking (currentCompany.lockDate) already blocks saving on/before the lock date -- this
+      // was the one path that didn't also check it, so a locked period's vouchers could still be deleted.
+      if(currentCompany.lockDate && v.date <= currentCompany.lockDate){
+        toast(`Vouchers dated on or before ${currentCompany.lockDate} are locked. Change the lock from Edit Company before deleting this.`);
+        return;
+      }
       const linkedPayslip = state.salaryVouchers.find(sv=>sv.voucherId===id);
       if(linkedPayslip){
         // Payroll deletes cascade into payslip + loan-EMI reversal — safer to keep the explicit
@@ -24218,6 +27200,7 @@ function attachHandlers(){
         }
         state.salaryVouchers = state.salaryVouchers.filter(sv=>sv.id!==linkedPayslip.id);
         await saveSalaryVouchers();
+        logVoucherAudit('delete', id, voucherAuditSnapshot(v), null);
         toast('Payroll voucher deleted', {type:'success'});
         render();
         return;
@@ -24226,8 +27209,10 @@ function attachHandlers(){
       // a one-click Undo instead — the modern pattern is faster and just as safe.
       const idx = state.vouchers.findIndex(x=>x.id===id);
       const removed = state.vouchers[idx];
+      const removedSnap = voucherAuditSnapshot(removed);
       state.vouchers = state.vouchers.filter(x=>x.id!==id);
       await saveVouchers();
+      logVoucherAudit('delete', id, removedSnap, null);
       let removedTax = [];
       if(state.taxDeductions.some(t=>t.voucherId===id)){
         removedTax = state.taxDeductions.filter(t=>t.voucherId===id);
@@ -24239,6 +27224,7 @@ function attachHandlers(){
         state.vouchers.splice(Math.min(idx, state.vouchers.length), 0, removed);
         if(removedTax.length){ state.taxDeductions = state.taxDeductions.concat(removedTax); await saveTaxDeductions(); }
         await saveVouchers();
+        logVoucherAudit('create', id, null, removedSnap);
         toast('Voucher restored', {type:'success'});
         render();
       }}});
@@ -24408,6 +27394,11 @@ function attachHandlers(){
       vform.tax.rate = e.target.value;
       const el = document.getElementById('taxPreview');
       if(el) el.textContent = taxPreviewText();
+    });
+    document.getElementById('scanReceiptBtn')?.addEventListener('click', ()=>{
+      ocrScanState = { status:'idle' };
+      modal = 'ocrScan';
+      render();
     });
     // "Repeat Last Voucher": pulls the most recent voucher of the currently-selected type (see the
     // repeatCandidate computation in viewVoucher()) and copies its shape -- same ledgers in the same
@@ -24816,6 +27807,28 @@ function attachHandlers(){
       const effectiveType = hasPaymentItems ? 'Purchase' : vform.type;
       const dupWarning = duplicatePaymentWarningFor(effectiveType, entries, vform.date, vform.id);
       if(dupWarning && !confirm(dupWarning + '\n\nSave anyway?')) return;
+      // Maker-checker: a new voucher that meets the company's approval threshold/type rules, entered
+      // by a plain 'user' account, gets parked in state.pendingVouchers instead of posted -- see
+      // voucherNeedsApproval()/state.pendingVouchers' comment. Edits to an already-posted voucher
+      // (vform.id set) are deliberately out of scope, so this only intercepts brand-new vouchers.
+      if(!vform.id && voucherNeedsApproval(effectiveType, entries)){
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Submitting…';
+        const now = new Date().toISOString();
+        const pv = { id: uid('pv'), date: vform.date, type: effectiveType, narration: vform.narration, entries, createdAt: now, submittedBy: currentUser.id, submittedByName: currentUser.name||currentUser.username, submittedAt: now };
+        if(appliedItems) pv.items = appliedItems;
+        if(foreignTotal!=null){ pv.currency = vform.currency; pv.fxRate = fx; pv.foreignAmount = foreignTotal; }
+        if(vform.costCenterId) pv.costCenterId = vform.costCenterId;
+        if(vform.type==='Sales' && vform.channel) pv.channel = vform.channel;
+        state.pendingVouchers.push(pv);
+        await savePendingVouchers();
+        logAutomation('⏳', `${effectiveType} voucher for ₹${fmt(entries.reduce((s,e)=>s+(Number(e.dr)||0),0))} submitted for approval by ${currentUser.name||currentUser.username}`);
+        toast('Submitted for approval — an approver needs to review this before it posts', {type:'success'});
+        vform = null;
+        view = 'daybook';
+        render();
+        return;
+      }
       let savedVoucherId = vform.id || null;
       // Micro-interaction: every validation check above this point can still bail out with an early
       // return, so the button only flips to its "in flight" state once the save is actually
@@ -24827,6 +27840,9 @@ function attachHandlers(){
       saveBtn.textContent = vform.id ? 'Updating…' : 'Saving…';
       if(vform.id){
         const idx = state.vouchers.findIndex(v=>v.id===vform.id);
+        // Captured BEFORE the wholesale replacement below -- state.vouchers[idx] is swapped for a
+        // brand-new object, not merged, so this is the only chance to snapshot the "before" state.
+        const beforeSnap = idx>-1 ? voucherAuditSnapshot(state.vouchers[idx]) : null;
         if(idx>-1){
           const createdAt = state.vouchers[idx].createdAt || new Date().toISOString();
           state.vouchers[idx] = { id: vform.id, date: vform.date, type: effectiveType, narration: vform.narration, entries, createdAt, updatedAt: new Date().toISOString() };
@@ -24836,6 +27852,7 @@ function attachHandlers(){
           if(vform.type==='Sales' && vform.channel) state.vouchers[idx].channel = vform.channel;
         }
         await saveVouchers();
+        if(idx>-1) logVoucherAudit('update', vform.id, beforeSnap, voucherAuditSnapshot(state.vouchers[idx]));
         toast('✓ Voucher updated', {type:'success'});
       } else {
         const now = new Date().toISOString();
@@ -24847,6 +27864,7 @@ function attachHandlers(){
         state.vouchers.push(v);
         savedVoucherId = v.id;
         await saveVouchers();
+        logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
         toast('✓ Voucher saved', {type:'success'});
         if(pendingConvertDoc){
           const meta = ORDER_DOC_META[pendingConvertDoc.docType];
@@ -25711,7 +28729,7 @@ function attachHandlers(){
     });
     document.getElementById('openInvSettingsBtn')?.addEventListener('click', ()=>{
       const s = currentCompany.invoiceSettings || {};
-      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', logoDataUrl: s.logoDataUrl||'', numberPrefix: s.numberPrefix||'' };
+      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', logoDataUrl: s.logoDataUrl||'', numberPrefix: s.numberPrefix||'', upiVpa: s.upiVpa||'', upiPayeeName: s.upiPayeeName||'' };
       modal = 'invoiceSettings';
       render();
     });
@@ -25725,6 +28743,8 @@ function attachHandlers(){
     document.getElementById('invAccentColor')?.addEventListener('input', e=>{ invoiceSettingsDraft.accentColor = e.target.value; });
     document.getElementById('invNumberPrefix')?.addEventListener('input', e=>{ invoiceSettingsDraft.numberPrefix = e.target.value; });
     document.getElementById('invFooterNote')?.addEventListener('input', e=>{ invoiceSettingsDraft.footerNote = e.target.value; });
+    document.getElementById('invUpiVpa')?.addEventListener('input', e=>{ invoiceSettingsDraft.upiVpa = e.target.value; });
+    document.getElementById('invUpiPayeeName')?.addEventListener('input', e=>{ invoiceSettingsDraft.upiPayeeName = e.target.value; });
     document.getElementById('removeInvLogoBtn')?.addEventListener('click', ()=>{ invoiceSettingsDraft.logoDataUrl = ''; render(); });
     document.getElementById('invLogoInput')?.addEventListener('change', async e=>{
       const file = e.target.files[0];
