@@ -824,6 +824,20 @@
   .menu-dropdown a{display:block;padding:9px 14px;font-size:12.5px;color:var(--ink);text-decoration:none;cursor:pointer;font-weight:600;}
   .menu-dropdown a:hover{background:var(--surface-strong);}
 
+  /* Gateway top-right account avatar + its details dropdown */
+  .gw-user-avatar-btn{width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;font-weight:700;font-size:12.5px;letter-spacing:.02em;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 6px rgba(20,30,15,0.2);transition:transform .15s ease, box-shadow .15s ease;}
+  .gw-user-avatar-btn:hover{transform:scale(1.07);box-shadow:0 4px 10px rgba(20,30,15,0.28);}
+  .gw-user-dropdown{left:auto;right:0;min-width:246px;padding:14px;}
+  .gw-user-dropdown-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--border);}
+  .gw-user-dropdown-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .gw-user-dropdown-name{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.3;}
+  .gw-user-dropdown-role{font-size:10.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin-top:1px;}
+  .gw-user-dropdown-rows{display:flex;flex-direction:column;gap:9px;}
+  .gw-user-dropdown-row{display:flex;flex-direction:column;gap:2px;}
+  .gw-user-dropdown-label{font-size:10px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;}
+  .gw-user-dropdown-value{font-size:12.5px;font-weight:600;color:var(--ink);word-break:break-word;}
+  .gw-user-dropdown-divider{height:1px;background:var(--border);margin:10px 0;}
+
   /* Modal (Edit Company / Help) */
   .modal-overlay{position:fixed;inset:0;background:rgba(13,20,15,0.58);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
   .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:400px;max-width:100%;box-shadow:0 30px 70px rgba(13,20,15,0.35);overflow:hidden;}
@@ -5389,6 +5403,8 @@ let viewMenuOpen = false;  // View menu dropdown toggle
 let editCoDraft = null;    // draft for the Edit Company modal
 let fileMenuOpen = false;  // Gateway File menu dropdown toggle
 let servicesMenuOpen = false; // Gateway Services menu dropdown toggle (admin login only)
+let userProfileMenuOpen = false; // Gateway top-right account-avatar dropdown toggle
+let gwUserProfileMenuCloseHandler = null; // the single active outside-click closer for that dropdown, if any
 let isDetailCategory = null; // which Income Statement line was clicked, for the detail modal
 
 /* ---------------- Admin Panel state ---------------- */
@@ -14910,6 +14926,11 @@ function renderGateway(){
       <span id="gwMenuHelp">Help</span>
       ${currentUser && currentUser.role==='support' ? `<span id="gwMenuGroupAdmin">Admin</span>` : ''}
       ${isFullAdmin() ? `<span id="gwMenuServices" style="position:relative;">Services${servicesMenuOpen?servicesDropdown():''}</span>` : ''}
+      ${currentUser ? `
+      <span style="margin-left:auto;position:relative;display:flex;align-items:center;">
+        <button class="gw-user-avatar-btn" id="gwUserAvatarBtn" type="button" title="${escapeAttr(currentUser.name||'Account')}" aria-haspopup="true" aria-expanded="${userProfileMenuOpen}">${escapeHtml(userInitials(currentUser.name))}</button>
+        ${userProfileMenuOpen?userProfileDropdown():''}
+      </span>` : ''}
     </div>
     ${currentUser && !currentUser.isAdmin && announcement.active && announcement.message && !announcementDismissed ? `
     <div style="background:#F2A900;color:#2a2200;padding:10px 20px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:12px;">
@@ -15343,16 +15364,19 @@ function renderGateway(){
     e.stopPropagation();
     fileMenuOpen = !fileMenuOpen;
     servicesMenuOpen = false;
+    userProfileMenuOpen = false;
     renderGateway();
   });
   document.getElementById('gwMenuCompany').addEventListener('click', ()=>{
     fileMenuOpen = false;
     servicesMenuOpen = false;
+    userProfileMenuOpen = false;
     renderGateway();
   });
   document.getElementById('gwMenuHelp').addEventListener('click', async ()=>{
     fileMenuOpen = false;
     servicesMenuOpen = false;
+    userProfileMenuOpen = false;
     modal = 'help';
     helpTab = 'info';
     // Support accounts raise tickets about themselves too (e.g. a seat-limit increase request), and
@@ -15368,6 +15392,7 @@ function renderGateway(){
   document.getElementById('gwMenuGroupAdmin')?.addEventListener('click', async ()=>{
     fileMenuOpen = false;
     servicesMenuOpen = false;
+    userProfileMenuOpen = false;
     await loadGroupAdminData();
     groupAdminTab = 'overview';
     modal = 'groupAdmin';
@@ -15377,8 +15402,32 @@ function renderGateway(){
     e.stopPropagation();
     servicesMenuOpen = !servicesMenuOpen;
     fileMenuOpen = false;
+    userProfileMenuOpen = false;
     renderGateway();
   });
+  document.getElementById('gwUserAvatarBtn')?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    userProfileMenuOpen = !userProfileMenuOpen;
+    fileMenuOpen = false;
+    servicesMenuOpen = false;
+    renderGateway();
+  });
+  if(gwUserProfileMenuCloseHandler){
+    document.removeEventListener('click', gwUserProfileMenuCloseHandler);
+    gwUserProfileMenuCloseHandler = null;
+  }
+  if(userProfileMenuOpen){
+    gwUserProfileMenuCloseHandler = (e)=>{
+      const wrap = document.getElementById('gwUserAvatarBtn')?.closest('span');
+      if(wrap && !wrap.contains(e.target)){
+        userProfileMenuOpen = false;
+        document.removeEventListener('click', gwUserProfileMenuCloseHandler);
+        gwUserProfileMenuCloseHandler = null;
+        renderGateway();
+      }
+    };
+    document.addEventListener('click', gwUserProfileMenuCloseHandler);
+  }
   if(servicesMenuOpen){
     document.getElementById('gwAdminPanelLink')?.addEventListener('click', async (e)=>{
       e.stopPropagation();
@@ -16829,6 +16878,40 @@ function fileDropdown(){
 }
 function servicesDropdown(){
   return `<div class="menu-dropdown"><a id="gwAdminPanelLink">Admin Panel</a></div>`;
+}
+// Initials for the round Gateway account avatar -- first letter of up to the first two words in the
+// person's name, e.g. "Santhosh Kumar" -> "SK", a lone name -> its first letter.
+function userInitials(name){
+  const parts = (name||'').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return '?';
+  return parts.slice(0,2).map(p=>p[0]).join('').toUpperCase();
+}
+// The Gateway's top-right account panel -- click the round avatar to see your own name/email/phone.
+// A Support (group admin) account additionally sees the platform Administrator's contact email, since
+// a Support user's own escalation path (seat-limit requests, tickets escalated to a full Administrator)
+// is to that inbox -- a plain 'user' account has no such escalation contact to show, and a full
+// Administrator IS that contact, so neither of those two roles gets the extra row.
+function userProfileDropdown(){
+  if(!currentUser) return '';
+  const roleLabel = currentUser.role==='admin' ? 'Administrator' : currentUser.role==='support' ? 'Support' : 'User';
+  return `<div class="menu-dropdown gw-user-dropdown" role="menu">
+    <div class="gw-user-dropdown-head">
+      <div class="gw-user-dropdown-avatar">${escapeHtml(userInitials(currentUser.name))}</div>
+      <div>
+        <div class="gw-user-dropdown-name">${escapeHtml(currentUser.name||'—')}</div>
+        <div class="gw-user-dropdown-role">${escapeHtml(roleLabel)}</div>
+      </div>
+    </div>
+    <div class="gw-user-dropdown-rows">
+      <div class="gw-user-dropdown-row"><span class="gw-user-dropdown-label">Email</span><span class="gw-user-dropdown-value">${escapeHtml(currentUser.email||'—')}</span></div>
+      <div class="gw-user-dropdown-row"><span class="gw-user-dropdown-label">Phone</span><span class="gw-user-dropdown-value">${escapeHtml(currentUser.mobile||'—')}</span></div>
+    </div>
+    ${currentUser.role==='support' ? `
+    <div class="gw-user-dropdown-divider"></div>
+    <div class="gw-user-dropdown-rows">
+      <div class="gw-user-dropdown-row"><span class="gw-user-dropdown-label">Admin Support</span><span class="gw-user-dropdown-value">thereckoningbooks@gmail.com</span></div>
+    </div>` : ''}
+  </div>`;
 }
 function adminTabIcon(id){
   const icons = {
