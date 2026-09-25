@@ -50,8 +50,11 @@
   .titlebar span:first-child{color:var(--accent1);}
   .titlebar .winbtns{display:none;}
 
-  /* Menu bar */
-  .menubar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:4px;padding:7px 16px;font-size:12.5px;}
+  /* Menu bar -- plain text items (Company/Edit/View/Backup/Help/Approvals/Access/Admin/Delete Company,
+     plus the Gateway screen's own File/Company/Help/Admin/Services), tightly spaced, no icons. Tried a
+     colored-icon-chip treatment here in an earlier round; reverted per explicit feedback that it looked
+     "funky" and that the icons themselves were taking up the space the person wanted removed. */
+  .menubar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:2px;padding:6px 12px;font-size:12.5px;}
   .menubar span{padding:5px 10px;border-radius:var(--radius-sm);cursor:default;color:var(--ink-soft);font-weight:600;transition:all .15s;}
   .menubar span:hover{background:var(--surface-strong);color:var(--ink);}
   .menubar span.menu-danger:hover{background:var(--debit-bg);color:var(--debit);}
@@ -60,13 +63,54 @@
   .body-shell{display:flex;flex:1;min-height:0;}
 
   /* Tab strip → vertical sidebar nav */
-  .tabstrip{display:flex;flex-direction:column;gap:3px;padding:16px 12px;background:var(--surface);border-right:1px solid var(--border);width:196px;flex-shrink:0;overflow-y:auto;}
-  .navtab{font-family:inherit;font-size:12.5px;font-weight:700;padding:10px 14px;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:all .15s;display:flex;align-items:center;gap:10px;width:100%;text-align:left;}
+  .tabstrip{display:flex;flex-direction:column;gap:2px;padding:16px 11px;background:var(--surface);border-right:1px solid var(--border);width:206px;flex-shrink:0;overflow-y:auto;}
+  .navtab{font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 10px;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .1s ease;display:flex;align-items:center;gap:11px;width:100%;text-align:left;}
   .navtab:hover:not(.active){background:var(--surface-strong);color:var(--ink);}
-  .navtab.active{background:var(--accent1);color:#fff;border-color:var(--accent1);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
+  .navtab:active:not(.active){transform:scale(0.98);}
+  .navtab.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:var(--accent2);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
   .btn.secondary.active{background:var(--accent1);color:#fff;border-color:var(--accent1);}
-  .navtab b{font-weight:900;text-decoration:underline;text-underline-offset:2px;}
+  /* The bold single letter inside a label marks that tab's keyboard shortcut (see TAB_SHORTCUTS) --
+     a faint currentColor-tinted chip behind just that letter reads as a keyboard-hint affordance,
+     rather than the plain underline (which, mid-word, looked more like a stray typo than a hint). */
+  .navtab b{font-weight:900;background:color-mix(in srgb, currentColor 15%, transparent);border-radius:3px;padding:0 1px;}
   .tab-icon{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  /* Soft "chip" behind each nav icon -- gives every row a little more visual weight at rest than a
+     bare glyph, and doubles as its own hover/active state so the icon reads as a distinct object
+     rather than decoration glued to the label. Each module carries its own accent hue (--nav-hue,
+     set inline per icon by tab() from NAV_ICON_HUES) so the icon itself is tinted, Notion/Linear-
+     style, instead of a single flat grey repeated 14 times -- falling back to the plain neutral
+     tokens for any icon with no hue assigned. The chip is a two-stop gradient of its own hue (not a
+     flat tint) plus a hairline top highlight, for a bit of glassy depth rather than a flat swatch.
+     The ACTIVE tab overrides both color and background back to white-on-brand-green below, at higher
+     selector specificity, so the currently-selected item is never just "one more color" in the list. */
+  .navtab-icon{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex-shrink:0;
+    background:linear-gradient(135deg, color-mix(in srgb, var(--nav-hue, var(--ink-faint)) 24%, var(--surface-strong)), color-mix(in srgb, var(--nav-hue, var(--ink-faint)) 9%, var(--surface-strong)));
+    color:var(--nav-hue, var(--ink-soft));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+    transition:background .18s ease, color .18s ease, box-shadow .25s ease, transform .35s cubic-bezier(.34,1.56,.64,1);}
+  /* On hover the chip both deepens toward its own hue AND casts a soft glow of that same hue --
+     the glow is what makes each icon read as individually "lit up" rather than just recoloring. */
+  .navtab:hover:not(.active) .navtab-icon{
+    background:linear-gradient(135deg, color-mix(in srgb, var(--nav-hue, var(--ink-faint)) 42%, var(--surface-strong)), color-mix(in srgb, var(--nav-hue, var(--ink-faint)) 18%, var(--surface-strong)));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 5px 12px -3px color-mix(in srgb, var(--nav-hue, transparent) 65%, transparent);}
+  .navtab.active .navtab-icon{background:rgba(255,255,255,0.22);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.4);}
+  @media (prefers-reduced-motion: no-preference){
+    /* A little spring in the icon itself on hover/press -- kept to the icon chip, not the whole row,
+       so it reads as a playful nudge rather than the button jumping around under the cursor. */
+    .navtab:hover:not(.active) .navtab-icon{transform:scale(1.12) rotate(-7deg);}
+    .navtab:active:not(.active) .navtab-icon{transform:scale(0.86) rotate(0deg);transition-duration:.1s;}
+    /* One-shot "pop" the moment a tab actually becomes the active one (see attachHandlers()'s click
+       listener, which adds/removes this class around a fresh render()) -- a small reward for the
+       action landing, instead of the icon just silently swapping to the flat active treatment. */
+    @keyframes navIconPop{0%{transform:scale(0.55) rotate(-14deg);}55%{transform:scale(1.22) rotate(5deg);}100%{transform:scale(1) rotate(0deg);}}
+    .navtab-icon.pop{animation:navIconPop .5s cubic-bezier(.34,1.56,.64,1);}
+  }
+  .navtab-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* Small uppercase group headers (Vouchers & Entry / Masters / Reports & Compliance / Operations)
+     segmenting the sidebar -- see navSection() -- so 14+ modules read as a few short, named lists
+     instead of one long undifferentiated column. Only ever rendered when its group has at least one
+     visible tab, so a role with a whole group hidden by RBAC never sees an orphaned header. */
+  .nav-section-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding:14px 11px 5px;}
 
   /* ---------------- Modern pill tab bar (Admin Panel / Group Admin panel) ---------------- */
   .modern-tabbar{display:flex;gap:6px;padding:14px 20px 16px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(44,160,28,0.05),transparent);border-bottom:1px solid var(--border);}
@@ -820,9 +864,10 @@
      but collapse it to icons-only so it stops eating a third of a 768-1024px screen; the tooltip
      (title attr, already on every .navtab) still names each tab on hover/long-press. */
   @media (max-width:1024px) and (min-width:761px){
-    .tabstrip{width:64px;padding:14px 8px;}
-    .navtab{justify-content:center;padding:10px 0;}
-    .navtab span{display:none;}
+    .tabstrip{width:60px;padding:14px 8px;}
+    .navtab{justify-content:center;padding:8px 0;}
+    .navtab-label{display:none;}
+    .nav-section-label{display:none;}
     .grid{grid-template-columns:repeat(3,1fr);}
     .bento-grid{grid-template-columns:repeat(3,1fr);}
   }
@@ -844,7 +889,8 @@
     .body-shell{flex-direction:column;}
     .tabstrip{flex-direction:row;flex-wrap:wrap;width:auto;gap:6px;padding:12px 14px 8px;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible;}
     .navtab{width:auto;border-radius:999px;}
-    .navtab span{display:none;}
+    .navtab-label{display:none;}
+    .nav-section-label{display:none;}
     /* The menubar's own items (Company/Edit/View/.../Delete Company) plus the right-aligned
        Refresh + theme toggle group can together exceed a phone's width. Let the group wrap to its
        own line rather than forcing the whole page to scroll horizontally. */
@@ -11318,20 +11364,28 @@ function render(){
     <div class="body-shell">
       <div class="tabstrip">
         ${tab('dashboard','Dashboard','D')}
-        ${tab('voucher','Voucher','V')}
-        ${tab('pos','POS / Quick Sale','Q')}
-        ${tab('daybook','Day Book','B')}
-        ${tab('calendar','Calendar','C')}
-        ${tab('ledgers','Ledgers','L')}
-        ${tab('coa','Accounts','A')}
-        ${tab('inventory','Inventory Control','I')}
-        ${tab('reports','Reports','R')}
-        ${tab('gst','GST','G')}
-        ${tab('reconcile','Reconcile','e')}
-        ${tab('assets','Assets','s')}
-        ${tab('parties','Parties','p')}
-        ${tab('orders','Orders','O')}
-        ${tab('payroll','Payroll Management','y')}
+        ${navSection('Vouchers & Entry', [
+          tab('voucher','Voucher','V'),
+          tab('pos','POS / Quick Sale','Q'),
+          tab('daybook','Day Book','B'),
+          tab('calendar','Calendar','C'),
+        ])}
+        ${navSection('Masters', [
+          tab('ledgers','Ledgers','L'),
+          tab('coa','Accounts','A'),
+          tab('inventory','Inventory Control','I'),
+        ])}
+        ${navSection('Reports & Compliance', [
+          tab('reports','Reports','R'),
+          tab('gst','GST','G'),
+          tab('reconcile','Reconcile','e'),
+        ])}
+        ${navSection('Operations', [
+          tab('assets','Assets','s'),
+          tab('parties','Parties','p'),
+          tab('orders','Orders','O'),
+          tab('payroll','Payroll Management','y'),
+        ])}
       </div>
       <div class="main" id="mainContent" tabindex="-1">${renderView()}</div>
     </div>
@@ -11688,6 +11742,18 @@ function tabIcon(id){
   };
   return `<svg class="tab-icon" viewBox="0 0 24 24">${icons[id]||''}</svg>`;
 }
+// One accent hue per sidebar module -- read by .navtab-icon via the --nav-hue custom property (see
+// its CSS) so each icon carries its own identity at rest/hover, the way Notion/Linear-style sidebars
+// color-code sections, while the ACTIVE tab still collapses to the single brand-green pill (higher
+// specificity in CSS) so "what's selected" never gets lost among 14 different colors. Chosen to keep
+// neighbors within the same nav-section (see navSection()) visually distinct from each other; distant
+// sections are allowed to rhyme (e.g. reconcile's emerald vs. inventory's cyan) since they're never
+// on screen next to one another.
+const NAV_ICON_HUES = {
+  dashboard:'#6366F1', voucher:'#F59E0B', pos:'#F43F5E', daybook:'#14B8A6', calendar:'#8B5CF6',
+  ledgers:'#0EA5E9', coa:'#F97316', inventory:'#06B6D4', reports:'#3B82F6', gst:'#A855F7',
+  reconcile:'#10B981', assets:'#D946EF', parties:'#EAB308', orders:'#64748B', payroll:'#DB2777',
+};
 function tab(id,label,shortcutLetter){
   if(isModuleHidden(id)) return ''; // RBAC: this member has no access to this module at all -- omit the tab entirely, not just lock it
   const idx = shortcutLetter ? label.toLowerCase().indexOf(shortcutLetter.toLowerCase()) : -1;
@@ -11696,7 +11762,18 @@ function tab(id,label,shortcutLetter){
     : escapeHtml(label);
   const gated = isTabGated(id);
   const viewOnly = memberModuleAccess(id)==='view';
-  return `<button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${gated?'Paid-plan feature':viewOnly?'View Only for your account':'Shortcut: '+(shortcutLetter||'')}">${tabIcon(id)}<span>${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span></button>`;
+  const hue = NAV_ICON_HUES[id] || '';
+  return `<button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${gated?'Paid-plan feature':viewOnly?'View Only for your account':'Shortcut: '+(shortcutLetter||'')}"><span class="navtab-icon"${hue?` style="--nav-hue:${hue};"`:''}>${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span></button>`;
+}
+// Groups a run of tab() results under a small uppercase header in the sidebar (see .nav-section-label)
+// -- Vouchers & Entry / Masters / Reports & Compliance / Operations, the same Masters/Vouchers/Reports
+// vocabulary this app's users already know from Tally-style software. `items` is an array of tab()
+// results, each of which may already be '' (RBAC-hidden) -- the header itself only renders when at
+// least one item survived, so a role with an entire group hidden never sees a label floating over
+// nothing.
+function navSection(label, items){
+  const html = items.filter(Boolean).join('');
+  return html ? `<div class="nav-section-label">${escapeHtml(label)}</div>${html}` : '';
 }
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
@@ -26311,7 +26388,25 @@ function partyDetailModal(){
 /* ---------------- event handling ---------------- */
 function attachHandlers(){
   document.querySelectorAll('.navtab').forEach(b=>{
-    b.addEventListener('click',()=>{ goToTab(b.dataset.tab); });
+    b.addEventListener('click',()=>{
+      const id = b.dataset.tab;
+      const isSwitchingTab = !b.classList.contains('active') && !isTabGated(id) && !isModuleHidden(id);
+      goToTab(id);
+      if(isSwitchingTab){
+        // goToTab() just fully re-rendered the sidebar, so `b` itself is now a detached node -- find
+        // the fresh active icon (a brand-new DOM element every time, since render() replaces the whole
+        // tabstrip) and give it a one-shot "pop" (see .navtab-icon.pop's @keyframes) as a small reward
+        // for the switch landing, instead of the icon just silently swapping color. `once:true` cleans
+        // the class back off so a later re-render of this same tab (e.g. switching away and back) can
+        // trigger the animation again rather than getting stuck permanently "popped".
+        requestAnimationFrame(()=>{
+          const icon = document.querySelector('.navtab.active .navtab-icon');
+          if(!icon) return;
+          icon.classList.add('pop');
+          icon.addEventListener('animationend', ()=>icon.classList.remove('pop'), {once:true});
+        });
+      }
+    });
   });
 
   document.getElementById('openRecurringBtn')?.addEventListener('click', ()=>{
