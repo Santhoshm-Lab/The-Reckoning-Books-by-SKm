@@ -5630,6 +5630,32 @@ let qaError = '';        // inline error message shown in the chat panel, if a q
 // prints the real URL (region may differ from us-central1).
 const QA_ENDPOINT = 'https://us-central1-' + FIREBASE_CONFIG.projectId + '.cloudfunctions.net/accountingQA';
 
+/* ---------------- Data Interchange (group/admin messaging) widget state ----------------
+   A second floating bubble, next to "Ask Your Books", for real two-way messaging + file sharing --
+   unlike the Q&A widget above (which never leaves the browser), these messages and attachments are
+   genuinely stored in Firestore so the other side actually receives them. Two kinds of thread:
+     - a "group" thread, one per Support account's own group (id `group_<supportUid>`) -- every member
+       of that group (the Support account itself, and every 'user' account with groupOwnerId equal to
+       it) reads and writes the same thread, like a shared team chat.
+     - an "admin" thread, one per Support account (id `admin_<supportUid>`) -- a private line between
+       that one Support account and any full Administrator. Regular 'user' accounts never get one.
+   Stays on the free Firestore (Spark) plan: attachments are stored as base64 directly on the message
+   document (same technique as Voucher Attachments above), capped well under Firestore's 1 MiB/document
+   limit -- no Firebase Storage, no Blaze billing plan required. */
+let diOpen = false;              // whether the floating panel is expanded
+let diTab = 'group';             // Support role only: 'group' | 'admin' -- which of their two threads is showing
+let diMessages = {};             // threadId -> [{id, threadId, threadType, groupOwnerId, senderId, senderName, senderRole, text, attachment, createdAt}], lazy-loaded per thread
+let diLoading = false;           // currently fetching the active thread's messages
+let diSending = false;           // a send is in flight -- disables the input/Send button
+let diError = '';                // inline error text shown in the panel, if a load/send ever fails
+let diInputDraft = '';           // the compose box's current text, preserved across re-renders
+let diPendingAttachment = null;  // { name, mimeType, size, dataUrl } staged for the next Send, or null
+let diAdminThreads = [];         // Admin role only: every Support account's admin thread (their "inbox")
+let diActiveAdminThreadId = null;// Admin role only: which Support account's uid the inbox is currently drilled into (null = list view)
+let diUnreadBadge = false;       // true if some thread has activity this browser hasn't seen yet -- drives the red dot on the bubble
+let diPollHandle = null;         // setInterval handle for checkInterchangeUpdatesOnce(), same lightweight-polling pattern as the ticket/force-logout checks below
+const DI_ATTACHMENT_MAX_BYTES = 700 * 1024; // same 700 KB cap as Voucher Attachments -- base64 inflates ~4/3, staying safely under Firestore's 1 MiB/document limit
+
 function uid(p){ return p+'_'+Math.random().toString(36).slice(2,9); }
 function defaultFYStart(){
   const t = new Date();
@@ -6397,6 +6423,7 @@ async function checkForceLogoutOnce(){
       currentUser = null;
       stopForceLogoutPoll();
       stopTicketUpdatePoll();
+      stopInterchangePoll();
       toast("You've been signed out by an administrator.");
       screen = 'login'; authMode = 'login'; renderLogin(); pushHistory();
     }
@@ -6458,6 +6485,167 @@ async function markMyTicketsSeen(){
     const seenIds = new Set(unseen.map(t=>t.id));
     myTickets = myTickets.map(t => seenIds.has(t.id) ? { ...t, seenByUser:true } : t);
   }catch(err){ /* best-effort */ }
+}
+
+/* ---------------- Data Interchange (group/admin messaging) ----------------
+   Core data-layer functions for the floating chat widget declared near QA_ENDPOINT above. Two
+   Firestore collections, both new (see RECOMMENDED_FIRESTORE_RULES for the rules addition they need):
+     interchangeThreads/{threadId}  -- one small summary doc per thread (who it's between, the last
+                                        message preview/timestamp) so the Admin inbox and the unread-
+                                        badge check can list "my conversations" without ever reading
+                                        every message in every thread.
+     interchangeMessages/{autoId}   -- one doc per message, threadId/threadType/groupOwnerId stamped on
+                                        every one so a simple .where('threadId','==',...) fetches a
+                                        whole conversation (sorted client-side afterwards, same
+                                        no-composite-index convention loadAttachmentsForVoucher() uses
+                                        above for the same reason).
+   "Seen" state is tracked in localStorage per threadId rather than in Firestore -- it only drives a
+   cosmetic red dot on the bubble, so it isn't worth a users/{uid} rules change (that document's
+   update rule already allowlists a narrow, deliberate set of self-editable fields; see
+   RECOMMENDED_FIRESTORE_RULES) or a shared-across-devices guarantee. */
+function diMyGroupOwnerId(){
+  if(!currentUser) return null;
+  return currentUser.role==='support' ? currentUser.id : (currentUser.groupOwnerId || null);
+}
+function diGroupThreadId(){
+  const gid = diMyGroupOwnerId();
+  return gid ? `group_${gid}` : null;
+}
+function diAdminThreadId(supportUid){
+  return supportUid ? `admin_${supportUid}` : null;
+}
+function diRerender(){
+  if(screen==='app') render();
+  else if(screen==='gateway') renderGateway();
+}
+async function diLoadThread(threadId){
+  if(!threadId) return;
+  diLoading = true; diError = ''; diRerender();
+  try{
+    const snap = await db.collection('interchangeMessages').where('threadId','==',threadId).get();
+    const rows = [];
+    snap.forEach(doc=> rows.push({ id: doc.id, ...doc.data() }));
+    rows.sort((a,b)=> (a.createdAt||'').localeCompare(b.createdAt||''));
+    diMessages[threadId] = rows;
+  }catch(e){
+    diError = 'Could not load messages — check your connection and try again.';
+  }
+  diLoading = false;
+  diRerender();
+  const el = document.getElementById('diMessagesEl');
+  if(el) el.scrollTop = el.scrollHeight;
+}
+async function diSendMessage(threadId, threadType, groupOwnerId, text, attachment){
+  // Deliberately NOT gated by isReadOnlyMode() -- that flag is about a specific company's ledger data
+  // (the shared demo company, an admin's view-only peek, per-module View Only access) and has nothing
+  // to do with this messaging feature, which isn't scoped to any one company.
+  if(!currentUser || !threadId) return;
+  const trimmed = (text||'').trim();
+  if(!trimmed && !attachment) return;
+  diSending = true; diError = ''; diRerender();
+  try{
+    const now = new Date().toISOString();
+    const senderName = currentUser.name || currentUser.username || 'User';
+    await db.collection('interchangeMessages').add({
+      threadId, threadType, groupOwnerId,
+      senderId: currentUser.id, senderName, senderRole: currentUser.role,
+      text: trimmed, attachment: attachment || null, createdAt: now,
+    });
+    const threadUpdate = {
+      id: threadId, type: threadType, groupOwnerId,
+      updatedAt: now, lastSenderId: currentUser.id, lastSenderName: senderName,
+      lastMessageText: trimmed || (attachment ? `📎 ${attachment.name}` : ''),
+    };
+    // Denormalize a label onto the thread doc so the Admin inbox (and a group thread's header) can
+    // show "who"/"which group" without a second read per row -- but only from the side that actually
+    // knows that value, so an Admin's reply never overwrites the Support account's own name/group.
+    if(currentUser.role==='support'){
+      threadUpdate.supportName = senderName;
+      threadUpdate.groupName = currentUser.groupName || '';
+    }
+    await db.collection('interchangeThreads').doc(threadId).set(threadUpdate, {merge:true});
+    diInputDraft = '';
+    diPendingAttachment = null;
+    diMarkSeen(threadId, now);
+    await diLoadThread(threadId);
+  }catch(e){
+    diError = 'Could not send — check your connection and try again.';
+  }
+  diSending = false;
+  diRerender();
+}
+async function diAttachFile(file){
+  if(!file) return;
+  if(file.size > DI_ATTACHMENT_MAX_BYTES){
+    toast(`"${file.name}" is ${fmt(file.size/1024)} KB — attachments are capped at ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB. Try a compressed photo or a smaller file.`);
+    return;
+  }
+  try{
+    const dataUrl = await fileToDataUrl(file);
+    diPendingAttachment = { name: file.name, mimeType: file.type||'application/octet-stream', size: file.size, dataUrl };
+    diRerender();
+  }catch(e){
+    toast('Could not attach that file');
+  }
+}
+async function diLoadAdminThreads(){
+  diLoading = true; diError = ''; diRerender();
+  try{
+    const snap = await db.collection('interchangeThreads').where('type','==','admin').get();
+    const rows = [];
+    snap.forEach(doc=> rows.push({ id: doc.id, ...doc.data() }));
+    rows.sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
+    diAdminThreads = rows;
+  }catch(e){
+    diError = 'Could not load conversations — check your connection and try again.';
+  }
+  diLoading = false;
+  diRerender();
+}
+function diLastSeenKey(threadId){ return 'rb_diLastSeen_' + threadId; }
+function diGetLastSeen(threadId){
+  try{ return localStorage.getItem(diLastSeenKey(threadId)) || ''; }catch(e){ return ''; }
+}
+function diMarkSeen(threadId, ts){
+  try{ localStorage.setItem(diLastSeenKey(threadId), ts || new Date().toISOString()); }catch(e){}
+}
+// Same lightweight 30s-poll pattern as checkTicketUpdatesOnce()/checkForceLogoutOnce() above -- only
+// touches the small interchangeThreads summary docs, never the full message history, so it stays
+// cheap to run in the background the whole time someone's signed in.
+async function checkInterchangeUpdatesOnce(){
+  if(!currentUser) return;
+  try{
+    let anyNew = false;
+    if(currentUser.role==='admin'){
+      const snap = await db.collection('interchangeThreads').where('type','==','admin').get();
+      snap.forEach(doc=>{
+        const t = doc.data();
+        if(t.lastSenderId && t.lastSenderId!==currentUser.id && (t.updatedAt||'') > diGetLastSeen(doc.id)) anyNew = true;
+      });
+    } else {
+      const threadIds = [];
+      const gid = diGroupThreadId(); if(gid) threadIds.push(gid);
+      if(currentUser.role==='support') threadIds.push(diAdminThreadId(currentUser.id));
+      if(threadIds.length){
+        const docs = await Promise.all(threadIds.map(id=> db.collection('interchangeThreads').doc(id).get()));
+        docs.forEach(doc=>{
+          if(!doc.exists) return;
+          const t = doc.data();
+          if(t.lastSenderId && t.lastSenderId!==currentUser.id && (t.updatedAt||'') > diGetLastSeen(doc.id)) anyNew = true;
+        });
+      }
+    }
+    diUnreadBadge = anyNew;
+    diRerender();
+  }catch(e){ /* best-effort */ }
+}
+function startInterchangePoll(){
+  stopInterchangePoll();
+  checkInterchangeUpdatesOnce();
+  diPollHandle = setInterval(checkInterchangeUpdatesOnce, 30000);
+}
+function stopInterchangePoll(){
+  if(diPollHandle){ clearInterval(diPollHandle); diPollHandle = null; }
 }
 
 // Toast stack: a small queue of transient messages rendered imperatively into #toastHost, kept
@@ -7364,6 +7552,7 @@ async function demoLogin(){
 async function exitDemoSession(destAuthMode){
   stopForceLogoutPoll();
   stopTicketUpdatePoll();
+  stopInterchangePoll();
   try{ await fbAuth.signOut(); }catch(err){}
   currentUser = null;
   isDemoUser = false;
@@ -10777,6 +10966,118 @@ function qaWidget(){
     </div>` : ''}
   `;
 }
+/* ---------------- Data Interchange chat widget UI ----------------
+   A second floating bubble, positioned just to the left of "Ask Your Books" so the two never overlap,
+   visible everywhere a signed-in user can be (both the Gateway screen and inside a company — see the
+   two call sites of diWidget()). See the Data Interchange state block near QA_ENDPOINT and the
+   functions right after markMyTicketsSeen() above for the data layer this renders. */
+function diWidget(){
+  if(!currentUser) return '';
+  return `
+    <div id="diFab" title="Data Interchange — send messages and files" role="button" tabindex="0" aria-label="Data Interchange — message your group${currentUser.role==='support'?' or Admin':''}" style="position:fixed;right:86px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent2,#1B5E20);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">
+      <span style="position:relative;">📨${diUnreadBadge ? `<span style="position:absolute;top:-6px;right:-9px;width:11px;height:11px;border-radius:50%;background:#D64545;border:2px solid var(--surface,#fff);"></span>` : ''}</span>
+    </div>
+    ${diOpen ? diPanel() : ''}
+  `;
+}
+function diAttachmentHtml(att){
+  if(!att) return '';
+  if((att.mimeType||'').startsWith('image/')){
+    return `<a href="${att.dataUrl}" target="_blank" rel="noopener"><img src="${att.dataUrl}" alt="${escapeAttr(att.name)}" style="max-width:100%;max-height:160px;border-radius:6px;display:block;"></a>`;
+  }
+  return `<a href="${att.dataUrl}" download="${escapeAttr(att.name)}" style="color:inherit;text-decoration:underline;font-size:12px;display:inline-flex;align-items:center;gap:4px;">📄 ${escapeHtml(att.name)} <span style="opacity:.75;">(${fmt((att.size||0)/1024)} KB)</span></a>`;
+}
+function diAdminInboxHtml(){
+  return `
+    <div id="diMessagesEl" style="flex:1;overflow-y:auto;">
+      ${diLoading ? `<div class="muted" style="font-size:11.5px;padding:10px 12px;">Loading…</div>` :
+        diAdminThreads.length===0 ? `<div class="muted" style="font-size:11.5px;padding:10px 12px;">No Support conversations yet — this fills up once a Support account sends a message here.</div>` :
+        diAdminThreads.map(t=>{
+          const unread = t.lastSenderId && t.lastSenderId!==currentUser.id && (t.updatedAt||'') > diGetLastSeen(t.id);
+          return `
+          <div data-di-open-thread="${escapeAttr(t.groupOwnerId)}" style="padding:9px 12px;border-bottom:1px solid var(--border,#E1E7E3);cursor:pointer;display:flex;gap:8px;align-items:flex-start;">
+            ${unread ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--accent2,#1B5E20);flex-shrink:0;margin-top:5px;"></span>` : `<span style="width:7px;flex-shrink:0;"></span>`}
+            <div style="min-width:0;flex:1;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;">
+                <strong style="font-size:12px;${unread?'':'font-weight:600;'}">${escapeHtml(t.supportName||'Support account')}</strong>
+                <span class="muted" style="font-size:9.5px;white-space:nowrap;">${fmtTimestamp(t.updatedAt)}</span>
+              </div>
+              <div class="muted" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.groupName?escapeHtml(t.groupName)+' — ':''}${escapeHtml(t.lastMessageText||'')}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      ${diError ? `<div style="color:#D64545;font-size:11.5px;padding:8px 12px;">${escapeHtml(diError)}</div>` : ''}
+    </div>
+  `;
+}
+function diPanel(){
+  const role = currentUser.role;
+  let threadId = null, threadType = null, groupOwnerId = null, headerTitle = 'Data Interchange', headerSub = '';
+  if(role==='admin'){
+    if(diActiveAdminThreadId){
+      threadId = diAdminThreadId(diActiveAdminThreadId);
+      threadType = 'admin'; groupOwnerId = diActiveAdminThreadId;
+      const t = diAdminThreads.find(x=>x.id===threadId);
+      headerTitle = (t && t.supportName) || 'Support account';
+      headerSub = (t && t.groupName) || '';
+    } else {
+      headerTitle = 'Support Conversations';
+    }
+  } else if(role==='support'){
+    if(diTab==='admin'){ threadId = diAdminThreadId(currentUser.id); threadType = 'admin'; groupOwnerId = currentUser.id; headerTitle = 'Admin Support'; headerSub = 'thereckoningbooks@gmail.com'; }
+    else { threadId = diGroupThreadId(); threadType = 'group'; groupOwnerId = currentUser.id; headerTitle = currentUser.groupName || 'My Group'; headerSub = 'Your team'; }
+  } else {
+    threadId = diGroupThreadId(); threadType = 'group'; groupOwnerId = currentUser.groupOwnerId || null;
+    headerTitle = currentUser.groupName || 'My Group'; headerSub = 'Your Support team';
+  }
+  const msgs = threadId ? (diMessages[threadId] || []) : [];
+  const showingInbox = role==='admin' && !diActiveAdminThreadId;
+  return `
+    <div id="diPanelEl" style="position:fixed;right:86px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:460px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:500;">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--accent2,#1B5E20);color:#fff;">
+        <div style="min-width:0;">
+          <strong style="font-size:13px;">${escapeHtml(headerTitle)}</strong>
+          ${!showingInbox && headerSub ? `<div style="font-size:10.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(headerSub)}</div>` : ''}
+        </div>
+        <span id="diCloseBtn" style="cursor:pointer;font-size:15px;flex-shrink:0;">✕</span>
+      </div>
+      ${role==='support' ? `
+      <div style="display:flex;border-bottom:1px solid var(--border,#E1E7E3);">
+        <span data-di-tab="group" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='group'?'color:var(--accent2,#1B5E20);border-bottom:2px solid var(--accent2,#1B5E20);':'color:var(--ink-soft);'}">My Group</span>
+        <span data-di-tab="admin" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='admin'?'color:var(--accent2,#1B5E20);border-bottom:2px solid var(--accent2,#1B5E20);':'color:var(--ink-soft);'}">Message Admin</span>
+      </div>` : ''}
+      ${showingInbox ? diAdminInboxHtml() : `
+      <div id="diMessagesEl" style="flex:1;overflow-y:auto;padding:10px 12px;font-size:12.5px;line-height:1.5;">
+        ${role==='admin' ? `<span id="diBackToInbox" class="linklike" style="cursor:pointer;font-size:11px;display:inline-block;margin-bottom:8px;">‹ All conversations</span>` : ''}
+        ${!threadId ? `<div class="muted" style="font-size:11.5px;">You're not part of a group yet — a Support account needs to add you first.</div>` :
+          diLoading ? `<div class="muted" style="font-size:11.5px;">Loading…</div>` :
+          msgs.length===0 ? `<div class="muted" style="font-size:11.5px;">No messages yet — say hello, or share a file.</div>` :
+          msgs.map(m=>`
+            <div style="margin-bottom:10px;display:flex;flex-direction:column;${m.senderId===currentUser.id?'align-items:flex-end;':'align-items:flex-start;'}">
+              ${m.senderId!==currentUser.id ? `<div class="muted" style="font-size:10px;margin-bottom:2px;">${escapeHtml(m.senderName||'')}${m.senderRole==='support'?' · Support':m.senderRole==='admin'?' · Admin':''}</div>` : ''}
+              <div style="max-width:85%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;${m.senderId===currentUser.id ? 'background:var(--accent2,#1B5E20);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${m.text?escapeHtml(m.text):''}${m.attachment ? `<div style="margin-top:${m.text?'6px':'0'};">${diAttachmentHtml(m.attachment)}</div>` : ''}</div>
+              <div class="muted" style="font-size:9.5px;margin-top:2px;">${fmtTimestamp(m.createdAt)}</div>
+            </div>
+          `).join('')}
+      </div>
+      ${diError ? `<div style="color:#D64545;font-size:11.5px;padding:0 12px 6px;">${escapeHtml(diError)}</div>` : ''}
+      ${threadId ? `
+      <div style="padding:8px;border-top:1px solid var(--border,#E1E7E3);" data-di-thread="${escapeAttr(threadId)}" data-di-thread-type="${escapeAttr(threadType)}" data-di-group-owner="${escapeAttr(groupOwnerId||'')}">
+        ${diPendingAttachment ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:6px;background:var(--surface-strong);padding:5px 8px;border-radius:6px;">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${escapeHtml(diPendingAttachment.name)} (${fmt(diPendingAttachment.size/1024)} KB)</span>
+          <span id="diRemoveAttachment" style="cursor:pointer;">✕</span>
+        </div>` : ''}
+        <div style="display:flex;gap:6px;align-items:center;">
+          <label for="diFileInput" title="Attach a file — up to ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB" style="cursor:pointer;display:flex;align-items:center;padding:0 4px;font-size:17px;">📎</label>
+          <input type="file" id="diFileInput" style="display:none;">
+          <input id="diInputBox" type="text" placeholder="Type a message…" value="${escapeAttr(diInputDraft)}" style="flex:1;font-size:12.5px;padding:8px 10px;border:1px solid var(--border,#E1E7E3);border-radius:8px;" ${diSending?'disabled':''}>
+          <button id="diSendBtn" class="btn small" type="button" ${diSending?'disabled':''}>Send</button>
+        </div>
+      </div>` : ''}
+      `}
+    </div>
+  `;
+}
 /* ---- Local, rule-based answer engine (no API, no cost, no server) ----
    Matches common accounting questions against patterns and answers straight from this company's
    ledgers/vouchers using the same computations the Reports tab uses. Not a real language model —
@@ -11308,6 +11609,75 @@ function wireQAWidget(){
   const msgs = document.getElementById('qaMessagesEl');
   if(msgs) msgs.scrollTop = msgs.scrollHeight;
 }
+// Wires the Data Interchange bubble/panel declared in diWidget()/diPanel() above. Called on every
+// render (same as wireQAWidget()) — every lookup is optional-chained so it's a no-op whenever the
+// panel (or a piece of it, e.g. the compose bar when no thread is selected yet) isn't in the DOM.
+function wireDIWidget(){
+  document.getElementById('diFab')?.addEventListener('click', ()=>{
+    diOpen = !diOpen;
+    if(diOpen){
+      diError = '';
+      if(currentUser.role==='admin'){
+        if(diActiveAdminThreadId){
+          const tid = diAdminThreadId(diActiveAdminThreadId);
+          diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+        } else {
+          diLoadAdminThreads();
+        }
+      } else {
+        const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
+        if(tid) diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+      }
+    }
+    diRerender();
+  });
+  wireKeyActivate('diFab');
+  document.getElementById('diCloseBtn')?.addEventListener('click', ()=>{ diOpen = false; diRerender(); });
+  document.querySelectorAll('[data-di-tab]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(diTab===el.dataset.diTab) return;
+      diTab = el.dataset.diTab;
+      diPendingAttachment = null;
+      diError = '';
+      const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
+      diRerender();
+      if(tid) diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+    });
+  });
+  document.querySelectorAll('[data-di-open-thread]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      diActiveAdminThreadId = el.dataset.diOpenThread;
+      diPendingAttachment = null;
+      diError = '';
+      const tid = diAdminThreadId(diActiveAdminThreadId);
+      diRerender();
+      diLoadThread(tid).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+    });
+  });
+  document.getElementById('diBackToInbox')?.addEventListener('click', ()=>{
+    diActiveAdminThreadId = null;
+    diError = '';
+    diRerender();
+    diLoadAdminThreads();
+  });
+  document.getElementById('diFileInput')?.addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(file) diAttachFile(file);
+    e.target.value = '';
+  });
+  document.getElementById('diRemoveAttachment')?.addEventListener('click', ()=>{ diPendingAttachment = null; diRerender(); });
+  const diInput = document.getElementById('diInputBox');
+  diInput?.addEventListener('input', e=>{ diInputDraft = e.target.value; });
+  const diDoSend = ()=>{
+    const wrap = document.querySelector('[data-di-thread]');
+    if(!wrap) return;
+    diSendMessage(wrap.dataset.diThread, wrap.dataset.diThreadType, wrap.dataset.diGroupOwner || null, diInputDraft, diPendingAttachment);
+  };
+  document.getElementById('diSendBtn')?.addEventListener('click', diDoSend);
+  diInput?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); diDoSend(); } });
+  const diMsgs = document.getElementById('diMessagesEl');
+  if(diMsgs) diMsgs.scrollTop = diMsgs.scrollHeight;
+}
 
 // Small inline-SVG icon set shared by a few chrome bits (e.g. the Dashboard's Smart Insights card).
 function cmdIcon(name){
@@ -11459,9 +11829,11 @@ function render(){
     ${modal==='ocrScan' ? ocrScanModal() : ''}
     ${modal==='commandPalette' ? commandPaletteModal() : ''}
     ${qaWidget()}
+    ${diWidget()}
   `;
   attachHandlers();
   wireQAWidget();
+  wireDIWidget();
 
   document.getElementById('menuCompany').addEventListener('click', ()=>{
     if(adminViewOnlyCompanyId){
@@ -14368,6 +14740,7 @@ function renderLogin(){
         logAudit('account_created', `New account @${username}`, currentUser.id, name);
         startForceLogoutPoll();
         startTicketUpdatePoll();
+        startInterchangePoll();
         screen = 'gateway';
         renderGateway();
         pushHistory();
@@ -14426,6 +14799,7 @@ function renderLogin(){
         logAudit('login', '', cred.user.uid, currentUser.name);
         startForceLogoutPoll();
         startTicketUpdatePoll();
+        startInterchangePoll();
         screen = 'gateway';
         renderGateway();
         pushHistory();
@@ -14476,6 +14850,7 @@ function renderLogin(){
         logAudit('login', 'Signed in with Google', cred.user.uid, currentUser.name);
         startForceLogoutPoll();
         startTicketUpdatePoll();
+        startInterchangePoll();
         googleSignInBusy = false;
         screen = 'gateway';
         renderGateway();
@@ -14537,6 +14912,7 @@ function renderLogin(){
       logAudit('account_created', `New account @${username} (via Google)`, currentUser.id, name);
       startForceLogoutPoll();
       startTicketUpdatePoll();
+      startInterchangePoll();
       googleAuthUser = null;
       googleDraft = { name:'', username:'', mobile:'', email:'' };
       googleSignInBusy = false;
@@ -15103,10 +15479,12 @@ function renderGateway(){
     ${modal==='groupAdmin' && groupAddUserOpen ? groupAddUserModal() : ''}
     ${companyCreateModalOpen ? companyCreateModal() : ''}
     ${companyRenameModalOpen ? companyRenameModal() : ''}
+    ${diWidget()}
       </div>
     </div>
   `;
   animateCountUpsIn(document.querySelector('.gw-hero-chips'));
+  wireDIWidget();
   document.querySelectorAll('[data-select-co]').forEach(el=>{
     el.addEventListener('click', async (e)=>{
       const id = el.dataset.selectCo;
@@ -15455,6 +15833,7 @@ function renderGateway(){
       const wasDemo = isDemoUser;
       stopForceLogoutPoll();
       stopTicketUpdatePoll();
+      stopInterchangePoll();
       try{ await fbAuth.signOut(); }catch(err){}
       currentUser = null;
       isDemoUser = false;
@@ -15469,6 +15848,8 @@ function renderGateway(){
       announcement = { message:'', active:false }; announcementDismissed = false;
       contactSupportOpen = false; contactSupportDraft = { subject:'', message:'' }; contactSupportNotice = '';
       myTickets = []; myTicketUpdateIds = new Set(); helpTab = 'info';
+      diOpen = false; diTab = 'group'; diMessages = {}; diPendingAttachment = null; diInputDraft = '';
+      diAdminThreads = []; diActiveAdminThreadId = null; diUnreadBadge = false;
       if(wasDemo){
         screen = 'landing';
         renderLanding();
@@ -17416,6 +17797,37 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update: if false;
       allow delete: if isAdmin();
+    }
+    // Data Interchange (the floating 📨 messaging widget). Two threads per Support account: a
+    // "group" thread (id group_<supportUid>) shared by that Support account and everyone in its own
+    // group, and an "admin" thread (id admin_<supportUid>) private between that one Support account
+    // and any full Administrator. A plain 'user' account only ever touches its own group's thread.
+    match /interchangeThreads/{threadId} {
+      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      allow get, list: if isSignedIn() && (isAdmin() || resource.data.groupOwnerId == myGroupId());
+      allow create, update: if isSignedIn() && (isAdmin() || request.resource.data.groupOwnerId == myGroupId());
+      allow delete: if false;
+    }
+    match /interchangeMessages/{messageId} {
+      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      // A 'group' message is visible to the whole group; an 'admin' message is visible only to that
+      // one Support account and to any full Administrator -- never to the Support account's own team,
+      // and never to a different Support account's admin thread.
+      allow get, list: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.threadType == 'group' && resource.data.groupOwnerId == myGroupId()) ||
+        (resource.data.threadType == 'admin' && isSupport() && resource.data.groupOwnerId == request.auth.uid)
+      );
+      // senderId can never be spoofed to someone else's uid, and a message can only ever be created
+      // into a thread the sender actually belongs to (their own group, or their own admin line — an
+      // Administrator may post into ANY admin thread, replying as themselves).
+      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.text is string && request.resource.data.text.size() < 4000 && (
+          isAdmin() ||
+          (request.resource.data.threadType == 'group' && request.resource.data.groupOwnerId == myGroupId()) ||
+          (request.resource.data.threadType == 'admin' && isSupport() && request.resource.data.groupOwnerId == myGroupId())
+        );
+      allow update, delete: if false;
     }
   }
 }`;
@@ -29276,6 +29688,11 @@ async function restoreSessionFor(fbUser){
     lastUsername = profile.username || lastUsername;
     await loadFeatureFlags();
     await loadCompanies();
+    // Unlike startForceLogoutPoll()/startTicketUpdatePoll() (a pre-existing gap this round doesn't
+    // touch), the Data Interchange poll IS started here too -- a page reload restoring an existing
+    // session is the single most common way someone ends up back on the Gateway screen, and without
+    // this the unread-message badge would silently never appear until their next full login.
+    startInterchangePoll();
     screen = 'gateway';
     renderGateway();
   }catch(e){
