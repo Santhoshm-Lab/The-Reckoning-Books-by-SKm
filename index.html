@@ -10331,14 +10331,14 @@ function stockByLocationTable(){
   return `
     <div class="section-title">Stock by Location</div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Item</th>${activeWarehouses.map(w=>`<th class="num">${escapeHtml(w.name)}</th>`).join('')}<th class="num">Total</th></tr>
         ${rows.map(({item,byWh})=>{
           const total = byWh.reduce((s,r)=>s+r.qty,0);
           return `<tr>
-            <td>${escapeHtml(item.name)}<div class="muted" style="font-size:10.5px;">${item.unit||''}</div></td>
-            ${byWh.map(r=>`<td class="num">${fmt(r.qty)}</td>`).join('')}
-            <td class="num" style="font-weight:700;">${fmt(total)} ${item.unit||''}</td>
+            <td class="ccard-title" data-label="Item">${escapeHtml(item.name)}<div class="muted" style="font-size:10.5px;">${item.unit||''}</div></td>
+            ${byWh.map((r,i)=>`<td class="num" data-label="${escapeAttr(activeWarehouses[i].name)}">${fmt(r.qty)}</td>`).join('')}
+            <td class="num ccard-amount" data-label="Total" style="font-weight:700;">${fmt(total)} ${item.unit||''}</td>
           </tr>`;
         }).join('')}
       </table>
@@ -10350,12 +10350,12 @@ function manageWarehousesPanel(){
   return `
     <div class="section-title">Locations / Warehouses</div>
     <div class="panel"><div class="panel-body">
-      <table style="margin-bottom:12px;">
+      <table class="rb-card-table" style="margin-bottom:12px;">
         <tr><th>Name</th><th>Status</th><th></th></tr>
         ${state.warehouses.map(w=>`<tr>
-          <td>${escapeHtml(w.name)}</td>
-          <td>${w.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill">Inactive</span>`}</td>
-          <td><button class="btn small secondary" data-toggle-warehouse="${w.id}" type="button">${w.active!==false?'Deactivate':'Reactivate'}</button></td>
+          <td class="ccard-title" data-label="Name">${escapeHtml(w.name)}</td>
+          <td data-label="Status">${w.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill">Inactive</span>`}</td>
+          <td class="ccard-actions"><button class="btn small secondary" data-toggle-warehouse="${w.id}" type="button">${w.active!==false?'Deactivate':'Reactivate'}</button></td>
         </tr>`).join('')}
       </table>
       <div class="row">
@@ -22548,19 +22548,19 @@ function viewOrders(){
       </div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
-          ${list.length ? `<table>
+          ${list.length ? `<table class="rb-card-table">
             <tr><th>${meta.prefix} No.</th><th>Date</th><th>${meta.partyRole==='customer'?'Customer':'Supplier'}</th><th class="num">Amount</th><th>Status</th><th>Action</th></tr>
             ${list.map(d=>{
               const party = ledgerOf(d.partyLedgerId);
               const amt = itemsSubtotal(d.items||[]);
               const statusBadge = d.status==='converted' ? `<span class="pill pos">Converted</span>` : `<span class="pill" style="background:var(--border);color:var(--ink-faint);">Open</span>`;
               return `<tr>
-                <td>${meta.prefix}-${String(d.no).padStart(4,'0')}</td>
-                <td class="muted">${d.date}</td>
-                <td>${party?party.name:'—'}</td>
-                <td class="num">₹${fmt(amt)}</td>
-                <td>${statusBadge}</td>
-                <td>
+                <td class="ccard-title" data-label="${meta.prefix} No.">${meta.prefix}-${String(d.no).padStart(4,'0')}</td>
+                <td class="muted" data-label="Date">${d.date}</td>
+                <td data-label="${meta.partyRole==='customer'?'Customer':'Supplier'}">${party?party.name:'—'}</td>
+                <td class="num ccard-amount" data-label="Amount">₹${fmt(amt)}</td>
+                <td data-label="Status">${statusBadge}</td>
+                <td class="ccard-actions" data-label="Action">
                   ${d.status!=='converted' ? `<button class="btn small secondary" data-edit-order="${d.id}" type="button">Edit</button> <button class="btn small secondary" data-convert-order="${d.id}" type="button">Convert to Voucher</button>` : ''}
                   <button class="btn small secondary" data-print-order="${d.id}" type="button">🖨 Print</button>
                   <button class="btn small secondary" data-delete-order="${d.id}" type="button">Delete</button>
@@ -23626,7 +23626,7 @@ function viewCOA(){
       <div class="section-title">${cat}</div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
-          <table>
+          <table class="rb-card-table">
             <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="ledger-${escapeAttr(cat)}" aria-label="Select all ledgers in ${escapeAttr(cat)}"></th><th>Ledger</th><th>Group</th><th>GST</th><th>MSME</th><th>Party</th><th class="num">Balance</th></tr>
             ${state.ledgers.filter(l=>groupOf(l.group).cat===cat).map(l=>{
               const b = ledgerBalance(l.id);
@@ -23634,7 +23634,7 @@ function viewCOA(){
                 ? `<span data-toggle-msme="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${l.isMSME?'✓ MSME':'Mark MSME'}</span>`
                 : '—';
               const partyLabel = l.partyType==='customer' ? '✓ Customer' : l.partyType==='supplier' ? '✓ Supplier' : 'Not a party';
-              return `<tr><td><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${ledgerCategoryColor(l)};margin-right:7px;"></span>${l.name}</td><td class="muted">${groupOf(l.group).name}</td><td class="muted">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted">${msmeCell}</td><td class="muted"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ${b>=0?'pos':'neg'}">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
+              return `<tr><td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td class="ccard-title" data-label="Ledger"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${ledgerCategoryColor(l)};margin-right:7px;"></span>${l.name}</td><td class="muted" data-label="Group">${groupOf(l.group).name}</td><td class="muted" data-label="GST">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted" data-label="MSME">${msmeCell}</td><td class="muted" data-label="Party"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ccard-amount ${b>=0?'pos':'neg'}" data-label="Balance">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
             }).join('') || `<tr><td colspan="7" class="empty">No ledgers in this category yet.</td></tr>`}
           </table>
         </div>
@@ -23646,16 +23646,16 @@ function viewCOA(){
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="rb-card-table">
           <tr><th>Code</th><th>Name</th><th>Symbol</th><th class="num">Rate (₹ per unit)</th><th>Active</th><th></th></tr>
           ${state.currencies.map(c=> c.id==='inr' ? `<tr>
-            <td>${c.code}</td><td class="muted">${c.name}</td><td>${c.symbol}</td>
-            <td class="num muted">Base currency</td><td class="muted">Always on</td><td></td>
+            <td class="ccard-title" data-label="Code">${c.code}</td><td class="muted" data-label="Name">${c.name}</td><td data-label="Symbol">${c.symbol}</td>
+            <td class="num muted" data-label="Rate (₹ per unit)">Base currency</td><td class="muted" data-label="Active">Always on</td><td data-label=""></td>
           </tr>` : `<tr>
-            <td>${c.code}</td><td class="muted">${c.name}</td><td>${c.symbol}</td>
-            <td class="num"><input type="number" class="currency-rate" data-currency="${c.id}" value="${c.rate}" step="0.0001" min="0.0001" style="max-width:110px;text-align:right;"></td>
-            <td><input type="checkbox" class="currency-active" data-currency="${c.id}" ${c.active?'checked':''}></td>
-            <td><button class="btn small secondary" data-delete-currency="${c.id}" type="button">Remove</button></td>
+            <td class="ccard-title" data-label="Code">${c.code}</td><td class="muted" data-label="Name">${c.name}</td><td data-label="Symbol">${c.symbol}</td>
+            <td class="num" data-label="Rate (₹ per unit)"><input type="number" class="currency-rate" data-currency="${c.id}" value="${c.rate}" step="0.0001" min="0.0001" style="max-width:110px;text-align:right;"></td>
+            <td data-label="Active"><input type="checkbox" class="currency-active" data-currency="${c.id}" ${c.active?'checked':''}></td>
+            <td class="ccard-actions" data-label="Actions"><button class="btn small secondary" data-delete-currency="${c.id}" type="button">Remove</button></td>
           </tr>`).join('')}
         </table>
       </div>
@@ -23681,12 +23681,12 @@ function viewCOA(){
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="rb-card-table">
           <tr><th>Name</th><th>Active</th><th></th></tr>
           ${state.costCenters.length ? state.costCenters.map(c=>`<tr>
-            <td>${c.name}</td>
-            <td><input type="checkbox" class="costcenter-active" data-costcenter="${c.id}" ${c.active?'checked':''}></td>
-            <td><button class="btn small secondary" data-delete-costcenter="${c.id}" type="button">Remove</button></td>
+            <td class="ccard-title" data-label="Name">${c.name}</td>
+            <td data-label="Active"><input type="checkbox" class="costcenter-active" data-costcenter="${c.id}" ${c.active?'checked':''}></td>
+            <td class="ccard-actions"><button class="btn small secondary" data-delete-costcenter="${c.id}" type="button">Remove</button></td>
           </tr>`).join('') : `<tr><td colspan="3" class="empty">No cost centers yet — add one below to start tagging vouchers by department, project, or location.</td></tr>`}
         </table>
       </div>
@@ -23708,17 +23708,17 @@ function viewCOA(){
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="rb-card-table">
           <tr><th>Ledger</th><th>Financial Year</th><th>Cost Center</th><th class="num">Budget Amount</th><th></th></tr>
           ${state.budgets.length ? state.budgets.slice().sort((a,b)=>b.fy.localeCompare(a.fy)).map(b=>{
             const l = ledgerOf(b.ledgerId);
             const cc = b.costCenterId ? state.costCenters.find(c=>c.id===b.costCenterId) : null;
             return `<tr>
-              <td>${l?l.name:'<span class="muted">Deleted ledger</span>'}</td>
-              <td class="muted">${b.fy}</td>
-              <td class="muted">${cc?cc.name:'All'}</td>
-              <td class="num">₹${fmt(b.amount)}</td>
-              <td><button class="btn small secondary" data-delete-budget="${b.id}" type="button">Remove</button></td>
+              <td class="ccard-title" data-label="Ledger">${l?l.name:'<span class="muted">Deleted ledger</span>'}</td>
+              <td class="muted" data-label="Financial Year">${b.fy}</td>
+              <td class="muted" data-label="Cost Center">${cc?cc.name:'All'}</td>
+              <td class="num ccard-amount" data-label="Budget Amount">₹${fmt(b.amount)}</td>
+              <td class="ccard-actions"><button class="btn small secondary" data-delete-budget="${b.id}" type="button">Remove</button></td>
             </tr>`;
           }).join('') : `<tr><td colspan="5" class="empty">No budgets set yet — add one below, then compare it against actuals under Reports → Budget vs Actual.</td></tr>`}
         </table>
@@ -23773,20 +23773,20 @@ function viewCOA(){
         <div class="section-title">${grp}</div>
         <div class="panel">
           <div class="panel-body" style="padding:0;">
-            <table>
+            <table class="rb-card-table">
               <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="item-${escapeAttr(grp)}" aria-label="Select all items in ${escapeAttr(grp)}"></th><th>Item</th><th>Unit</th><th>HSN</th><th class="num">Rate</th><th>GST</th><th class="num">Opening Qty</th><th class="num">Opening Value</th><th></th></tr>
               ${groupItems.map(it=>{
                 const openVal = (Number(it.openingQty)||0)*(Number(it.openingRate)||0);
                 return `<tr>
-                  <td><input type="checkbox" class="bulk-check" data-bulk-item="${it.id}" data-bulk-cat="item-${escapeAttr(grp)}" ${bulkItemSelection.has(it.id)?'checked':''} aria-label="Select ${escapeAttr(it.name)}"></td>
-                  <td>${it.name}</td>
-                  <td class="muted">${it.unit||'—'}</td>
-                  <td class="muted">${it.hsn||'—'}</td>
-                  <td class="num">${it.rate!=null?'₹'+fmt(it.rate):'—'}</td>
-                  <td class="muted">${it.gstRate!=null?it.gstRate+'%':'—'}</td>
-                  <td class="num">${it.openingQty?fmt(it.openingQty)+' '+(it.unit||''):'—'}</td>
-                  <td class="num">${openVal?'₹'+fmt(openVal):'—'}</td>
-                  <td><button class="btn small secondary" data-edit-item="${it.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-item="${it.id}" type="button">Delete</button></td>
+                  <td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-item="${it.id}" data-bulk-cat="item-${escapeAttr(grp)}" ${bulkItemSelection.has(it.id)?'checked':''} aria-label="Select ${escapeAttr(it.name)}"></td>
+                  <td class="ccard-title" data-label="Item">${it.name}</td>
+                  <td class="muted" data-label="Unit">${it.unit||'—'}</td>
+                  <td class="muted" data-label="HSN">${it.hsn||'—'}</td>
+                  <td class="num" data-label="Rate">${it.rate!=null?'₹'+fmt(it.rate):'—'}</td>
+                  <td class="muted" data-label="GST">${it.gstRate!=null?it.gstRate+'%':'—'}</td>
+                  <td class="num" data-label="Opening Qty">${it.openingQty?fmt(it.openingQty)+' '+(it.unit||''):'—'}</td>
+                  <td class="num ccard-amount" data-label="Opening Value">${openVal?'₹'+fmt(openVal):'—'}</td>
+                  <td class="ccard-actions"><button class="btn small secondary" data-edit-item="${it.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-item="${it.id}" type="button">Delete</button></td>
                 </tr>`;
               }).join('')}
             </table>
@@ -23807,14 +23807,14 @@ function reorderSuggestionsPanel(){
   return `
     <div class="section-title">Reorder Suggestions <span class="pill neg" style="margin-left:6px;">${rows.length}</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Item</th><th class="num">On Hand</th><th class="num">Reorder Level</th><th class="num">Suggested Qty</th><th></th></tr>
         ${rows.map(r=>`<tr>
-          <td>${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
-          <td class="num ${r.summary.closing<=0?'neg':''}">${fmt(r.summary.closing)} ${r.item.unit||''}</td>
-          <td class="num muted">${fmt(r.item.reorderLevel)}</td>
-          <td class="num" style="font-weight:700;">${fmt(r.suggestedQty)} ${r.item.unit||''}</td>
-          <td><button class="btn small secondary" data-reorder-purchase="${r.item.id}" type="button">Create Purchase Voucher</button></td>
+          <td class="ccard-title" data-label="Item">${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
+          <td class="num ${r.summary.closing<=0?'neg':''}" data-label="On Hand">${fmt(r.summary.closing)} ${r.item.unit||''}</td>
+          <td class="num muted" data-label="Reorder Level">${fmt(r.item.reorderLevel)}</td>
+          <td class="num ccard-amount" data-label="Suggested Qty" style="font-weight:700;">${fmt(r.suggestedQty)} ${r.item.unit||''}</td>
+          <td class="ccard-actions"><button class="btn small secondary" data-reorder-purchase="${r.item.id}" type="button">Create Purchase Voucher</button></td>
         </tr>`).join('')}
       </table>
     </div></div>
@@ -23828,15 +23828,15 @@ function serialRegisterPanel(){
   return `
     <div class="section-title">Serial Number Register <span class="pill" style="margin-left:6px;">${inStockCount} in stock</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Item</th><th>Serial No.</th><th>Status</th><th>Sold Date</th><th>Sold To</th><th>Warranty Until</th></tr>
         ${rows.map(r=>`<tr>
-          <td>${escapeHtml(r.item.name)}</td>
-          <td>${escapeHtml(r.serial)}</td>
-          <td>${r.inStock ? `<span class="pill pos">In Stock</span>` : `<span class="pill">Sold</span>`}</td>
-          <td class="muted">${r.inStock ? '—' : (r.soldDate||'—')}</td>
-          <td class="muted">${r.inStock ? '—' : (r.party||'—')}</td>
-          <td class="muted">${r.warrantyUntil||'—'}</td>
+          <td class="ccard-title" data-label="Item">${escapeHtml(r.item.name)}</td>
+          <td data-label="Serial No.">${escapeHtml(r.serial)}</td>
+          <td data-label="Status">${r.inStock ? `<span class="pill pos">In Stock</span>` : `<span class="pill">Sold</span>`}</td>
+          <td class="muted" data-label="Sold Date">${r.inStock ? '—' : (r.soldDate||'—')}</td>
+          <td class="muted" data-label="Sold To">${r.inStock ? '—' : (r.party||'—')}</td>
+          <td class="muted" data-label="Warranty Until">${r.warrantyUntil||'—'}</td>
         </tr>`).join('')}
       </table>
     </div></div>
@@ -23849,15 +23849,15 @@ function demandForecastPanel(){
   return `
     <div class="section-title">Demand Forecast</div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Item</th><th class="num">Avg Monthly Sales (last 3mo)</th><th class="num">On Hand</th><th class="num">Days of Stock Left</th></tr>
         ${rows.map(r=>{
           const risk = r.daysLeft!=null && r.daysLeft<=30;
           return `<tr>
-          <td>${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
-          <td class="num">${fmt(r.avgMonthly)} ${r.item.unit||''}</td>
-          <td class="num">${fmt(r.closing)} ${r.item.unit||''}</td>
-          <td class="num ${risk?'neg':''}" style="font-weight:${risk?'700':'400'};">${r.daysLeft==null?'—':fmt(r.daysLeft)+' days'}${risk?' ⚠':''}</td>
+          <td class="ccard-title" data-label="Item">${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
+          <td class="num" data-label="Avg Monthly Sales (last 3mo)">${fmt(r.avgMonthly)} ${r.item.unit||''}</td>
+          <td class="num" data-label="On Hand">${fmt(r.closing)} ${r.item.unit||''}</td>
+          <td class="num ${risk?'neg':''}" data-label="Days of Stock Left" style="font-weight:${risk?'700':'400'};">${r.daysLeft==null?'—':fmt(r.daysLeft)+' days'}${risk?' ⚠':''}</td>
         </tr>`;}).join('')}
       </table>
     </div></div>
@@ -23871,9 +23871,9 @@ function salesByChannelPanel(){
   return `
     <div class="section-title">Sales by Channel</div>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Channel</th><th class="num">Sales Value</th><th class="num">% of Total</th></tr>
-        ${rows.map(r=>`<tr><td>${escapeHtml(r.channel)}</td><td class="num">₹${fmt(r.amount)}</td><td class="num muted">${(r.amount/total*100).toFixed(1)}%</td></tr>`).join('')}
+        ${rows.map(r=>`<tr><td class="ccard-title" data-label="Channel">${escapeHtml(r.channel)}</td><td class="num ccard-amount" data-label="Sales Value">₹${fmt(r.amount)}</td><td class="num muted" data-label="% of Total">${(r.amount/total*100).toFixed(1)}%</td></tr>`).join('')}
       </table>
     </div></div>
     <p class="muted" style="font-size:11px;">Set a "Sales Channel" on a Sales voucher to track it here. This is an internal tag for reporting only — this app has no live connection to any online store or marketplace to sync stock with in real time.</p>
@@ -23891,9 +23891,9 @@ function inventoryAnalyticsPanel(){
     </div>
     ${a.deadStock.length ? `
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="rb-card-table">
         <tr><th>Item</th><th class="num">On Hand</th><th class="num">Value Tied Up</th></tr>
-        ${a.deadStock.map(r=>`<tr><td>${escapeHtml(r.item.name)}</td><td class="num">${fmt(r.summary.closing)} ${r.item.unit||''}</td><td class="num">₹${fmt(r.summary.value)}</td></tr>`).join('')}
+        ${a.deadStock.map(r=>`<tr><td class="ccard-title" data-label="Item">${escapeHtml(r.item.name)}</td><td class="num" data-label="On Hand">${fmt(r.summary.closing)} ${r.item.unit||''}</td><td class="num ccard-amount" data-label="Value Tied Up">₹${fmt(r.summary.value)}</td></tr>`).join('')}
       </table>
     </div></div>` : ''}
     <p class="muted" style="font-size:11px;">Turnover = Cost of Sales (from the Income Statement) ÷ average inventory value (opening vs current life-to-date value) — higher generally means stock moves faster. Carrying cost is an estimate at ${a.carryingCostPct}%/year of average inventory value (storage, insurance, obsolescence, capital cost) — a common rule-of-thumb, not a figure posted to your ledgers. Dead stock = items with quantity on hand but no sale in the last 90 days.</p>
@@ -23950,16 +23950,16 @@ function viewInventory(){
       <div class="section-title">Batch &amp; Expiry Register ${expired?`<span class="pill neg" style="margin-left:6px;">${expired} expired</span>`:''}${expiringSoon?`<span class="pill neg" style="margin-left:6px;">${expiringSoon} expiring ≤30d</span>`:''}</div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
-          <table>
+          <table class="rb-card-table">
             <tr><th>Item</th><th>Batch No.</th><th class="num">Qty on Hand</th><th>Expiry Date</th><th>Status</th></tr>
             ${batches.map(b=>{
               const statusBadge = b.qty<=0 ? `<span class="pill">Nil stock</span>` : b.expired ? `<span class="pill neg">Expired</span>` : (b.daysToExpiry!=null && b.daysToExpiry<=30) ? `<span class="pill neg">Expires in ${b.daysToExpiry}d</span>` : `<span class="pill pos">OK</span>`;
               return `<tr>
-                <td>${b.item.name}<div class="muted" style="font-size:10.5px;">${b.item.unit||''}</div></td>
-                <td>${escapeAttr(b.batch)}</td>
-                <td class="num">${fmt(b.qty)} ${b.item.unit||''}</td>
-                <td>${b.expiry||'—'}</td>
-                <td>${statusBadge}</td>
+                <td class="ccard-title" data-label="Item">${b.item.name}<div class="muted" style="font-size:10.5px;">${b.item.unit||''}</div></td>
+                <td data-label="Batch No.">${escapeAttr(b.batch)}</td>
+                <td class="num" data-label="Qty on Hand">${fmt(b.qty)} ${b.item.unit||''}</td>
+                <td data-label="Expiry Date">${b.expiry||'—'}</td>
+                <td data-label="Status">${statusBadge}</td>
               </tr>`;
             }).join('')}
           </table>
@@ -23982,7 +23982,7 @@ function viewInventory(){
         <div class="section-title">${grp}</div>
         <div class="panel">
           <div class="panel-body" style="padding:0;">
-            <table>
+            <table class="rb-card-table">
               <tr><th>Item</th><th class="num">Opening</th><th class="num">Inward</th><th class="num">Outward</th><th class="num">Closing</th><th class="num">Rate</th><th class="num">Value</th><th>Status</th><th></th></tr>
               ${groupItems.map(({item,summary})=>{
                 const out = summary.closing<=0;
@@ -23994,15 +23994,15 @@ function viewInventory(){
                   return `<span class="mini-bar" title="${fmt(summary.closing)} on hand vs reorder level ${fmt(item.reorderLevel)}"><span class="mini-bar-fill ${cls}" style="width:${pct.toFixed(0)}%;"></span></span>`;
                 })() : '';
                 return `<tr>
-                  <td data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div>${stockBar}</td>
-                  <td class="num">${fmt(summary.opening)}</td>
-                  <td class="num">${summary.inward?fmt(summary.inward):'—'}</td>
-                  <td class="num">${summary.outward?fmt(summary.outward):'—'}</td>
-                  <td class="num" style="font-weight:700;">${fmt(summary.closing)} ${item.unit||''}</td>
-                  <td class="num">${item.rate!=null?'₹'+fmt(item.rate):'—'}</td>
-                  <td class="num">₹${fmt(summary.value)}</td>
-                  <td>${statusBadge}</td>
-                  <td style="white-space:nowrap;">
+                  <td class="ccard-title" data-label="Item" data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div>${stockBar}</td>
+                  <td class="num" data-label="Opening">${fmt(summary.opening)}</td>
+                  <td class="num" data-label="Inward">${summary.inward?fmt(summary.inward):'—'}</td>
+                  <td class="num" data-label="Outward">${summary.outward?fmt(summary.outward):'—'}</td>
+                  <td class="num ccard-amount" data-label="Closing" style="font-weight:700;">${fmt(summary.closing)} ${item.unit||''}</td>
+                  <td class="num" data-label="Rate">${item.rate!=null?'₹'+fmt(item.rate):'—'}</td>
+                  <td class="num" data-label="Value">₹${fmt(summary.value)}</td>
+                  <td data-label="Status">${statusBadge}</td>
+                  <td class="ccard-actions" style="white-space:nowrap;">
                     <button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button>
                     <button class="btn small secondary" data-edit-item="${item.id}" type="button">Edit</button>
                     <button class="btn small secondary" data-delete-item="${item.id}" type="button">Delete</button>
@@ -25914,19 +25914,19 @@ function viewReconcile(){
         </div>
       </div>
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="rb-card-table">
           <tr><th>Date</th><th>Voucher</th><th>Narration</th><th class="num">Deposit (Dr)</th><th class="num">Payment (Cr)</th><th style="text-align:center;">Cleared</th></tr>
           ${summary.rows.map(r=>{
             const staleDays = !r.cleared ? Math.round((new Date(asOfDate+'T00:00:00') - new Date(r.date+'T00:00:00')) / 86400000) : 0;
             const isStale = !r.cleared && staleDays > RECON_STALE_DAYS;
             return `
           <tr>
-            <td class="muted">${r.date}</td>
-            <td>${vtypeBadge(r.type)}</td>
-            <td>${escapeHtml(r.narration||'—')}${r.autoMatched ? `<span class="match-badge" title="${escapeAttr(r.matchReason||'Auto-matched against the imported bank statement')}">🔗 ${r.matchConfidence!=null ? r.matchConfidence+'% ' : ''}auto-matched</span>` : ''}${isStale ? `<span class="match-badge stale-badge" title="Outstanding for ${staleDays} days — check it isn't a duplicate entry or a wrong tick">⏳ outstanding ${staleDays}d</span>` : ''}</td>
-            <td class="num">${r.dr?'₹'+fmt(r.dr):''}</td>
-            <td class="num">${r.cr?'₹'+fmt(r.cr):''}</td>
-            <td style="text-align:center;"><input type="checkbox" data-clear-voucher="${r.voucherId}" ${r.cleared?'checked':''}></td>
+            <td class="muted ccard-title" data-label="Date">${r.date}</td>
+            <td data-label="Voucher">${vtypeBadge(r.type)}</td>
+            <td data-label="Narration">${escapeHtml(r.narration||'—')}${r.autoMatched ? `<span class="match-badge" title="${escapeAttr(r.matchReason||'Auto-matched against the imported bank statement')}">🔗 ${r.matchConfidence!=null ? r.matchConfidence+'% ' : ''}auto-matched</span>` : ''}${isStale ? `<span class="match-badge stale-badge" title="Outstanding for ${staleDays} days — check it isn't a duplicate entry or a wrong tick">⏳ outstanding ${staleDays}d</span>` : ''}</td>
+            <td class="num" data-label="Deposit (Dr)">${r.dr?'₹'+fmt(r.dr):''}</td>
+            <td class="num" data-label="Payment (Cr)">${r.cr?'₹'+fmt(r.cr):''}</td>
+            <td class="ccard-actions" style="text-align:center;" data-label="Cleared"><input type="checkbox" data-clear-voucher="${r.voucherId}" ${r.cleared?'checked':''}></td>
           </tr>`;}).join('') || `<tr><td colspan="6" class="empty">No transactions on this account up to this date yet.</td></tr>`}
         </table>
       </div>
@@ -25938,9 +25938,9 @@ function viewReconcile(){
       <div class="disclosure-body">
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="rb-card-table">
           <tr><th>Statement Date</th><th class="num">Statement Bal.</th><th class="num">Book Bal.</th><th class="num">Difference</th><th>Saved</th></tr>
-          ${history.map(h=>`<tr><td class="muted">${h.date}</td><td class="num">₹${fmt(h.statementBalance)}</td><td class="num">₹${fmt(h.bookBalance)}</td><td class="num ${Math.abs(h.difference)<0.005?'':'neg'}">₹${fmt(h.difference)}</td><td class="muted" style="font-size:11px;">${fmtTimestamp(h.createdAt)}</td></tr>`).join('')}
+          ${history.map(h=>`<tr><td class="muted ccard-title" data-label="Statement Date">${h.date}</td><td class="num" data-label="Statement Bal.">₹${fmt(h.statementBalance)}</td><td class="num" data-label="Book Bal.">₹${fmt(h.bookBalance)}</td><td class="num ccard-amount ${Math.abs(h.difference)<0.005?'':'neg'}" data-label="Difference">₹${fmt(h.difference)}</td><td class="muted" data-label="Saved" style="font-size:11px;">${fmtTimestamp(h.createdAt)}</td></tr>`).join('')}
         </table>
       </div>
     </div>
@@ -25999,7 +25999,7 @@ function viewAssets(){
     </div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${state.fixedAssets.length ? `<table>
+        ${state.fixedAssets.length ? `<table class="rb-card-table">
           <tr><th>Asset</th><th>Ledger</th><th class="num">Cost</th><th>Method</th><th>Life</th><th class="num">Book Value</th><th class="num">FY ${currentFY} Dep.</th><th></th></tr>
           ${state.fixedAssets.map(a=>{
             const ledger = ledgerOf(a.ledgerId);
@@ -26010,14 +26010,14 @@ function viewAssets(){
             const depPct = (cost>0 && bookValue!=null) ? Math.max(0, Math.min(100, (1 - bookValue/cost)*100)) : null;
             const depBar = depPct!=null ? `<span class="mini-bar" title="${depPct.toFixed(0)}% depreciated"><span class="mini-bar-fill ${depPct>=90?'warn':''}" style="width:${depPct.toFixed(0)}%;"></span></span><span class="mini-bar-label">${depPct.toFixed(0)}% depreciated</span>` : '';
             return `<tr>
-              <td>${escapeHtml(a.name)}${depBar}</td>
-              <td class="muted">${ledger ? escapeHtml(ledger.name) : '<span style="color:var(--debit);">Ledger deleted</span>'}</td>
-              <td class="num">₹${fmt(Number(a.cost)||0)}</td>
-              <td class="muted">${a.method}</td>
-              <td class="muted">${a.usefulLifeYears} yr</td>
-              <td class="num">${bookValue==null?'—':'₹'+fmt(bookValue)}</td>
-              <td class="num">${posted ? `<span class="muted">✓ Posted</span>` : (dueDep>0 ? '₹'+fmt(dueDep) : '—')}</td>
-              <td>
+              <td class="ccard-title" data-label="Asset">${escapeHtml(a.name)}${depBar}</td>
+              <td class="muted" data-label="Ledger">${ledger ? escapeHtml(ledger.name) : '<span style="color:var(--debit);">Ledger deleted</span>'}</td>
+              <td class="num" data-label="Cost">₹${fmt(Number(a.cost)||0)}</td>
+              <td class="muted" data-label="Method">${a.method}</td>
+              <td class="muted" data-label="Life">${a.usefulLifeYears} yr</td>
+              <td class="num" data-label="Book Value">${bookValue==null?'—':'₹'+fmt(bookValue)}</td>
+              <td class="num" data-label="FY ${currentFY} Dep.">${posted ? `<span class="muted">✓ Posted</span>` : (dueDep>0 ? '₹'+fmt(dueDep) : '—')}</td>
+              <td class="ccard-actions" data-label="Actions">
                 ${!posted && dueDep>0 && ledger ? `<button class="btn small secondary" data-post-depreciation="${a.id}" type="button">Post Dep.</button>` : ''}
                 <button class="btn small secondary" data-delete-asset="${a.id}" type="button">🗑</button>
               </td>
@@ -26355,21 +26355,21 @@ function viewPayroll(){
     <div class="section-title">Employees</div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${state.employees.length ? `<table>
+        ${state.employees.length ? `<table class="rb-card-table">
           <tr><th>Code</th><th>Name</th><th>Designation</th><th class="num">Gross/mo</th><th class="num">Net/mo</th><th class="num">CTC/mo</th><th>Status</th><th></th></tr>
           ${state.employees.map(e=>{
             const hasHistory = state.salaryVouchers.some(sv=>sv.employeeId===e.id) || hasFnfSettlement(e.id) || state.employeeLoans.some(l=>l.employeeId===e.id);
             const loanOut = employeeLoanOutstanding(e.id);
             const settled = hasFnfSettlement(e.id);
             return `<tr>
-            <td class="muted">${escapeHtml(e.code||'—')}</td>
-            <td>${escapeHtml(e.name)}${loanOut>0?`<div class="muted" style="font-size:10.5px;">Loan outstanding: ₹${fmt(loanOut)}</div>`:''}</td>
-            <td class="muted">${escapeHtml(e.designation||'—')}</td>
-            <td class="num">₹${fmt(employeeGross(e))}</td>
-            <td class="num" style="font-weight:700;">₹${fmt(employeeNetPay(e))}</td>
-            <td class="num muted">₹${fmt(employeeCTC(e))}</td>
-            <td>${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}${settled?` <span class="pill pos">F&amp;F Settled</span>`:''}</td>
-            <td>
+            <td class="muted" data-label="Code">${escapeHtml(e.code||'—')}</td>
+            <td class="ccard-title" data-label="Name">${escapeHtml(e.name)}${loanOut>0?`<div class="muted" style="font-size:10.5px;">Loan outstanding: ₹${fmt(loanOut)}</div>`:''}</td>
+            <td class="muted" data-label="Designation">${escapeHtml(e.designation||'—')}</td>
+            <td class="num" data-label="Gross/mo">₹${fmt(employeeGross(e))}</td>
+            <td class="num" style="font-weight:700;" data-label="Net/mo">₹${fmt(employeeNetPay(e))}</td>
+            <td class="num muted" data-label="CTC/mo">₹${fmt(employeeCTC(e))}</td>
+            <td data-label="Status">${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}${settled?` <span class="pill pos">F&amp;F Settled</span>`:''}</td>
+            <td class="ccard-actions" data-label="Actions">
               <button class="btn small secondary" data-edit-employee="${e.id}" type="button">Edit</button>
               <button class="btn small secondary" data-employee-documents="${e.id}" type="button">📁 Documents${(employeeDocumentsCache[e.id]||[]).length?` (${employeeDocumentsCache[e.id].length})`:''}</button>
               <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Resign':'Reactivate'}</button>
@@ -26388,16 +26388,16 @@ function viewPayroll(){
     <div class="section-title">Loans &amp; Salary Advances</div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${state.employeeLoans.length ? `<table>
+        ${state.employeeLoans.length ? `<table class="rb-card-table">
           <tr><th>Employee</th><th class="num">Principal</th><th class="num">EMI/mo</th><th class="num">Outstanding</th><th>Status</th></tr>
           ${state.employeeLoans.slice().sort((a,b)=>(b.disbursedDate||'').localeCompare(a.disbursedDate||'')).map(l=>{
             const e = state.employees.find(x=>x.id===l.employeeId);
             return `<tr>
-              <td>${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
-              <td class="num">₹${fmt(l.principal)}</td>
-              <td class="num">₹${fmt(l.emiAmount)}</td>
-              <td class="num" style="font-weight:700;">₹${fmt(l.outstanding)}</td>
-              <td>${l.outstanding>0.001 && l.active!==false ? `<span class="pill neg">Recovering</span>` : `<span class="pill pos">Closed</span>`}</td>
+              <td class="ccard-title" data-label="Employee">${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
+              <td class="num" data-label="Principal">₹${fmt(l.principal)}</td>
+              <td class="num" data-label="EMI/mo">₹${fmt(l.emiAmount)}</td>
+              <td class="num" style="font-weight:700;" data-label="Outstanding">₹${fmt(l.outstanding)}</td>
+              <td data-label="Status">${l.outstanding>0.001 && l.active!==false ? `<span class="pill neg">Recovering</span>` : `<span class="pill pos">Closed</span>`}</td>
             </tr>`;
           }).join('')}
         </table>` : `<div class="empty">No loans or salary advances given yet.</div>`}
@@ -26412,18 +26412,18 @@ function viewPayroll(){
     <div class="section-title">Full &amp; Final Settlements</div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${state.fnfSettlements.length ? `<table>
+        ${state.fnfSettlements.length ? `<table class="rb-card-table">
           <tr><th>Employee</th><th class="muted">Date</th><th class="num">Leave Encashment</th><th class="num">Other Dues</th><th class="num">Loan Recovered</th><th class="num">Net Paid</th><th></th></tr>
           ${state.fnfSettlements.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(f=>{
             const e = state.employees.find(x=>x.id===f.employeeId);
             return `<tr>
-              <td>${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
-              <td class="muted">${f.date}</td>
-              <td class="num">₹${fmt(f.leaveEncashment)}</td>
-              <td class="num">₹${fmt(f.otherDues)}</td>
-              <td class="num">₹${fmt(f.loanRecovered)}</td>
-              <td class="num" style="font-weight:700;">₹${fmt(f.netPayable)}</td>
-              <td><button class="btn small secondary" data-print-fnf="${f.id}" type="button">🖨 Statement</button> <button class="btn small secondary" data-delete-fnf="${f.id}" type="button" style="color:var(--debit);">Void</button></td>
+              <td class="ccard-title" data-label="Employee">${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
+              <td class="muted" data-label="Date">${f.date}</td>
+              <td class="num" data-label="Leave Encashment">₹${fmt(f.leaveEncashment)}</td>
+              <td class="num" data-label="Other Dues">₹${fmt(f.otherDues)}</td>
+              <td class="num" data-label="Loan Recovered">₹${fmt(f.loanRecovered)}</td>
+              <td class="num" style="font-weight:700;" data-label="Net Paid">₹${fmt(f.netPayable)}</td>
+              <td class="ccard-actions" data-label="Actions"><button class="btn small secondary" data-print-fnf="${f.id}" type="button">🖨 Statement</button> <button class="btn small secondary" data-delete-fnf="${f.id}" type="button" style="color:var(--debit);">Void</button></td>
             </tr>`;
           }).join('')}
         </table>` : `<div class="empty">No settlements run yet.</div>`}
@@ -26445,7 +26445,7 @@ function viewPayroll(){
           <div class="field" style="max-width:150px;"><label>Days in Month</label><input type="text" value="${totalDaysThisMonth}" disabled></div>
         </div>
         ${!payFromOptions.length ? `<p class="muted" style="font-size:12px;">Add a Bank or Cash ledger (Accounts tab) before running payroll.</p>` : ''}
-        ${activeEmployees.length ? `<table style="margin-top:8px;">
+        ${activeEmployees.length ? `<table class="rb-card-table" style="margin-top:8px;">
           <tr><th>Employee</th><th class="num" style="width:90px;">LOP Days</th><th class="num">Payable Days</th><th class="num">Prorated Net</th><th class="num">Loan EMI</th><th class="num">Take-Home</th><th>Status</th></tr>
           ${activeEmployees.map(e=>{
             const lop = Math.max(0, Number(payrollLopDays[e.id])||0);
@@ -26455,13 +26455,13 @@ function viewPayroll(){
             const takeHome = r2(prorated.netPay-emi);
             const already = paidThisMonth.has(e.id);
             return `<tr>
-            <td>${escapeHtml(e.name)}</td>
-            <td class="num"><input type="number" min="0" max="${totalDaysThisMonth}" step="1" data-lop-employee="${e.id}" value="${lop}" style="width:70px;text-align:right;padding:5px 8px;" ${already?'disabled':''}></td>
-            <td class="num muted">${payableDays} / ${totalDaysThisMonth}</td>
-            <td class="num">₹${fmt(prorated.netPay)}</td>
-            <td class="num ${emi>0?'neg':''}">${emi>0?'− ₹'+fmt(emi):'—'}</td>
-            <td class="num" style="font-weight:700;">₹${fmt(takeHome)}</td>
-            <td>${already ? `<span class="muted">Already paid for ${payrollMonth}</span>` : `<span class="muted">Pending</span>`}</td>
+            <td class="ccard-title" data-label="Employee">${escapeHtml(e.name)}</td>
+            <td class="num" data-label="LOP Days"><input type="number" min="0" max="${totalDaysThisMonth}" step="1" data-lop-employee="${e.id}" value="${lop}" style="width:70px;text-align:right;padding:5px 8px;" ${already?'disabled':''}></td>
+            <td class="num muted" data-label="Payable Days">${payableDays} / ${totalDaysThisMonth}</td>
+            <td class="num" data-label="Prorated Net">₹${fmt(prorated.netPay)}</td>
+            <td class="num ${emi>0?'neg':''}" data-label="Loan EMI">${emi>0?'− ₹'+fmt(emi):'—'}</td>
+            <td class="num" style="font-weight:700;" data-label="Take-Home">₹${fmt(takeHome)}</td>
+            <td data-label="Status">${already ? `<span class="muted">Already paid for ${payrollMonth}</span>` : `<span class="muted">Pending</span>`}</td>
           </tr>`;}).join('')}
         </table>
         <button class="btn" id="generatePayrollBtn" type="button" style="margin-top:10px;" ${payFromOptions.length?'':'disabled'}>Generate Payroll for ${payrollMonth}</button>
@@ -26487,18 +26487,18 @@ function viewPayroll(){
         </div>
       </div>
       <div class="panel-body" style="padding:0;">
-        ${recentPayslips.length ? `<table>
+        ${recentPayslips.length ? `<table class="rb-card-table">
           <tr><th>Month</th><th>Employee</th><th class="num">Net Pay</th><th>Paid Via</th><th>Status</th><th></th></tr>
           ${recentPayslips.map(sv=>{
             const e = state.employees.find(x=>x.id===sv.employeeId);
             const payFromLedger = sv.payFromLedgerId ? ledgerOf(sv.payFromLedgerId) : null;
             return `<tr>
-              <td class="muted">${sv.month}</td>
-              <td>${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
-              <td class="num">₹${fmt(sv.netPay)}</td>
-              <td class="muted">${payFromLedger?escapeHtml(payFromLedger.name):'—'}</td>
-              <td><span class="pill pos">Paid</span></td>
-              <td><button class="btn small secondary" data-print-payslip="${sv.id}" type="button">🖨 Payslip</button> <button class="btn small secondary" data-ledger-detail="${salariesLedgerId||''}" type="button">View in Salary Ledger</button> <button class="btn small secondary" data-void-payslip="${sv.id}" type="button" style="color:var(--debit);">Void</button></td>
+              <td class="muted ccard-title" data-label="Month">${sv.month}</td>
+              <td data-label="Employee">${e?escapeHtml(e.name):'<span class="muted">Former employee</span>'}</td>
+              <td class="num" data-label="Net Pay">₹${fmt(sv.netPay)}</td>
+              <td class="muted" data-label="Paid Via">${payFromLedger?escapeHtml(payFromLedger.name):'—'}</td>
+              <td data-label="Status"><span class="pill pos">Paid</span></td>
+              <td class="ccard-actions" data-label="Actions"><button class="btn small secondary" data-print-payslip="${sv.id}" type="button">🖨 Payslip</button> <button class="btn small secondary" data-ledger-detail="${salariesLedgerId||''}" type="button">View in Salary Ledger</button> <button class="btn small secondary" data-void-payslip="${sv.id}" type="button" style="color:var(--debit);">Void</button></td>
             </tr>`;
           }).join('')}
         </table>` : emptyState({icon:'💰', title:'No payroll run yet', text:'Run payroll above to see settlements here.'})}
@@ -26512,18 +26512,18 @@ function viewPayroll(){
         <button class="btn small secondary" id="downloadDeptCostBtn" type="button" ${deptCostSummary.length?'':'disabled'}>⬇ Export</button>
       </div>
       <div class="panel-body" style="padding:0;">
-        ${deptCostSummary.length ? `<table>
+        ${deptCostSummary.length ? `<table class="rb-card-table">
           <tr><th>Department</th><th class="num">Headcount</th><th class="num">Gross Pay</th><th class="num">Deductions</th><th class="num">Employer Contrib.</th><th class="num">Cost to Company</th><th class="num">Net Pay</th></tr>
           ${deptCostSummary.map(d=>`<tr>
-            <td>${escapeHtml(d.department)}</td>
-            <td class="num">${d.headcount}</td>
-            <td class="num">₹${fmt(d.gross)}</td>
-            <td class="num">₹${fmt(d.deductions)}</td>
-            <td class="num">₹${fmt(d.employerContrib)}</td>
-            <td class="num" style="font-weight:700;">₹${fmt(d.ctc)}</td>
-            <td class="num">₹${fmt(d.netPay)}</td>
+            <td class="ccard-title" data-label="Department">${escapeHtml(d.department)}</td>
+            <td class="num" data-label="Headcount">${d.headcount}</td>
+            <td class="num" data-label="Gross Pay">₹${fmt(d.gross)}</td>
+            <td class="num" data-label="Deductions">₹${fmt(d.deductions)}</td>
+            <td class="num" data-label="Employer Contrib.">₹${fmt(d.employerContrib)}</td>
+            <td class="num" style="font-weight:700;" data-label="Cost to Company">₹${fmt(d.ctc)}</td>
+            <td class="num" data-label="Net Pay">₹${fmt(d.netPay)}</td>
           </tr>`).join('')}
-          <tr style="font-weight:700;"><td colspan="5">Total</td><td class="num">₹${fmt(deptCostSummary.reduce((s,d)=>s+d.ctc,0))}</td><td class="num">₹${fmt(deptCostSummary.reduce((s,d)=>s+d.netPay,0))}</td></tr>
+          <tr style="font-weight:700;"><td class="ccard-title" data-label="Department">Total</td><td class="num" data-label="Headcount"></td><td class="num" data-label="Gross Pay"></td><td class="num" data-label="Deductions"></td><td class="num" data-label="Employer Contrib."></td><td class="num ccard-amount" data-label="Cost to Company">₹${fmt(deptCostSummary.reduce((s,d)=>s+d.ctc,0))}</td><td class="num ccard-amount" data-label="Net Pay">₹${fmt(deptCostSummary.reduce((s,d)=>s+d.netPay,0))}</td></tr>
         </table>` : emptyState({icon:'🏷️', title:'No payroll data for this range', text:'Run payroll, or add a department to your employees, to see cost broken down by department.'})}
       </div>
       <p class="muted" style="font-size:11px;padding:0 16px 12px;">Groups every payslip in the selected range by each employee's Department field (set on the employee's record); employees with no department set are grouped as "Unassigned". Cost to Company includes employer PF/ESI on top of gross pay.</p>
@@ -26534,15 +26534,15 @@ function viewPayroll(){
         <button class="btn small secondary" id="downloadTaxReportBtn" type="button" ${filteredPayslips.length?'':'disabled'}>⬇ Export</button>
       </div>
       <div class="panel-body" style="padding:0;">
-        ${filteredPayslips.length ? `<table>
+        ${filteredPayslips.length ? `<table class="rb-card-table">
           <tr><th class="num">PF Withheld</th><th class="num">Employer PF</th><th class="num">ESI Withheld</th><th class="num">Employer ESI</th><th class="num">Professional Tax</th><th class="num">TDS</th></tr>
           <tr style="font-weight:700;">
-            <td class="num">₹${fmt(taxReportTotals.pf)}</td>
-            <td class="num">₹${fmt(taxReportTotals.employerPF)}</td>
-            <td class="num">₹${fmt(taxReportTotals.esi)}</td>
-            <td class="num">₹${fmt(taxReportTotals.employerESI)}</td>
-            <td class="num">₹${fmt(taxReportTotals.pt)}</td>
-            <td class="num">₹${fmt(taxReportTotals.tds)}</td>
+            <td class="num ccard-amount" data-label="PF Withheld">₹${fmt(taxReportTotals.pf)}</td>
+            <td class="num ccard-amount" data-label="Employer PF">₹${fmt(taxReportTotals.employerPF)}</td>
+            <td class="num ccard-amount" data-label="ESI Withheld">₹${fmt(taxReportTotals.esi)}</td>
+            <td class="num ccard-amount" data-label="Employer ESI">₹${fmt(taxReportTotals.employerESI)}</td>
+            <td class="num ccard-amount" data-label="Professional Tax">₹${fmt(taxReportTotals.pt)}</td>
+            <td class="num ccard-amount" data-label="TDS">₹${fmt(taxReportTotals.tds)}</td>
           </tr>
         </table>` : emptyState({icon:'🧾', title:'No payroll data for this range', text:'Run payroll to see statutory deductions summarized here.'})}
       </div>
@@ -26843,16 +26843,16 @@ function ageingCompositionBar(buckets, total){
 }
 function partyAgeingTable(rows, emptyMsg){
   if(!rows.length) return `<div class="empty">${emptyMsg}</div>`;
-  return `<table>
+  return `<table class="rb-card-table">
     <tr><th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
     ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
-      <td>${escapeHtml(r.ledger.name)}</td>
-      <td>${ageingCompositionBar(r.summary.buckets, r.summary.total)}</td>
-      <td class="num">${r.summary.buckets['0-30']?'₹'+fmt(r.summary.buckets['0-30']):'—'}</td>
-      <td class="num">${r.summary.buckets['31-60']?'₹'+fmt(r.summary.buckets['31-60']):'—'}</td>
-      <td class="num ${r.summary.buckets['61-90']?'neg':''}">${r.summary.buckets['61-90']?'₹'+fmt(r.summary.buckets['61-90']):'—'}</td>
-      <td class="num ${r.summary.buckets['90+']?'neg':''}">${r.summary.buckets['90+']?'₹'+fmt(r.summary.buckets['90+']):'—'}</td>
-      <td class="num" style="font-weight:700;">₹${fmt(r.summary.total)}</td>
+      <td class="ccard-title" data-label="Party">${escapeHtml(r.ledger.name)}</td>
+      <td data-label="Ageing">${ageingCompositionBar(r.summary.buckets, r.summary.total)}</td>
+      <td class="num" data-label="0-30 days">${r.summary.buckets['0-30']?'₹'+fmt(r.summary.buckets['0-30']):'—'}</td>
+      <td class="num" data-label="31-60 days">${r.summary.buckets['31-60']?'₹'+fmt(r.summary.buckets['31-60']):'—'}</td>
+      <td class="num ${r.summary.buckets['61-90']?'neg':''}" data-label="61-90 days">${r.summary.buckets['61-90']?'₹'+fmt(r.summary.buckets['61-90']):'—'}</td>
+      <td class="num ${r.summary.buckets['90+']?'neg':''}" data-label="90+ days">${r.summary.buckets['90+']?'₹'+fmt(r.summary.buckets['90+']):'—'}</td>
+      <td class="num ccard-amount" data-label="Total Outstanding">₹${fmt(r.summary.total)}</td>
     </tr>`).join('')}
   </table>`;
 }
@@ -26903,14 +26903,14 @@ function partyDetailModal(){
         <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>${escapeHtml(l.name)} — Outstanding</h2></div>
         <div class="panel-body" style="max-height:72vh;overflow-y:auto;">
-          ${rows.length ? `<table>
+          ${rows.length ? `<table class="rb-card-table">
             <tr><th>Date</th><th>Voucher</th><th>Narration</th><th class="num">Invoice Amt.</th><th class="num">Outstanding</th><th>Age</th></tr>
             ${rows.map(r=>`<tr>
-              <td class="muted">${r.date}</td><td class="muted">${r.type}</td><td>${escapeHtml(r.narration||'—')}</td>
-              <td class="num">₹${fmt(r.amount)}</td><td class="num">₹${fmt(r.remaining)}</td>
-              <td class="muted" style="font-size:11.5px;">${r.ageDays}d (${r.bucket})</td>
+              <td class="muted ccard-title" data-label="Date">${r.date}</td><td class="muted" data-label="Voucher">${r.type}</td><td data-label="Narration">${escapeHtml(r.narration||'—')}</td>
+              <td class="num" data-label="Invoice Amt.">₹${fmt(r.amount)}</td><td class="num ccard-amount" data-label="Outstanding">₹${fmt(r.remaining)}</td>
+              <td class="muted" style="font-size:11.5px;" data-label="Age">${r.ageDays}d (${r.bucket})</td>
             </tr>`).join('')}
-            <tr style="font-weight:700;border-top:2px solid var(--ink);"><td colspan="4">Total Outstanding</td><td class="num">₹${fmt(total)}</td><td></td></tr>
+            <tr style="font-weight:700;border-top:2px solid var(--ink);"><td class="ccard-title" data-label="Date">Total Outstanding</td><td data-label="Voucher"></td><td data-label="Narration"></td><td class="num" data-label="Invoice Amt."></td><td class="num ccard-amount" data-label="Outstanding">₹${fmt(total)}</td><td data-label="Age"></td></tr>
           </table>` : `<div class="empty">Nothing outstanding — fully settled.</div>`}
         </div>
       </div>
