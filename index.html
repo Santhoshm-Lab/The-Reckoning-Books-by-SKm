@@ -25505,6 +25505,16 @@ const PRESO_KPI_ICONS = {
   'NOPAT':'💎', 'Invested Capital':'🏗️', 'Economic Value Added':'✨', "Altman Z″-Score":'🩺',
 };
 function presoKpiIcon(label){ return PRESO_KPI_ICONS[label] || '📌'; }
+// A distinct visual identity per audience — accent + secondary colour and a soft tint for hero/callout
+// backgrounds — so the three decks don't all look like the same green report reskinned. Colours are
+// deliberately still in this app's existing palette family (the greens/golds/teals already used
+// elsewhere) rather than arbitrary brand colours invented for this feature alone.
+const PRESO_THEME = {
+  board:      { primary:'#2F3C7E', secondary:'#C9A227', tint:'#EEF1FA', tintStrong:'#E2E7F7' },
+  investor:   { primary:'#0B6E4F', secondary:'#C9A227', tint:'#EAF7F0', tintStrong:'#DCF1E4' },
+  management: { primary:'#B15C1E', secondary:'#0F7A72', tint:'#FDF3EA', tintStrong:'#FBE9D9' },
+};
+function presoTheme(audience){ return PRESO_THEME[audience] || PRESO_THEME.board; }
 // Builds the ordered list of slides for one audience. Each slide is one of four shapes:
 //   kind:'title'   — {eyebrow, title, subtitle}
 //   kind:'kpi'     — {title, subtitle, kpis:[{label,value,delta?}], bullets?}
@@ -25529,6 +25539,11 @@ function buildPresentationSlides(audience){
   const pct = (a,b) => a ? (b-a)/Math.abs(a)*100 : null;
   const revGrowth = prev ? pct(prev.is.revenue, cur.is.revenue) : null;
   const profitGrowth = prev ? pct(prev.is.profitForPeriod, cur.is.profitForPeriod) : null;
+  // Compound Annual Growth Rate across the whole span this deck covers — a new "trajectory" insight,
+  // distinct from the single-year YoY figures above, that only makes sense with 3+ FYs of history.
+  const yearsSpan = series.length-1;
+  const cagr = (from,to,years) => (from>0 && to>0 && years>0) ? (Math.pow(to/from, 1/years)-1)*100 : null;
+  const revenueCagr = yearsSpan>1 ? cagr(series[0].is.revenue, cur.is.revenue, yearsSpan) : null;
 
   const slides = [];
 
@@ -25560,6 +25575,10 @@ function buildPresentationSlides(audience){
         ? `The business holds a Current Ratio of ${fmtRatio(cur.ratios.currentRatio)}× — ${cur.ratios.currentRatio>=1?'short-term obligations remain covered by short-term assets.':'short-term assets currently trail short-term obligations, worth monitoring.'}`
         : null,
     ].filter(Boolean),
+    highlight: revenueCagr!=null ? {
+      icon:'🚀', label:'Growth Trajectory',
+      text:`Revenue has compounded at ${revenueCagr.toFixed(1)}% per year (CAGR) across the last ${yearsSpan} financial years — FY ${series[0].fy} to FY ${cur.fy}.`,
+    } : null,
   });
 
   slides.push({
@@ -25615,7 +25634,10 @@ function buildPresentationSlides(audience){
       title:'Financial Health Score',
       subtitle:'Altman Z″-Score — a going-concern / bankruptcy-risk indicator',
       chartHtml: finPerfAltmanCard(altman),
-      bullets: finPerfAltmanInterpretation(altman),
+      // Capped to 2 — the 3rd note (the Z″ vs classic Z-Score methodology footnote) is useful in the
+      // full Financial Performance Report but too long to fit a fixed-height PPTX textbox alongside a
+      // full-width chart image; the score + what-the-zone-means notes are what a stakeholder slide needs.
+      bullets: finPerfAltmanInterpretation(altman).slice(0,2),
     });
   }
 
@@ -25652,6 +25674,14 @@ function buildPresentationSlides(audience){
       subtitle:'Is the business creating value above its cost of capital?',
       chartHtml: finPerfEvaCard(eva),
       bullets: finPerfEvaInterpretation(eva),
+    });
+    slides.push({
+      kind:'chart',
+      icon:'🏆',
+      title:'Benchmarking / Peer Comparison',
+      subtitle:'How these ratios stack up against a target you set',
+      chartHtml: finPerfBenchmarkCard(cur.ratios),
+      bullets: finPerfBenchmarkInterpretation(cur.ratios).slice(0,3),
     });
   }
 
@@ -25696,14 +25726,33 @@ function buildPresentationSlides(audience){
 // The Reports → Stakeholder Presentation landing screen: audience selector, the three export/view
 // actions, and a thumbnail grid of every slide the current audience selection produces (click one to
 // jump straight into Present Mode at that slide).
+// Shared CSS for every interactive/animated bit of this feature — thumbnail & KPI-tile hover lift,
+// slide entrance animations, and the title slide's icon "pop" — injected once by whichever screen
+// renders first (the landing screen or Present Mode); harmless if both inject it since the rules are
+// identical and scoped to preso-* classes that exist nowhere else in the app.
+const PRESO_INTERACTIVE_CSS = `
+  <style>
+    @keyframes presoTileIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+    @keyframes presoPopIn{0%{opacity:0;transform:scale(.6);}70%{transform:scale(1.08);}100%{opacity:1;transform:scale(1);}}
+    .preso-anim-in{opacity:0;animation:presoTileIn .45s ease forwards;}
+    .preso-anim-pop{animation:presoPopIn .55s cubic-bezier(.34,1.56,.64,1) both;}
+    .preso-thumb{transition:transform .15s ease, box-shadow .15s ease;}
+    .preso-thumb:hover{transform:translateY(-3px);box-shadow:0 10px 22px rgba(0,0,0,0.08);}
+    .preso-tile{transition:transform .15s ease, box-shadow .15s ease;}
+    .preso-tile:hover{transform:translateY(-3px);box-shadow:0 10px 20px rgba(0,0,0,0.07);}
+    @media (max-width:760px){ .preso-chart-row{flex-direction:column;} }
+  </style>
+`;
 function reportStakeholderPresentation(){
   const slides = buildPresentationSlides(presoAudience);
+  const theme = presoTheme(presoAudience);
   const audienceOptions = [
     {id:'board', label:'Board & Promoters'},
     {id:'investor', label:'Investors & Lenders'},
     {id:'management', label:'Internal Management'},
   ];
   return `
+    ${PRESO_INTERACTIVE_CSS}
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
       <div>
         <button class="btn secondary small" id="reportsBackBtn" type="button" style="margin-bottom:10px;">← Back to Reports</button>
@@ -25729,13 +25778,13 @@ function reportStakeholderPresentation(){
     <div class="section-title" style="margin-top:20px;">Slides in this deck (${slides.length})</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
       ${slides.map((s,i)=>`
-        <div class="panel" data-preso-thumb="${i}" style="cursor:pointer;margin-bottom:0;border-left:3px solid var(--accent1,#2CA01C);">
+        <div class="panel preso-thumb" data-preso-thumb="${i}" style="cursor:pointer;margin-bottom:0;border:1px solid var(--border);border-top:4px solid ${theme.primary};overflow:hidden;">
           <div class="panel-body">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:15px;">${s.icon||'📄'}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="width:26px;height:26px;border-radius:50%;background:${theme.tintStrong};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">${s.icon||'📄'}</span>
               <div class="muted" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Slide ${i+1}</div>
             </div>
-            <div style="font-weight:700;font-size:13px;margin-top:5px;color:var(--ink);">${escapeHtml(s.title)}</div>
+            <div style="font-weight:700;font-size:13px;margin-top:8px;color:var(--ink);">${escapeHtml(s.title)}</div>
             ${s.subtitle?`<div class="muted" style="font-size:11px;margin-top:2px;">${escapeHtml(s.subtitle)}</div>`:''}
           </div>
         </div>
@@ -25744,37 +25793,62 @@ function reportStakeholderPresentation(){
   `;
 }
 
+// A small circular "badge" — icon on a tinted, theme-coloured disc — used everywhere an icon appears
+// (slide headers, KPI tiles, takeaway steps) so icons read as a deliberate design element rather than
+// loose emoji floating in whitespace.
+function presoIconBadge(icon, theme, size){
+  size = size || 40;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;min-width:${size}px;border-radius:50%;background:${theme.tintStrong};font-size:${Math.round(size*0.52)}px;line-height:1;box-shadow:inset 0 0 0 1px ${theme.primary}22;">${icon||'📌'}</span>`;
+}
 // Renders one slide's body — shared by Present Mode (live, real <svg> charts) and, after the images
 // map is filled in by rasterizePresoCharts(), the PDF export (chartHtml's <svg> swapped for a plain
 // <img>, since a print iframe gets its own isolated document exactly like buildFinPerfExportDom()
-// already assumes for the Financial Performance Report's own PDF/Word exports).
-function renderPresoSlideContent(slide){
+// already assumes for the Financial Performance Report's own PDF/Word exports). `theme` is one of
+// PRESO_THEME's entries (see presoTheme()) so the same slide shape reads differently per audience.
+function renderPresoSlideContent(slide, theme){
+  theme = theme || PRESO_THEME.board;
   if(slide.kind==='title'){
     return `
-      <div style="text-align:center;">
-        ${slide.icon?`<div style="font-size:52px;line-height:1;margin-bottom:18px;">${slide.icon}</div>`:''}
-        <div style="font-size:14px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;">${escapeHtml(slide.eyebrow||'')}</div>
-        <h1 style="font-size:44px;font-weight:800;margin:0 0 10px;color:var(--ink);letter-spacing:-0.02em;">${escapeHtml(slide.title)}</h1>
-        <div class="muted" style="font-size:16px;">${escapeHtml(slide.subtitle||'')}</div>
-        <div style="width:64px;height:4px;border-radius:2px;background:var(--accent1,#2CA01C);margin:22px auto 0;"></div>
+      <div class="preso-hero" style="position:relative;text-align:center;padding:36px 20px;border-radius:20px;overflow:hidden;background:linear-gradient(135deg, ${theme.tint} 0%, #ffffff 70%);">
+        <div style="position:absolute;top:-70px;right:-60px;width:220px;height:220px;border-radius:50%;background:${theme.primary};opacity:.10;filter:blur(2px);"></div>
+        <div style="position:absolute;bottom:-90px;left:-70px;width:260px;height:260px;border-radius:50%;background:${theme.secondary};opacity:.14;filter:blur(2px);"></div>
+        <div style="position:relative;">
+          ${slide.icon?`<div class="preso-anim-pop" style="width:88px;height:88px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:44px;margin:0 auto 20px;box-shadow:0 10px 28px rgba(0,0,0,0.10), inset 0 0 0 1px ${theme.primary}30;">${slide.icon}</div>`:''}
+          <div style="font-size:14px;font-weight:700;color:${theme.primary};text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;">${escapeHtml(slide.eyebrow||'')}</div>
+          <h1 style="font-size:44px;font-weight:800;margin:0 0 10px;color:var(--ink);letter-spacing:-0.02em;">${escapeHtml(slide.title)}</h1>
+          <div class="muted" style="font-size:16px;">${escapeHtml(slide.subtitle||'')}</div>
+          <div style="width:64px;height:4px;border-radius:2px;background:${theme.secondary};margin:22px auto 0;"></div>
+        </div>
       </div>
     `;
   }
   if(slide.kind==='kpi'){
     return `
       <div>
-        <h2 style="font-size:26px;font-weight:800;margin:0 0 4px;color:var(--ink);">${slide.icon?`<span style="margin-right:10px;">${slide.icon}</span>`:''}${escapeHtml(slide.title)}</h2>
-        ${slide.subtitle?`<div class="muted" style="font-size:14px;margin-bottom:22px;">${escapeHtml(slide.subtitle)}</div>`:''}
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px;">
+          ${slide.icon?presoIconBadge(slide.icon, theme, 44):''}
+          <h2 style="font-size:26px;font-weight:800;margin:0;color:var(--ink);">${escapeHtml(slide.title)}</h2>
+        </div>
+        ${slide.subtitle?`<div class="muted" style="font-size:14px;margin:6px 0 22px;padding-left:${slide.icon?58:0}px;">${escapeHtml(slide.subtitle)}</div>`:''}
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
-          ${(slide.kpis||[]).map(k=>`
-            <div style="flex:1;min-width:180px;background:var(--surface-strong);border:1px solid var(--border);border-left:4px solid var(--accent1,#2CA01C);border-radius:12px;padding:20px;">
-              <div style="font-size:20px;line-height:1;margin-bottom:8px;">${presoKpiIcon(k.label)}</div>
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:8px;">${escapeHtml(k.label)}</div>
+          ${(slide.kpis||[]).map((k,ki)=>`
+            <div class="preso-tile preso-anim-in" style="animation-delay:${ki*70}ms;flex:1;min-width:180px;background:var(--surface-strong);border:1px solid var(--border);border-left:4px solid ${theme.primary};border-radius:12px;padding:18px 20px;">
+              ${presoIconBadge(presoKpiIcon(k.label), theme, 34)}
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin:10px 0 6px;">${escapeHtml(k.label)}</div>
               <div style="font-size:26px;font-weight:800;color:var(--ink);">${k.value}</div>
-              ${k.delta!=null?`<div style="font-size:12.5px;font-weight:700;margin-top:6px;color:${k.delta>=0?'var(--credit,#2CA01C)':'var(--debit,#D64545)'};">${k.delta>=0?'▲':'▼'} ${Math.abs(k.delta).toFixed(1)}% YoY</div>`:''}
+              ${k.delta!=null?`<div style="display:inline-block;font-size:11.5px;font-weight:700;margin-top:8px;padding:3px 8px;border-radius:999px;background:${k.delta>=0?'rgba(44,160,28,0.12)':'rgba(214,69,69,0.12)'};color:${k.delta>=0?'var(--credit,#2CA01C)':'var(--debit,#D64545)'};">${k.delta>=0?'▲':'▼'} ${Math.abs(k.delta).toFixed(1)}% YoY</div>`:''}
             </div>
           `).join('')}
         </div>
+        ${slide.highlight?`
+          <div class="preso-anim-in" style="animation-delay:260ms;display:flex;gap:14px;align-items:flex-start;background:${theme.tintStrong};border-radius:14px;padding:16px 18px;margin-bottom:18px;">
+            ${presoIconBadge(slide.highlight.icon, theme, 36)}
+            <div>
+              <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${theme.primary};margin-bottom:4px;">${escapeHtml(slide.highlight.label)}</div>
+              <div style="font-size:14px;line-height:1.6;color:var(--ink);">${escapeHtml(slide.highlight.text)}</div>
+            </div>
+          </div>
+        `:''}
         ${slide.bullets&&slide.bullets.length?`<ul style="font-size:15px;line-height:1.8;color:var(--ink);padding-left:22px;margin:0;">${slide.bullets.map(b=>`<li>${escapeHtml(b)}</li>`).join('')}</ul>`:''}
       </div>
     `;
@@ -25782,22 +25856,42 @@ function renderPresoSlideContent(slide){
   if(slide.kind==='chart'){
     return `
       <div>
-        <h2 style="font-size:26px;font-weight:800;margin:0 0 4px;color:var(--ink);">${slide.icon?`<span style="margin-right:10px;">${slide.icon}</span>`:''}${escapeHtml(slide.title)}</h2>
-        ${slide.subtitle?`<div class="muted" style="font-size:14px;margin-bottom:18px;">${escapeHtml(slide.subtitle)}</div>`:''}
-        ${slide.chartHtml||''}
-        ${slide.bullets&&slide.bullets.length?`<div style="margin-top:16px;font-size:14px;line-height:1.7;color:var(--ink);">${slide.bullets.map(b=>`<p style="margin:0 0 6px;">${escapeHtml(b)}</p>`).join('')}</div>`:''}
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px;">
+          ${slide.icon?presoIconBadge(slide.icon, theme, 44):''}
+          <h2 style="font-size:26px;font-weight:800;margin:0;color:var(--ink);">${escapeHtml(slide.title)}</h2>
+        </div>
+        ${slide.subtitle?`<div class="muted" style="font-size:14px;margin:6px 0 18px;padding-left:${slide.icon?58:0}px;">${escapeHtml(slide.subtitle)}</div>`:''}
+        <div class="preso-chart-row" style="display:flex;gap:22px;align-items:flex-start;">
+          <div class="preso-chart-col" style="flex:1.6;min-width:0;">${slide.chartHtml||''}</div>
+          ${slide.bullets&&slide.bullets.length?`
+            <div class="preso-insight-col" style="flex:1;min-width:220px;background:${theme.tint};border-radius:14px;padding:16px 18px;">
+              <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${theme.primary};margin-bottom:10px;">💡 Key Insights</div>
+              ${slide.bullets.map((b,bi)=>`
+                <div class="preso-anim-in" style="animation-delay:${bi*80}ms;display:flex;gap:9px;align-items:flex-start;margin-bottom:11px;">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${theme.secondary};margin-top:7px;flex-shrink:0;"></span>
+                  <span style="font-size:13.5px;line-height:1.6;color:var(--ink);">${escapeHtml(b)}</span>
+                </div>
+              `).join('')}
+            </div>
+          `:''}
+        </div>
       </div>
     `;
   }
   if(slide.kind==='bullets'){
     return `
-      <div style="text-align:center;max-width:700px;margin:0 auto;">
-        ${slide.icon?`<div style="font-size:38px;line-height:1;margin-bottom:12px;">${slide.icon}</div>`:''}
+      <div style="text-align:center;max-width:760px;margin:0 auto;">
+        ${slide.icon?`<div style="width:64px;height:64px;border-radius:50%;background:${theme.tintStrong};display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 14px;">${slide.icon}</div>`:''}
         <h2 style="font-size:30px;font-weight:800;margin:0 0 4px;color:var(--ink);">${escapeHtml(slide.title)}</h2>
-        ${slide.subtitle?`<div class="muted" style="font-size:14px;margin-bottom:24px;">${escapeHtml(slide.subtitle)}</div>`:''}
-        <ul style="text-align:left;font-size:17px;line-height:2;color:var(--ink);padding-left:22px;display:inline-block;">
-          ${(slide.bullets||[]).map(b=>`<li>${escapeHtml(b)}</li>`).join('')}
-        </ul>
+        ${slide.subtitle?`<div class="muted" style="font-size:14px;margin-bottom:26px;">${escapeHtml(slide.subtitle)}</div>`:''}
+        <div style="text-align:left;">
+          ${(slide.bullets||[]).map((b,bi)=>`
+            <div class="preso-anim-in" style="animation-delay:${bi*80}ms;display:flex;gap:14px;align-items:flex-start;margin-bottom:16px;">
+              <span style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:${theme.primary};color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;">${bi+1}</span>
+              <span style="font-size:16.5px;line-height:1.7;color:var(--ink);padding-top:3px;">${escapeHtml(b)}</span>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
   }
@@ -25814,9 +25908,11 @@ function presentModeOverlay(){
   const slides = buildPresentationSlides(presoAudience);
   const idx = Math.max(0, Math.min(presentModeIdx, slides.length-1));
   const slide = slides[idx];
+  const theme = presoTheme(presoAudience);
   const companyName = (currentCompany && currentCompany.name) || 'Company';
   return `
   <div id="presentModeOverlay" style="position:fixed;inset:0;z-index:400;background:var(--bg,#F5F7F5);display:flex;flex-direction:column;">
+    ${PRESO_INTERACTIVE_CSS}
     <style>
       #presentModeOverlay .panel{border:none;background:transparent;box-shadow:none;margin-bottom:0;}
       #presentModeOverlay .panel-head{background:transparent;border-bottom:2px solid var(--border);padding:4px 0 12px;margin-bottom:14px;}
@@ -25826,18 +25922,22 @@ function presentModeOverlay(){
       #presentModeOverlay .panel-head h2{display:none;}
       #presentModeOverlay .viz-sub{font-size:12.5px;float:none;line-height:1.5;display:block;}
       #presentModeOverlay .panel-body{padding:0;}
+      #presentModeOverlay .preso-slide-stage{animation:presoTileIn .35s ease both;}
     </style>
+    <div style="height:4px;background:var(--border);flex-shrink:0;">
+      <div style="height:100%;width:${((idx+1)/slides.length*100).toFixed(1)}%;background:${theme.primary};transition:width .3s ease;"></div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 26px;border-bottom:1px solid var(--border);flex-shrink:0;">
       <div style="font-weight:800;font-size:13px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;">${escapeHtml(companyName)} · Slide ${idx+1} of ${slides.length}</div>
       <button class="btn secondary small" id="presentModeCloseBtn" type="button">✕ Exit Presentation</button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:40px 60px;display:flex;flex-direction:column;justify-content:center;">
-      ${renderPresoSlideContent(slide)}
+      <div class="preso-slide-stage">${renderPresoSlideContent(slide, theme)}</div>
     </div>
     <div style="display:flex;justify-content:center;align-items:center;gap:16px;padding:16px;border-top:1px solid var(--border);flex-shrink:0;">
       <button class="btn secondary" id="presentModePrevBtn" type="button" ${idx===0?'disabled':''}>← Previous</button>
       <div style="display:flex;gap:6px;">
-        ${slides.map((s,i)=>`<span data-preso-dot="${i}" style="width:8px;height:8px;border-radius:50%;cursor:pointer;background:${i===idx?'var(--accent1,#2CA01C)':'var(--border)'};display:inline-block;"></span>`).join('')}
+        ${slides.map((s,i)=>`<span data-preso-dot="${i}" style="width:8px;height:8px;border-radius:50%;cursor:pointer;background:${i===idx?theme.primary:'var(--border)'};display:inline-block;"></span>`).join('')}
       </div>
       <button class="btn secondary" id="presentModeNextBtn" type="button" ${idx===slides.length-1?'disabled':''}>Next →</button>
     </div>
@@ -25851,18 +25951,58 @@ function presentModeOverlay(){
 async function rasterizePresoCharts(slides){
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-10000px;top:0;width:900px;';
-  host.innerHTML = slides.map((s,i)=> s.chartHtml ? `<div data-preso-chart="${i}">${s.chartHtml}</div>` : '').join('');
+  // Hide the embedded Financial Performance Report card's own duplicate title before rasterizing —
+  // otherwise it gets baked directly into the chart PNG (both PDF and PPTX exports consume this),
+  // even though the live Present Mode view and the PDF's own surrounding HTML already hide it via CSS.
+  // Also force the Benchmarking card's per-metric rows to stack in a single column (they normally
+  // flex-wrap into an uneven grid) so every stacked <svg> below measures the same width — otherwise
+  // a row left alone on its own wrapped line renders wider than the others and its bar ends up
+  // visibly offset once stitched into one composite image.
+  host.innerHTML = '<style>.panel-head h2{display:none!important;} .viz-panel .row{flex-direction:column!important;}</style>' + slides.map((s,i)=> s.chartHtml ? `<div data-preso-chart="${i}">${s.chartHtml}</div>` : '').join('');
   document.body.appendChild(host);
   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
   const images = {};
   for(const wrap of Array.from(host.querySelectorAll('[data-preso-chart]'))){
-    const svg = wrap.querySelector('svg');
-    if(svg){
-      try{ images[wrap.dataset.presoChart] = await svgToPngDataUrl(svg, {scale:2}); }catch(e){ /* fall back to no image for this slide */ }
+    // Most report cards draw one chart as a single <svg>, but a few (e.g. the Benchmarking /
+    // Peer Comparison card) render one small, self-labelled <svg> bar PER metric instead — grabbing
+    // only the first (the old `wrap.querySelector('svg')`) silently dropped every row after it.
+    const svgs = Array.from(wrap.querySelectorAll('svg'));
+    if(svgs.length===1){
+      try{ images[wrap.dataset.presoChart] = await svgToPngDataUrl(svgs[0], {scale:2}); }catch(e){ /* fall back to no image for this slide */ }
+    } else if(svgs.length>1){
+      try{ images[wrap.dataset.presoChart] = await stitchSvgsToPngDataUrl(svgs, {scale:2}); }catch(e){ /* fall back to no image for this slide */ }
     }
   }
   document.body.removeChild(host);
   return images;
+}
+// Stacks several already-laid-out <svg> elements (e.g. the Benchmarking card's one-bar-per-metric
+// rows, normally arranged in a flex-wrap grid) into a single tall PNG, one row per svg, so every
+// metric survives export instead of just whichever svg happened to be first in the DOM.
+async function stitchSvgsToPngDataUrl(svgEls, opts){
+  opts = opts||{};
+  const scale = opts.scale || 2;
+  const gap = opts.gap!=null ? opts.gap : 10; // CSS px gap between stacked rows
+  const rendered = await Promise.all(svgEls.map(svg=>{
+    const rect = svg.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width)) || 620;
+    const h = Math.max(1, Math.round(rect.height)) || 260;
+    return svgToPngDataUrl(svg, {scale}).then(dataUrl=>({dataUrl, w, h}));
+  }));
+  const totalW = Math.max(...rendered.map(r=>r.w));
+  const totalH = rendered.reduce((sum,r)=>sum+r.h, 0) + gap*Math.max(0, rendered.length-1);
+  const canvas = document.createElement('canvas');
+  canvas.width = totalW*scale; canvas.height = totalH*scale;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  let y = 0;
+  for(const r of rendered){
+    const img = await new Promise((resolve,reject)=>{ const im=new Image(); im.onload=()=>resolve(im); im.onerror=reject; im.src=r.dataUrl; });
+    ctx.drawImage(img, 0, y*scale, r.w*scale, r.h*scale);
+    y += r.h + gap;
+  }
+  return canvas.toDataURL('image/png');
 }
 const PRESO_EXPORT_CSS = `
   :root{ --surface-strong:#EEF3EF; --border:#E1E7E3; --ink:#1B2420; --ink-soft:#5C6B62; --ink-faint:#8B978F; --credit:#2CA01C; --debit:#D64545; }
@@ -25883,10 +26023,11 @@ async function exportPresentationToPdf(){
   if(btn) btn.disabled = true;
   try{
     const slides = buildPresentationSlides(presoAudience);
+    const theme = presoTheme(presoAudience);
     const images = await rasterizePresoCharts(slides);
     const pagesHtml = slides.map((s,i)=>{
       const slideForRender = images[i] ? {...s, chartHtml: s.chartHtml.replace(/<svg[\s\S]*?<\/svg>/, `<img src="${images[i]}">`)} : s;
-      return `<div class="preso-page">${renderPresoSlideContent(slideForRender)}</div>`;
+      return `<div class="preso-page">${renderPresoSlideContent(slideForRender, theme)}</div>`;
     }).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Stakeholder Presentation</title><style>${PRESO_EXPORT_CSS}</style></head><body>${pagesHtml}</body></html>`;
     printHTMLDocument(html);
@@ -25902,24 +26043,54 @@ async function exportPresentationToPptx(){
   if(btn) btn.disabled = true;
   try{
     const slides = buildPresentationSlides(presoAudience);
+    const theme = presoTheme(presoAudience);
     const images = await rasterizePresoCharts(slides);
     const pptx = new PptxGenJS();
-    pptx.layout = 'LAYOUT_16x9';
+    // 'LAYOUT_16x9' is PptxGenJS's 10in x 5.625in preset — NOT a 13.33x7.5 slide. Every position/size
+    // below is computed assuming a 13.33x7.5in canvas (W/H just below), so the slide layout must be
+    // 'LAYOUT_WIDE' (13.33in x 7.5in) or all of that math places content past the real slide's edges,
+    // clipping chart images and bullet text near the bottom/right — confirmed via real LibreOffice
+    // render + pixel measurement (bullets on the Financial Health Score slide were cut off at the
+    // physical bottom edge of the rendered slide before this fix).
+    pptx.layout = 'LAYOUT_WIDE';
     const W = 13.33, H = 7.5;
-    const INK = '1B2420', INK_FAINT = '8B978F', ACCENT = '2CA01C', SURFACE = 'EEF3EF', BORDER = 'E1E7E3';
+    const INK = '1B2420', INK_FAINT = '8B978F';
+    const ACCENT = theme.primary.replace('#',''), ACCENT2 = theme.secondary.replace('#','');
+    const SURFACE = theme.tint.replace('#',''), TINT_STRONG = theme.tintStrong.replace('#','');
+    // LibreOffice Impress (used to verify this export in this environment) was observed to mis-wrap —
+    // and silently render clipped/invisible — multi-line text boxes wider than ~9.5in on a 13.33in-wide
+    // slide, even though the underlying XML is correct (confirmed by unzipping and inspecting the raw
+    // text runs). Real PowerPoint/Google Slides may not share this quirk, but there's no way to verify
+    // that from this sandbox, so every WRAPPED paragraph (bullets, the highlight callout) is capped to
+    // this width to be safe everywhere; short single-line text (titles, KPI values) is unaffected since
+    // it never reaches a wrap boundary.
+    const SAFE_WRAP_W = 9.3;
     slides.forEach((s,i)=>{
       const slide = pptx.addSlide();
       slide.background = { color:'FFFFFF' };
       if(s.kind==='title'){
-        if(s.icon) slide.addText(s.icon, {x:0.7,y:1.35,w:W-1.4,h:0.8,fontSize:36,align:'center'});
-        slide.addText((s.eyebrow||'').toUpperCase(), {x:0.7,y:2.3,w:W-1.4,h:0.5,fontSize:14,bold:true,color:INK_FAINT,align:'center',charSpacing:2});
-        slide.addText(s.title, {x:0.7,y:2.9,w:W-1.4,h:1.1,fontSize:40,bold:true,color:INK,align:'center'});
-        slide.addText(s.subtitle||'', {x:0.7,y:4.0,w:W-1.4,h:0.5,fontSize:16,color:INK_FAINT,align:'center'});
-        slide.addShape('roundRect', {x:W/2-0.35,y:4.6,w:0.7,h:0.045,fill:{color:ACCENT},line:{type:'none'}});
+        // Two soft, oversized off-slide circles echo the theme tint the same way the on-screen hero's
+        // blurred-blob background does, without PptxGenJS gradient support.
+        slide.addShape('ellipse', {x:-2.2,y:-2.4,w:6,h:6,fill:{color:ACCENT,transparency:88},line:{type:'none'}});
+        slide.addShape('ellipse', {x:W-3.2,y:H-3,w:6,h:6,fill:{color:ACCENT2,transparency:86},line:{type:'none'}});
+        if(s.icon){
+          slide.addShape('ellipse', {x:W/2-0.55,y:1.15,w:1.1,h:1.1,fill:{color:'FFFFFF'},line:{color:ACCENT,width:0.75}});
+          slide.addText(s.icon, {x:W/2-0.55,y:1.15,w:1.1,h:1.1,fontSize:32,align:'center',valign:'middle'});
+        }
+        slide.addText((s.eyebrow||'').toUpperCase(), {x:0.7,y:2.35,w:W-1.4,h:0.5,fontSize:14,bold:true,color:ACCENT,align:'center',charSpacing:2});
+        slide.addText(s.title, {x:0.7,y:2.95,w:W-1.4,h:1.1,fontSize:40,bold:true,color:INK,align:'center'});
+        slide.addText(s.subtitle||'', {x:0.7,y:4.05,w:W-1.4,h:0.5,fontSize:16,color:INK_FAINT,align:'center'});
+        slide.addShape('roundRect', {x:W/2-0.35,y:4.65,w:0.7,h:0.045,fill:{color:ACCENT2},line:{type:'none'}});
         return;
       }
-      slide.addText(s.icon ? `${s.icon}  ${s.title}` : s.title, {x:0.5,y:0.35,w:W-1,h:0.6,fontSize:26,bold:true,color:INK});
-      if(s.subtitle) slide.addText(s.subtitle, {x:0.5,y:0.95,w:W-1,h:0.4,fontSize:13,color:INK_FAINT});
+      let titleX = 0.5;
+      if(s.icon){
+        slide.addShape('ellipse', {x:0.5,y:0.32,w:0.6,h:0.6,fill:{color:TINT_STRONG},line:{type:'none'}});
+        slide.addText(s.icon, {x:0.5,y:0.32,w:0.6,h:0.6,fontSize:20,align:'center',valign:'middle'});
+        titleX = 1.25;
+      }
+      slide.addText(s.title, {x:titleX,y:0.35,w:W-0.5-titleX,h:0.6,fontSize:26,bold:true,color:INK});
+      if(s.subtitle) slide.addText(s.subtitle, {x:titleX,y:0.95,w:W-0.5-titleX,h:0.4,fontSize:13,color:INK_FAINT});
       let cursorY = 1.55;
       if(s.kind==='kpi' && s.kpis && s.kpis.length){
         const n = s.kpis.length;
@@ -25928,20 +26099,33 @@ async function exportPresentationToPptx(){
         s.kpis.forEach((k,ki)=>{
           const x = 0.5+ki*(tileW+gap);
           slide.addShape('roundRect', {x,y:cursorY,w:tileW,h:1.5,fill:{color:SURFACE},line:{color:ACCENT,width:1.5},rectRadius:0.08});
-          slide.addText(presoKpiIcon(k.label), {x:x+0.1,y:cursorY+0.06,w:tileW-0.2,h:0.32,fontSize:16});
-          slide.addText(k.label.toUpperCase(), {x:x+0.12,y:cursorY+0.36,w:tileW-0.24,h:0.28,fontSize:8.5,bold:true,color:INK_FAINT,charSpacing:1});
-          slide.addText(String(k.value), {x:x+0.12,y:cursorY+0.63,w:tileW-0.24,h:0.5,fontSize:18,bold:true,color:INK});
+          slide.addShape('ellipse', {x:x+0.12,y:cursorY+0.12,w:0.38,h:0.38,fill:{color:TINT_STRONG},line:{type:'none'}});
+          // fontSize kept at 10 (not the ~13 the badge's box would visually suggest) — LibreOffice was
+          // observed to render color-emoji glyphs as tofu/question-mark boxes once the font size gets
+          // too large relative to a small fixed text box (confirmed empirically: 0.38in box + size 13
+          // breaks nearly every multi-color emoji in this app's KPI icon set; size 10 renders all of
+          // them correctly at the same box size).
+          slide.addText(presoKpiIcon(k.label), {x:x+0.12,y:cursorY+0.12,w:0.38,h:0.38,fontSize:10,align:'center',valign:'middle'});
+          slide.addText(k.label.toUpperCase(), {x:x+0.12,y:cursorY+0.55,w:tileW-0.24,h:0.28,fontSize:8.5,bold:true,color:INK_FAINT,charSpacing:1});
+          slide.addText(String(k.value), {x:x+0.12,y:cursorY+0.82,w:tileW-0.24,h:0.45,fontSize:17,bold:true,color:INK});
           if(k.delta!=null){
-            slide.addText(`${k.delta>=0?'▲':'▼'} ${Math.abs(k.delta).toFixed(1)}% YoY`, {x:x+0.12,y:cursorY+1.12,w:tileW-0.24,h:0.3,fontSize:10,bold:true,color:k.delta>=0?ACCENT:'D64545'});
+            slide.addText(`${k.delta>=0?'▲':'▼'} ${Math.abs(k.delta).toFixed(1)}% YoY`, {x:x+0.12,y:cursorY+1.24,w:tileW-0.24,h:0.24,fontSize:9.5,bold:true,color:k.delta>=0?'2CA01C':'D64545'});
           }
         });
-        cursorY += 1.5+0.3;
+        cursorY += 1.5+0.25;
+        if(s.highlight){
+          const boxH = 0.95;
+          slide.addShape('roundRect', {x:0.5,y:cursorY,w:W-1,h:boxH,fill:{color:TINT_STRONG},line:{type:'none'},rectRadius:0.06});
+          slide.addText(`${s.highlight.icon}  ${s.highlight.label.toUpperCase()}`, {x:0.65,y:cursorY+0.08,w:SAFE_WRAP_W,h:0.26,fontSize:9.5,bold:true,color:ACCENT,charSpacing:1});
+          slide.addText(s.highlight.text, {x:0.65,y:cursorY+0.35,w:SAFE_WRAP_W,h:0.55,fontSize:10.5,color:INK,valign:'top'});
+          cursorY += boxH+0.25;
+        }
       } else if(s.kind==='chart' && images[i]){
         slide.addImage({data:images[i], x:0.5, y:cursorY, w:W-1, h:3.1});
         cursorY += 3.1+0.25;
       }
       if(s.bullets && s.bullets.length){
-        slide.addText(s.bullets.map(b=>({text:b, options:{bullet:true, breakLine:true}})), {x:0.5,y:cursorY,w:W-1,h:H-cursorY-0.4,fontSize:12,color:INK,valign:'top',lineSpacingMultiple:1.3});
+        slide.addText(s.bullets.map(b=>({text:b, options:{bullet:{code:'25CF'}, breakLine:true}})), {x:0.5,y:cursorY,w:SAFE_WRAP_W,h:H-cursorY-0.4,fontSize:12,color:INK,valign:'top',lineSpacingMultiple:1.3});
       }
     });
     const safeName = ((currentCompany&&currentCompany.name)||'Company').replace(/[^a-z0-9]+/gi,'_');
