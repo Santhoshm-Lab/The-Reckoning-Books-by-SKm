@@ -5297,7 +5297,7 @@ let passwordResetDone = false;     // true once the new password has been set su
 // who never touches this gets any change to the sign-in behavior they already had.
 let rememberMeChecked = true;
 let resetShowPassword = false;     // show/hide toggle state for this card's own password fields (kept separate from authShowPassword)
-let coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+let coform = { name:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
 // Gateway 2026 round 2: grid/list toggle + sort mode are per-browser display preferences (same
 // localStorage convention as companyOpenedAt/companyPinned above); the quick-actions menu and
@@ -10958,9 +10958,9 @@ function netProfit(){
    Reports tab, and asks Claude to answer using only that data. See functions/index.js. */
 function qaWidget(){
   return `
-    <div id="qaFab" title="Ask a question about your books" role="button" tabindex="0" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">💬</div>
+    <div id="qaFab" title="Ask a question about your books" role="button" tabindex="0" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:90;">💬</div>
     ${qaOpen ? `
-    <div id="qaPanel" style="position:fixed;right:22px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:440px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:500;">
+    <div id="qaPanel" style="position:fixed;right:22px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:440px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:90;">
       <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;background:var(--accent1,#2CA01C);color:#fff;">
         <strong style="font-size:13px;">Ask your books</strong>
         <span id="qaCloseBtn" style="cursor:pointer;font-size:15px;">✕</span>
@@ -10996,7 +10996,7 @@ function qaWidget(){
 function diWidget(){
   if(!currentUser) return '';
   return `
-    <div id="diFab" title="Data Interchange — send messages and files" role="button" tabindex="0" aria-label="Data Interchange — message your group${currentUser.role==='support'?' or Admin':''}" style="position:fixed;right:86px;bottom:22px;width:52px;height:52px;border-radius:50%;background:${DI_COLOR};color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:500;">
+    <div id="diFab" title="Data Interchange — send messages and files" role="button" tabindex="0" aria-label="Data Interchange — message your group${currentUser.role==='support'?' or Admin':''}" style="position:fixed;right:86px;bottom:22px;width:52px;height:52px;border-radius:50%;background:${DI_COLOR};color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:90;">
       <span style="position:relative;line-height:0;">${diFabIconSvg()}${diUnreadBadge ? `<span style="position:absolute;top:-6px;right:-9px;width:11px;height:11px;border-radius:50%;background:#D64545;border:2px solid var(--surface,#fff);"></span>` : ''}</span>
     </div>
     ${diOpen ? diPanel() : ''}
@@ -11069,7 +11069,7 @@ function diPanel(){
   const msgs = threadId ? (diMessages[threadId] || []) : [];
   const showingInbox = role==='admin' && !diActiveAdminThreadId;
   return `
-    <div id="diPanelEl" style="position:fixed;right:86px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:460px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:500;">
+    <div id="diPanelEl" style="position:fixed;right:86px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:460px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:90;">
       <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;gap:8px;background:${DI_COLOR};color:#fff;">
         <div style="min-width:0;">
           <strong style="font-size:13px;">${escapeHtml(headerTitle)}</strong>
@@ -11912,7 +11912,6 @@ function render(){
   document.getElementById('menuEdit').addEventListener('click', ()=>{
     editCoDraft = {
       name: currentCompany.name,
-      directory: currentCompany.directory||'',
       mailingName: currentCompany.mailingName||'',
       address: currentCompany.address||'',
       state: currentCompany.state||'',
@@ -12067,7 +12066,6 @@ function render(){
   }
   if(modal==='editCompany'){
     document.getElementById('editCoName').addEventListener('input', e=> editCoDraft.name = e.target.value);
-    document.getElementById('editCoDirectory').addEventListener('input', e=> editCoDraft.directory = e.target.value);
     document.getElementById('editCoMailingName').addEventListener('input', e=> editCoDraft.mailingName = e.target.value);
     document.getElementById('editCoAddress').addEventListener('input', e=> editCoDraft.address = e.target.value);
     function bindEditCoStateField(){
@@ -12117,7 +12115,6 @@ function render(){
       if(editCoDraft.gstin.trim() && !isValidGSTIN(editCoDraft.gstin)){ toast('That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.'); return; }
       Object.assign(currentCompany, {
         name: editCoDraft.name.trim(),
-        directory: editCoDraft.directory.trim(),
         mailingName: editCoDraft.mailingName.trim(),
         address: editCoDraft.address.trim(),
         state: editCoDraft.state,
@@ -12587,7 +12584,6 @@ function editCompanyModal(){
         <div class="panel-head"><h2>Edit Company</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
           <div class="field"><label>Company Name</label><input type="text" id="editCoName" value="${escapeAttr(editCoDraft.name)}"></div>
-          <div class="field"><label>Directory</label><input type="text" id="editCoDirectory" value="${escapeAttr(editCoDraft.directory)}"></div>
           <div class="field"><label>Mailing Name (if different)</label><input type="text" id="editCoMailingName" value="${escapeAttr(editCoDraft.mailingName)}"></div>
           <div class="field"><label>Address</label><input type="text" id="editCoAddress" value="${escapeAttr(editCoDraft.address)}"></div>
           <div class="field"><label>Country</label>
@@ -15205,8 +15201,6 @@ function companyCreateModal(){
       <div style="padding:14px 18px;overflow-y:auto;flex:1;min-height:0;">
         <label>Company Name</label>
         <input type="text" id="coName" placeholder="e.g. Sunrise Traders" value="${escapeAttr(coform.name)}">
-        <label>Directory</label>
-        <input type="text" id="coDirectory" placeholder="Auto-filled from company name" value="${escapeAttr(coform.directory)}">
         <label>Mailing Name (if different)</label>
         <input type="text" id="coMailingName" placeholder="Same as company name if left blank" value="${escapeAttr(coform.mailingName)}">
         <label>Address</label>
@@ -15642,12 +15636,7 @@ function renderGateway(){
   });
   document.getElementById('coName').addEventListener('input', e=>{
     coform.name = e.target.value;
-    const dirEl = document.getElementById('coDirectory');
-    if(dirEl && !coform.directory){
-      dirEl.value = e.target.value ? `/ReckoningBooks/Data/${e.target.value.replace(/[^a-z0-9]+/gi,'_')}` : '';
-    }
   });
-  document.getElementById('coDirectory').addEventListener('input', e=> coform.directory = e.target.value);
   document.getElementById('coMailingName').addEventListener('input', e=> coform.mailingName = e.target.value);
   document.getElementById('coAddress').addEventListener('input', e=> coform.address = e.target.value);
   function bindCoStateField(){
@@ -15686,9 +15675,8 @@ function renderGateway(){
     const gstinEntered = document.getElementById('coGSTIN').value.trim();
     if(gstinEntered && !isValidGSTIN(gstinEntered)){ toast('That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.'); return; }
     const fyStart = document.getElementById('coFY').value || defaultFYStart();
-    const directory = document.getElementById('coDirectory').value.trim() || `/ReckoningBooks/Data/${name.replace(/[^a-z0-9]+/gi,'_')}`;
     const company = {
-      id: uid('co'), name, directory,
+      id: uid('co'), name,
       mailingName: document.getElementById('coMailingName').value.trim(),
       address: document.getElementById('coAddress').value.trim(),
       state: document.getElementById('coState').value,
@@ -15732,7 +15720,7 @@ function renderGateway(){
       return;
     }
     companies.push(company);
-    coform = { name:'', directory:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+    coform = { name:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
     companyCreateModalOpen = false;
     await enterCompanyApp(company);
   });
@@ -16818,7 +16806,7 @@ function renderGateway(){
         await logAudit('company_opened', `Opened "${c.name}" to edit its settings`, cid, c.name);
         await enterCompanyApp(c);
         editCoDraft = {
-          name: currentCompany.name, directory: currentCompany.directory||'', mailingName: currentCompany.mailingName||'',
+          name: currentCompany.name, mailingName: currentCompany.mailingName||'',
           address: currentCompany.address||'', state: currentCompany.state||'', pincode: currentCompany.pincode||'',
           country: currentCompany.country||'India', phone: currentCompany.phone||'', mobile: currentCompany.mobile||'',
           email: currentCompany.email||'', website: currentCompany.website||'', fyStart: currentCompany.fyStart||'',
