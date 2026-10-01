@@ -5611,6 +5611,11 @@ let voucherHistoryId = null; // which voucher the "History" (voucherAuditLog) mo
 let approvalSettingsDraft = null; // null = not editing | {enabled, threshold, types:[]} draft while the Approvals modal's Settings panel is open
 let manageAccessUserId = null; // which group member's per-module permission row is expanded in the Manage Access modal
 let ocrScanState = null; // null = modal closed | {status:'idle'|'reading'|'done'|'error', progress, fileName, extracted:{amount,date,vendorLedgerId,vendorText,rawText}}
+// ---- Company Team Access modal state (any company owner -- see companyTeamModal()) ----
+let companyTeamMemberId = null;   // which teammate's permission row is expanded; 'invite' = the Invite Team Member form is open instead
+let companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
+let companyTeamInviteError = '';
+let companyTeamInviteBusy = false;
 /* ---------------- Employee Documents vault (encrypted secure document storage) ----------------
    Reuses the same companies/{id}/attachments subcollection as voucher attachments (see that block
    below), keyed by employeeId instead of voucherId, so no new Firestore rule is needed. Unlike
@@ -6153,6 +6158,35 @@ async function groupCreateUserAccount(draft){
       id: cred.user.uid, name: draft.name, username: draft.username, usernameLower: usernameKey,
       mobile: draft.mobile, email: draft.email, role:'user', plan:'free', planExpiry:null,
       groupOwnerId: currentUser.id,
+      createdAt: new Date().toISOString(), lastLoginAt: null,
+    };
+    await secDb.collection('users').doc(cred.user.uid).set(profile);
+    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email });
+    try{ await secAuth.signOut(); }catch(e){}
+    return profile;
+  } finally {
+    try{ await secondaryApp.delete(); }catch(e){}
+  }
+}
+// Lets ANY company owner (not just a 'support' reseller account) create a real, ready-to-use account
+// for a teammate -- deliberately NOT stamped with groupOwnerId, since that field drives the older,
+// whole-group blanket-sharing Support feature above (see loadCompanies()/memberModuleAccess()). This
+// teammate instead gets access to exactly one company via that company's own teamMembers/teamMemberIds
+// (see inviteCompanyTeamMember()), so adding them to one company never exposes an owner's other
+// companies. teamOwnerId is written purely for traceability/support purposes -- nothing reads it back.
+// Same secondary-Firebase-app pattern as groupCreateUserAccount()/adminCreateUserAccount(), so creating
+// the account never signs the inviting owner out of their own session.
+async function companyTeamCreateUserAccount(draft){
+  const secondaryApp = firebase.initializeApp(FIREBASE_CONFIG, 'companyTeamCreateUser_' + Date.now());
+  try{
+    const secAuth = secondaryApp.auth();
+    const cred = await secAuth.createUserWithEmailAndPassword(draft.email, draft.password);
+    const secDb = secondaryApp.firestore();
+    const usernameKey = draft.username.toLowerCase();
+    const profile = {
+      id: cred.user.uid, name: draft.name, username: draft.username, usernameLower: usernameKey,
+      mobile: draft.mobile, email: draft.email, role:'user', plan:'free', planExpiry:null,
+      teamOwnerId: currentUser.id,
       createdAt: new Date().toISOString(), lastLoginAt: null,
     };
     await secDb.collection('users').doc(cred.user.uid).set(profile);
@@ -6833,10 +6867,18 @@ async function loadCompanies(){
         .filter(r=>r.status==='fulfilled' && r.value.exists)
         .map(r=>r.value.data());
       sharedResults.forEach((r,i)=>{ if(r.status==='rejected') console.error('Could not load shared company', SHARED_DEMO_COMPANY_IDS[i], r.reason); });
+      // Company Team Access (any owner, not just a Support group): a teammate sees ONLY the specific
+      // company/companies they were explicitly invited to, via that company's own teamMemberIds array
+      // -- deliberately a narrower, per-company allow-list rather than the whole-group blanket sharing
+      // groupShared above uses, so inviting someone to one company never exposes an owner's others.
+      let teamShared = [];
+      try{
+        teamShared = (await db.collection('companies').where('teamMemberIds','array-contains',currentUser.id).get()).docs.map(d=>d.data());
+      }catch(e){ console.error('Could not load team-access companies', e); }
       // Dedupe: a company the current user personally created inside their own group would
       // otherwise appear twice (once from `mine`, once from `groupShared`).
       const byId = new Map();
-      [...shared, ...mine, ...groupShared].forEach(c=>{ if(!isSharedDemoId(c.id)) byId.set(c.id, c); });
+      [...shared, ...mine, ...groupShared, ...teamShared].forEach(c=>{ if(!isSharedDemoId(c.id)) byId.set(c.id, c); });
       shared.filter(c=>isSharedDemoId(c.id)).forEach(c=> byId.set(c.id, c));
       companies = [...byId.values()];
     }
@@ -6872,6 +6914,12 @@ async function deleteCompanyById(id){
   const c = companies.find(x=>x.id===id);
   if(!c) return false;
   if(isReadOnlyMode()){ toast(adminViewOnlyCompanyId ? "You're viewing this company in read-only mode — nothing is deleted." : "This is a shared demo company — only the administrator can delete it."); return false; }
+  // Defence in depth: a Company Team Access teammate (see companyTeamModal()) can never delete the
+  // company they were invited into, no matter how generous their per-module permissions are — only the
+  // owner (or a full Administrator, who doesn't go through this function) can. The "Delete Company"
+  // menu item and the gateway card's ⋮ menu are already hidden client-side for a teammate as a matching
+  // guard; this is the belt to that braces for any other path that might reach this function.
+  if(isCompanyTeamMember(c)){ toast('Only the company owner can delete this company.'); return false; }
   const ok = window.confirm(`Delete company "${c.name}" and all its ledgers and vouchers?\n\nThis cannot be undone.`);
   if(!ok) return false;
   try{ await db.collection('companies').doc(id).delete(); }
@@ -6964,7 +7012,11 @@ function isReadOnlyMode(){
 }
 function readOnlyToastMessage(){
   if(adminViewOnlyCompanyId) return "You're viewing this company in read-only mode — changes aren't saved.";
-  if(view && memberModuleAccess(view)==='view') return "Your access to this section is View Only — ask your group admin to change it under Access.";
+  if(view && memberModuleAccess(view)==='view'){
+    return isCompanyTeamMember()
+      ? "Your access to this section is View Only — ask the company owner to change it under Team Access."
+      : "Your access to this section is View Only — ask your group admin to change it under Access.";
+  }
   return "This is a shared demo company — only the administrator can make changes here.";
 }
 // ---- Granular per-module RBAC (beyond admin/support/user) ----
@@ -6985,6 +7037,17 @@ const MODULE_ACCESS_LIST = [
 // (no currentCompany.memberPermissions, or no entry for this user/module) also means 'full' -- this
 // is an opt-in restriction, so every company that predates this feature keeps working exactly as before.
 function memberModuleAccess(moduleId){
+  // ---- Company Team Access (any company owner, not just a reseller "Support" group) ----
+  // Checked first. A company owner can invite teammates straight to ONE of their own companies (see
+  // "Team Access" menu item / companyTeamModal()) without needing to be promoted to the 'support'
+  // role at all -- the invited account is a plain 'user', scoped to exactly this one company via
+  // company.teamMembers[uid]/teamMemberIds, never the whole-group blanket sharing the older Support
+  // feature below uses. A teammate entry always wins if present (a user is never both at once in
+  // practice, but this ordering is the safer one if it ever happened).
+  if(currentUser && currentCompany && currentCompany.teamMembers && currentCompany.teamMembers[currentUser.id]){
+    const perms = currentCompany.teamMembers[currentUser.id].permissions || {};
+    return perms[moduleId] || 'full';
+  }
   if(!currentUser || currentUser.role!=='user' || !currentUser.groupOwnerId) return 'full';
   const perms = currentCompany && currentCompany.memberPermissions;
   if(!perms) return 'full';
@@ -6994,14 +7057,47 @@ function memberModuleAccess(moduleId){
 }
 function isModuleHidden(moduleId){ return memberModuleAccess(moduleId)==='hidden'; }
 function moduleAccessDeniedView(label){
+  const isTeam = currentUser && currentCompany && currentCompany.teamMembers && currentCompany.teamMembers[currentUser.id];
   return `
     <div class="panel"><div class="panel-body" style="text-align:center;padding:48px 24px;">
       <div style="font-size:32px;margin-bottom:10px;">🔐</div>
       <h2 style="margin:0 0 8px;font-size:16px;">${escapeHtml(label)} isn't available on your account</h2>
-      <p class="muted" style="font-size:12.5px;max-width:420px;margin:0 auto;">Your group admin has restricted access to this section. Ask them to change it under Access if you need it.</p>
+      <p class="muted" style="font-size:12.5px;max-width:420px;margin:0 auto;">${isTeam ? "The company owner has restricted access to this section. Ask them to change it under Team Access if you need it." : "Your group admin has restricted access to this section. Ask them to change it under Access if you need it."}</p>
     </div></div>
   `;
 }
+// isCompanyOwner()/isCompanyTeamMember() — cheap role-agnostic checks used to gate owner-only actions
+// (Delete Company, the "Team Access" menu item itself) separately from the per-module table above,
+// since deleting/renaming the company or re-granting access should never be something a teammate's
+// own module permissions could ever unlock, no matter how generous.
+function isCompanyOwner(){ return !!(currentUser && currentCompany && currentCompany.ownerId===currentUser.id); }
+function isCompanyTeamMember(forCompany){
+  const c = forCompany || currentCompany;
+  return !!(currentUser && c && c.teamMembers && c.teamMembers[currentUser.id]);
+}
+// ---- Company Team Access — quick-apply role presets ----
+// Starting points for the same per-module Full/View/Hidden picker the Support/group "Manage Access"
+// feature already uses -- picking one just fills in company.teamMembers[uid].permissions with this
+// shape; 'custom' leaves the picker exactly as it already is. Deliberately mirrors the roles named in
+// the improvement roadmap (a bookkeeper limited to Vouchers/Day Book, a read-only external-CA/auditor
+// role, a GST-only filer role).
+const COMPANY_TEAM_ROLE_PRESETS = {
+  bookkeeper: { label:'Bookkeeper', desc:'Entries & day-to-day books — no Reports, GST or Payroll.', permissions: {
+    voucher:'full', pos:'full', daybook:'full', calendar:'full', ledgers:'full', parties:'full',
+    inventory:'full', coa:'view', orders:'full', reconcile:'view',
+    reports:'hidden', gst:'hidden', assets:'hidden', payroll:'hidden',
+  }},
+  auditor: { label:'Auditor (Read-Only)', desc:'Can see everything, change nothing.', permissions:
+    Object.fromEntries(MODULE_ACCESS_LIST.map(m=>[m.id,'view']))
+  },
+  gst: { label:'GST Filer', desc:'GST and Reports only.', permissions: {
+    gst:'full', reports:'view', daybook:'view',
+    voucher:'hidden', pos:'hidden', calendar:'hidden', ledgers:'hidden', coa:'hidden',
+    inventory:'hidden', reconcile:'hidden', assets:'hidden', parties:'hidden', orders:'hidden', payroll:'hidden',
+  }},
+  full: { label:'Full Access', desc:'No restrictions — same as the owner, module-by-module.', permissions: {} },
+  custom: { label:'Custom', desc:'Set each module yourself below.', permissions: {} },
+};
 /* ---------------- "SKm Group of Companies" — the shared demo company ----------------
    Built to showcase every one of the 28 Tally-standard ledger groups (all 15 Primary Groups and
    all 13 Sub-Groups) in a single company, spanning five complete past financial years plus the
@@ -8263,6 +8359,98 @@ function manageAccessModal(){
           </div>`}
         </div>
       </div>
+    </div>
+  `;
+}
+
+// ---- Company Team Access modal (any company owner — see companyTeamCreateUserAccount()/
+// memberModuleAccess()'s Company Team Access section above). Three states driven by
+// companyTeamMemberId: null (just the team list + Invite button), 'invite' (the invite form), or a
+// teammate's uid (that teammate's role-preset + per-module permission editor). Unlike manageAccessModal
+// this never needs a separate Firestore query for member names/usernames -- they're captured once at
+// invite time and stored right on company.teamMembers[uid], since a teammate here only ever belongs to
+// this one company.
+function companyTeamModal(){
+  const team = currentCompany.teamMembers || {};
+  const memberIds = Object.keys(team);
+  const inviting = companyTeamMemberId==='invite';
+  const selectedId = (!inviting && companyTeamMemberId && team[companyTeamMemberId]) ? companyTeamMemberId : null;
+  const selected = selectedId ? team[selectedId] : null;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:700px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+        <div class="panel-head" style="padding:16px 20px;"><h2>Team Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
+          <p class="muted" style="font-size:12px;">Invite a bookkeeper, your external accountant, or anyone else who needs their own login to this company — with their own module-by-module access, separate from yours. They never see your other companies.</p>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="min-width:200px;flex-shrink:0;">
+              ${memberIds.map(uid=>{
+                const m = team[uid];
+                const restricted = m.permissions && Object.values(m.permissions).some(v=>v && v!=='full');
+                return `<button type="button" class="btn small ${uid===selectedId?'':'secondary'}" data-select-team-member="${uid}" style="width:100%;text-align:left;margin-bottom:6px;display:flex;justify-content:space-between;">
+                  <span>${escapeHtml(m.name||m.username)}</span>${restricted?'<span title="Has restrictions">🔐</span>':'<span class="muted" style="font-size:10.5px;">Full</span>'}
+                </button>`;
+              }).join('')}
+              ${!memberIds.length ? `<div class="empty" style="margin-bottom:10px;">No teammates yet.</div>` : ''}
+              <button type="button" class="btn small" id="companyTeamInviteBtn" style="width:100%;">+ Invite Team Member</button>
+            </div>
+            <div style="flex:1;min-width:300px;">
+              ${inviting ? companyTeamInviteFormHtml() : selected ? `
+                <p style="font-size:12.5px;margin-top:0;"><strong>${escapeHtml(selected.name||selected.username)}</strong> <span class="muted">@${escapeHtml(selected.username||'')}</span></p>
+                <div class="field"><label>Role preset</label>
+                  <select id="companyTeamPresetSelect">
+                    ${Object.keys(COMPANY_TEAM_ROLE_PRESETS).map(k=>`<option value="${k}">${escapeHtml(COMPANY_TEAM_ROLE_PRESETS[k].label)}</option>`).join('')}
+                  </select>
+                  <p class="muted" style="font-size:11px;margin:4px 0 0;">Applying a preset fills in the table below — review and tweak it, then Save.</p>
+                </div>
+                <table>
+                  <tr><th>Module</th><th style="width:150px;">Access</th></tr>
+                  ${MODULE_ACCESS_LIST.map(mod=>{
+                    const cur = (selected.permissions && selected.permissions[mod.id]) || 'full';
+                    return `<tr><td style="font-size:12.5px;">${escapeHtml(mod.label)}</td><td>
+                      <select data-team-access-module="${mod.id}" style="font-size:11.5px;padding:3px 6px;">
+                        <option value="full" ${cur==='full'?'selected':''}>Full Access</option>
+                        <option value="view" ${cur==='view'?'selected':''}>View Only</option>
+                        <option value="hidden" ${cur==='hidden'?'selected':''}>Hidden</option>
+                      </select>
+                    </td></tr>`;
+                  }).join('')}
+                </table>
+                <div style="display:flex;gap:8px;margin-top:10px;">
+                  <button class="btn small" id="saveCompanyTeamAccessBtn" type="button">Save Access for ${escapeHtml(selected.name||selected.username)}</button>
+                  <button class="btn small danger" id="removeCompanyTeamMemberBtn" type="button">Remove from this company</button>
+                </div>
+              ` : `<div class="empty">Select a teammate on the left, or invite a new one.</div>`}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Invite sub-form shown inside companyTeamModal() when companyTeamMemberId==='invite'. A deliberately
+// short field set (same ones groupAddUserDraft already collects) since this creates a real, independent
+// Firebase Auth account via companyTeamCreateUserAccount() -- not just a permissions row.
+function companyTeamInviteFormHtml(){
+  const d = companyTeamInviteDraft;
+  const preset = COMPANY_TEAM_ROLE_PRESETS[d.preset] || COMPANY_TEAM_ROLE_PRESETS.bookkeeper;
+  return `
+    <p style="font-size:12.5px;margin-top:0;font-weight:700;">Invite Team Member</p>
+    ${companyTeamInviteError ? `<p style="font-size:12px;color:var(--debit);">${escapeHtml(companyTeamInviteError)}</p>` : ''}
+    <div class="field"><label>Name</label><input type="text" id="ctInviteName" value="${escapeAttr(d.name)}"></div>
+    <div class="field"><label>Username (for login)</label><input type="text" id="ctInviteUsername" value="${escapeAttr(d.username)}"></div>
+    <div class="field"><label>Mobile</label><input type="text" id="ctInviteMobile" value="${escapeAttr(d.mobile)}"></div>
+    <div class="field"><label>Email</label><input type="email" id="ctInviteEmail" value="${escapeAttr(d.email)}"></div>
+    <div class="field"><label>Temporary password</label><input type="text" id="ctInvitePassword" value="${escapeAttr(d.password)}"></div>
+    <div class="field"><label>Role preset</label>
+      <select id="ctInvitePreset">
+        ${Object.keys(COMPANY_TEAM_ROLE_PRESETS).map(k=>`<option value="${k}" ${k===d.preset?'selected':''}>${escapeHtml(COMPANY_TEAM_ROLE_PRESETS[k].label)}</option>`).join('')}
+      </select>
+      <p class="muted" style="font-size:11px;margin:4px 0 0;">${escapeHtml(preset.desc)} You can fine-tune every module after inviting them.</p>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn small" id="ctInviteCreateBtn" type="button" ${companyTeamInviteBusy?'disabled':''}>${companyTeamInviteBusy?'Creating…':'Create & Invite'}</button>
+      <button class="btn small secondary" id="ctInviteCancelBtn" type="button">Cancel</button>
     </div>
   `;
 }
@@ -9724,9 +9912,28 @@ function ratioAnalysisData(is, bs, asOfDate){
   // solvency check alongside Debt-to-Equity: below ~1.5x is generally considered a warning sign.
   const interestCoverage = is.financeCosts ? is.operatingProfit/is.financeCosts : null;
 
+  // Inventory Turnover / Days Inventory Outstanding (DIO) — the piece needed, alongside the DSO/DPO
+  // already above, to complete the Cash Conversion Cycle. Splits out Inventories from the same
+  // 'Current Assets' group using the identical sub-group heuristic scheduleIIIBalanceSheetData()
+  // already uses for the Schedule III balance sheet (stock/unsold-stock group, or a name match, once
+  // Loans & Advances and GST-input-tagged ledgers are excluded) — kept independent here, deliberately
+  // NOT touching the per-invoice Parties-ageing/Collections-Priority logic, which is a different,
+  // unrelated read of the same ledgers.
+  const invCaLedgers = state.ledgers.filter(l=>bucketOf(l)==='ca');
+  const invLoanAdvLedgers = invCaLedgers.filter(l=>l.group==='loanadv');
+  const invOtherCaLedgers = invCaLedgers.filter(l=>!invLoanAdvLedgers.includes(l) && l.gstType && l.gstType.startsWith('input'));
+  const inventoryLedgersForTurnover = invCaLedgers.filter(l=>!invLoanAdvLedgers.includes(l) && !invOtherCaLedgers.includes(l) && (l.group==='stock' || l.group==='unsold' || /stock|inventor/i.test(l.name)));
+  const inventoryTotal = inventoryLedgersForTurnover.reduce((s,l)=>s+bal(l.id),0);
+  const inventoryTurnover = inventoryTotal ? is.costOfSales/inventoryTotal : null;
+  const dio = inventoryTurnover ? 365/inventoryTurnover : null;
+  // Cash Conversion Cycle = DIO + DSO − DPO — how many days cash stays tied up in the operating
+  // cycle (buying/making inventory → selling it → collecting cash) net of the credit period taken
+  // from suppliers. Only computed once all three legs are available.
+  const cashConversionCycle = (dio!=null && dso!=null && dpo!=null) ? dio + dso - dpo : null;
+
   return { currentRatio, quickRatio, cashRatio, workingCapital, debtToEquity, debtRatio, equityRatio,
     grossMargin, operatingMargin, netMargin, roa, roe, assetTurnover, receivablesTurnover, dso, payablesTurnover, dpo,
-    interestCoverage };
+    interestCoverage, inventoryTotal, inventoryTurnover, dio, cashConversionCycle };
 }
 
 function cashFlowClassify(voucher){
@@ -9919,7 +10126,11 @@ function cvpBreakdown(is){
   const breakEvenRevenue = (contributionMarginRatio && contributionMarginRatio>0) ? fixedCosts/contributionMarginRatio : null;
   const marginOfSafety = breakEvenRevenue!=null ? revenue-breakEvenRevenue : null;
   const marginOfSafetyPct = (marginOfSafety!=null && revenue) ? marginOfSafety/revenue*100 : null;
-  return { variableCosts, fixedCosts, revenue, contributionMargin, contributionMarginRatio, breakEvenRevenue, marginOfSafety, marginOfSafetyPct };
+  // Degree of Operating Leverage = Contribution Margin ÷ Operating Profit — how much a % change in
+  // Revenue amplifies into a % change in Operating Profit, given the current fixed/variable cost
+  // split. Only meaningful with a positive Operating Profit to divide into.
+  const degreeOfOperatingLeverage = is.operatingProfit>0 ? contributionMargin/is.operatingProfit : null;
+  return { variableCosts, fixedCosts, revenue, contributionMargin, contributionMarginRatio, breakEvenRevenue, marginOfSafety, marginOfSafetyPct, degreeOfOperatingLeverage };
 }
 
 // Altman Z″-Score (1995 private-firm / non-manufacturer model) — a single, widely-used financial
@@ -9950,6 +10161,16 @@ function altmanZScoreData(is, bs){
 function freeCashFlowData(cf){
   return { operatingCashFlow: cf.operating, investingCashFlow: cf.investing, fcf: cf.operating+cf.investing };
 }
+// Quality of Earnings — how much of accounting Net Profit is actually backed by cash from
+// operations, rather than non-cash accruals (a large gap either way is worth a second look: far
+// below 1 can mean profit is sitting in receivables/inventory rather than cash; well above 1 can
+// mean non-cash charges like depreciation are depressing profit relative to cash generated). Both
+// figures are compared life-to-date, since this system doesn't split Operating Cash Flow by
+// financial year the way the Income Statement / Balance Sheet series above can be.
+function qualityOfEarningsData(cf, lifeToDateProfit){
+  const ratio = lifeToDateProfit ? cf.operating/lifeToDateProfit : null;
+  return { operatingCashFlow: cf.operating, netProfit: lifeToDateProfit, ratio };
+}
 // Economic Value Added — needs a Cost of Capital assumption this system has no source for (no
 // market data / WACC calculation of its own), so — same pattern as the Benchmarking section's
 // user-typed comparison values — the user types one in and EVA recomputes live; `costOfCapitalPct`
@@ -9961,7 +10182,11 @@ function evaData(is, bs, costOfCapitalPct){
   const hasRate = costOfCapitalPct!=null && costOfCapitalPct!=='' && !isNaN(Number(costOfCapitalPct));
   const capitalCharge = hasRate ? investedCapital*(Number(costOfCapitalPct)/100) : null;
   const eva = hasRate ? nopat-capitalCharge : null;
-  return { investedCapital, effectiveTaxRate, nopat, hasRate, capitalCharge, eva };
+  // Return on Invested Capital — unlike EVA itself, needs no Cost of Capital assumption, so it's
+  // always available even before the user types one in: a direct efficiency read on the same
+  // NOPAT/Invested Capital this section already computes.
+  const roic = investedCapital ? nopat/investedCapital*100 : null;
+  return { investedCapital, effectiveTaxRate, nopat, hasRate, capitalCharge, eva, roic };
 }
 
 function buildIncomeStatementSheet(is){
@@ -11822,8 +12047,9 @@ function render(){
       <span id="menuHelp">Help</span>
       ${(canApproveVouchers() || state.pendingVouchers.some(p=>p.submittedBy===(currentUser&&currentUser.id))) ? `<span id="menuApprovals">Approvals${state.pendingVouchers.length?` (${state.pendingVouchers.length})`:''}</span>` : ''}
       ${currentUser && currentUser.role==='support' && currentCompany.groupId===currentUser.id ? `<span id="menuManageAccess">Access</span>` : ''}
+      ${isCompanyOwner() ? `<span id="menuTeamAccess">Team Access</span>` : ''}
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
-      ${!(currentUser && currentUser.role==='user' && currentUser.groupOwnerId) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
+      ${!(currentUser && ((currentUser.role==='user' && currentUser.groupOwnerId) || isCompanyTeamMember())) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
         <button class="theme-toggle" id="cmdkOpenBtn" type="button" title="Search ledgers, parties, vouchers, items, or jump to a screen" aria-label="Open command palette">🔎 Search <kbd style="margin-left:5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:10px;">Ctrl K</kbd></button>
         <button class="btn secondary small" id="refreshSessionBtn" type="button" style="padding:3px 10px;font-size:11px;" title="Reload this company's data, your plan, and any admin changes">⟳ Refresh</button>
@@ -11920,6 +12146,7 @@ function render(){
     ${modal==='voucherHistory' ? voucherHistoryModal() : ''}
     ${modal==='approvals' ? approvalsModal() : ''}
     ${modal==='manageAccess' ? manageAccessModal() : ''}
+    ${modal==='companyTeam' ? companyTeamModal() : ''}
     ${modal==='ocrScan' ? ocrScanModal() : ''}
     ${modal==='commandPalette' ? commandPaletteModal() : ''}
     ${qaWidget()}
@@ -12011,6 +12238,13 @@ function render(){
     manageAccessUserId = null;
     if(!groupMembers.length) await loadGroupAdminData();
     modal = 'manageAccess';
+    render();
+  });
+  document.getElementById('menuTeamAccess')?.addEventListener('click', ()=>{
+    companyTeamMemberId = null;
+    companyTeamInviteError = '';
+    companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
+    modal = 'companyTeam';
     render();
   });
   document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
@@ -15482,11 +15716,14 @@ function renderGateway(){
           const openedAgo = relativeTimeAgo(companyOpenedAt[c.id]);
           const lastLabel = lastViewedTabLabel(c.id);
           const recencyText = (openedAgo?`Opened ${openedAgo}`:'Not opened yet') + (lastLabel?` · Last viewed: ${lastLabel}`:'');
-          const badgesHtml = `${isSharedDemoId(c.id)?'<span class="pill pos">Sample</span>':''}${c.groupId?'<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}`;
+          const isMyTeamCompany = currentUser && c.teamMembers && c.teamMembers[currentUser.id];
+          const badgesHtml = `${isSharedDemoId(c.id)?'<span class="pill pos">Sample</span>':''}${c.groupId?'<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}${!isMyTeamCompany && c.teamMemberIds && c.teamMemberIds.length ? '<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Team</span>' : ''}`;
           // Rename/Delete are Gateway-only shortcuts, so they deliberately stay out of reach for the
-          // shared demo company (unless you're the full Administrator) and for demo sessions entirely --
-          // the exact same protection isReadOnlyMode()/canAccessCompany() give those elsewhere in the app.
-          const canQuickManage = !isDemoUser && (!isSharedDemoId(c.id) || isFullAdmin());
+          // shared demo company (unless you're the full Administrator), for demo sessions entirely, and
+          // for a Company Team Access teammate (isMyTeamCompany) viewing a company they don't own -- the
+          // exact same protection isReadOnlyMode()/canAccessCompany()/isCompanyTeamMember() give those
+          // elsewhere in the app.
+          const canQuickManage = !isDemoUser && (!isSharedDemoId(c.id) || isFullAdmin()) && !isMyTeamCompany;
           const menuOpen = gatewayCardMenuOpenId===c.id;
           const actionsHtml = `
                 <button class="company-card-pin${pinned?' is-pinned':''}" data-pin-co="${c.id}" type="button" title="${pinned?'Unpin from top':'Pin to top'}" aria-label="${pinned?'Unpin':'Pin'} ${escapeAttr(c.name)}">${pinned?'★':'☆'}</button>
@@ -17805,17 +18042,24 @@ service cloud.firestore {
       // the "allow delete" rule below and the app's "Delete Company" menu item, which is hidden
       // client-side for a grouped 'user' account as a matching defence-in-depth measure.
       function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      // Company Team Access (any owner, not just a Support group): a teammate explicitly invited to
+      // THIS ONE company is listed in its own teamMemberIds array (see companyTeamModal() /
+      // companyTeamCreateUserAccount() in the app) — deliberately narrower than groupId's whole-group
+      // sharing above, so inviting someone to one company never exposes an owner's other companies.
+      function isTeamMember() { return 'teamMemberIds' in resource.data && request.auth.uid in resource.data.teamMemberIds; }
       allow get: if isSignedIn() && (
         companyId == 'co_demo' ||
         companyId == 'co_skdemo' ||
         resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (resource.data.groupId != null && resource.data.groupId == myGroupId()) ||
+        isTeamMember()
       );
       allow list: if isSignedIn() && (
         isAdmin() ||
         resource.data.ownerId == request.auth.uid ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (resource.data.groupId != null && resource.data.groupId == myGroupId()) ||
+        isTeamMember()
       );
       // groupId can only ever be set to the CREATOR's own real group affiliation (or left null for
       // an independent, ungrouped account) — never to an arbitrary value, so a company can't be
@@ -17826,14 +18070,21 @@ service cloud.firestore {
         (request.resource.data.ownerId == request.auth.uid &&
          (request.resource.data.groupId == null || request.resource.data.groupId == myGroupId()))
       );
+      // A Company Team Access teammate gets full read-write here too (exactly like a Support group
+      // member above) — per-module Full/View/Hidden is enforced client-side by isReadOnlyMode()/
+      // isModuleHidden(), the same trust model the groupId feature already relies on, since this
+      // app embeds a company's entire books as fields on one document rather than per-module
+      // subcollections a security rule could gate individually.
       allow update: if isSignedIn() && (
         resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId())
+        (resource.data.groupId != null && resource.data.groupId == myGroupId()) ||
+        isTeamMember()
       );
       // Deletion is deliberately narrower than read/write: only an Administrator, the Support user
       // who administers this group, or a fully independent (ungrouped) owner may delete a company —
-      // an ordinary grouped 'user' account cannot delete shared group data outright.
+      // an ordinary grouped 'user' account (or a Company Team Access teammate) cannot delete shared
+      // data outright.
       allow delete: if isSignedIn() && (
         isAdmin() ||
         (isSupport() && resource.data.groupId == request.auth.uid) ||
@@ -17843,21 +18094,24 @@ service cloud.firestore {
     match /companies/{companyId}/attachments/{attachmentId} {
       function companyDoc() { return get(/databases/$(database)/documents/companies/$(companyId)).data; }
       function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
-      // Same visibility and write access as the company document itself (owner, admin, or a fellow
-      // group member/administering Support user) — this subcollection holds voucher attachments
-      // (scanned bills/receipts) AND encrypted employee documents (ID proofs, tax forms, increment
-      // letters — see docVaultKey/employeeDocumentsModal) as individual documents, kept off the main
-      // company document specifically so a handful of them can never blow past Firestore's 1 MiB cap.
-      // Employee documents are additionally encrypted client-side before they ever reach this
-      // collection, so even someone with direct rules-bypassing database access (a leaked service
-      // account, a raw export) gets ciphertext, not the document itself.
+      function isTeamMember() { return 'teamMemberIds' in companyDoc() && request.auth.uid in companyDoc().teamMemberIds; }
+      // Same visibility and write access as the company document itself (owner, admin, a fellow group
+      // member/administering Support user, or a Company Team Access teammate) — this subcollection
+      // holds voucher attachments (scanned bills/receipts) AND encrypted employee documents (ID
+      // proofs, tax forms, increment letters — see docVaultKey/employeeDocumentsModal) as individual
+      // documents, kept off the main company document specifically so a handful of them can never
+      // blow past Firestore's 1 MiB cap. Employee documents are additionally encrypted client-side
+      // before they ever reach this collection, so even someone with direct rules-bypassing database
+      // access (a leaked service account, a raw export) gets ciphertext, not the document itself.
       allow get, list: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
-        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
+        isTeamMember()
       );
       allow create, update, delete: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
-        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
+        isTeamMember()
       );
     }
     match /settings/{docId} {
@@ -24150,19 +24404,29 @@ function svgHBarChart(items, opts={}){
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;font-family:'Inter',sans-serif;overflow:visible;">${benchmarkSvg}${barsSvg}</svg>`;
 }
 /* Single-row 100%-stacked bar, used to visualise a financing (Equity vs Liabilities) mix. */
+// `opts.title`, when given, is drawn as SVG <text> INSIDE the same <svg> the bar itself uses (rather
+// than as a separate HTML element above it) specifically so it survives export: a chart card with
+// several stacked bars (e.g. one per financial year) gets rasterized by stitching each bar's raw
+// <svg> together into one composite PNG for PPTX/PDF export (see stitchSvgsToPngDataUrl()), which
+// only ever sees the <svg> itself — any identifying label placed in a sibling <div> is silently
+// dropped, leaving a stack of bars with no way to tell which financial year (or which side of the
+// Balance Sheet) any one of them belongs to. A label baked into the svg's own viewBox has no such gap.
 function svgStackedBar(segments, opts={}){
-  const width = opts.width || 480, height = opts.height || 26;
+  const width = opts.width || 480, barHeight = opts.height || 26;
+  const titleH = opts.title ? 18 : 0;
+  const height = barHeight + titleH;
   const total = segments.reduce((s,x)=>s+Math.max(0,x.value||0),0) || 1;
   let x = 0;
   const rects = segments.map(seg=>{
     const w = Math.max(0,seg.value||0)/total*width;
     const pct = (Math.max(0,seg.value||0)/total*100).toFixed(1);
-    const r = `<g class="viz-mark" data-tip-title="${escapeAttr(seg.label)}" data-tip-value="₹${fmt(seg.value)}" data-tip-sub="${pct}% of the total" data-tip-color="${seg.color}" tabindex="0"><rect x="${x.toFixed(2)}" y="0" width="${w.toFixed(2)}" height="${height}" fill="${seg.color}"></rect></g>`;
+    const r = `<g class="viz-mark" data-tip-title="${escapeAttr(seg.label)}" data-tip-value="₹${fmt(seg.value)}" data-tip-sub="${pct}% of the total" data-tip-color="${seg.color}" tabindex="0"><rect x="${x.toFixed(2)}" y="${titleH}" width="${w.toFixed(2)}" height="${barHeight}" fill="${seg.color}"></rect></g>`;
     x += w;
     return r;
   }).join('');
+  const titleSvg = opts.title ? `<text x="3" y="12" font-size="11.5" font-weight="700" fill="var(--ink-soft)">${escapeHtml(opts.title)}</text>` : '';
   const legend = segments.map(seg=>`<span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px;font-size:11.5px;color:var(--ink-soft);"><span style="width:10px;height:10px;border-radius:2px;background:${seg.color};display:inline-block;"></span>${escapeHtml(seg.label)} (${(Math.max(0,seg.value||0)/total*100).toFixed(1)}%)</span>`).join('');
-  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;border-radius:6px;overflow:hidden;">${rects}</svg><div style="margin-top:9px;">${legend}</div>`;
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;border-radius:6px;overflow:hidden;">${titleSvg}${rects}</svg><div style="margin-top:9px;">${legend}</div>`;
 }
 /* Rule-based, plain-language read of the Balance Sheet's liquidity, asset mix, leverage and
    internal balance — generated from the same figures shown in the statement above it. */
@@ -24215,7 +24479,7 @@ function reportsLanding(){
     {id:'balanceSheet', icon:'🏛️', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
     {id:'cashFlow', icon:'💧', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
     {id:'ratios', icon:'📊', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
-    {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size, Ratio, DuPont, Cash Flow, Variance, Break-even, Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow and EVA analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
+    {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
     {id:'stakeholderPresentation', icon:'🎤', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
     {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
     {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
@@ -24942,12 +25206,36 @@ function finPerfCommonSizeCard(series){
       {label:'Finance Costs', value: Math.max(0,is.financeCosts), color:VIZ_COLORS[1]},
       {label:'Net Profit', value: Math.max(0,is.profitForPeriod), color:VIZ_COLORS[0]},
     ];
-    return `<div style="margin-bottom:14px;"><div style="font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">FY ${s.fy} <span class="muted" style="font-weight:500;">(Revenue = 100%)</span></div>${svgStackedBar(segs)}</div>`;
+    return `<div style="margin-bottom:10px;">${svgStackedBar(segs, {title:`FY ${s.fy} (Revenue = 100%)`})}</div>`;
+  }).join('');
+  // Balance-Sheet side — same 100%-stacked-bar technique, this time each FY's Assets mix (Non-
+  // current vs Current Assets) and Financing mix (Equity vs Non-current vs Current Liabilities), each
+  // as a % of Total Assets — the two sides always sum to the same total by the accounting identity
+  // (Total Assets = Total Equity and Liabilities), so they read as directly comparable 100% bars.
+  const bsBars = rows.map(s=>{
+    const bs = s.bs;
+    const assetSegs = [
+      {label:'Non-current Assets', value: Math.max(0,bs.nonCurrentAssetsTotal), color:VIZ_COLORS[3]},
+      {label:'Current Assets', value: Math.max(0,bs.currentAssetsTotal), color:VIZ_COLORS[0]},
+    ];
+    const financingSegs = [
+      {label:'Equity', value: Math.max(0,bs.totalEquity), color:VIZ_COLORS[1]},
+      {label:'Non-current Liabilities', value: Math.max(0,bs.nonCurrentLiabTotal), color:VIZ_COLORS[2]},
+      {label:'Current Liabilities', value: Math.max(0,bs.currentLiabTotal), color:VIZ_COLORS[4]},
+    ];
+    return `<div style="margin-bottom:10px;">
+      ${svgStackedBar(assetSegs, {title:`FY ${s.fy} — Assets (Total Assets = 100%)`})}
+      <div style="margin-top:6px;">${svgStackedBar(financingSegs, {title:`FY ${s.fy} — Equity & Liabilities (Total = 100%)`})}</div>
+    </div>`;
   }).join('');
   return `
     <div class="panel viz-panel">
       <div class="panel-head"><h2>Common-Size Income Statement</h2><span class="viz-sub">100% Stacked · every line item as a % of Revenue</span></div>
       <div class="panel-body">${bars || `<div class="empty">No data yet.</div>`}</div>
+    </div>
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Common-Size Balance Sheet</h2><span class="viz-sub">100% Stacked · Assets mix and Equity &amp; Liabilities mix, each as a % of Total Assets</span></div>
+      <div class="panel-body">${bsBars || `<div class="empty">No data yet.</div>`}</div>
     </div>
   `;
 }
@@ -24969,6 +25257,12 @@ function finPerfCommonSizeInterpretation(cur, prev){
       if(Math.abs(diff)>=0.5) notes.push(`Cost of Sales as a share of Revenue ${diff>0?'widened':'narrowed'} from ${prevCogsPct.toFixed(1)}% in FY ${prev.fy} to ${cogsPct.toFixed(1)}% in FY ${cur.fy} — cost structure is ${diff>0?'getting heavier':'improving'} relative to sales.`);
     }
   }
+  const ncaPct = pctOf(cur.bs.nonCurrentAssetsTotal, cur.bs.totalAssets);
+  const caPct = pctOf(cur.bs.currentAssetsTotal, cur.bs.totalAssets);
+  const eqPct = pctOf(cur.bs.totalEquity, cur.bs.totalAssets);
+  const liabPct = pctOf(cur.bs.nonCurrentLiabTotal+cur.bs.currentLiabTotal, cur.bs.totalAssets);
+  if(ncaPct!=null && caPct!=null) notes.push(`On the Balance Sheet, Non-current Assets make up ${ncaPct.toFixed(1)}% of Total Assets, with Current Assets the remaining ${caPct.toFixed(1)}%.`);
+  if(eqPct!=null && liabPct!=null) notes.push(`Equity funds ${eqPct.toFixed(1)}% of Total Assets, with liabilities funding the remaining ${liabPct.toFixed(1)}% — the same capital-structure story the Debt Ratio/Equity Ratio in the Ratio Analysis section tell as single numbers.`);
   return notes;
 }
 
@@ -25051,10 +25345,13 @@ function finPerfDuPontInterpretation(cur, prev){
 
 // 6. Cash Flow Analysis — embeds the SAME Cash Flow report cards used elsewhere (all defined above,
 // near reportCashFlow()) — Operating/Investing/Financing waterfall, cash-in-vs-out, operating trend.
-function finPerfCashFlowInterpretation(cf){
+function finPerfCashFlowInterpretation(cf, qoe){
   const notes = [];
   notes.push(`Operating activities generated ₹${fmt(cf.operating)} in net cash life-to-date${cf.operating<0?' — worth flagging, since core operations should normally be the primary source of cash.':'.'}`);
   notes.push(`Investing activities used ₹${fmt(Math.abs(cf.investing))} net${cf.investing<0?' (typical for a business investing in assets)':''}, and Financing activities ${cf.financing>=0?'contributed':'used'} ₹${fmt(Math.abs(cf.financing))} net.`);
+  if(qoe && qoe.ratio!=null){
+    notes.push(`Quality of Earnings — Operating Cash Flow against Net Profit — stands at ${fmtRatio(qoe.ratio)}× (₹${fmt(qoe.operatingCashFlow)} of operating cash flow against ₹${fmt(qoe.netProfit)} of accounting profit, life-to-date). ${qoe.ratio>=1 ? 'At or above 1× means reported profit is backed by real cash, not just accruals.' : 'Below 1× means part of reported profit is still sitting in receivables, inventory or other non-cash items rather than collected cash — worth watching.'}`);
+  }
   return notes;
 }
 
@@ -25128,6 +25425,7 @@ function finPerfCvpCard(cvp){
       <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Contribution Margin Ratio</div><div class="viz-kpi-val">${(cvp.contributionMarginRatio*100).toFixed(1)}%</div></div>
       <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Fixed Costs</div><div class="viz-kpi-val">₹${fmt(cvp.fixedCosts)}</div></div>
       <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Margin of Safety</div><div class="viz-kpi-val ${(cvp.marginOfSafety||0)>=0?'pos':'neg'}">${cvp.marginOfSafetyPct!=null?cvp.marginOfSafetyPct.toFixed(1)+'%':'—'}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Degree of Operating Leverage</div><div class="viz-kpi-val">${cvp.degreeOfOperatingLeverage!=null?fmtRatio(cvp.degreeOfOperatingLeverage)+'×':'—'}</div></div>
     </div>
     <div class="panel viz-panel">
       <div class="panel-head"><h2>Break-even Analysis (CVP)</h2><span class="viz-sub">Line · Revenue level (% of current) vs ₹</span></div>
@@ -25150,6 +25448,7 @@ function finPerfCvpInterpretation(cvp){
     if(cvp.marginOfSafetyPct>=0) notes.push(`Current Revenue of ₹${fmt(cvp.revenue)} sits ${cvp.marginOfSafetyPct.toFixed(1)}% above break-even — that Margin of Safety is the cushion Revenue could fall by before the business tips into a loss.`);
     else notes.push(`Current Revenue of ₹${fmt(cvp.revenue)} is actually ${Math.abs(cvp.marginOfSafetyPct).toFixed(1)}% BELOW the break-even point — on the current cost structure, Revenue needs to grow just to reach break-even.`);
   }
+  if(cvp.degreeOfOperatingLeverage!=null) notes.push(`Degree of Operating Leverage is ${fmtRatio(cvp.degreeOfOperatingLeverage)}× — a 10% change in Revenue would swing Operating Profit by roughly ${(cvp.degreeOfOperatingLeverage*10).toFixed(1)}%, ${cvp.degreeOfOperatingLeverage>2?'a fairly high sensitivity given how much of the cost base is fixed':'a moderate sensitivity to revenue swings'}.`);
   return notes;
 }
 
@@ -25282,9 +25581,10 @@ function finPerfEvaCard(eva){
           <label style="font-size:11.5px;font-weight:600;margin:0;">Cost of Capital (%)</label>
           <input type="number" step="0.1" data-cost-of-capital value="${finPerfCostOfCapital!=null&&finPerfCostOfCapital!==''?escapeAttr(String(finPerfCostOfCapital)):''}" placeholder="e.g. 12" style="width:100px;padding:4px 6px;font-size:12px;">
         </div>
-        <div class="viz-kpi-row">
+        <div class="viz-kpi-row cols4">
           <div class="viz-kpi"><div class="viz-kpi-label">NOPAT</div><div class="viz-kpi-val">₹${fmt(eva.nopat)}</div></div>
           <div class="viz-kpi"><div class="viz-kpi-label">Invested Capital</div><div class="viz-kpi-val">₹${fmt(eva.investedCapital)}</div></div>
+          <div class="viz-kpi"><div class="viz-kpi-label">Return on Invested Capital</div><div class="viz-kpi-val ${eva.roic!=null?(eva.roic>=0?'pos':'neg'):''}">${eva.roic!=null?fmtPct(eva.roic):'—'}</div></div>
           <div class="viz-kpi"><div class="viz-kpi-label">Capital Charge</div><div class="viz-kpi-val">${eva.hasRate?'₹'+fmt(eva.capitalCharge):'—'}</div></div>
           <div class="viz-kpi"><div class="viz-kpi-label">EVA</div><div class="viz-kpi-val ${eva.eva!=null?(eva.eva>=0?'pos':'neg'):''}">${eva.eva!=null?'₹'+fmt(eva.eva):'Enter a rate →'}</div></div>
         </div>
@@ -25293,12 +25593,58 @@ function finPerfEvaCard(eva){
   `;
 }
 function finPerfEvaInterpretation(eva){
-  if(!eva.hasRate) return ['Enter a Cost of Capital assumption above to see whether this company is creating or destroying economic value beyond its accounting profit.'];
+  const roicNote = eva.roic!=null ? `Return on Invested Capital stands at ${fmtPct(eva.roic)} — Net Operating Profit After Tax of ₹${fmt(eva.nopat)} against ₹${fmt(eva.investedCapital)} of invested capital, no Cost of Capital assumption needed.` : null;
+  if(!eva.hasRate) return [roicNote, 'Enter a Cost of Capital assumption above to also see whether this company is creating or destroying economic value beyond its accounting profit.'].filter(Boolean);
   const notes = [];
+  if(roicNote) notes.push(roicNote);
   notes.push(`At a ${finPerfCostOfCapital}% cost of capital, Net Operating Profit After Tax of ₹${fmt(eva.nopat)} against a capital charge of ₹${fmt(eva.capitalCharge)} on ₹${fmt(eva.investedCapital)} of invested capital leaves an EVA of ₹${fmt(eva.eva)}.`);
   notes.push(eva.eva>=0
     ? `A positive EVA means the business is generating returns above what it costs to fund its capital — creating economic value beyond what accounting profit alone shows.`
     : `A negative EVA means accounting profit alone is overstating value creation — the business isn't yet covering the true cost of the capital invested in it.`);
+  return notes;
+}
+
+// 13. Efficiency & Cash Conversion Cycle — Inventory Turnover/Days Inventory Outstanding (DIO)
+// complete the operating-cycle picture alongside the Trade Receivables/Payables Turnover and
+// DSO/DPO ratioAnalysisData() already computes — none of which are actually charted anywhere in
+// this report (section 4's Ratio Analysis only embeds the Liquidity/Leverage/Profitability trend +
+// gauge cards), so they get their own section here, built around the Cash Conversion Cycle
+// (= DIO + DSO − DPO) as the single headline figure that ties the three turnover ratios together.
+function finPerfEfficiencyCard(ratios){
+  if(ratios.inventoryTurnover==null && ratios.receivablesTurnover==null && ratios.payablesTurnover==null){
+    return `<div class="panel"><div class="panel-body"><div class="empty">Not enough inventory, receivables or payables data yet to compute efficiency ratios.</div></div></div>`;
+  }
+  return `
+    <div class="viz-kpi-row cols4">
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Inventory Turnover</div><div class="viz-kpi-val">${ratios.inventoryTurnover!=null?fmtRatio(ratios.inventoryTurnover)+'×':'—'}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Trade Receivables Turnover</div><div class="viz-kpi-val">${ratios.receivablesTurnover!=null?fmtRatio(ratios.receivablesTurnover)+'×':'—'}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Trade Payables Turnover</div><div class="viz-kpi-val">${ratios.payablesTurnover!=null?fmtRatio(ratios.payablesTurnover)+'×':'—'}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Cash Conversion Cycle</div><div class="viz-kpi-val ${ratios.cashConversionCycle!=null?(ratios.cashConversionCycle<=0?'pos':'neg'):''}">${fmtDays(ratios.cashConversionCycle)}</div></div>
+    </div>
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Operating Cycle — Days</h2><span class="viz-sub">Inventory Days + Receivable Days − Payable Days = Cash Conversion Cycle</span></div>
+      <div class="panel-body">
+        ${svgHBarChart([
+          {label:'Days Inventory Outstanding', value: ratios.dio||0, display: fmtDays(ratios.dio), color:VIZ_COLORS[3]},
+          {label:'Days Sales Outstanding', value: ratios.dso||0, display: fmtDays(ratios.dso), color:VIZ_COLORS[1]},
+          {label:'Days Payable Outstanding', value: ratios.dpo||0, display: fmtDays(ratios.dpo), color:VIZ_COLORS[0]},
+          {label:'Cash Conversion Cycle', value: ratios.cashConversionCycle||0, display: fmtDays(ratios.cashConversionCycle), color: (ratios.cashConversionCycle||0)<=0?'#2CA01C':'#D64545'},
+        ], {width:480})}
+        <p class="muted" style="font-size:10.5px;margin:8px 0 0;">Cash Conversion Cycle = Days Inventory Outstanding + Days Sales Outstanding − Days Payable Outstanding — how many days cash stays tied up in the operating cycle before it comes back in, net of the credit period taken from suppliers.</p>
+      </div>
+    </div>
+  `;
+}
+function finPerfEfficiencyInterpretation(ratios){
+  const notes = [];
+  if(ratios.inventoryTurnover!=null) notes.push(`Inventory turns over ${fmtRatio(ratios.inventoryTurnover)}× a year — about ${fmtDays(ratios.dio)} of Cost of Sales sits in inventory at any time.`);
+  else notes.push(`No inventory ledgers are posted yet, so Inventory Turnover and Days Inventory Outstanding can't be computed — the figures below still apply to a service-only business.`);
+  if(ratios.cashConversionCycle!=null){
+    notes.push(`The Cash Conversion Cycle is ${fmtDays(ratios.cashConversionCycle)} — cash spent on inventory takes that long, on average, to come back in as collected cash, after netting off the credit period taken from suppliers.`);
+    notes.push(ratios.cashConversionCycle<=0
+      ? `A cash conversion cycle at or below zero means suppliers are effectively funding the operating cycle — inventory and receivables are collected before payables fall due, a capital-efficient position.`
+      : `A positive cash conversion cycle means cash is tied up in the operating cycle for that many days before it's collected back — shortening Inventory Days or Receivable Days (or lengthening Payable Days, within reason) would free up working capital.`);
+  }
   return notes;
 }
 
@@ -25315,6 +25661,7 @@ function reportFinancialPerformance(){
   const altman = altmanZScoreData(cur.is, cur.bs);
   const fcf = freeCashFlowData(cf);
   const eva = evaData(cur.is, cur.bs, finPerfCostOfCapital);
+  const qoe = qualityOfEarningsData(cf, incomeStatementData().profitForPeriod);
 
   const section = (num, title, sub, bodyHtml, notes) => `
     <div class="section-title" style="margin-top:26px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
@@ -25346,24 +25693,30 @@ function reportFinancialPerformance(){
     <div id="finPerfReportBody">
       ${section(1, 'Trend Analysis (Time Series)', 'How Revenue, Profit and Expenses have moved over time', finPerfTrendCard(series), finPerfTrendInterpretation(series))}
       ${prev ? section(2, 'Comparative / Horizontal Analysis', `FY ${prev.fy} vs FY ${cur.fy}`, finPerfComparativeCard(cur, prev), finPerfComparativeInterpretation(cur, prev)) : section(2, 'Comparative / Horizontal Analysis', null, `<div class="panel"><div class="panel-body"><div class="empty">Needs at least two financial years of data to compare — only FY ${cur.fy} exists so far.</div></div></div>`, [])}
-      ${section(3, 'Common-Size (Vertical) Analysis', 'Every Income Statement line as a % of Revenue', finPerfCommonSizeCard(series), finPerfCommonSizeInterpretation(cur, prev))}
+      ${section(3, 'Common-Size (Vertical) Analysis', 'Income Statement lines as a % of Revenue; Balance Sheet lines as a % of Total Assets', finPerfCommonSizeCard(series), finPerfCommonSizeInterpretation(cur, prev))}
       ${section(4, 'Ratio Analysis', 'Liquidity, profitability, solvency and efficiency, at a glance', finPerfRatioSection(cur.ratios, series), finPerfRatioInterpretation(cur.ratios))}
       ${section(5, 'DuPont Analysis', 'Decomposing Return on Equity', finPerfDuPontCard(cur, prev), finPerfDuPontInterpretation(cur, prev))}
       ${section(6, 'Cash Flow Analysis', 'Operating, Investing and Financing cash flows', `
+        <div class="viz-kpi-row">
+          <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Operating Cash Flow</div><div class="viz-kpi-val">₹${fmt(qoe.operatingCashFlow)}</div></div>
+          <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Net Profit (life-to-date)</div><div class="viz-kpi-val">₹${fmt(qoe.netProfit)}</div></div>
+          <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Quality of Earnings</div><div class="viz-kpi-val ${qoe.ratio!=null?(qoe.ratio>=1?'pos':'neg'):''}">${qoe.ratio!=null?fmtRatio(qoe.ratio)+'×':'—'}</div></div>
+        </div>
         <div class="viz-grid">
           ${cashFlowClusteredColumnCard(monthly)}
           ${cashFlowOperatingTrendCard(monthly)}
         </div>
         ${cashFlowWaterfallCard(cf)}
-      `, finPerfCashFlowInterpretation(cf))}
+      `, finPerfCashFlowInterpretation(cf, qoe))}
       ${section(7, 'Variance Analysis (Budget vs Actual)', null, finPerfVarianceCard(varianceData), finPerfVarianceInterpretation(varianceData))}
       ${section(8, 'Break-even / Cost-Volume-Profit Analysis', `FY ${cur.fy}`, finPerfCvpCard(cvp), finPerfCvpInterpretation(cvp))}
       ${section(9, 'Benchmarking / Peer Comparison', null, finPerfBenchmarkCard(cur.ratios), finPerfBenchmarkInterpretation(cur.ratios))}
       ${section(10, 'Financial Health Score', 'Altman Z″-Score — a going-concern / bankruptcy-risk indicator', finPerfAltmanCard(altman), finPerfAltmanInterpretation(altman))}
       ${section(11, 'Free Cash Flow Analysis', 'Cash generated after operating and investing activity', finPerfFcfCard(fcf, monthly), finPerfFcfInterpretation(fcf))}
       ${section(12, 'Economic Value Added (EVA)', null, finPerfEvaCard(eva), finPerfEvaInterpretation(eva))}
+      ${section(13, 'Efficiency & Cash Conversion Cycle', 'Inventory, receivables and payables turnover, tied together', finPerfEfficiencyCard(cur.ratios), finPerfEfficiencyInterpretation(cur.ratios))}
     </div>
-    <p class="muted" style="font-size:10.5px;margin-top:18px;">Cost of Sales is treated as the variable cost and every other expense bucket as fixed for the Break-even analysis — the standard simplifying assumption for a ledger-based system with no per-unit sales-quantity data. Benchmarking figures and the EVA Cost of Capital are whatever you type in above — this system holds no industry-average or market data of its own.</p>
+    <p class="muted" style="font-size:10.5px;margin-top:18px;">Cost of Sales is treated as the variable cost and every other expense bucket as fixed for the Break-even analysis — the standard simplifying assumption for a ledger-based system with no per-unit sales-quantity data. Benchmarking figures and the EVA Cost of Capital are whatever you type in above — this system holds no industry-average or market data of its own. Quality of Earnings and the Cash Conversion Cycle compare a point-in-time/life-to-date cash figure against period profit — a standard simplification, not a true same-period match, since this system doesn't split Operating Cash Flow by financial year.</p>
   `;
 }
 
@@ -25543,6 +25896,7 @@ function buildPresentationSlides(audience){
   const altman = altmanZScoreData(cur.is, cur.bs);
   const fcf = freeCashFlowData(cf);
   const eva = evaData(cur.is, cur.bs, finPerfCostOfCapital);
+  const cvp = cvpBreakdown(cur.is);
   const companyName = (currentCompany && currentCompany.name) || 'Company';
   const periodLabel = series.length>1 ? `FY ${series[0].fy} – FY ${cur.fy}` : `FY ${cur.fy}`;
   const pct = (a,b) => a ? (b-a)/Math.abs(a)*100 : null;
@@ -25698,10 +26052,10 @@ function buildPresentationSlides(audience){
     slides.push({
       kind:'chart',
       icon:'🥧',
-      title:'Where Every Rupee of Revenue Went',
-      subtitle:'Common-size view of the Income Statement',
+      title:'Revenue Mix & Balance Sheet Composition',
+      subtitle:'Common-size view of the Income Statement and Balance Sheet',
       chartHtml: finPerfCommonSizeCard(series),
-      bullets: finPerfCommonSizeInterpretation(cur, prev),
+      bullets: finPerfCommonSizeInterpretation(cur, prev).slice(0,4),
     });
     slides.push({
       kind:'chart',
@@ -25710,6 +26064,22 @@ function buildPresentationSlides(audience){
       subtitle:`FY ${variance.fy}`,
       chartHtml: finPerfVarianceCard(variance),
       bullets: finPerfVarianceInterpretation(variance).slice(0,2),
+    });
+    slides.push({
+      kind:'chart',
+      icon:'🔄',
+      title:'Working Capital Efficiency',
+      subtitle:'Inventory, receivables and payables turnover, tied together',
+      chartHtml: finPerfEfficiencyCard(cur.ratios),
+      bullets: finPerfEfficiencyInterpretation(cur.ratios),
+    });
+    slides.push({
+      kind:'chart',
+      icon:'⚖️',
+      title:'Break-even & Operating Leverage',
+      subtitle:`FY ${cur.fy}`,
+      chartHtml: finPerfCvpCard(cvp),
+      bullets: finPerfCvpInterpretation(cvp).slice(0,3),
     });
   }
 
@@ -26035,7 +26405,17 @@ async function exportPresentationToPdf(){
     const theme = presoTheme(presoAudience);
     const images = await rasterizePresoCharts(slides);
     const pagesHtml = slides.map((s,i)=>{
-      const slideForRender = images[i] ? {...s, chartHtml: s.chartHtml.replace(/<svg[\s\S]*?<\/svg>/, `<img src="${images[i]}">`)} : s;
+      // images[i] is ONE composite PNG standing in for every <svg> the card drew (rasterizePresoCharts()
+      // stitches multiple into one when a card renders more than one, e.g. one bar per financial year) —
+      // so every raw <svg> in chartHtml must be swapped out, not just the first. A plain non-global
+      // .replace() here used to leave every <svg> after the first still in the HTML, which printed as
+      // duplicated, unstyled chart fragments below the correctly-rasterized image on any multi-svg slide.
+      let firstSvgSwapped = false;
+      const slideForRender = images[i] ? {...s, chartHtml: s.chartHtml.replace(/<svg[\s\S]*?<\/svg>/g, () => {
+        if(firstSvgSwapped) return '';
+        firstSvgSwapped = true;
+        return `<img src="${images[i]}">`;
+      })} : s;
       return `<div class="preso-page">${renderPresoSlideContent(slideForRender, theme)}</div>`;
     }).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Stakeholder Presentation</title><style>${PRESO_EXPORT_CSS}</style></head><body>${pagesHtml}</body></html>`;
@@ -28612,6 +28992,115 @@ function attachHandlers(){
       currentCompany.memberPermissions[manageAccessUserId] = next;
       const ok = await saveCompanyMeta(currentCompany);
       if(ok) toast('Access updated', {type:'success'});
+      render();
+    });
+  }
+  if(modal==='companyTeam'){
+    document.querySelectorAll('[data-select-team-member]').forEach(b=>{
+      b.addEventListener('click', ()=>{ companyTeamMemberId = b.dataset.selectTeamMember; render(); });
+    });
+    document.getElementById('companyTeamInviteBtn')?.addEventListener('click', ()=>{
+      companyTeamMemberId = 'invite';
+      companyTeamInviteError = '';
+      companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
+      render();
+    });
+    // ---- Invite form (companyTeamMemberId==='invite') ----
+    document.getElementById('ctInviteCancelBtn')?.addEventListener('click', ()=>{ companyTeamMemberId = null; render(); });
+    ['ctInviteName','ctInviteUsername','ctInviteMobile','ctInviteEmail','ctInvitePassword'].forEach(id=>{
+      document.getElementById(id)?.addEventListener('input', e=>{
+        const key = { ctInviteName:'name', ctInviteUsername:'username', ctInviteMobile:'mobile', ctInviteEmail:'email', ctInvitePassword:'password' }[id];
+        companyTeamInviteDraft[key] = e.target.value;
+      });
+    });
+    document.getElementById('ctInvitePreset')?.addEventListener('change', e=>{ companyTeamInviteDraft.preset = e.target.value; });
+    document.getElementById('ctInviteCreateBtn')?.addEventListener('click', async ()=>{
+      if(companyTeamInviteBusy) return;
+      const draft = {
+        name: (document.getElementById('ctInviteName')?.value || '').trim(),
+        username: (document.getElementById('ctInviteUsername')?.value || '').trim(),
+        mobile: (document.getElementById('ctInviteMobile')?.value || '').trim(),
+        email: (document.getElementById('ctInviteEmail')?.value || '').trim(),
+        password: document.getElementById('ctInvitePassword')?.value || '',
+        preset: companyTeamInviteDraft.preset || 'bookkeeper',
+      };
+      companyTeamInviteDraft = draft;
+      if(!draft.name){ companyTeamInviteError = 'Please enter a name.'; render(); return; }
+      if(!isValidUsername(draft.username)){ companyTeamInviteError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; render(); return; }
+      if(!isValidEmail(draft.email)){ companyTeamInviteError = 'Please enter a valid email address.'; render(); return; }
+      if(!isValidMobile(draft.mobile)){ companyTeamInviteError = 'Please enter a valid 10-digit phone number.'; render(); return; }
+      if(!draft.password || draft.password.length < 6){ companyTeamInviteError = 'Password must be at least 6 characters.'; render(); return; }
+      companyTeamInviteBusy = true;
+      companyTeamInviteError = '';
+      render();
+      try{
+        const usernameKey = draft.username.toLowerCase();
+        const existingUsername = await db.collection('usernames').doc(usernameKey).get();
+        if(existingUsername.exists){
+          companyTeamInviteError = 'That username is already taken.';
+          companyTeamInviteBusy = false;
+          render();
+          return;
+        }
+        const profile = await companyTeamCreateUserAccount(draft);
+        const preset = COMPANY_TEAM_ROLE_PRESETS[draft.preset] || COMPANY_TEAM_ROLE_PRESETS.bookkeeper;
+        currentCompany.teamMembers = currentCompany.teamMembers || {};
+        currentCompany.teamMembers[profile.id] = {
+          name: profile.name, username: profile.username,
+          permissions: JSON.parse(JSON.stringify(preset.permissions || {})),
+          addedAt: new Date().toISOString(),
+        };
+        currentCompany.teamMemberIds = Array.from(new Set([...(currentCompany.teamMemberIds||[]), profile.id]));
+        const ok = await saveCompanyMeta(currentCompany);
+        companyTeamInviteBusy = false;
+        if(ok){
+          await logAudit('account_created', `Invited @${profile.username} (${profile.email}) to "${currentCompany.name}" via Team Access`, profile.id, profile.name).catch(()=>{});
+          companyTeamMemberId = profile.id;
+          toast(`@${profile.username} can now log in to "${currentCompany.name}" with the credentials you set.`, {type:'success'});
+        } else {
+          companyTeamInviteError = 'Account was created, but saving their access to this company failed — open Team Access again to retry.';
+        }
+        render();
+      }catch(err){
+        console.error('Invite team member failed:', err);
+        companyTeamInviteBusy = false;
+        companyTeamInviteError = err && err.code==='auth/email-already-in-use'
+          ? 'An account with this email already exists. Use a different email.'
+          : authErrorMessage(err, true);
+        render();
+      }
+    });
+    // ---- Selected teammate's permission editor ----
+    document.getElementById('companyTeamPresetSelect')?.addEventListener('change', e=>{
+      const preset = COMPANY_TEAM_ROLE_PRESETS[e.target.value];
+      if(!preset) return;
+      document.querySelectorAll('[data-team-access-module]').forEach(el=>{
+        el.value = preset.permissions[el.dataset.teamAccessModule] || 'full';
+      });
+    });
+    document.getElementById('saveCompanyTeamAccessBtn')?.addEventListener('click', async ()=>{
+      if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
+      const next = {};
+      document.querySelectorAll('[data-team-access-module]').forEach(el=>{ next[el.dataset.teamAccessModule] = el.value; });
+      currentCompany.teamMembers = currentCompany.teamMembers || {};
+      if(!currentCompany.teamMembers[companyTeamMemberId]) return;
+      currentCompany.teamMembers[companyTeamMemberId].permissions = next;
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Access updated', {type:'success'});
+      render();
+    });
+    document.getElementById('removeCompanyTeamMemberBtn')?.addEventListener('click', async ()=>{
+      if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
+      const m = currentCompany.teamMembers && currentCompany.teamMembers[companyTeamMemberId];
+      if(!m) return;
+      const ok1 = window.confirm(`Remove ${m.name||m.username} from "${currentCompany.name}"? They'll no longer be able to open this company, but their login stays active.`);
+      if(!ok1) return;
+      const removedId = companyTeamMemberId;
+      delete currentCompany.teamMembers[removedId];
+      currentCompany.teamMemberIds = (currentCompany.teamMemberIds||[]).filter(x=>x!==removedId);
+      const ok = await saveCompanyMeta(currentCompany);
+      companyTeamMemberId = null;
+      if(ok) toast('Removed from this company', {type:'success'});
       render();
     });
   }
