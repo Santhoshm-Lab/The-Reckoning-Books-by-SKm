@@ -255,6 +255,12 @@
   .disclosure[open] > summary{border-bottom:1px dashed var(--border-strong);}
   .disclosure-body{padding:14px 14px 4px;}
 
+  /* Live Invoice Preview panel (voucher entry, Sales only) -- see liveInvoicePreviewPanel() /
+     refreshLiveInvoicePreview() in the script. A plain bordered box so it reads as a "paper" preview
+     distinct from the surrounding form chrome, tall enough to show a full A4-ish invoice without the
+     user having to scroll inside a cramped strip. */
+  .live-invoice-preview-frame{width:100%;height:560px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:#fff;}
+
   /* Ledger picker <select>s group a "Recently Used" optgroup (per voucher type, from this browser's
      own history) above the full list -- a light personalization touch, kept visually distinct. */
   select optgroup{font-style:normal;font-weight:800;font-size:10.5px;color:var(--ink-faint);}
@@ -5177,8 +5183,9 @@ let dashCountersAnimated = false; // only count-up the stat tiles once per compa
 let landingScrollHandler = null;
 let landingRevealObserver = null;
 let landingStoryScrollHandler = null; // the scroll-driven product-showcase story's own scroll listener
-let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table, for bulk party tagging
+let bulkLedgerSelection = new Set(); // ledger ids checked in the Accounts (COA) ledger table or the Parties table (same Set/kind -- a "party" is just a ledger with partyType set), for bulk party tagging
 let bulkItemSelection = new Set();   // item ids checked in the Item Master table, for bulk delete
+let bulkVoucherSelection = new Set(); // voucher ids checked in the Day Book table, for bulk delete
 let pinnedTiles = (function(){ try{ return JSON.parse(localStorage.getItem('rb_pinnedTiles')||'[]'); }catch(e){ return []; } })(); // dashboard viz-card ids pinned to the top "Pinned" section
 // ---- Personalized Dashboard layout: which of the top KPI stat tiles + summary cards this browser
 // wants to see. Same "plain array in localStorage" pattern as pinnedTiles/ledgerUsageHistory above --
@@ -5315,6 +5322,15 @@ let renameCoBusy = false;
 // (the per-company signals themselves) is recomputed fresh from the already-loaded companies[] array
 // on every render rather than cached, since it's cheap and always has to reflect the latest data.
 let accountantDashSort = 'attention'; // 'attention' | 'overdue' | 'name'
+// Multi-Entity Consolidation Report (Gateway screen, modal==='consolidation') -- combines P&L and
+// Balance Sheet figures across a chosen group of companies, excluding any ledger flagged
+// isIntercompany (see alterLedgerModal) so inter-group balances don't double-count. Like the
+// Accountant Dashboard above, this reads companies[] fresh on every render -- null selectedIds
+// means "default to every currently visible company", set the first time the modal opens.
+let consolidationSelectedIds = null; // null = not yet initialized | Set of company ids to include
+let consolidationDateFrom = ''; // '' = no lower bound (cumulative since each company's inception)
+let consolidationDateTo = '';   // '' = no upper bound (through the latest entry)
+let consolidationShowEliminated = false; // toggles the audit list of excluded intercompany balances
 // Migration/Onboarding AI Assistant (in-company modal==='migrate') -- a Tally/trial-balance import
 // wizard, modeled on the existing "Import Accounting Data" wizard's step/state shape (importState
 // above) but for bulk-creating LEDGERS with a suggested Chart-of-Accounts mapping, not vouchers.
@@ -5604,6 +5620,7 @@ let ordersSubTab = 'quotation'; // which of the 4 pre-sale document types the Or
 let oform = null; // null = not adding/editing a pre-sale document | {docType, id?, partyLedgerId, date, narration, items:[{itemId,name,qty,rate,disc}], status}
 let pendingConvertDoc = null; // {docType, id} of the order document being converted, set by the Orders tab's "Convert to Voucher" button; the next voucher save marks it converted
 let budgetReportFY = null; // which FY the Budget vs Actual report is showing; null = default to the current FY the first time it's opened
+let forexRateOverrides = {}; // {currencyId: rateString} -- per-currency revaluation rate typed into the Forex Revaluation report; empty/missing falls back to that currency's current rate under Accounts → Foreign Currencies
 let employeeDraft = null; // null = not adding/editing an employee | {id?, code?, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions}
 let payrollMonth = new Date().toISOString().slice(0,7); // YYYY-MM the "Generate Payroll" panel is showing
 let payrollPayFromLedgerId = null; // which Bank/Cash ledger salary net pay is credited from, for the "Generate Payroll" panel
@@ -5615,7 +5632,7 @@ let ewayVoucherId = null; // which Sales voucher the e-Way Bill transport-detail
 let attachmentsVoucherId = null; // which voucher the Attachments modal is open for
 let attachmentsCache = {}; // voucherId -> [{id, filename, mimeType, size, uploadedAt, dataUrl}], lazy-loaded per voucher from its own Firestore subcollection
 let attachmentsLoading = false; // true while the current voucher's attachment list is being fetched
-let invoiceSettingsDraft = null; // null = modal closed | {template, accentColor, footerNote, logoDataUrl}
+let invoiceSettingsDraft = null; // null = modal closed | {template, accentColor, footerNote, terms, bankDetails, logoDataUrl}
 let voucherHistoryId = null; // which voucher the "History" (voucherAuditLog) modal is open for
 let approvalSettingsDraft = null; // null = not editing | {enabled, threshold, types:[]} draft while the Approvals modal's Settings panel is open
 let manageAccessUserId = null; // which group member's per-module permission row is expanded in the Manage Access modal
@@ -8890,6 +8907,93 @@ async function postAllDuePrepaidAmortizations(){
   if(due.length) toast(`Posted ${due.length} prepaid amortization${due.length===1?'':'s'}`, {type:'success'});
 }
 
+/* ---------------- Forex revaluation / unrealized gain-loss ----------------
+   A ledger flagged with a foreign l.currency (see alterLedgerModal) is still posted to in ₹ like
+   every other ledger -- entries never carry their own foreign amount. What recovers each entry's
+   foreign-currency amount is the fact that a foreign-currency VOUCHER already stores its own
+   {currency, fxRate, foreignAmount} (see viewVoucher's Currency selector), and fxRate was constant
+   across that whole voucher, so entry_foreign = entry_inr / fxRate exactly reconstructs it -- no new
+   per-entry storage needed. foreignLedgerBalance() replays that for every matching voucher, the same
+   way ledgerBalance() replays entries for the ₹ balance. Sign convention matches ledgerBalance()
+   throughout: positive=Dr, negative=Cr, for both the ₹ and the foreign-currency balance alike. */
+function foreignLedgerBalance(l){
+  if(!l || !l.currency || l.currency==='inr') return 0;
+  let bal = l.openingForeign || 0;
+  for(const v of state.vouchers){
+    if(v.currency !== l.currency || !v.fxRate) continue;
+    for(const e of v.entries){
+      if(e.ledgerId !== l.id) continue;
+      bal += ((Number(e.dr)||0) - (Number(e.cr)||0)) / v.fxRate;
+    }
+  }
+  return bal;
+}
+// Every foreign-currency ledger's booked ₹ value (its real ledgerBalance(), i.e. historical cost at
+// whatever rate each voucher was entered at) vs. what it would be worth revalued at a single rate
+// per currency right now (overrideRates[currencyId], defaulting to that currency's current rate
+// under Accounts → Foreign Currencies) -- the difference is the unrealized gain or loss. Because both
+// sides use the same signed dr/cr convention, `gainLoss = revaluedINR - bookedINR` is the correct
+// adjustment to APPLY as a plain Dr (if positive) or Cr (if negative) to the ledger itself, regardless
+// of whether that ledger is normally Dr-nature (an asset) or Cr-nature (a liability) -- see
+// postForexRevaluation() below, which does exactly that.
+function forexRevaluationReport(overrideRates){
+  overrideRates = overrideRates || {};
+  const rows = [];
+  for(const l of state.ledgers){
+    if(!l.currency || l.currency==='inr' || l.isIntercompany) continue;
+    const c = currencyOf(l.currency);
+    if(!c) continue;
+    const foreignBal = r2(foreignLedgerBalance(l));
+    const bookedINR = r2(ledgerBalance(l.id));
+    const rate = overrideRates[l.currency]!=null && overrideRates[l.currency]!=='' ? Number(overrideRates[l.currency]) : (c.rate||0);
+    const revaluedINR = r2(foreignBal * rate);
+    const gainLoss = r2(revaluedINR - bookedINR);
+    rows.push({ ledger:l, currency:c, foreignBal, bookedINR, rate, revaluedINR, gainLoss });
+  }
+  return { rows, totalGainLoss: r2(rows.reduce((s,r)=>s+r.gainLoss,0)) };
+}
+// Find-or-create the standing P&L ledger unrealized forex gains/losses post against -- same
+// find-or-create-a-standing-ledger pattern as ensureDepreciationLedger()/ensurePrepaidExpensesLedger().
+// One ledger handles both directions: a gain credits it (like income), a loss debits it (like an
+// expense), exactly how a single real-world "Foreign Exchange Gain/Loss" P&L account works.
+function ensureForexGainLossLedger(){
+  let l = state.ledgers.find(x=>x.name==='Foreign Exchange Gain/Loss (Unrealized)' && bucketOf(x)==='dinc');
+  if(!l){ l = {id:uid('l'), name:'Foreign Exchange Gain/Loss (Unrealized)', group:'dinc', opening:0}; state.ledgers.push(l); saveLedgers(); }
+  return l.id;
+}
+// Posts ONE Journal voucher adjusting every foreign-currency ledger from its current booked ₹ value
+// to its revalued value at overrideRates (or each currency's current rate), with the Foreign Exchange
+// Gain/Loss ledger taking the offsetting leg on every line. Like depreciation/prepaid amortization,
+// this never edits a past voucher -- it's a normal, auditable, deletable Journal that can be re-run
+// later (e.g. next month) since each run's adjustment is computed from whatever is booked AT THAT
+// TIME, which already includes any earlier revaluation posting.
+async function postForexRevaluation(overrideRates){
+  const report = forexRevaluationReport(overrideRates);
+  const rows = report.rows.filter(r=>Math.abs(r.gainLoss)>=0.01);
+  if(!rows.length){ toast('Nothing to post — no unrealized gain/loss on any foreign-currency ledger at these rates'); return; }
+  const forexLedgerId = ensureForexGainLossLedger();
+  const today = new Date().toISOString().slice(0,10);
+  const entries = [];
+  for(const r of rows){
+    if(r.gainLoss > 0){
+      entries.push({ledgerId:r.ledger.id, dr:r.gainLoss, cr:0});
+      entries.push({ledgerId:forexLedgerId, dr:0, cr:r.gainLoss});
+    } else {
+      entries.push({ledgerId:r.ledger.id, dr:0, cr:-r.gainLoss});
+      entries.push({ledgerId:forexLedgerId, dr:-r.gainLoss, cr:0});
+    }
+  }
+  state.vouchers.push({
+    id: uid('v'), date: today, type:'Journal',
+    narration: `Forex revaluation (unrealized) — ${rows.length} ledger${rows.length===1?'':'s'}`,
+    entries,
+    createdAt: new Date().toISOString(),
+    isForexRevaluation: true,
+  });
+  await saveVouchers();
+  toast(`Posted forex revaluation — net ${report.totalGainLoss>=0?'gain':'loss'} ₹${fmt(Math.abs(report.totalGainLoss))} across ${rows.length} ledger${rows.length===1?'':'s'}`, {type:'success'});
+}
+
 /* ---------------- Party Master + AR/AP ageing ---------------- */
 // FIFO matching of invoices against payments on one party ledger. A customer ledger is invoiced on
 // the Dr side (Sales) and paid on the Cr side (Receipt); a supplier ledger is billed on the Cr side
@@ -9088,6 +9192,74 @@ function accountantClientRows(){
       lastActivity, isOwner, role: isOwner ? 'Owner' : 'Team Access', attentionScore,
     };
   });
+}
+
+// Company-scoped ledger balance -- mirrors ledgerBalance() exactly, but reads from a given
+// company's own ledgers/vouchers arrays instead of the currently-open `state`, since the
+// Consolidation Report below spans companies other than the one actually open right now (every
+// company's full ledgers/vouchers already sit in memory on its companies[] entry -- see
+// loadCompanies() -- so this needs no extra Firestore reads). `from`/`to` (inclusive, 'YYYY-MM-DD')
+// optionally restrict which voucher entries count, for scoping Income/Expenses to a period; pass
+// null for either to leave that side open.
+function companyScopedLedgerBalance(vouchers, ledgerId, opening, from, to){
+  let bal = opening || 0;
+  for(const v of vouchers){
+    if(from && v.date < from) continue;
+    if(to && v.date > to) continue;
+    for(const e of v.entries){
+      if(e.ledgerId === ledgerId) bal += (Number(e.dr)||0) - (Number(e.cr)||0);
+    }
+  }
+  return bal;
+}
+// Consolidated financials across a chosen group of companies -- combines each one's P&L (Income −
+// Expenses, scoped to [periodFrom, periodTo] when given) and Balance Sheet totals (Assets/
+// Liabilities/Capital, cumulative through periodTo), while EXCLUDING any ledger flagged
+// isIntercompany (see alterLedgerModal) from every total so a balance between two companies in the
+// group doesn't get counted as real income/expense/asset/liability at the group level. Eliminated
+// ledgers are still reported individually (eliminatedRows) for an auditable "what got excluded".
+// Sign convention matches ledgerBalance()/balanceLabel() elsewhere: Dr-nature (Assets/Expenses)
+// balances are positive when normal, Cr-nature (Liabilities/Capital/Income) are negative -- so
+// Income/Liabilities/Capital are negated here to show as the positive figures a report expects.
+function consolidatedFinancials(companyIds, periodFrom, periodTo){
+  const from = periodFrom || null, to = periodTo || null;
+  const selected = companies.filter(c=>companyIds.includes(c.id));
+  const perCompany = [];
+  const eliminatedRows = [];
+  let income=0, expenses=0, assets=0, liabilities=0, capital=0, eliminatedAmount=0;
+  for(const c of selected){
+    const ledgers = c.ledgers||[], vouchers = c.vouchers||[];
+    let coIncome=0, coExpenses=0, coAssets=0, coLiabilities=0, coCapital=0, coEliminated=0;
+    for(const l of ledgers){
+      if(l.isIntercompany){
+        const bal = companyScopedLedgerBalance(vouchers, l.id, l.opening, null, to);
+        coEliminated += Math.abs(bal);
+        eliminatedRows.push({ company: c, ledger: l, balance: r2(bal) });
+        continue;
+      }
+      const g = groupOf(l.group);
+      const cat = g ? g.cat : null;
+      if(cat==='Income') coIncome += -companyScopedLedgerBalance(vouchers, l.id, 0, from, to);
+      else if(cat==='Expenses') coExpenses += companyScopedLedgerBalance(vouchers, l.id, 0, from, to);
+      else if(cat==='Assets') coAssets += companyScopedLedgerBalance(vouchers, l.id, l.opening, null, to);
+      else if(cat==='Liabilities') coLiabilities += -companyScopedLedgerBalance(vouchers, l.id, l.opening, null, to);
+      else if(cat==='Capital') coCapital += -companyScopedLedgerBalance(vouchers, l.id, l.opening, null, to);
+    }
+    income+=coIncome; expenses+=coExpenses; assets+=coAssets; liabilities+=coLiabilities; capital+=coCapital;
+    eliminatedAmount += coEliminated;
+    perCompany.push({
+      company: c, income: r2(coIncome), expenses: r2(coExpenses), netProfit: r2(coIncome-coExpenses),
+      assets: r2(coAssets), liabilities: r2(coLiabilities), capital: r2(coCapital), eliminatedAmount: r2(coEliminated),
+    });
+  }
+  return {
+    perCompany, eliminatedRows,
+    combined: {
+      income: r2(income), expenses: r2(expenses), netProfit: r2(income-expenses),
+      assets: r2(assets), liabilities: r2(liabilities), capital: r2(capital),
+    },
+    eliminatedCount: eliminatedRows.length, eliminatedAmount: r2(eliminatedAmount),
+  };
 }
 
 function ageBucket(days){
@@ -11143,7 +11315,9 @@ function invoiceSettingsModal(){
             ${d.logoDataUrl ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><img src="${d.logoDataUrl}" style="max-height:44px;max-width:140px;border:1px solid var(--border);border-radius:4px;"><button class="btn small secondary" id="removeInvLogoBtn" type="button">Remove</button></div>` : ''}
             <input type="file" id="invLogoInput" accept="image/*">
           </div>
-          <div class="field"><label>Footer Note (terms, bank details, thank-you message)</label><textarea id="invFooterNote" rows="3" placeholder="e.g. Payment due within 15 days. Bank: HDFC, A/c 1234567890, IFSC HDFC0001234.">${escapeHtml(d.footerNote||'')}</textarea></div>
+          <div class="field"><label>Terms &amp; Conditions (optional)</label><textarea id="invTerms" rows="3" placeholder="e.g. Payment due within 15 days. Goods once sold will not be taken back.">${escapeHtml(d.terms||'')}</textarea></div>
+          <div class="field"><label>Bank Details (optional)</label><textarea id="invBankDetails" rows="3" placeholder="e.g. HDFC Bank, A/c 1234567890, IFSC HDFC0001234">${escapeHtml(d.bankDetails||'')}</textarea></div>
+          <div class="field"><label>Footer Note (thank-you message, etc.)</label><textarea id="invFooterNote" rows="2" placeholder="e.g. Thank you for your business!">${escapeHtml(d.footerNote||'')}</textarea></div>
           <div class="field"><label>UPI ID / VPA (optional — adds a scan-to-pay QR to every printed invoice)</label><input type="text" id="invUpiVpa" value="${escapeAttr(d.upiVpa||'')}" placeholder="e.g. yourbusiness@okhdfcbank"></div>
           <div class="field"><label>Payee Name shown to the payer</label><input type="text" id="invUpiPayeeName" value="${escapeAttr(d.upiPayeeName||'')}" placeholder="Defaults to ${escapeAttr(currentCompany.name)}"></div>
           <button class="btn" id="saveInvSettingsBtn" type="button" style="width:100%;margin-top:6px;">Save Template</button>
@@ -15820,6 +15994,96 @@ function accountantDashModal(){
   </div>
   `;
 }
+function consolidationModal(){
+  const allMyCompanies = visibleCompanies();
+  if(!consolidationSelectedIds) consolidationSelectedIds = new Set(allMyCompanies.map(c=>c.id));
+  const data = consolidatedFinancials(Array.from(consolidationSelectedIds), consolidationDateFrom, consolidationDateTo);
+  const money = n => `₹${fmt(Math.abs(n))}`;
+  const bsCheck = r2(data.combined.assets - (data.combined.liabilities + data.combined.capital + data.combined.netProfit));
+  return `
+  <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-card" style="width:920px;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>🧮 Consolidation Report</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+      <div class="panel-body" style="max-height:80vh;overflow-y:auto;padding:0;">
+        <div style="padding:14px 18px 10px;">
+          <p class="muted" style="font-size:12px;margin:0 0 10px;">Combines P&amp;L and Balance Sheet figures across the companies you choose below. Any ledger marked <strong>Intercompany</strong> (Accounts tab → Alter Ledger) is excluded from every total here so a balance between two of your own companies doesn't double-count — see "Eliminated" below for exactly what was left out.</p>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+            <div>
+              <div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Companies included</div>
+              <div style="display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto;padding:6px 10px;border:1px solid var(--border);border-radius:6px;">
+                ${allMyCompanies.map(c=>`<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+                  <input type="checkbox" data-consolidation-co="${c.id}" ${consolidationSelectedIds.has(c.id)?'checked':''}>${escapeHtml(c.name)}
+                </label>`).join('') || `<span class="muted" style="font-size:12px;">No companies to include.</span>`}
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <div class="field" style="max-width:150px;"><label>Period From (optional)</label><input type="date" id="consolidationFrom" value="${consolidationDateFrom}"></div>
+              <div class="field" style="max-width:150px;"><label>Period To (optional)</label><input type="date" id="consolidationTo" value="${consolidationDateTo}"></div>
+            </div>
+          </div>
+          <p class="muted" style="font-size:11px;margin:6px 0 0;">Income/Expenses are scoped to the period above (leave blank for cumulative since inception); Assets/Liabilities/Capital are always as of the "To" date (or the latest entry if blank) — the usual P&amp;L-is-a-period, Balance-Sheet-is-a-moment distinction.</p>
+        </div>
+        ${!data.perCompany.length ? `<div class="muted" style="padding:30px 18px;text-align:center;">Select at least one company above to see a combined report.</div>` : `
+        <div style="padding:0 18px;">
+          <div class="grid" style="margin-bottom:14px;">
+            <div class="stat"><div class="label">Consolidated Income</div><div class="val pos">₹${fmt(data.combined.income)}</div></div>
+            <div class="stat"><div class="label">Consolidated Expenses</div><div class="val neg">₹${fmt(data.combined.expenses)}</div></div>
+            <div class="stat"><div class="label">Consolidated Net Profit</div><div class="val ${data.combined.netProfit>=0?'pos':'neg'}">${data.combined.netProfit>=0?'':'−'}₹${fmt(Math.abs(data.combined.netProfit))}</div></div>
+            <div class="stat"><div class="label">Eliminated (Intercompany)</div><div class="val">${data.eliminatedCount} ledger${data.eliminatedCount===1?'':'s'} · ₹${fmt(data.eliminatedAmount)}</div></div>
+          </div>
+          <div class="section-title">Consolidated Balance Sheet</div>
+          <div class="panel"><div class="panel-body" style="padding:0;">
+            <table class="rb-card-table">
+              <tr><th>Assets</th><td class="num">₹${fmt(data.combined.assets)}</td><th>Liabilities</th><td class="num">₹${fmt(data.combined.liabilities)}</td></tr>
+              <tr><th>Net Profit (above)</th><td class="num">₹${fmt(data.combined.netProfit)}</td><th>Capital</th><td class="num">₹${fmt(data.combined.capital)}</td></tr>
+              <tr style="font-weight:700;border-top:2px solid var(--ink);"><td colspan="2"></td><th>Liabilities + Capital + Net Profit</th><td class="num">₹${fmt(data.combined.liabilities+data.combined.capital+data.combined.netProfit)}</td></tr>
+            </table>
+            ${Math.abs(bsCheck)>0.01 ? `<p class="muted" style="font-size:11px;padding:8px 14px;">Assets vs. Liabilities+Capital+Net Profit differ by ₹${fmt(Math.abs(bsCheck))} — check that every company included is itself in balance (its own Trial Balance ties out) before relying on this figure.</p>` : ''}
+          </div></div>
+          <div class="section-title">By Company</div>
+          <div class="panel"><div class="panel-body" style="padding:0;">
+            <table class="rb-card-table">
+              <tr><th>Company</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net Profit</th><th class="num">Assets</th><th class="num">Liabilities</th><th class="num">Eliminated</th></tr>
+              ${data.perCompany.map(r=>`<tr>
+                <td class="ccard-title" data-label="Company">${escapeHtml(r.company.name)}</td>
+                <td class="num" data-label="Income">₹${fmt(r.income)}</td>
+                <td class="num" data-label="Expenses">₹${fmt(r.expenses)}</td>
+                <td class="num ccard-amount ${r.netProfit>=0?'pos':'neg'}" data-label="Net Profit">${r.netProfit>=0?'':'−'}₹${fmt(Math.abs(r.netProfit))}</td>
+                <td class="num" data-label="Assets">₹${fmt(r.assets)}</td>
+                <td class="num" data-label="Liabilities">₹${fmt(r.liabilities)}</td>
+                <td class="num muted" data-label="Eliminated">${r.eliminatedAmount?'₹'+fmt(r.eliminatedAmount):'—'}</td>
+              </tr>`).join('')}
+              <tr style="font-weight:700;border-top:2px solid var(--ink);">
+                <td data-label="Company">Combined</td>
+                <td class="num" data-label="Income">₹${fmt(data.combined.income)}</td>
+                <td class="num" data-label="Expenses">₹${fmt(data.combined.expenses)}</td>
+                <td class="num ${data.combined.netProfit>=0?'pos':'neg'}" data-label="Net Profit">${data.combined.netProfit>=0?'':'−'}₹${fmt(Math.abs(data.combined.netProfit))}</td>
+                <td class="num" data-label="Assets">₹${fmt(data.combined.assets)}</td>
+                <td class="num" data-label="Liabilities">₹${fmt(data.combined.liabilities)}</td>
+                <td class="num muted" data-label="Eliminated">${data.eliminatedAmount?'₹'+fmt(data.eliminatedAmount):'—'}</td>
+              </tr>
+            </table>
+          </div></div>
+          <details class="disclosure" style="margin-top:10px;" ${consolidationShowEliminated?'open':''} id="consolidationEliminatedDisclosure">
+            <summary>Eliminated intercompany balances (${data.eliminatedRows.length})</summary>
+            <div class="disclosure-body">
+              ${data.eliminatedRows.length ? `<table class="rb-card-table">
+                <tr><th>Company</th><th>Ledger</th><th class="num">Balance</th></tr>
+                ${data.eliminatedRows.map(r=>`<tr>
+                  <td data-label="Company">${escapeHtml(r.company.name)}</td>
+                  <td data-label="Ledger">${escapeHtml(r.ledger.name)}</td>
+                  <td class="num ${r.balance>=0?'pos':'neg'}" data-label="Balance">${fmt(r.balance)} ${balanceLabel(r.balance)}</td>
+                </tr>`).join('')}
+              </table>` : `<div class="empty">No ledgers are flagged Intercompany yet — mark one from a company's Accounts tab (Alter Ledger → Intercompany Account?) if two of your companies carry a balance against each other.</div>`}
+            </div>
+          </details>
+        </div>
+        `}
+      </div>
+    </div>
+  </div>
+  `;
+}
 function renderGateway(){
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -15885,6 +16149,7 @@ function renderGateway(){
         <div class="gw-section-title">Your Companies</div>
         <div class="gw-toolbar">
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
+        ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
         ${allMyCompanies.length > 1 ? `
         <div class="gw-search-wrap">
           <span class="gw-search-icon">🔎</span>
@@ -16019,6 +16284,7 @@ function renderGateway(){
     ${companyCreateModalOpen ? companyCreateModal() : ''}
     ${companyRenameModalOpen ? companyRenameModal() : ''}
     ${modal==='accountantDash' ? accountantDashModal() : ''}
+    ${modal==='consolidation' ? consolidationModal() : ''}
     ${diWidget()}
       </div>
     </div>
@@ -16289,6 +16555,37 @@ function renderGateway(){
         modal = null;
         await enterCompanyApp(c);
       });
+    });
+  }
+
+  document.getElementById('openConsolidationBtn')?.addEventListener('click', ()=>{
+    consolidationSelectedIds = null; // re-default to "every visible company" each time it's opened
+    modal = 'consolidation';
+    renderGateway();
+  });
+  if(modal==='consolidation'){
+    const closeConsolidation = ()=>{ modal = null; renderGateway(); };
+    document.getElementById('modalClose')?.addEventListener('click', closeConsolidation);
+    document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='modalOverlayBg') closeConsolidation();
+    });
+    document.querySelectorAll('[data-consolidation-co]').forEach(el=>{
+      el.addEventListener('change', ()=>{
+        const id = el.dataset.consolidationCo;
+        if(el.checked) consolidationSelectedIds.add(id); else consolidationSelectedIds.delete(id);
+        renderGateway();
+      });
+    });
+    document.getElementById('consolidationFrom')?.addEventListener('change', e=>{
+      consolidationDateFrom = e.target.value;
+      renderGateway();
+    });
+    document.getElementById('consolidationTo')?.addEventListener('change', e=>{
+      consolidationDateTo = e.target.value;
+      renderGateway();
+    });
+    document.getElementById('consolidationEliminatedDisclosure')?.addEventListener('toggle', e=>{
+      consolidationShowEliminated = e.target.open;
     });
   }
 
@@ -19812,7 +20109,21 @@ function dashboardExceptionQueue(){
     });
   }
 
-  // 7) Unusual daily posting volume -- a day with far more vouchers than this company's own typical
+  // 7) Vendor bank-detail change just before a large payment -- a classic invoice-fraud pattern:
+  // a supplier's payout account gets quietly swapped, then a large payment goes out to the new
+  // account before anyone notices. See vendorBankChangeFraudFlags() above for the detection logic
+  // (a recent account/IFSC change plus a payment well above that supplier's own average).
+  const bankChangeFlags = vendorBankChangeFraudFlags();
+  if(bankChangeFlags.length){
+    const worst = bankChangeFlags[0];
+    items.push({
+      id:'vendor-bank-change-'+worst.voucher.id, severity:'warn', icon:'🏦',
+      text: `₹${fmt(worst.amount)} paid to <b>${escapeHtml(worst.ledger.name)}</b> just ${worst.daysSinceChange===0?'the same day its':`${worst.daysSinceChange} day${worst.daysSinceChange===1?'':'s'} after its`} bank details were changed — a known invoice-fraud pattern worth double-checking${bankChangeFlags.length>1?` (${bankChangeFlags.length} payments flagged)`:''}`,
+      action: ()=>{ if(openVoucherForEditing(worst.voucher.id)){ modal=null; render(); } },
+    });
+  }
+
+  // 8) Unusual daily posting volume -- a day with far more vouchers than this company's own typical
   // daily count (glUnusualPostingDays below), e.g. a bulk backdated import worth a sanity check.
   const busyDays = glUnusualPostingDays();
   if(busyDays.length){
@@ -19901,6 +20212,58 @@ function glUnusualPostingDays(){
   const today = new Date().toISOString().slice(0,10);
   const cutoff = addDays(today, -30);
   return dates.filter(d=> d>=cutoff && counts[d] > mean + 3*stddev && counts[d] >= 8).map(d=>({ date:d, count:counts[d], mean }));
+}
+// How many days before a payment a supplier's bank/payment details still count as "changed
+// recently" -- a classic invoice-fraud pattern is a scammer (or a compromised email thread) quietly
+// swapping a supplier's payout account, then a large payment goes out to the new account before
+// anyone notices the switch.
+const VENDOR_BANK_CHANGE_FRAUD_WINDOW_DAYS = 14;
+// A payment is never flagged below this, however recent the bank-detail change -- a ₹500 payment
+// right after an IFSC correction isn't the fraud pattern this is watching for.
+const VENDOR_BANK_CHANGE_LARGE_PAYMENT_FLOOR = 10000;
+// How far above a supplier's OWN average prior payment counts as "large" once a recent bank-detail
+// change makes the timing worth checking -- relative, not a fixed rupee figure, so it scales across
+// companies of very different size (same spirit as the dashboard's expense-spike check above).
+const VENDOR_BANK_CHANGE_SPIKE_MULTIPLE = 1.5;
+// Flags a Payment voucher to a supplier whose bank account number or IFSC (see recordBankDetailChange()
+// / alterLedgerModal()) was changed within VENDOR_BANK_CHANGE_FRAUD_WINDOW_DAYS before that payment,
+// where the amount is also large relative to that supplier's own payment history. A supplier with no
+// prior payment history at all falls back to the flat floor above, since there's nothing of its own
+// to compare the amount against -- a first-ever large payment is a different, unrelated check
+// (glFirstTimeLargeParties above).
+function vendorBankChangeFraudFlags(){
+  const paymentsBySupplier = {};
+  for(const v of state.vouchers){
+    if(v.type!=='Payment' || !v.date) continue;
+    const partyEntry = v.entries.find(e=> (e.dr||0)>0 && ledgerOf(e.ledgerId) && ledgerOf(e.ledgerId).partyType==='supplier');
+    if(!partyEntry) continue;
+    const l = ledgerOf(partyEntry.ledgerId);
+    (paymentsBySupplier[l.id] = paymentsBySupplier[l.id]||[]).push({ voucher:v, amount: Number(partyEntry.dr)||0 });
+  }
+  const flags = [];
+  for(const l of state.ledgers){
+    const changes = l.bankDetailChanges;
+    if(l.partyType!=='supplier' || !changes || !changes.length) continue;
+    const payments = (paymentsBySupplier[l.id]||[]).slice().sort((a,b)=> a.voucher.date<b.voucher.date?-1:a.voucher.date>b.voucher.date?1:0);
+    payments.forEach((p,i)=>{
+      const { voucher:v, amount } = p;
+      if(amount < VENDOR_BANK_CHANGE_LARGE_PAYMENT_FLOOR) return;
+      const recentChange = changes
+        .filter(c=>{
+          const gapDays = (new Date(v.date+'T00:00:00') - new Date(c.at.slice(0,10)+'T00:00:00'))/86400000;
+          return gapDays>=0 && gapDays<=VENDOR_BANK_CHANGE_FRAUD_WINDOW_DAYS;
+        })
+        .sort((a,b)=> b.at.localeCompare(a.at))[0];
+      if(!recentChange) return;
+      const priorPayments = payments.slice(0,i).filter(pp=>pp.voucher.date<v.date);
+      const avgPrior = priorPayments.length ? priorPayments.reduce((s,pp)=>s+pp.amount,0)/priorPayments.length : null;
+      const isLarge = avgPrior!=null ? amount>=avgPrior*VENDOR_BANK_CHANGE_SPIKE_MULTIPLE : amount>=VENDOR_BANK_CHANGE_LARGE_PAYMENT_FLOOR;
+      if(!isLarge) return;
+      const daysSinceChange = Math.round((new Date(v.date+'T00:00:00') - new Date(recentChange.at.slice(0,10)+'T00:00:00'))/86400000);
+      flags.push({ ledger:l, voucher:v, amount, change:recentChange, avgPrior, daysSinceChange });
+    });
+  }
+  return flags.sort((a,b)=> b.amount-a.amount);
 }
 function dashboardExceptionQueueCard(){
   const items = dashboardExceptionQueue();
@@ -22349,6 +22712,7 @@ function viewVoucher(){
       </div>
     </details>` : ''}
     ${showGST ? gstCalculator() : ''}
+    ${vform.type==='Sales' ? liveInvoicePreviewPanel() : ''}
     <div class="panel">
       <div class="panel-body">
         <div class="field" style="max-width:220px;"><label>Date</label><input type="date" id="vdate" value="${vform.date}"></div>
@@ -22411,6 +22775,23 @@ function viewVoucher(){
             ${SALES_CHANNELS.map(c=>`<option value="${c}" ${vform.channel===c?'selected':''}>${c}</option>`).join('')}
           </select>
         </div>` : ''}
+
+        ${editing ? `
+        <div class="field" style="margin-top:16px;max-width:260px;">
+          <label>Attachments</label>
+          <button class="btn secondary small" type="button" data-open-attachments="${vform.id}">📎 View / Add Attachments</button>
+        </div>` : `
+        <div class="field" style="margin-top:16px;">
+          <label>Attachments (optional)</label>
+          <input type="file" id="vPendingAttachmentInput" accept="image/*,.pdf">
+          <p class="muted" style="font-size:11px;margin:4px 0 0;">Attach a bill or receipt now — it's saved along with the voucher once you click Save Voucher. Max ${ATTACHMENT_MAX_BYTES/1024|0} KB per file.</p>
+          ${(vform.pendingAttachments||[]).length ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:5px;">
+            ${vform.pendingAttachments.map((pa,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 8px;background:var(--surface-strong);border-radius:4px;font-size:12px;">
+              <span>📎 ${escapeHtml(pa.filename)} <span class="muted">(${fmt(pa.size/1024)} KB)</span></span>
+              <button class="btn small secondary" type="button" data-remove-pending-attachment="${i}">Remove</button>
+            </div>`).join('')}
+          </div>` : ''}
+        </div>`}
 
         <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn" id="saveVoucher" title="Shortcut: Alt+S" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
@@ -22692,6 +23073,16 @@ function quickAddItemModal(){
     </div>
   `;
 }
+// Appends one entry to a ledger's bank-detail change history (bankDetailChanges) when a field
+// actually changes FROM a previously-set value -- the first time a field is ever filled in isn't a
+// "change" worth flagging, only an edit to something that was already there. Feeds
+// vendorBankChangeFraudFlags() below, which is what the Dashboard's exception queue uses to flag a
+// large payment that follows close behind one of these.
+function recordBankDetailChange(l, field, oldVal, newVal){
+  if(!oldVal || oldVal===newVal) return;
+  if(!l.bankDetailChanges) l.bankDetailChanges = [];
+  l.bankDetailChanges.push({ at:new Date().toISOString(), field, from:oldVal, to:newVal||'', by: currentUser ? (currentUser.name||currentUser.username) : null });
+}
 // Shared "New Ledger" / "Alter Ledger" modal for the Ledgers tab. alterLedgerId===‘new’ renders it
 // in create mode (blank fields); any other ledger id renders it in edit mode, prefilled from that
 // ledger and able to rename it or move it to a different group -- the two things the Chart of
@@ -22702,7 +23093,7 @@ function alterLedgerModal(){
   if(editing && !l){ return ''; }
   const openingAbs = l ? Math.abs(l.opening||0) : 0;
   const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
-  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.address || l.shippingAddress));
+  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.isIntercompany || l.currency || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.address || l.shippingAddress || l.bankAccountNumber || l.bankIFSC));
   return `
     <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
@@ -22724,7 +23115,7 @@ function alterLedgerModal(){
             </div>
           </div>
           <details class="disclosure" ${hasAdvanced?'open':''}>
-            <summary>Advanced options — GST rate, MSME, party &amp; credit terms, GSTIN</summary>
+            <summary>Advanced options — GST rate, MSME, party &amp; credit terms, GSTIN, bank details</summary>
             <div class="disclosure-body">
               <div class="row">
                 <div class="field" style="max-width:140px;"><label>GST Rate</label>
@@ -22746,7 +23137,24 @@ function alterLedgerModal(){
                     <option value="supplier" ${l&&l.partyType==='supplier'?'selected':''}>Supplier</option>
                   </select>
                 </div>
+                <div class="field" style="max-width:240px;"><label>Intercompany Account?</label>
+                  <select id="alterLedgerIntercompany">
+                    <option value="0" ${!l||!l.isIntercompany?'selected':''}>No</option>
+                    <option value="1" ${l&&l.isIntercompany?'selected':''}>Yes — due to/from a related company</option>
+                  </select>
+                </div>
               </div>
+              <p class="muted" style="font-size:11px;margin:-6px 0 0;">Mark a ledger Intercompany when it only represents a balance between this company and another one in your group (e.g. "Due from Parent Co", "Due to Subsidiary X"). It's excluded from the Consolidation Report so inter-group balances don't double-count.</p>
+              <div class="row">
+                <div class="field" style="max-width:180px;"><label>Held in Foreign Currency?</label>
+                  <select id="alterLedgerCurrency">
+                    <option value="" ${!l||!l.currency?'selected':''}>— No, ₹ only —</option>
+                    ${state.currencies.filter(c=>c.id!=='inr').map(c=>`<option value="${c.id}" ${l&&l.currency===c.id?'selected':''}>${c.code}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="field" style="max-width:180px;"><label>Opening Balance in that currency</label><input type="number" id="alterLedgerOpeningForeign" value="${l&&l.openingForeign!=null?l.openingForeign:''}" step="0.0001" placeholder="e.g. 1200.00" ${!l||!l.currency?'disabled':''}></div>
+              </div>
+              <p class="muted" style="font-size:11px;margin:-6px 0 0;">For a Bank/Debtor/Creditor ledger that's actually held in a foreign currency (e.g. a USD bank account) — this lets the Forex Revaluation report (under Reports) reconstruct its foreign-currency balance from your vouchers and show unrealized gain/loss at today's rate. Leave the opening figure blank if this ledger had no foreign-currency opening balance.</p>
               <div class="row">
                 <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="alterLedgerCreditLimit" value="${l&&l.creditLimit!=null?l.creditLimit:''}" step="0.01" placeholder="e.g. 100000"></div>
                 <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
@@ -22756,6 +23164,18 @@ function alterLedgerModal(){
                 <div class="field"><label>Billing Address (optional, prints on invoices)</label><textarea id="alterLedgerAddress" rows="2" placeholder="Building, street, area, city, state, pincode">${escapeHtml(l&&l.address?l.address:'')}</textarea></div>
                 <div class="field"><label>Shipping Address (optional — leave blank to use Billing Address)</label><textarea id="alterLedgerShipAddress" rows="2" placeholder="Only if different from Billing Address">${escapeHtml(l&&l.shippingAddress?l.shippingAddress:'')}</textarea></div>
               </div>
+              <div class="row">
+                <div class="field"><label>Bank Account Number (optional, for suppliers)</label><input type="text" id="alterLedgerBankAccount" value="${escapeAttr(l&&l.bankAccountNumber?l.bankAccountNumber:'')}" placeholder="e.g. 50100011122233"></div>
+                <div class="field" style="max-width:200px;"><label>IFSC Code (optional)</label><input type="text" id="alterLedgerBankIFSC" value="${escapeAttr(l&&l.bankIFSC?l.bankIFSC:'')}" placeholder="e.g. HDFC0000123" maxlength="11" style="text-transform:uppercase;"></div>
+              </div>
+              <p class="muted" style="font-size:11px;margin:-6px 0 0;">Changing either field is logged with a timestamp (Audit Log and below) — this is what lets the Dashboard flag a large payment that follows close behind a bank-detail change, a known invoice-fraud pattern where a supplier's payout account is quietly swapped before the next bill is settled.</p>
+              ${(l && l.bankDetailChanges && l.bankDetailChanges.length) ? `
+              <details class="disclosure" style="margin-top:4px;">
+                <summary>Bank detail change history (${l.bankDetailChanges.length})</summary>
+                <div class="disclosure-body" style="padding-top:6px;">
+                  ${l.bankDetailChanges.slice().reverse().map(c=>`<p class="muted" style="font-size:11.5px;margin:0 0 6px;">${relativeTimeAgo(c.at)||c.at.slice(0,10)} — <b>${c.field==='bankIFSC'?'IFSC Code':'Bank Account Number'}</b> changed${c.by?` by ${escapeHtml(c.by)}`:''}: ${escapeHtml(c.from||'(blank)')} → ${escapeHtml(c.to||'(blank)')}</p>`).join('')}
+                </div>
+              </details>` : ''}
             </div>
           </details>
           <button class="btn" id="alterLedgerSubmit" type="button" style="margin-top:12px;">${editing?'Save Changes':'Add Ledger'}</button>
@@ -22878,6 +23298,17 @@ function buildInvoiceHTML(opts){
   const accent = isettings.accentColor || '#2CA01C';
   const template = isettings.template || 'classic';
   const footerNote = isettings.footerNote || '';
+  // Terms & Bank Details print as their own labeled blocks (see invoiceSettingsModal) rather than
+  // being mixed into one combined free-text footer -- kept as two separate optional fields so
+  // either can be filled in without the other, and existing footerNote content is left exactly
+  // where it was (older companies that had everything crammed into one note keep seeing it there).
+  const termsText = (isettings.terms || '').trim();
+  const bankDetailsText = (isettings.bankDetails || '').trim();
+  const termsBankBlock = (termsText || bankDetailsText) ? `
+    <div class="invoice-bottom-blocks">
+      ${termsText ? `<div class="invoice-bottom-block"><h4>Terms &amp; Conditions</h4><div class="invoice-bottom-block-body">${escapeHtml(termsText)}</div></div>` : ''}
+      ${bankDetailsText ? `<div class="invoice-bottom-block"><h4>Bank Details</h4><div class="invoice-bottom-block-body">${escapeHtml(bankDetailsText)}</div></div>` : ''}
+    </div>` : '';
   const logo = isettings.logoDataUrl ? `<img src="${isettings.logoDataUrl}" style="max-height:56px;max-width:180px;display:block;">` : '';
   const invoiceNoLine = isDraft ? `Preview No: ${invoiceNo} (assigned on save)` : `Invoice No: ${invoiceNo}`;
   // UPI QR / payment link — only shown once a payee UPI VPA is set under Invoice Template settings.
@@ -22976,6 +23407,10 @@ function buildInvoiceHTML(opts){
   .footer-note{margin-top:14px;font-size:12px;color:#444;white-space:pre-line;}
   .upi-pay-block{display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 12px;border:1px dashed var(--accent);border-radius:8px;width:fit-content;}
   .upi-pay-block .upi-qr svg{display:block;width:88px;height:88px;}
+  .invoice-bottom-blocks{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap;}
+  .invoice-bottom-block{flex:1 1 220px;min-width:200px;}
+  .invoice-bottom-block h4{margin:0 0 4px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:#888;}
+  .invoice-bottom-block-body{font-size:12px;color:#444;white-space:pre-line;}
   @media print{ body{padding:0;} .bill-header.tpl-modern{margin-top:0;} .draft-banner{display:none;} }
 </style>
 </head><body>
@@ -23010,6 +23445,7 @@ function buildInvoiceHTML(opts){
   </table>
   ${upiBlock}
   ${narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(narration)}</div>`:''}
+  ${termsBankBlock}
   ${footerNote?`<div class="footer-note">${escapeHtml(footerNote)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
 </body></html>`;
@@ -23052,6 +23488,57 @@ function generateAndPrintBill(){
 function downloadDraftInvoicePDF(){
   const html = draftInvoiceHTML();
   if(html) downloadInvoicePDF(html);
+}
+
+// Non-toasting counterpart to draftInvoiceHTML() for the Live Invoice Preview panel shown while
+// filling a Sales voucher (see liveInvoicePreviewPanel()/refreshLiveInvoicePreview()) -- this re-runs
+// on every keystroke in the GST Calculator, so it has to stay silent and just return null when the
+// draft isn't ready yet (no customer / no items), letting the caller show a quiet placeholder
+// instead of popping a toast on every field the user hasn't filled in yet.
+function liveInvoicePreviewHTML(){
+  const g = vform.gst;
+  const items = (g.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
+  if(!g.party || !items.length) return null;
+  const party = ledgerOf(g.party);
+  if(!party) return null;
+
+  const subtotal = itemsSubtotal(items);
+  const rate = Number(g.rate)||0;
+  const taxVal = r2(subtotal*rate/100);
+  const cgst = g.supply==='intra' ? r2(taxVal/2) : 0;
+  const sgst = g.supply==='intra' ? r2(taxVal/2) : 0;
+  const igst = g.supply==='intra' ? 0 : taxVal;
+  const total = subtotal+taxVal;
+  // Same "one past every existing Sales voucher" fallback draftInvoiceHTML() uses for an id
+  // salesVoucherInvoiceNumber() doesn't recognize -- the right preview number as long as nothing
+  // else is saved first.
+  const invoiceNo = salesVoucherInvoiceNumber({ id:'__draft__', date: vform.date });
+
+  return buildInvoiceHTML({
+    partyName: party.name, invoiceNo, isDraft: true, date: vform.date,
+    items: items.map(it=>invoiceLineFromItem(it)),
+    subtotal, cgst, sgst, igst, total, narration: vform.narration,
+    billingAddress: party.address||'', shippingAddress: party.shippingAddress||'',
+  });
+}
+// A collapsible panel shown directly under the GST Calculator while filling a Sales voucher -- the
+// invoice as it will actually print, kept live as items/party/date/narration change, instead of only
+// being visible after Save via "Generate & Print Bill"/"Download PDF" (which use the same
+// buildInvoiceHTML() string, via draftInvoiceHTML(), once there's something to post). Rendered inside
+// a sandboxed <iframe> so the invoice's own print stylesheet never leaks into the app's, and so its
+// (already-escaped) content can never execute as script either way. See refreshLiveInvoicePreview()
+// for how it's kept in sync without a full render() on every keystroke.
+function liveInvoicePreviewPanel(){
+  const ready = !!liveInvoicePreviewHTML();
+  return `
+    <details class="disclosure" id="liveInvoicePreviewDetails" open>
+      <summary>🧾 Live Invoice Preview</summary>
+      <div class="disclosure-body">
+        <p class="muted" id="liveInvoicePreviewEmpty" style="font-size:12.5px;${ready?'display:none;':''}">Add a customer and at least one item in the GST Calculator above to see the invoice preview here — it updates as you type.</p>
+        <iframe id="liveInvoicePreviewFrame" class="live-invoice-preview-frame" title="Invoice preview" sandbox="" style="${ready?'':'display:none;'}"></iframe>
+      </div>
+    </details>
+  `;
 }
 
 // Indian financial-year label for a date, e.g. '2026-27', anchored on the company's fyStart/booksFrom
@@ -23987,11 +24474,15 @@ function viewDaybook(){
         </div>
       </div>
     </div>
+    ${bulkActionBar('voucher', bulkVoucherSelection.size, [
+      {action:'delete', label:'Delete selected', danger:true},
+    ])}
     <div class="panel">
       <div class="panel-body" style="padding:0;">
         ${filtered.length ? `<table class="rb-card-table">
-          <tr><th>Date</th><th>Type</th><th>Narration</th><th>Entries</th><th class="num">Amount</th><th>Action</th></tr>
+          <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="voucher-all" aria-label="Select all vouchers"></th><th>Date</th><th>Type</th><th>Narration</th><th>Entries</th><th class="num">Amount</th><th>Action</th></tr>
           ${filtered.map(v=>`<tr>
+            <td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-voucher="${v.id}" data-bulk-cat="voucher-all" ${bulkVoucherSelection.has(v.id)?'checked':''} aria-label="Select voucher dated ${v.date}"></td>
             <td class="muted ccard-title" data-label="Date">${v.date}</td>
             <td class="ccard-title" data-label="Type">${vtypeBadge(v.type)}</td>
             <td data-label="Narration">${v.narration||'—'}${itemsSummary(v)}${currencyNote(v)}${v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
@@ -24395,7 +24886,7 @@ function viewCOA(){
                 ? `<span data-toggle-msme="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${l.isMSME?'✓ MSME':'Mark MSME'}</span>`
                 : '—';
               const partyLabel = l.partyType==='customer' ? '✓ Customer' : l.partyType==='supplier' ? '✓ Supplier' : 'Not a party';
-              return `<tr><td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td class="ccard-title" data-label="Ledger"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${ledgerCategoryColor(l)};margin-right:7px;"></span>${l.name}</td><td class="muted" data-label="Group">${groupOf(l.group).name}</td><td class="muted" data-label="GST">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted" data-label="MSME">${msmeCell}</td><td class="muted" data-label="Party"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ccard-amount ${b>=0?'pos':'neg'}" data-label="Balance">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
+              return `<tr><td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-ledger="${l.id}" data-bulk-cat="ledger-${escapeAttr(cat)}" ${bulkLedgerSelection.has(l.id)?'checked':''} aria-label="Select ${escapeAttr(l.name)}"></td><td class="ccard-title" data-label="Ledger"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${ledgerCategoryColor(l)};margin-right:7px;"></span>${l.name}${l.isIntercompany?` <span class="pill" style="font-size:9px;padding:1px 5px;" title="Excluded from the Consolidation Report">IC</span>`:''}</td><td class="muted" data-label="Group">${groupOf(l.group).name}</td><td class="muted" data-label="GST">${l.gstRate!=null?l.gstRate+'%':'—'}</td><td class="muted" data-label="MSME">${msmeCell}</td><td class="muted" data-label="Party"><span data-cycle-party="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${partyLabel}</span></td><td class="num ccard-amount ${b>=0?'pos':'neg'}" data-label="Balance">${fmt(b)} ${balanceLabel(b)}</td></tr>`;
             }).join('') || `<tr><td colspan="7" class="empty">No ledgers in this category yet.</td></tr>`}
           </table>
         </div>
@@ -24909,6 +25400,7 @@ function viewReports(){
   if(reportsSelected==='cashFlow') return reportCashFlow();
   if(reportsSelected==='costCenterPL') return reportCostCenterPL();
   if(reportsSelected==='budgetVsActual') return reportBudgetVsActual();
+  if(reportsSelected==='forexRevaluation') return reportForexRevaluation();
   if(reportsSelected==='tdsTcs') return reportTdsTcs();
   if(reportsSelected==='dataIntegrity') return reportDataIntegrity();
   if(reportsSelected==='financialPerformance') return reportFinancialPerformance();
@@ -24927,6 +25419,7 @@ function reportsLanding(){
     {id:'stakeholderPresentation', icon:'🎤', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
     {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
     {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
+    {id:'forexRevaluation', icon:'💱', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
     {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
     {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', badge: integrityCount>0 ? integrityCount : null, group:'Compliance & Data Quality'},
   ];
@@ -25483,6 +25976,43 @@ function budgetVsActualData(fy){
     return { budget: b, ledger: l, isIncome, costCenter: b.costCenterId ? state.costCenters.find(c=>c.id===b.costCenterId) : null, actual, budgetAmt, variance, pct };
   }).filter(Boolean);
 }
+// How far off budget a ledger has to be (either direction) before it's called out by name below,
+// rather than just folded into the overall total -- same "well above/below its usual range" framing
+// dashboardExceptionQueue()'s GL-outlier check uses, applied to budget variance instead of a ledger's
+// own history.
+const BUDGET_ANOMALY_PCT = 25;
+// Plain-language read of a FY's budget performance, over the same budgetVsActualData() rows both
+// call sites below already compute -- shared so the same commentary shows up on the standalone
+// Budget vs Actual report AND the Financial Performance Report's Variance Analysis section, not just
+// the Dashboard's Monthly Narrative Summary. Unlike that summary (which only ever names the single
+// biggest mover), this flags EVERY ledger off budget by BUDGET_ANOMALY_PCT% or more, worst first, so
+// a FY with several problem lines doesn't hide all but one of them.
+function budgetVarianceNarrative(fy, rows){
+  const notes = [];
+  if(!rows.length){ notes.push(`No budgets have been set for FY ${fy} yet, so variance can't be measured.`); return notes; }
+  const budgeted = rows.filter(r=>r.budgetAmt);
+  if(!budgeted.length){ notes.push(`${rows.length} budget line${rows.length===1?'':'s'} set for FY ${fy}, but with a ₹0 budget amount each — nothing to compare against yet.`); return notes; }
+
+  const totalBudget = r2(budgeted.reduce((s,r)=>s+r.budgetAmt,0));
+  const totalActual = r2(budgeted.reduce((s,r)=>s+r.actual,0));
+  const overallPct = totalBudget ? r2((totalActual/totalBudget-1)*100) : null;
+  notes.push(`Across all ${budgeted.length} budgeted ledger${budgeted.length===1?'':'s'} in FY ${fy}, actuals total ₹${fmt(totalActual)} against a combined budget of ₹${fmt(totalBudget)}${overallPct!=null?` — ${Math.abs(overallPct)}% ${overallPct>=0?'over':'under'} budget overall`:''}.`);
+
+  const anomalies = budgeted
+    .map(r=>({ r, pctOff: r.budgetAmt ? Math.abs(r.actual/r.budgetAmt*100-100) : null }))
+    .filter(x=>x.pctOff!=null && x.pctOff>=BUDGET_ANOMALY_PCT)
+    .sort((a,b)=>b.pctOff-a.pctOff);
+  if(anomalies.length){
+    const lines = anomalies.slice(0,5).map(({r,pctOff})=>{
+      const favourable = r.isIncome ? r.variance>=0 : r.variance<=0;
+      return `${escapeHtml(r.ledger.name)} is ${pctOff.toFixed(0)}% ${r.actual>=r.budgetAmt?'above':'below'} budget (${favourable?'favourable':'unfavourable'}, ₹${fmt(Math.abs(r.variance))})`;
+    });
+    notes.push(`${anomalies.length} ledger${anomalies.length===1?'':'s'} ${anomalies.length===1?'is':'are'} off budget by ${BUDGET_ANOMALY_PCT}% or more: ${lines.join('; ')}${anomalies.length>5?`, and ${anomalies.length-5} more`:''}.`);
+  } else {
+    notes.push(`No ledger is off budget by ${BUDGET_ANOMALY_PCT}% or more — spending and income are tracking close to plan across the board.`);
+  }
+  return notes;
+}
 function reportBudgetVsActual(){
   if(!budgetReportFY) budgetReportFY = fyLabelForDate(new Date().toISOString().slice(0,10));
   const fyOptions = Array.from(new Set([...state.budgets.map(b=>b.fy), budgetReportFY])).sort().reverse();
@@ -25494,6 +26024,11 @@ function reportBudgetVsActual(){
         <select id="budgetFYSelect">${fyOptions.map(fy=>`<option value="${fy}" ${fy===budgetReportFY?'selected':''}>${fy}</option>`).join('')}</select>
       </div>
     </div>
+    ${rows.length ? `<div class="panel" style="border-style:dashed;background:var(--surface-strong);">
+      <div class="panel-body">
+        ${budgetVarianceNarrative(budgetReportFY, rows).map(p=>`<p style="font-size:12.5px;line-height:1.6;margin:0 0 6px;">${p}</p>`).join('')}
+      </div>
+    </div>` : ''}
     <div class="panel"><div class="panel-body" style="padding:0;">
       ${rows.length ? `<table>
         <tr><th>Ledger</th><th>Cost Center</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Variance</th><th class="num">% Achieved</th></tr>
@@ -25511,6 +26046,42 @@ function reportBudgetVsActual(){
       </table>` : `<div class="empty">No budgets set for FY ${budgetReportFY} yet. Add one on the Accounts tab under Budgets.</div>`}
     </div></div>
     <p class="muted" style="font-size:11px;">For Income ledgers, a positive variance (actual above budget) is favourable; for Expense ledgers, a negative variance (actual below budget) is favourable — shown in green either way. Actuals are computed within FY ${budgetReportFY}'s date range only.</p>
+  `;
+}
+function reportForexRevaluation(){
+  const overrideRates = {};
+  for(const k in forexRateOverrides){ if(forexRateOverrides[k]!=='') overrideRates[k] = forexRateOverrides[k]; }
+  const { rows, totalGainLoss } = forexRevaluationReport(overrideRates);
+  return `
+    ${reportHeader('Forex Revaluation')}
+    <p class="muted" style="font-size:12px;margin-top:-10px;">Unrealized gain or loss on every ledger marked "Held in Foreign Currency" (Accounts tab → Alter Ledger), comparing what's actually booked in ₹ against what that ledger's foreign-currency balance is worth at the rate below. Nothing here changes your books until you post it as a Journal. Intercompany-flagged ledgers are left out — revalue those from the company that actually holds the real foreign-currency position.</p>
+    ${!rows.length ? emptyState({icon:'💱', title:'No foreign-currency ledgers yet', text:'Mark a Bank, Debtor or Creditor ledger as "Held in Foreign Currency" from the Accounts tab (Alter Ledger → advanced options) to see it revalued here.', ctaLabel:'Go to Accounts', ctaTab:'coa'}) : `
+    <div class="bento-grid">
+      <div class="stat"><div class="label">Foreign-Currency Ledgers</div><div class="val">${rows.length}</div></div>
+      <div class="stat"><div class="label">Net Unrealized ${totalGainLoss>=0?'Gain':'Loss'}</div><div class="val ${totalGainLoss>=0?'pos':'neg'}">₹${fmt(Math.abs(totalGainLoss))}</div></div>
+    </div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Ledger</th><th>Currency</th><th class="num">Foreign Balance</th><th class="num">Revaluation Rate</th><th class="num">Booked ₹</th><th class="num">Revalued ₹</th><th class="num">Unrealized Gain/(Loss)</th></tr>
+        ${rows.map(r=>`<tr>
+          <td class="ccard-title" data-label="Ledger">${escapeHtml(r.ledger.name)}</td>
+          <td class="muted" data-label="Currency">${escapeHtml(r.currency.code)}</td>
+          <td class="num" data-label="Foreign Balance">${fmt(Math.abs(r.foreignBal))} ${r.foreignBal>=0?'Dr':'Cr'}</td>
+          <td class="num" data-label="Revaluation Rate"><input type="number" class="forex-rate-input" data-forex-rate="${r.currency.id}" value="${forexRateOverrides[r.currency.id]!=null?forexRateOverrides[r.currency.id]:r.currency.rate}" step="0.0001" min="0" style="max-width:100px;text-align:right;"></td>
+          <td class="num" data-label="Booked ₹">₹${fmt(Math.abs(r.bookedINR))} ${r.bookedINR>=0?'Dr':'Cr'}</td>
+          <td class="num" data-label="Revalued ₹">₹${fmt(Math.abs(r.revaluedINR))} ${r.revaluedINR>=0?'Dr':'Cr'}</td>
+          <td class="num ccard-amount ${r.gainLoss>=0?'pos':'neg'}" data-label="Unrealized Gain/(Loss)">${r.gainLoss>=0?'':'−'}₹${fmt(Math.abs(r.gainLoss))}</td>
+        </tr>`).join('')}
+        <tr style="font-weight:700;border-top:2px solid var(--ink);">
+          <td colspan="6" data-label="">Net Unrealized ${totalGainLoss>=0?'Gain':'Loss'}</td>
+          <td class="num ${totalGainLoss>=0?'pos':'neg'}">${totalGainLoss>=0?'':'−'}₹${fmt(Math.abs(totalGainLoss))}</td>
+        </tr>
+      </table>
+    </div></div>
+    <button class="btn" id="postForexRevaluationBtn" type="button" ${isReadOnlyMode()?'disabled':''}>Post as Journal Voucher</button>
+    ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
+    <p class="muted" style="font-size:11px;margin-top:8px;">Posting creates one Journal voucher dated today, adjusting each foreign-currency ledger to its revalued ₹ value above, offset by a standing "Foreign Exchange Gain/Loss (Unrealized)" ledger — same as any other Journal, it shows in Day Book and can be edited or deleted. Change a rate above and re-post later (e.g. next month) to true it up again; each run only adjusts from whatever is booked at that time.</p>
+    `}
   `;
 }
 
@@ -25843,9 +26414,11 @@ function finPerfVarianceInterpretation(data){
     const favourable = worst.isIncome ? worst.variance>=0 : worst.variance<=0;
     notes.push(`${escapeHtml(worst.ledger.name)} shows the largest variance in FY ${fy}: ${worst.variance>=0?'+':''}₹${fmt(worst.variance)} versus budget (${favourable?'favourable':'unfavourable'}).`);
   }
-  const totalBudget = rows.reduce((s,r)=>s+r.budgetAmt,0);
-  const totalActual = rows.reduce((s,r)=>s+r.actual,0);
-  if(totalBudget) notes.push(`Across all ${rows.length} budgeted ledger${rows.length===1?'':'s'}, actuals total ₹${fmt(totalActual)} against a combined budget of ₹${fmt(totalBudget)} — ${((totalActual/totalBudget-1)*100).toFixed(1)}% ${totalActual>=totalBudget?'over':'under'} budget overall.`);
+  // Extended beyond just the single worst mover above: the overall total AND every individual
+  // ledger off budget by BUDGET_ANOMALY_PCT% or more, worst first -- the same shared narrative the
+  // standalone Budget vs Actual report uses (see budgetVarianceNarrative()), so a FY with several
+  // problem lines surfaces more than one headline number here too.
+  notes.push(...budgetVarianceNarrative(fy, rows));
   return notes;
 }
 
@@ -28499,11 +29072,12 @@ function ageingCompositionBar(buckets, total){
   ];
   return `<span class="mini-bar-stack" title="0-30: ₹${fmt(buckets['0-30']||0)} · 31-60: ₹${fmt(buckets['31-60']||0)} · 61-90: ₹${fmt(buckets['61-90']||0)} · 90+: ₹${fmt(buckets['90+']||0)}">${segs.map(s=>s.v?`<span style="width:${(s.v/total*100).toFixed(1)}%;background:${s.c};"></span>`:'').join('')}</span>`;
 }
-function partyAgeingTable(rows, emptyMsg){
+function partyAgeingTable(rows, emptyMsg, catKey){
   if(!rows.length) return `<div class="empty">${emptyMsg}</div>`;
   return `<table class="rb-card-table">
-    <tr><th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
+    <tr>${catKey?`<th style="width:30px;"><input type="checkbox" data-bulk-select-all="${escapeAttr(catKey)}" aria-label="Select all"></th>`:''}<th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
     ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
+      ${catKey?`<td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-ledger="${r.ledger.id}" data-bulk-cat="${escapeAttr(catKey)}" ${bulkLedgerSelection.has(r.ledger.id)?'checked':''} aria-label="Select ${escapeAttr(r.ledger.name)}"></td>`:''}
       <td class="ccard-title" data-label="Party">${escapeHtml(r.ledger.name)}</td>
       <td data-label="Ageing">${ageingCompositionBar(r.summary.buckets, r.summary.total)}</td>
       <td class="num" data-label="0-30 days">${r.summary.buckets['0-30']?'₹'+fmt(r.summary.buckets['0-30']):'—'}</td>
@@ -28541,12 +29115,17 @@ function viewParties(){
     ${(customers.length+suppliers.length)>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
       ${moduleSearchBox('partiesSearchInput','Search customers or suppliers by name…',partiesSearchQuery)}
     </div></div>` : ''}
+    ${bulkActionBar('ledger', bulkLedgerSelection.size, [
+      {action:'tag-customer', label:'Tag as Customer'},
+      {action:'tag-supplier', label:'Tag as Supplier'},
+      {action:'untag', label:'Clear tag'},
+    ])}
     <div class="section-title">Receivables (Customers) — Outstanding ₹${fmt(totalReceivable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.')}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.', 'party-customers')}</div></div>
 
     <div class="section-title">Payables (Suppliers) — Outstanding ₹${fmt(totalPayable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? (partiesSearchQuery.trim() ? 'No suppliers match your search.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.')}</div></div>
-    <p class="muted" style="font-size:11.5px;">Tag a ledger as a Customer or Supplier from the Accounts tab (click "Not a party" next to any ledger) to have it appear here. Click a row for its invoice-by-invoice breakdown. Payments are matched to the oldest outstanding invoice first (FIFO).</p>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? (partiesSearchQuery.trim() ? 'No suppliers match your search.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.', 'party-suppliers')}</div></div>
+    <p class="muted" style="font-size:11.5px;">Tag a ledger as a Customer or Supplier from the Accounts tab (click "Not a party" next to any ledger) to have it appear here. Click a row for its invoice-by-invoice breakdown. Payments are matched to the oldest outstanding invoice first (FIFO). Check rows here to bulk re-tag or clear a batch of parties at once.</p>
   `;
 }
 function partyDetailModal(){
@@ -29887,9 +30466,37 @@ function attachHandlers(){
     document.querySelectorAll('[data-vtype]').forEach(b=>{
       b.addEventListener('click',()=>{ switchVoucherType(b.dataset.vtype); render(); });
     });
-    document.getElementById('vdate').addEventListener('input', e=> vform.date = e.target.value);
-    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); });
+    document.getElementById('vdate').addEventListener('input', e=>{ vform.date = e.target.value; refreshLiveInvoicePreview(); });
+    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); refreshLiveInvoicePreview(); });
     document.getElementById('vchannel')?.addEventListener('change', e=>{ vform.channel = e.target.value; });
+    // Attachments during entry (before the voucher has an id): stage the file as a dataURL on the
+    // draft itself, same size cap and read path as uploadAttachment(), then actually write them to
+    // Firestore once the voucher is saved and gets a real id (see the saveVoucher handler below).
+    document.getElementById('vPendingAttachmentInput')?.addEventListener('change', async (e)=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const file = e.target.files[0];
+      if(!file) return;
+      if(file.size > ATTACHMENT_MAX_BYTES){
+        toast(`"${file.name}" is ${fmt(file.size/1024)} KB — attachments are capped at ${ATTACHMENT_MAX_BYTES/1024|0} KB. Try a compressed photo or a smaller PDF.`);
+        e.target.value = '';
+        return;
+      }
+      try{
+        const dataUrl = await fileToDataUrl(file);
+        if(!vform.pendingAttachments) vform.pendingAttachments = [];
+        vform.pendingAttachments.push({ filename: file.name, mimeType: file.type||'application/octet-stream', size: file.size, dataUrl });
+        render();
+      }catch(err){
+        toast('Could not read that file — try again');
+      }
+    });
+    document.querySelectorAll('[data-remove-pending-attachment]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const i = Number(b.dataset.removePendingAttachment);
+        if(vform.pendingAttachments) vform.pendingAttachments.splice(i,1);
+        render();
+      });
+    });
     updateNarrationSuggestion(); // show a suggestion immediately if editing a voucher that already has a narration
     updateAmountGhostSuggestion();
     wireGhostAmountInput();
@@ -30086,7 +30693,7 @@ function attachHandlers(){
         render();
       });
     });
-    document.getElementById('gstParty')?.addEventListener('change', e=>{ vform.gst.party = e.target.value; });
+    document.getElementById('gstParty')?.addEventListener('change', e=>{ vform.gst.party = e.target.value; refreshLiveInvoicePreview(); });
     document.getElementById('gstTaxable')?.addEventListener('change', e=>{
       vform.gst.taxableLedger = e.target.value;
       const l = ledgerOf(e.target.value);
@@ -30435,6 +31042,25 @@ function attachHandlers(){
         });
         await saveTaxDeductions();
       }
+      // Attachments staged during entry (see the vPendingAttachmentInput handler above) only get
+      // written to Firestore now, once the voucher actually has a real id to key them by -- same
+      // write shape as uploadAttachment(), just skipping the re-read since we already have the
+      // dataURL from when the file was picked.
+      if(vform.pendingAttachments && vform.pendingAttachments.length && savedVoucherId){
+        let attachFailures = 0;
+        for(const pa of vform.pendingAttachments){
+          try{
+            await attachmentsCollection().add({
+              voucherId: savedVoucherId, filename: pa.filename, mimeType: pa.mimeType,
+              size: pa.size, dataUrl: pa.dataUrl, uploadedAt: new Date().toISOString(),
+              uploadedBy: (currentUser && currentUser.name) || '',
+            });
+          }catch(e){ attachFailures++; }
+        }
+        const okCount = vform.pendingAttachments.length - attachFailures;
+        if(okCount) toast(`${okCount} attachment${okCount===1?'':'s'} saved with this voucher${attachFailures?` — ${attachFailures} failed (check your connection)`:''}`, {type:'success'});
+        else toast('Could not save the attachment — check your connection and try again from Day Book');
+      }
       // A voucher actually saved -- remember which ledgers were used for this voucher type, so its
       // "Recently Used" optgroup (see ledgerSelectOptionsHtml) gets sharper the more the app is used.
       entries.forEach(e=> trackLedgerUsage(effectiveType, e.ledgerId));
@@ -30442,6 +31068,10 @@ function attachHandlers(){
       view = 'daybook';
       render();
     });
+    // The iframe above is freshly created by this render() with no content yet (and every full
+    // render(), e.g. switching voucher type/mode, replaces it the same way) -- fill it in now rather
+    // than waiting for the next keystroke, so the preview is already showing on first paint.
+    refreshLiveInvoicePreview();
   }
 
   if(view==='pos'){
@@ -30672,6 +31302,10 @@ function attachHandlers(){
   }
   if(modal==='alterLedger'){
     wireLedgerGroupSuggestion('alterLedgerName','alterLedgerGroup','alterLedgerGroupHint');
+    document.getElementById('alterLedgerCurrency')?.addEventListener('change', e=>{
+      const openingForeignInput = document.getElementById('alterLedgerOpeningForeign');
+      if(openingForeignInput) openingForeignInput.disabled = !e.target.value;
+    });
     document.getElementById('alterLedgerSubmit')?.addEventListener('click', async ()=>{
       const editing = alterLedgerId && alterLedgerId!=='new';
       const name = document.getElementById('alterLedgerName').value.trim();
@@ -30681,11 +31315,16 @@ function attachHandlers(){
       const gstRaw = document.getElementById('alterLedgerGST').value;
       const msmeRaw = document.getElementById('alterLedgerMSME').value;
       const partyTypeRaw = document.getElementById('alterLedgerPartyType').value;
+      const intercompanyRaw = document.getElementById('alterLedgerIntercompany')?.value;
+      const currencyRaw = document.getElementById('alterLedgerCurrency')?.value;
+      const openingForeignRaw = document.getElementById('alterLedgerOpeningForeign')?.value;
       const creditLimitRaw = document.getElementById('alterLedgerCreditLimit').value;
       const creditDaysRaw = document.getElementById('alterLedgerCreditDays').value;
       const gstinRaw = document.getElementById('alterLedgerGSTIN').value.trim().toUpperCase();
       const addressRaw = document.getElementById('alterLedgerAddress').value.trim();
       const shipAddressRaw = document.getElementById('alterLedgerShipAddress').value.trim();
+      const bankAccountRaw = document.getElementById('alterLedgerBankAccount').value.trim();
+      const bankIFSCRaw = document.getElementById('alterLedgerBankIFSC').value.trim().toUpperCase();
       if(!name){ toast('Enter a ledger name'); return; }
       const dupe = state.ledgers.find(x=>x.name.toLowerCase()===name.toLowerCase() && (!editing || x.id!==alterLedgerId));
       if(dupe){ toast(`A ledger named "${dupe.name}" already exists`); return; }
@@ -30698,11 +31337,17 @@ function attachHandlers(){
         if(gstRaw !== ''){ l.gstRate = Number(gstRaw); } else { delete l.gstRate; }
         if(msmeRaw === '1'){ l.isMSME = true; } else { delete l.isMSME; }
         if(partyTypeRaw === 'customer' || partyTypeRaw === 'supplier'){ l.partyType = partyTypeRaw; } else { delete l.partyType; }
+        if(intercompanyRaw === '1'){ l.isIntercompany = true; } else { delete l.isIntercompany; }
+        if(currencyRaw){ l.currency = currencyRaw; if(openingForeignRaw!==''){ l.openingForeign = Number(openingForeignRaw); } else { delete l.openingForeign; } } else { delete l.currency; delete l.openingForeign; }
         if(creditLimitRaw){ l.creditLimit = Number(creditLimitRaw); } else { delete l.creditLimit; }
         if(creditDaysRaw){ l.creditDays = Number(creditDaysRaw); } else { delete l.creditDays; }
         if(gstinRaw){ l.gstin = gstinRaw; } else { delete l.gstin; }
         if(addressRaw){ l.address = addressRaw; } else { delete l.address; }
         if(shipAddressRaw){ l.shippingAddress = shipAddressRaw; } else { delete l.shippingAddress; }
+        recordBankDetailChange(l, 'bankAccountNumber', l.bankAccountNumber, bankAccountRaw);
+        recordBankDetailChange(l, 'bankIFSC', l.bankIFSC, bankIFSCRaw);
+        if(bankAccountRaw){ l.bankAccountNumber = bankAccountRaw; } else { delete l.bankAccountNumber; }
+        if(bankIFSCRaw){ l.bankIFSC = bankIFSCRaw; } else { delete l.bankIFSC; }
         await saveLedgers();
         toast('Ledger updated');
       } else {
@@ -30710,11 +31355,15 @@ function attachHandlers(){
         if(gstRaw !== '') ledger.gstRate = Number(gstRaw);
         if(msmeRaw === '1') ledger.isMSME = true;
         if(partyTypeRaw === 'customer' || partyTypeRaw === 'supplier') ledger.partyType = partyTypeRaw;
+        if(intercompanyRaw === '1') ledger.isIntercompany = true;
+        if(currencyRaw){ ledger.currency = currencyRaw; if(openingForeignRaw!=='') ledger.openingForeign = Number(openingForeignRaw); }
         if(creditLimitRaw) ledger.creditLimit = Number(creditLimitRaw);
         if(creditDaysRaw) ledger.creditDays = Number(creditDaysRaw);
         if(gstinRaw) ledger.gstin = gstinRaw;
         if(addressRaw) ledger.address = addressRaw;
         if(shipAddressRaw) ledger.shippingAddress = shipAddressRaw;
+        if(bankAccountRaw) ledger.bankAccountNumber = bankAccountRaw;
+        if(bankIFSCRaw) ledger.bankIFSC = bankIFSCRaw;
         state.ledgers.push(ledger);
         window._selectedLedger = ledger.id;
         await saveLedgers();
@@ -30819,79 +31468,140 @@ function attachHandlers(){
     });
   }
 
+  // Bulk selection: per-row checkboxes toggle membership in the shared Set, "select all" checks
+  // every row within its own table/section only (each category table, or Day Book's single flat
+  // list, is its own batch), and the bulk bar's actions apply to whichever kind of row is checked.
+  // Deliberately unconditional (not gated to one `view`) since it's reused by four different
+  // screens: the Accounts (COA) ledger table and Parties (both 'ledger' kind -- a party is just a
+  // ledger with partyType set, so they share bulkLedgerSelection and the same tag/untag actions),
+  // the Item Master table ('item' kind), and Day Book ('voucher' kind). querySelectorAll simply
+  // finds nothing on a view that doesn't render these attributes, so this is a no-op elsewhere.
+  document.querySelectorAll('[data-bulk-ledger]').forEach(cb=>{
+    cb.addEventListener('click', e=>e.stopPropagation()); // Parties' rows are themselves clickable (data-open-party)
+    cb.addEventListener('change', ()=>{
+      const id = cb.dataset.bulkLedger;
+      if(cb.checked) bulkLedgerSelection.add(id); else bulkLedgerSelection.delete(id);
+      render();
+    });
+  });
+  document.querySelectorAll('[data-bulk-item]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const id = cb.dataset.bulkItem;
+      if(cb.checked) bulkItemSelection.add(id); else bulkItemSelection.delete(id);
+      render();
+    });
+  });
+  document.querySelectorAll('[data-bulk-voucher]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const id = cb.dataset.bulkVoucher;
+      if(cb.checked) bulkVoucherSelection.add(id); else bulkVoucherSelection.delete(id);
+      render();
+    });
+  });
+  document.querySelectorAll('[data-bulk-select-all]').forEach(cb=>{
+    cb.addEventListener('click', e=>e.stopPropagation());
+    cb.addEventListener('change', ()=>{
+      const catKey = cb.dataset.bulkSelectAll;
+      document.querySelectorAll(`[data-bulk-cat="${CSS.escape(catKey)}"]`).forEach(rowCb=>{
+        const isLedger = rowCb.hasAttribute('data-bulk-ledger');
+        const isItem = rowCb.hasAttribute('data-bulk-item');
+        const id = isLedger ? rowCb.dataset.bulkLedger : isItem ? rowCb.dataset.bulkItem : rowCb.dataset.bulkVoucher;
+        const set = isLedger ? bulkLedgerSelection : isItem ? bulkItemSelection : bulkVoucherSelection;
+        if(cb.checked) set.add(id); else set.delete(id);
+      });
+      render();
+    });
+  });
+  document.querySelectorAll('[data-bulk-clear]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const kind = b.dataset.bulkClear;
+      if(kind==='ledger') bulkLedgerSelection.clear();
+      else if(kind==='item') bulkItemSelection.clear();
+      else if(kind==='voucher') bulkVoucherSelection.clear();
+      render();
+    });
+  });
+  document.querySelectorAll('[data-bulk-action]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const action = b.dataset.bulkAction;
+      const kind = b.dataset.bulkKind;
+      if(kind==='ledger'){
+        const ids = Array.from(bulkLedgerSelection);
+        if(!ids.length) return;
+        for(const id of ids){
+          const l = state.ledgers.find(x=>x.id===id);
+          if(!l) continue;
+          if(action==='tag-customer') l.partyType = 'customer';
+          else if(action==='tag-supplier') l.partyType = 'supplier';
+          else if(action==='untag') delete l.partyType;
+        }
+        await saveLedgers();
+        toast(`Updated ${ids.length} ledger${ids.length===1?'':'s'}`, {type:'success'});
+        bulkLedgerSelection.clear();
+        render();
+      } else if(kind==='item'){
+        const ids = Array.from(bulkItemSelection);
+        if(!ids.length || action!=='delete') return;
+        const removed = state.items.filter(x=>ids.includes(x.id));
+        state.items = state.items.filter(x=>!ids.includes(x.id));
+        await saveItems();
+        bulkItemSelection.clear();
+        render();
+        toast(`${removed.length} item${removed.length===1?'':'s'} deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+          state.items = state.items.concat(removed);
+          await saveItems();
+          toast('Items restored', {type:'success'});
+          render();
+        }}});
+      } else if(kind==='voucher'){
+        const ids = Array.from(bulkVoucherSelection);
+        if(!ids.length || action!=='delete') return;
+        // Payroll-linked vouchers cascade into a payslip + loan-EMI reversal, and locked-period
+        // vouchers are blocked from deletion everywhere else -- bulk delete skips both rather than
+        // silently doing the more invasive single-voucher cascade (or bypassing the lock) on a batch.
+        let skipped = 0;
+        const eligible = [];
+        for(const id of ids){
+          const v = state.vouchers.find(x=>x.id===id);
+          if(!v) continue;
+          const isPayroll = state.salaryVouchers.some(sv=>sv.voucherId===id);
+          const isLocked = currentCompany.lockDate && v.date <= currentCompany.lockDate;
+          if(isPayroll || isLocked){ skipped++; continue; }
+          eligible.push(v);
+        }
+        if(!eligible.length){
+          toast(skipped ? `Skipped ${skipped} voucher${skipped===1?'':'s'} — payroll-linked or in a locked period.` : 'Nothing to delete');
+          bulkVoucherSelection.clear();
+          render();
+          return;
+        }
+        const eligibleIds = eligible.map(v=>v.id);
+        const snapshots = eligible.map(v=>({id:v.id, before:voucherAuditSnapshot(v)}));
+        state.vouchers = state.vouchers.filter(x=>!eligibleIds.includes(x.id));
+        await saveVouchers();
+        snapshots.forEach(s=>logVoucherAudit('delete', s.id, s.before, null));
+        let removedTax = [];
+        if(state.taxDeductions.some(t=>eligibleIds.includes(t.voucherId))){
+          removedTax = state.taxDeductions.filter(t=>eligibleIds.includes(t.voucherId));
+          state.taxDeductions = state.taxDeductions.filter(t=>!eligibleIds.includes(t.voucherId));
+          await saveTaxDeductions();
+        }
+        bulkVoucherSelection.clear();
+        render();
+        toast(`${eligible.length} voucher${eligible.length===1?'':'s'} deleted${skipped?` (${skipped} skipped — payroll-linked or locked)`:''}`, {type:'success', action:{ label:'Undo', run: async ()=>{
+          state.vouchers = state.vouchers.concat(eligible);
+          if(removedTax.length){ state.taxDeductions = state.taxDeductions.concat(removedTax); await saveTaxDeductions(); }
+          await saveVouchers();
+          snapshots.forEach(s=>logVoucherAudit('create', s.id, null, s.before));
+          toast('Vouchers restored', {type:'success'});
+          render();
+        }}});
+      }
+    });
+  });
+
   if(view==='coa'){
     document.getElementById('newLedgerName')?.addEventListener('input', updateLedgerGroupSuggestion);
-
-    // Bulk selection: per-row checkboxes toggle membership in the shared Set, "select all" checks
-    // every row within its own table only (each STOCK_GROUPS/category table is its own batch), and
-    // the bulk bar's actions apply to whichever kind of row is currently checked.
-    document.querySelectorAll('[data-bulk-ledger]').forEach(cb=>{
-      cb.addEventListener('change', ()=>{
-        const id = cb.dataset.bulkLedger;
-        if(cb.checked) bulkLedgerSelection.add(id); else bulkLedgerSelection.delete(id);
-        render();
-      });
-    });
-    document.querySelectorAll('[data-bulk-item]').forEach(cb=>{
-      cb.addEventListener('change', ()=>{
-        const id = cb.dataset.bulkItem;
-        if(cb.checked) bulkItemSelection.add(id); else bulkItemSelection.delete(id);
-        render();
-      });
-    });
-    document.querySelectorAll('[data-bulk-select-all]').forEach(cb=>{
-      cb.addEventListener('change', ()=>{
-        const catKey = cb.dataset.bulkSelectAll;
-        document.querySelectorAll(`[data-bulk-cat="${CSS.escape(catKey)}"]`).forEach(rowCb=>{
-          const isLedger = rowCb.hasAttribute('data-bulk-ledger');
-          const id = isLedger ? rowCb.dataset.bulkLedger : rowCb.dataset.bulkItem;
-          const set = isLedger ? bulkLedgerSelection : bulkItemSelection;
-          if(cb.checked) set.add(id); else set.delete(id);
-        });
-        render();
-      });
-    });
-    document.querySelectorAll('[data-bulk-clear]').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        if(b.dataset.bulkClear==='ledger') bulkLedgerSelection.clear(); else bulkItemSelection.clear();
-        render();
-      });
-    });
-    document.querySelectorAll('[data-bulk-action]').forEach(b=>{
-      b.addEventListener('click', async ()=>{
-        const action = b.dataset.bulkAction;
-        const kind = b.dataset.bulkKind;
-        if(kind==='ledger'){
-          const ids = Array.from(bulkLedgerSelection);
-          if(!ids.length) return;
-          for(const id of ids){
-            const l = state.ledgers.find(x=>x.id===id);
-            if(!l) continue;
-            if(action==='tag-customer') l.partyType = 'customer';
-            else if(action==='tag-supplier') l.partyType = 'supplier';
-            else if(action==='untag') delete l.partyType;
-          }
-          await saveLedgers();
-          toast(`Updated ${ids.length} ledger${ids.length===1?'':'s'}`, {type:'success'});
-          bulkLedgerSelection.clear();
-          render();
-        } else if(kind==='item'){
-          const ids = Array.from(bulkItemSelection);
-          if(!ids.length || action!=='delete') return;
-          const removed = state.items.filter(x=>ids.includes(x.id));
-          state.items = state.items.filter(x=>!ids.includes(x.id));
-          await saveItems();
-          bulkItemSelection.clear();
-          render();
-          toast(`${removed.length} item${removed.length===1?'':'s'} deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
-            state.items = state.items.concat(removed);
-            await saveItems();
-            toast('Items restored', {type:'success'});
-            render();
-          }}});
-        }
-      });
-    });
 
     const addBtn = document.getElementById('addLedgerBtn');
     if(addBtn) addBtn.addEventListener('click', async ()=>{
@@ -31300,6 +32010,21 @@ function attachHandlers(){
     document.getElementById('exportCostCenterBtn')?.addEventListener('click', exportCostCenterToExcel);
     document.getElementById('exportBudgetBtn')?.addEventListener('click', exportBudgetVsActualToExcel);
     document.getElementById('budgetFYSelect')?.addEventListener('change', e=>{ budgetReportFY = e.target.value; render(); });
+    document.querySelectorAll('[data-forex-rate]').forEach(el=>{
+      // 'change' (fires on blur/Enter), not 'input' -- same reasoning as [data-benchmark-key] above:
+      // a full render() on every keystroke would drop focus mid-type.
+      el.addEventListener('change', e=>{
+        forexRateOverrides[el.dataset.forexRate] = e.target.value;
+        render();
+      });
+    });
+    document.getElementById('postForexRevaluationBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const overrideRates = {};
+      for(const k in forexRateOverrides){ if(forexRateOverrides[k]!=='') overrideRates[k] = forexRateOverrides[k]; }
+      await postForexRevaluation(overrideRates);
+      render();
+    });
     document.getElementById('exportFinPerfPdfBtn')?.addEventListener('click', exportFinancialPerformanceToPdf);
     document.getElementById('exportFinPerfWordBtn')?.addEventListener('click', exportFinancialPerformanceToWord);
     document.querySelectorAll('[data-benchmark-key]').forEach(el=>{
@@ -31401,7 +32126,7 @@ function attachHandlers(){
     });
     document.getElementById('openInvSettingsBtn')?.addEventListener('click', ()=>{
       const s = currentCompany.invoiceSettings || {};
-      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', logoDataUrl: s.logoDataUrl||'', numberPrefix: s.numberPrefix||'', upiVpa: s.upiVpa||'', upiPayeeName: s.upiPayeeName||'' };
+      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', terms: s.terms||'', bankDetails: s.bankDetails||'', logoDataUrl: s.logoDataUrl||'', numberPrefix: s.numberPrefix||'', upiVpa: s.upiVpa||'', upiPayeeName: s.upiPayeeName||'' };
       modal = 'invoiceSettings';
       render();
     });
@@ -31414,6 +32139,8 @@ function attachHandlers(){
     document.getElementById('invTemplate')?.addEventListener('change', e=>{ invoiceSettingsDraft.template = e.target.value; });
     document.getElementById('invAccentColor')?.addEventListener('input', e=>{ invoiceSettingsDraft.accentColor = e.target.value; });
     document.getElementById('invNumberPrefix')?.addEventListener('input', e=>{ invoiceSettingsDraft.numberPrefix = e.target.value; });
+    document.getElementById('invTerms')?.addEventListener('input', e=>{ invoiceSettingsDraft.terms = e.target.value; });
+    document.getElementById('invBankDetails')?.addEventListener('input', e=>{ invoiceSettingsDraft.bankDetails = e.target.value; });
     document.getElementById('invFooterNote')?.addEventListener('input', e=>{ invoiceSettingsDraft.footerNote = e.target.value; });
     document.getElementById('invUpiVpa')?.addEventListener('input', e=>{ invoiceSettingsDraft.upiVpa = e.target.value; });
     document.getElementById('invUpiPayeeName')?.addEventListener('input', e=>{ invoiceSettingsDraft.upiPayeeName = e.target.value; });
@@ -31517,6 +32244,25 @@ function attachHandlers(){
 function updateGSTPreview(){
   const el = document.getElementById('gstPreviewBox');
   if(el) el.outerHTML = gstPreview(vform.gst);
+  refreshLiveInvoicePreview();
+}
+// Keeps the Live Invoice Preview panel (see liveInvoicePreviewPanel()) in sync without a full
+// render() on every keystroke -- same lightweight-DOM-patch approach as updateGSTPreview() and
+// updateItemsTotals() above it. A no-op whenever the panel isn't mounted (not a Sales voucher, or
+// some other view entirely), so it's safe to call unconditionally from anywhere in the voucher form.
+function refreshLiveInvoicePreview(){
+  const frame = document.getElementById('liveInvoicePreviewFrame');
+  if(!frame) return;
+  const emptyMsg = document.getElementById('liveInvoicePreviewEmpty');
+  const html = liveInvoicePreviewHTML();
+  if(html){
+    frame.srcdoc = html;
+    frame.style.display = '';
+    if(emptyMsg) emptyMsg.style.display = 'none';
+  } else {
+    frame.style.display = 'none';
+    if(emptyMsg) emptyMsg.style.display = '';
+  }
 }
 function updateItemsTotals(){
   document.querySelectorAll('#gstItemRows .item-amount').forEach((el,i)=>{
