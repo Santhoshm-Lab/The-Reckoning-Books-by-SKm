@@ -5310,6 +5310,15 @@ let companyRenameModalOpen = false;
 let renameCoDraft = { id:'', name:'' };
 let renameCoError = '';
 let renameCoBusy = false;
+// Accountant-side multi-client dashboard (Gateway screen, modal==='accountantDash') -- the only
+// piece of UI state it needs is which "needs attention" sort order was last picked; everything else
+// (the per-company signals themselves) is recomputed fresh from the already-loaded companies[] array
+// on every render rather than cached, since it's cheap and always has to reflect the latest data.
+let accountantDashSort = 'attention'; // 'attention' | 'overdue' | 'name'
+// Migration/Onboarding AI Assistant (in-company modal==='migrate') -- a Tally/trial-balance import
+// wizard, modeled on the existing "Import Accounting Data" wizard's step/state shape (importState
+// above) but for bulk-creating LEDGERS with a suggested Chart-of-Accounts mapping, not vouchers.
+let migrateState = null;
 let gatewaySearchQuery = '';        // live filter text for the Gateway screen's "Your Companies" grid
 let gatewayFocusedCoId = null;      // id of the company card holding keyboard focus, for roving-tabindex arrow-key navigation
 // Per-browser (localStorage, not synced) company recency + pinning for the Gateway screen — same
@@ -8957,6 +8966,130 @@ function overdueInvoices(){
   }
   return rows.sort((a,b)=> b.daysOverdue - a.daysOverdue);
 }
+
+/* ---------------- Accountant-side multi-client dashboard (cross-company signals) ----------------
+   Company-parameterized mirrors of partyOutstandingInvoices()/overdueInvoices() above, operating on
+   one companies[] entry's own embedded ledgers/vouchers/bankClears/pendingVouchers rather than the
+   global state/currentCompany singletons those two functions read. This lets "which of my clients'
+   books need attention" be computed for every company the signed-in user can see (owner, reseller
+   group, or Company Team Access member -- exactly visibleCompanies()'s own set) WITHOUT calling
+   loadState()/enterCompanyApp() for any of them -- loadCompanies() already pulled every field these
+   signals touch onto the companies[] array. Deliberately duplicated rather than refactoring
+   partyOutstandingInvoices()/overdueInvoices() in place: those are exercised constantly by the
+   single-company app (ageing reports, party statements) and not worth the risk of a shared-signature
+   change for this one cross-company screen. */
+function companyOutstandingInvoices(company, ledgerId){
+  const l = (company.ledgers||[]).find(x=>x.id===ledgerId);
+  if(!l) return [];
+  const isCustomer = l.partyType==='customer';
+  const invoiceField = isCustomer ? 'dr' : 'cr';
+  const paymentField = isCustomer ? 'cr' : 'dr';
+  const txns = [];
+  for(const v of (company.vouchers||[])){
+    for(const e of (v.entries||[])){
+      if(e.ledgerId!==ledgerId) continue;
+      if(!(e.dr||e.cr)) continue;
+      txns.push({ voucherId:v.id, date:v.date, type:v.type, dr:e.dr||0, cr:e.cr||0, createdAt:v.createdAt||'' });
+    }
+  }
+  txns.sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
+  const invoices = [];
+  let paymentPool = 0;
+  for(const t of txns){
+    const invAmt = t[invoiceField];
+    const payAmt = t[paymentField];
+    if(invAmt>0){
+      invoices.push({ voucherId:t.voucherId, date:t.date, type:t.type, amount: r2(invAmt), remaining: r2(invAmt) });
+      if(paymentPool>0){
+        const last = invoices[invoices.length-1];
+        const applied = Math.min(paymentPool, last.remaining);
+        last.remaining = r2(last.remaining - applied);
+        paymentPool = r2(paymentPool - applied);
+      }
+    }
+    if(payAmt>0){
+      let remainingPayment = payAmt;
+      for(const inv of invoices){
+        if(remainingPayment<=0) break;
+        if(inv.remaining<=0) continue;
+        const applied = Math.min(inv.remaining, remainingPayment);
+        inv.remaining = r2(inv.remaining - applied);
+        remainingPayment = r2(remainingPayment - applied);
+      }
+      if(remainingPayment>0) paymentPool = r2(paymentPool + remainingPayment);
+    }
+  }
+  return invoices.filter(inv=>inv.remaining>0.005);
+}
+function companyOverdueInvoices(company){
+  const today = new Date().toISOString().slice(0,10);
+  const rows = [];
+  for(const l of (company.ledgers||[])){
+    if(l.partyType!=='customer' || !l.creditDays) continue;
+    for(const inv of companyOutstandingInvoices(company, l.id)){
+      if(inv.type!=='Sales') continue;
+      const dueDate = addDays(inv.date, l.creditDays);
+      if(dueDate < today){
+        const daysOverdue = Math.round((new Date(today+'T00:00:00') - new Date(dueDate+'T00:00:00'))/86400000);
+        rows.push({ ledgerId:l.id, ledgerName:l.name, invoice:inv, dueDate, daysOverdue });
+      }
+    }
+  }
+  return rows.sort((a,b)=> b.daysOverdue - a.daysOverdue);
+}
+// Cheap proxy for "this client's bank books need reconciling" -- counts voucher entries on the
+// company's Bank-group ledgers that have no matching row in company.bankClears, rather than
+// re-deriving the full bankReconciliationSummary() (which needs an as-of date and a statement
+// balance per ledger -- neither of which a cross-company glance has to hand). Good enough to flag
+// "this client's bank hasn't been touched in a while"; the real Reconcile screen (inside that
+// company) is still where you'd actually work through it.
+function companyUnreconciledBankCount(company){
+  const bankLedgerIds = new Set((company.ledgers||[]).filter(l=>{
+    const g = groupOf(l.group);
+    return g && g.bucket==='bank';
+  }).map(l=>l.id));
+  if(!bankLedgerIds.size) return 0;
+  const clearedKeys = new Set((company.bankClears||[]).map(c=>c.ledgerId+'|'+c.voucherId));
+  let count = 0;
+  for(const v of (company.vouchers||[])){
+    for(const e of (v.entries||[])){
+      if(!bankLedgerIds.has(e.ledgerId)) continue;
+      if(!(e.dr||e.cr)) continue;
+      if(!clearedKeys.has(e.ledgerId+'|'+v.id)) count++;
+    }
+  }
+  return count;
+}
+function companyLastActivityAt(company){
+  let latest = '';
+  for(const v of (company.vouchers||[])){
+    const stamp = v.createdAt || v.date || '';
+    if(stamp > latest) latest = stamp;
+  }
+  return latest || null;
+}
+function companyPendingApprovalsCount(company){
+  return (company.pendingVouchers||[]).length;
+}
+// One row per company this signed-in user can see (visibleCompanies()'s own set -- owner, reseller
+// group, or Company Team Access member), each carrying the handful of "needs attention" signals
+// above plus a combined attentionScore used as the dashboard's default sort.
+function accountantClientRows(){
+  return visibleCompanies().map(c=>{
+    const overdue = companyOverdueInvoices(c);
+    const overdueAmount = r2(overdue.reduce((s,r)=>s+r.invoice.remaining,0));
+    const unreconciled = companyUnreconciledBankCount(c);
+    const pendingApprovals = companyPendingApprovalsCount(c);
+    const lastActivity = companyLastActivityAt(c);
+    const isOwner = !!(currentUser && c.ownerId===currentUser.id);
+    const attentionScore = overdue.length*2 + pendingApprovals*3 + (unreconciled>0?1:0);
+    return {
+      company: c, overdueCount: overdue.length, overdueAmount, unreconciled, pendingApprovals,
+      lastActivity, isOwner, role: isOwner ? 'Owner' : 'Team Access', attentionScore,
+    };
+  });
+}
+
 function ageBucket(days){
   if(days<=30) return '0-30';
   if(days<=60) return '31-60';
@@ -12116,6 +12249,7 @@ function render(){
     ${modal==='monthlyNarrative' ? monthlyNarrativeModal() : ''}
     ${modal==='dashboardPersonalize' ? dashboardPersonalizeModal() : ''}
     ${modal==='import' ? importModal() : ''}
+    ${modal==='migrate' ? migrateModal() : ''}
     ${modal==='balanceSheetDetail' ? balanceSheetDetailModal() : ''}
     ${modal==='incomeStatementDetail' ? incomeStatementDetailModal() : ''}
     ${modal==='overdueInvoicesDetail' ? overdueInvoicesDetailModal() : ''}
@@ -15626,6 +15760,66 @@ function companyRenameModal(){
   </div>
   `;
 }
+// Accountant-side multi-client dashboard -- "which of my clients' books need attention", across
+// every company visibleCompanies() returns, computed entirely from the accountantClientRows()
+// signals above (no per-company Firestore reads). Opened as a Gateway-screen modal rather than its
+// own `screen` value, so it reuses renderGateway()'s existing modal-dispatch slot (see the
+// modal==='help'/'adminPanel' entries just below renderGateway's innerHTML) instead of touching the
+// many places this file flips between the 'gateway' and 'app' screen values.
+function accountantDashModal(){
+  const rows = accountantClientRows();
+  const sorted = rows.slice().sort((a,b)=>{
+    if(accountantDashSort==='name') return (a.company.name||'').localeCompare(b.company.name||'');
+    if(accountantDashSort==='overdue') return b.overdueAmount - a.overdueAmount;
+    return b.attentionScore - a.attentionScore; // 'attention' (default)
+  });
+  const totalOverdueAmount = r2(rows.reduce((s,r)=>s+r.overdueAmount,0));
+  const totalPending = rows.reduce((s,r)=>s+r.pendingApprovals,0);
+  const needingAttention = rows.filter(r=>r.attentionScore>0).length;
+  return `
+  <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-card" style="width:860px;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>📊 Accountant Dashboard</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+      <div class="panel-body" style="max-height:78vh;overflow-y:auto;padding:0;">
+        <div style="padding:14px 18px 10px;">
+          <p class="muted" style="font-size:12px;margin:0 0 12px;">Which of your ${rows.length} compan${rows.length===1?'y':'ies'} need attention, at a glance — across every company you own or have Team Access to, without opening each one.</p>
+          <div class="grid" style="margin-bottom:4px;">
+            <div class="stat"><div class="label">Companies</div><div class="val">${rows.length}</div></div>
+            <div class="stat"><div class="label">Need Attention</div><div class="val ${needingAttention?'neg':''}">${needingAttention}</div></div>
+            <div class="stat"><div class="label">Overdue Receivables</div><div class="val neg">₹${fmt(totalOverdueAmount)}</div></div>
+            <div class="stat"><div class="label">Pending Approvals</div><div class="val">${totalPending}</div></div>
+          </div>
+        </div>
+        <div style="padding:0 18px 8px;display:flex;justify-content:flex-end;">
+          <select id="accountantDashSortSelect" style="max-width:230px;">
+            <option value="attention" ${accountantDashSort==='attention'?'selected':''}>Sort: Needs Attention First</option>
+            <option value="overdue" ${accountantDashSort==='overdue'?'selected':''}>Sort: Overdue Amount</option>
+            <option value="name" ${accountantDashSort==='name'?'selected':''}>Sort: Name A–Z</option>
+          </select>
+        </div>
+        ${!rows.length ? `
+        <div class="muted" style="padding:30px 18px;text-align:center;">No companies to show yet.</div>
+        ` : `
+        <table>
+          <tr><th>Company</th><th>Role</th><th class="num">Overdue</th><th class="num">Pending Approvals</th><th class="num">Unreconciled</th><th>Last Activity</th><th></th></tr>
+          ${sorted.map(r=>`
+          <tr>
+            <td>${escapeHtml(r.company.name)}</td>
+            <td><span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">${escapeHtml(r.role)}</span></td>
+            <td class="num ${r.overdueCount?'neg':''}">${r.overdueCount ? `${r.overdueCount} · ₹${fmt(r.overdueAmount)}` : '—'}</td>
+            <td class="num ${r.pendingApprovals?'neg':''}">${r.pendingApprovals || '—'}</td>
+            <td class="num ${r.unreconciled?'neg':''}">${r.unreconciled || '—'}</td>
+            <td class="muted" style="font-size:11.5px;">${r.lastActivity ? relativeTimeAgo(r.lastActivity) : 'No activity yet'}</td>
+            <td><button class="btn secondary small" data-accountant-open-co="${r.company.id}" type="button">Open →</button></td>
+          </tr>
+          `).join('')}
+        </table>
+        `}
+      </div>
+    </div>
+  </div>
+  `;
+}
 function renderGateway(){
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -15690,6 +15884,7 @@ function renderGateway(){
       <div class="gw-section-row">
         <div class="gw-section-title">Your Companies</div>
         <div class="gw-toolbar">
+        ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
         ${allMyCompanies.length > 1 ? `
         <div class="gw-search-wrap">
           <span class="gw-search-icon">🔎</span>
@@ -15823,6 +16018,7 @@ function renderGateway(){
     ${modal==='groupAdmin' && groupAddUserOpen ? groupAddUserModal() : ''}
     ${companyCreateModalOpen ? companyCreateModal() : ''}
     ${companyRenameModalOpen ? companyRenameModal() : ''}
+    ${modal==='accountantDash' ? accountantDashModal() : ''}
     ${diWidget()}
       </div>
     </div>
@@ -16070,6 +16266,30 @@ function renderGateway(){
   };
   document.getElementById('saveRenameCoBtn')?.addEventListener('click', submitRename);
   document.getElementById('renameCoInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitRename(); });
+  }
+
+  document.getElementById('openAccountantDashBtn')?.addEventListener('click', ()=>{
+    modal = 'accountantDash';
+    renderGateway();
+  });
+  if(modal==='accountantDash'){
+    const closeAccountantDash = ()=>{ modal = null; renderGateway(); };
+    document.getElementById('modalClose')?.addEventListener('click', closeAccountantDash);
+    document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='modalOverlayBg') closeAccountantDash();
+    });
+    document.getElementById('accountantDashSortSelect')?.addEventListener('change', e=>{
+      accountantDashSort = e.target.value;
+      renderGateway();
+    });
+    document.querySelectorAll('[data-accountant-open-co]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const c = companies.find(x=>x.id===el.dataset.accountantOpenCo);
+        if(!c || !canAccessCompany(c)) return;
+        modal = null;
+        await enterCompanyApp(c);
+      });
+    });
   }
 
   document.getElementById('dismissAnnouncementBtn')?.addEventListener('click', ()=>{
@@ -19941,6 +20161,7 @@ function viewDashboard(){
       <div class="dash-actions-row">
         <button class="btn secondary" id="openRecentVouchersBtn" type="button">📋 Recent Vouchers (${state.vouchers.length})</button>
         <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
+        <button class="btn secondary" id="openMigrateBtn" type="button">🗺️ Migration Assistant</button>
         <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
         <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close Checklist</button>
         <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
@@ -21463,6 +21684,229 @@ function importModal(){
             `}
 
             <button class="btn" id="importContinueBtn" type="button" style="width:100%;margin-top:8px;">Continue → Preview</button>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------------- Migration / Onboarding AI Assistant (Tally/trial-balance -> Chart of Accounts) ----------------
+   Given a rough trial balance or Tally-style ledger export, proposes a GROUPS-taxonomy mapping for
+   every ledger name in it and bulk-creates them with their opening balances -- the single biggest
+   friction point stopping a Tally/Zoho switcher from moving, since nobody wants to re-type years of
+   ledger names by hand. Modeled on the "Import Accounting Data" wizard just above (same step/state
+   shape, same generic file-parsing helpers: parseImportFile/parseImportAmount/importCleanRows), but
+   a deliberately separate modal/state object (migrateState, not importState) -- that wizard creates
+   VOUCHERS against ledgers that already exist; this one creates the LEDGERS themselves, usually
+   before any voucher has been entered at all. */
+const MIGRATE_NAME_COL_SYNONYMS = ['particulars','ledger name','account name','name of account','name','ledger','account','account head','head of account'];
+function guessMigrateNameColumn(headers){
+  const lower = headers.map(h=>h.toLowerCase().trim());
+  for(const syn of MIGRATE_NAME_COL_SYNONYMS){
+    const idx = lower.findIndex(h=>h===syn);
+    if(idx>-1) return headers[idx];
+  }
+  for(const syn of MIGRATE_NAME_COL_SYNONYMS){
+    const idx = lower.findIndex(h=>h.includes(syn));
+    if(idx>-1) return headers[idx];
+  }
+  return '';
+}
+// Keyword-to-Chart-of-Accounts classifier. Deliberately standalone from suggestGroupForLedgerName()
+// above -- that heuristic compares a new ledger name against ledgers ALREADY in this company, which
+// is exactly what a fresh company (or one just switching off Tally/Zoho) doesn't have yet. This
+// instead matches against common accounting/Tally ledger-naming vocabulary, resolving to the same
+// GROUPS taxonomy every other classification in this app uses. Ordered roughly specific-to-generic;
+// within a matching list the LONGEST matching keyword wins (so "bank overdraft" beats a bare "bank"
+// landing it under plain Bank Accounts), and the first list with any match wins overall.
+const MIGRATE_GROUP_KEYWORDS = [
+  { groupId:'bankod',  keywords:['overdraft','bank od','od a/c','od account','cash credit'] },
+  { groupId:'bank',    keywords:['bank account','bank a/c','current account','savings account','bank'] },
+  { groupId:'cash',    keywords:['petty cash','cash in hand','cash'] },
+  { groupId:'cap',     keywords:["proprietor's capital","partners capital","partner's capital",'share capital','capital account','capital'] },
+  { groupId:'ressur',  keywords:['retained earning','general reserve','reserves and surplus','reserve & surplus','reserve'] },
+  { groupId:'sundeb',  keywords:['trade receivable','sundry debtor','debtors','accounts receivable','receivable','customer'] },
+  { groupId:'sundcr',  keywords:['trade payable','sundry creditor','creditors','accounts payable','payable','supplier','vendor'] },
+  { groupId:'secloan', keywords:['term loan','vehicle loan','home loan','car loan','mortgage','secured loan'] },
+  { groupId:'unsloan', keywords:['loan from director','loan from friends','loan from relative','unsecured loan'] },
+  { groupId:'duties',  keywords:['cgst','sgst','igst','gst payable','gst input','gst output','input tax credit','output tax','tds payable','tds receivable','tcs payable','vat payable','excise duty','duties and taxes','gst'] },
+  { groupId:'fa',      keywords:['furniture and fixture','furniture & fixture','plant and machinery','plant & machinery','office equipment','computer and accessories','motor vehicle','land and building','machinery','equipment','furniture','vehicle','building'] },
+  { groupId:'inv',     keywords:['mutual fund','fixed deposit','investment in shares','investments','investment'] },
+  { groupId:'stock',   keywords:['closing stock','stock in hand','stock-in-trade','inventory','stock'] },
+  { groupId:'loanadv', keywords:['security deposit','prepaid expense','advance to supplier','loans and advances','advance paid','deposit paid'] },
+  { groupId:'prov',    keywords:['provision for'] },
+  { groupId:'sales',   keywords:['sales account','sales revenue','revenue from operations','export sales','domestic sales','sales'] },
+  { groupId:'purch',   keywords:['purchase account','raw material','purchases','wages','carriage inward','freight inward'] },
+  { groupId:'dinc',    keywords:['interest received','discount received','rent received','commission received','misc income','miscellaneous income','other income'] },
+  { groupId:'iexp',    keywords:['salary','rent paid','electricity','telephone','internet charges','printing and stationery','stationery','office expense','conveyance','travelling','travel expense','insurance','repairs and maintenance','depreciation','audit fee','legal and professional','professional fee','interest paid','bank charges','commission paid','advertisement','freight outward','carriage outward'] },
+  { groupId:'susp',    keywords:['suspense'] },
+];
+function suggestGroupForImportedLedgerName(name, isDrBalance){
+  const norm = ' ' + (name||'').toLowerCase().trim() + ' ';
+  let best = null; // {groupId, matchLen}
+  for(const entry of MIGRATE_GROUP_KEYWORDS){
+    for(const kw of entry.keywords){
+      if(norm.includes(kw) && (!best || kw.length>best.matchLen)) best = { groupId: entry.groupId, matchLen: kw.length };
+    }
+  }
+  if(best){
+    const g = groupOf(best.groupId);
+    return { groupId: best.groupId, groupName: g?g.name:best.groupId, confidence:'high' };
+  }
+  // No keyword hit at all -- fall back to a generic bucket based on which side of the trial balance
+  // the opening balance sits on, and flag it (confidence:'low') for the user to confirm rather than
+  // silently guessing something specific this app can't actually tell from the name alone.
+  const fallbackId = isDrBalance ? 'ca' : 'curl';
+  const g = groupOf(fallbackId);
+  return { groupId: fallbackId, groupName: g?g.name:fallbackId, confidence:'low' };
+}
+// Turns the raw parsed rows + chosen column mapping into one draft per ledger: name, opening
+// balance (positive = Dr, negative = Cr -- same sign convention state.ledgers already uses, see
+// the alterLedger/quickAddLedger commit handlers), suggested group + confidence, inferred party
+// type (customer/supplier) when the suggestion landed on Sundry Debtors/Creditors, and whether this
+// row should be skipped by default (a ledger of the same name already exists in this company, or
+// the same name appears twice in the file -- most Tally exports repeat a grand-total row at the
+// bottom, which this also filters out by name).
+function migrateRowsToLedgerDrafts(){
+  const headers = migrateState.headers;
+  const nameIdx = headers.indexOf(migrateState.nameCol);
+  const drIdx = headers.indexOf(migrateState.drCol);
+  const crIdx = headers.indexOf(migrateState.crCol);
+  const amtIdx = headers.indexOf(migrateState.amountCol);
+  const typeIdx = headers.indexOf(migrateState.typeCol);
+  const existingNames = new Set(state.ledgers.map(l=>l.name.toLowerCase().trim()));
+  const seen = new Set();
+  const out = [];
+  for(const row of migrateState.rows){
+    const name = String(nameIdx>-1 ? (row[nameIdx]==null?'':row[nameIdx]) : '').trim();
+    if(!name) continue;
+    if(/^(grand\s*)?total\b/i.test(name)) continue; // the one "row" a trial balance reliably has that isn't a ledger
+    let dr = 0, cr = 0;
+    if(migrateState.colMode==='split'){
+      dr = Math.abs(parseImportAmount(drIdx>-1 ? row[drIdx] : 0));
+      cr = Math.abs(parseImportAmount(crIdx>-1 ? row[crIdx] : 0));
+    } else {
+      const amt = parseImportAmount(amtIdx>-1 ? row[amtIdx] : 0);
+      const typeRaw = String(typeIdx>-1 ? (row[typeIdx]||'') : '').toLowerCase();
+      if(typeRaw.includes('cr') || amt<0) cr = Math.abs(amt); else dr = Math.abs(amt);
+    }
+    const opening = r2(dr - cr);
+    const isDrBalance = opening >= 0;
+    const dupeKey = name.toLowerCase().trim();
+    const alreadyExists = existingNames.has(dupeKey);
+    const dupeInFile = seen.has(dupeKey);
+    seen.add(dupeKey);
+    const suggestion = suggestGroupForImportedLedgerName(name, isDrBalance);
+    out.push({
+      key: 'mrow_'+out.length, name, opening,
+      groupId: suggestion.groupId, confidence: suggestion.confidence,
+      partyType: suggestion.groupId==='sundeb' ? 'customer' : (suggestion.groupId==='sundcr' ? 'supplier' : ''),
+      skip: alreadyExists || dupeInFile, alreadyExists, dupeInFile,
+    });
+  }
+  return out;
+}
+// Bulk-creates every non-skipped draft as a real ledger in one go -- the actual payoff of the whole
+// wizard. Never touches a row marked skip (already-exists / duplicate-in-file), so re-running the
+// assistant on an updated export is safe: it only ever adds ledgers that aren't there yet.
+async function commitMigration(){
+  const rows = (migrateState.ledgerRows||[]).filter(r=>!r.skip);
+  if(!rows.length){ toast('Nothing to create — every row was skipped or already exists.'); return; }
+  let created = 0;
+  for(const r of rows){
+    const ledger = { id: uid('l'), name: r.name, group: r.groupId, opening: r.opening };
+    if(r.partyType) ledger.partyType = r.partyType;
+    state.ledgers.push(ledger);
+    created++;
+  }
+  await saveLedgers();
+  logAutomation('🗺️', `Migration Assistant created ${created} ledger${created===1?'':'s'} from "${migrateState.fileName}"`);
+  migrateState = null;
+  modal = null;
+  toast(`${created} ledger${created===1?'':'s'} created`, {type:'success'});
+  render();
+}
+function migrateModal(){
+  if(!migrateState) return '';
+  if(migrateState.step===2){
+    const rows = migrateState.ledgerRows||[];
+    const needsReview = rows.filter(r=>!r.skip && r.confidence==='low').length;
+    const toCreate = rows.filter(r=>!r.skip).length;
+    const skipped = rows.length - toCreate;
+    return `
+      <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+        <div class="modal-card" style="width:820px;">
+          <div class="panel-head"><h2>Review Chart of Accounts Mapping</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+          <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
+            <div style="padding:14px 18px 0;">
+              <p class="muted" style="font-size:12px;margin:0 0 6px;">${toCreate} ledger${toCreate===1?'':'s'} will be created${skipped?`, ${skipped} skipped (already exist or duplicate in file)`:''}. ${needsReview ? `<strong style="color:var(--debit);">${needsReview} row${needsReview===1?'':'s'} couldn't be matched confidently — check the ⚠️ rows below before importing.</strong>` : 'Every row was matched with confidence — spot-check a few, then import.'}</p>
+            </div>
+            <table>
+              <tr><th></th><th>Ledger Name</th><th class="num">Opening Balance</th><th>Suggested Group</th><th></th></tr>
+              ${rows.map((r,i)=>`
+                <tr style="${r.confidence==='low' && !r.skip ? 'background:var(--surface-strong);' : ''}">
+                  <td><input type="checkbox" data-migrate-row-include="${i}" ${r.skip?'':'checked'} title="Create this ledger"></td>
+                  <td>${escapeHtml(r.name)}${r.alreadyExists?' <span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Already exists</span>':''}${r.dupeInFile && !r.alreadyExists?' <span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Duplicate in file</span>':''}</td>
+                  <td class="num ${r.opening<0?'neg':''}">${r.opening ? '₹'+fmt(Math.abs(r.opening))+' '+(r.opening>=0?'Dr':'Cr') : '—'}</td>
+                  <td>
+                    <select data-migrate-row-group="${i}" ${r.skip?'disabled':''} style="min-width:220px;">${groupOptionsHtml(r.groupId)}</select>
+                  </td>
+                  <td>${r.skip ? '' : (r.confidence==='low' ? '<span title="Low confidence — please check">⚠️ Review</span>' : '<span title="Matched confidently">✅</span>')}</td>
+                </tr>
+              `).join('')}
+            </table>
+            <div style="padding:14px 18px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);">
+              <button class="btn secondary" id="migrateBackBtn" type="button">← Back</button>
+              <button class="btn" id="migrateCommitBtn" type="button">Create ${toCreate} Ledger${toCreate===1?'':'s'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:580px;">
+        <div class="panel-head"><h2>Migration Assistant</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          ${!migrateState.headers.length ? `
+            <p class="muted" style="font-size:12.5px;margin-top:0;">Switching from Tally, Zoho, or another accounting package? Upload a trial balance or ledger export (.xlsx, .xls or .csv) — this proposes a Chart-of-Accounts group for every ledger in it, so you don't have to re-create years of ledgers by hand.</p>
+            <div class="field">
+              <label>Trial Balance / Ledger Export File</label>
+              <input type="file" id="migrateFileInput" accept=".xlsx,.xls,.csv,.txt">
+            </div>
+            ${migrateState.error ? `<p style="color:var(--debit);font-size:12px;">${escapeHtml(migrateState.error)}</p>` : ''}
+          ` : `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <p class="muted" style="font-size:12px;margin:0;">${migrateState.rows.length} row(s) found in <strong style="color:var(--ink);">${escapeHtml(migrateState.fileName)}</strong></p>
+              <button class="btn secondary small" id="migrateChangeFileBtn" type="button">Choose different file</button>
+            </div>
+
+            <div class="field"><label>Ledger Name Column</label>${importColSelect('migrateNameCol', migrateState.headers, migrateState.nameCol)}</div>
+
+            <div class="field">
+              <label>Opening Balance Columns</label>
+              <select id="migrateColMode">
+                <option value="split" ${migrateState.colMode==='split'?'selected':''}>Separate Debit (Dr.) &amp; Credit (Cr.) columns</option>
+                <option value="single" ${migrateState.colMode==='single'?'selected':''}>Single Amount column</option>
+              </select>
+            </div>
+
+            ${migrateState.colMode==='split' ? `
+            <div class="row">
+              <div class="field"><label>Debit (Dr.) Column</label>${importColSelect('migrateDrCol', migrateState.headers, migrateState.drCol, true)}</div>
+              <div class="field"><label>Credit (Cr.) Column</label>${importColSelect('migrateCrCol', migrateState.headers, migrateState.crCol, true)}</div>
+            </div>
+            ` : `
+            <div class="row">
+              <div class="field"><label>Amount Column</label>${importColSelect('migrateAmountCol', migrateState.headers, migrateState.amountCol)}</div>
+              <div class="field"><label>Dr/Cr Type Column (optional)</label>${importColSelect('migrateTypeCol', migrateState.headers, migrateState.typeCol, true)}</div>
+            </div>
+            <p class="muted" style="font-size:11px;margin-top:-6px;">Without a type column, negative amounts are treated as Credit and positive amounts as Debit.</p>
+            `}
+
+            <button class="btn" id="migrateContinueBtn" type="button" style="width:100%;margin-top:8px;">Continue → Suggested Mapping</button>
           `}
         </div>
       </div>
@@ -29376,6 +29820,16 @@ function attachHandlers(){
       modal = 'import';
       render();
     });
+    document.getElementById('openMigrateBtn')?.addEventListener('click', ()=>{
+      migrateState = {
+        step: 1, fileName:'', error:'',
+        headers: [], rows: [],
+        nameCol:'', colMode:'split', drCol:'', crCol:'', amountCol:'', typeCol:'',
+        ledgerRows: [],
+      };
+      modal = 'migrate';
+      render();
+    });
     document.getElementById('openAutomationFeedBtn')?.addEventListener('click', ()=>{
       modal = 'automationFeed';
       render();
@@ -30762,6 +31216,78 @@ function attachHandlers(){
     });
 
     document.getElementById('importCommitBtn')?.addEventListener('click', commitImport);
+  }
+
+  if(modal==='migrate' && migrateState){
+    const fileInput = document.getElementById('migrateFileInput');
+    fileInput?.addEventListener('change', async (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      migrateState.error = '';
+      try{
+        const {headers, rows} = await parseImportFile(file);
+        if(!headers.length){ migrateState.error = 'No data found in this file.'; render(); return; }
+        migrateState.fileName = file.name;
+        migrateState.headers = headers;
+        migrateState.rows = rows;
+        migrateState.nameCol = guessMigrateNameColumn(headers);
+        migrateState.drCol = guessImportColumn(headers,'debit');
+        migrateState.crCol = guessImportColumn(headers,'credit');
+        migrateState.amountCol = guessImportColumn(headers,'amount');
+        migrateState.typeCol = guessImportColumn(headers,'type');
+        migrateState.colMode = (migrateState.drCol && migrateState.crCol) ? 'split' : (migrateState.amountCol ? 'single' : 'split');
+        render();
+      }catch(err){
+        migrateState.error = 'Could not read this file. Please check the format and try again.';
+        render();
+      }
+    });
+    document.getElementById('migrateChangeFileBtn')?.addEventListener('click', ()=>{
+      migrateState.headers = []; migrateState.rows = []; migrateState.fileName = '';
+      render();
+    });
+    document.getElementById('migrateNameCol')?.addEventListener('change', e=> migrateState.nameCol = e.target.value);
+    document.getElementById('migrateColMode')?.addEventListener('change', e=>{ migrateState.colMode = e.target.value; render(); });
+    document.getElementById('migrateDrCol')?.addEventListener('change', e=> migrateState.drCol = e.target.value);
+    document.getElementById('migrateCrCol')?.addEventListener('change', e=> migrateState.crCol = e.target.value);
+    document.getElementById('migrateAmountCol')?.addEventListener('change', e=> migrateState.amountCol = e.target.value);
+    document.getElementById('migrateTypeCol')?.addEventListener('change', e=> migrateState.typeCol = e.target.value);
+
+    document.getElementById('migrateContinueBtn')?.addEventListener('click', ()=>{
+      if(!migrateState.nameCol){ toast('Select the ledger name column'); return; }
+      if(migrateState.colMode==='split' && (!migrateState.drCol || !migrateState.crCol)){ toast('Select both debit and credit columns'); return; }
+      if(migrateState.colMode==='single' && !migrateState.amountCol){ toast('Select the amount column'); return; }
+      const drafts = migrateRowsToLedgerDrafts();
+      if(!drafts.length){ toast('No ledger rows found — check your column mapping'); return; }
+      migrateState.ledgerRows = drafts;
+      migrateState.step = 2;
+      render();
+    });
+
+    document.getElementById('migrateBackBtn')?.addEventListener('click', ()=>{
+      migrateState.step = 1;
+      render();
+    });
+
+    document.querySelectorAll('[data-migrate-row-group]').forEach(sel=>{
+      sel.addEventListener('change', e=>{
+        const i = +e.target.dataset.migrateRowGroup;
+        const r = migrateState.ledgerRows[i];
+        r.groupId = e.target.value;
+        r.confidence = 'high'; // a manual pick is as good as a confident match -- drop the ⚠️ Review flag
+        r.partyType = r.groupId==='sundeb' ? 'customer' : (r.groupId==='sundcr' ? 'supplier' : '');
+        render();
+      });
+    });
+    document.querySelectorAll('[data-migrate-row-include]').forEach(cb=>{
+      cb.addEventListener('change', e=>{
+        const i = +e.target.dataset.migrateRowInclude;
+        migrateState.ledgerRows[i].skip = !e.target.checked;
+        render();
+      });
+    });
+
+    document.getElementById('migrateCommitBtn')?.addEventListener('click', commitMigration);
   }
 
   if(view==='reports'){
