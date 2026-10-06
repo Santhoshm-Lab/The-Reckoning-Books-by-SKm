@@ -7074,7 +7074,7 @@ function readOnlyToastMessage(){
   if(adminViewOnlyCompanyId) return "You're viewing this company in read-only mode — changes aren't saved.";
   if(view && memberModuleAccess(view)==='view'){
     return isCompanyTeamMember()
-      ? "Your access to this section is View Only — ask the company owner to change it under Team Access."
+      ? "Team Access is always view-only — this account can't make changes here."
       : "Your access to this section is View Only — ask your group admin to change it under Access.";
   }
   return "This is a shared demo company — only the administrator can make changes here.";
@@ -7106,7 +7106,15 @@ function memberModuleAccess(moduleId){
   // practice, but this ordering is the safer one if it ever happened).
   if(currentUser && currentCompany && currentCompany.teamMembers && currentCompany.teamMembers[currentUser.id]){
     const perms = currentCompany.teamMembers[currentUser.id].permissions || {};
-    return perms[moduleId] || 'full';
+    const access = perms[moduleId];
+    // Company Team Access is always view-only, full stop -- a teammate here can never create, edit
+    // or delete anything, no matter what's stored for them. This caps the result at 'view' instead
+    // of trusting whatever's in Firestore, so it holds even for an entry saved before this policy
+    // (back when 'full' was a real option here), or one edited by hand. Only 'hidden' survives
+    // untouched -- everything else (an explicit 'view', an explicit 'full', or no entry at all for
+    // this module) collapses to 'view'. See COMPANY_TEAM_ROLE_PRESETS below for the owner-facing side
+    // of this same rule (no preset, and no option in the per-module picker, ever offers 'full').
+    return access==='hidden' ? 'hidden' : 'view';
   }
   if(!currentUser || currentUser.role!=='user' || !currentUser.groupOwnerId) return 'full';
   const perms = currentCompany && currentCompany.memberPermissions;
@@ -7170,28 +7178,38 @@ function visibleLedgersForCurrentUser(){
   return allowed ? state.ledgers.filter(l=>allowed.includes(l.group)) : state.ledgers;
 }
 // ---- Company Team Access — quick-apply role presets ----
-// Starting points for the same per-module Full/View/Hidden picker the Support/group "Manage Access"
-// feature already uses -- picking one just fills in company.teamMembers[uid].permissions with this
-// shape; 'custom' leaves the picker exactly as it already is. Deliberately mirrors the roles named in
-// the improvement roadmap (a bookkeeper limited to Vouchers/Day Book, a read-only external-CA/auditor
-// role, a GST-only filer role).
+// Starting points for the per-module View/Hidden picker below -- picking one just fills in
+// company.teamMembers[uid].permissions with this shape; 'custom' leaves the picker exactly as it
+// already is. Deliberately mirrors the roles named in the improvement roadmap (a bookkeeper limited
+// to Vouchers/Day Book, a read-only external-CA/auditor role, a GST-only filer role) -- MINUS any
+// ability to actually edit anything: Team Access is a strictly view-only grant, by product decision,
+// so every preset here only ever uses 'view' or 'hidden', never 'full', and there is deliberately no
+// "Full Access" preset at all. memberModuleAccess() enforces this as the real backstop regardless of
+// what's stored (so hand-edited or pre-this-policy data can't grant edit access either) -- these
+// presets just keep the owner-facing picker itself from ever offering something the app wouldn't
+// honor anyway.
 const COMPANY_TEAM_ROLE_PRESETS = {
-  bookkeeper: { label:'Bookkeeper', desc:'Entries & day-to-day books — no Reports, GST or Payroll.', permissions: {
-    voucher:'full', pos:'full', daybook:'full', calendar:'full', ledgers:'full', parties:'full',
-    inventory:'full', coa:'view', orders:'full', reconcile:'view',
+  bookkeeper: { label:'Bookkeeper (View Only)', desc:'Can see entries & day-to-day books — no Reports, GST or Payroll. Team Access never allows editing; they can tell you what to enter and you record it.', permissions: {
+    voucher:'view', pos:'view', daybook:'view', calendar:'view', ledgers:'view', parties:'view',
+    inventory:'view', coa:'view', orders:'view', reconcile:'view',
     reports:'hidden', gst:'hidden', assets:'hidden', payroll:'hidden',
   }},
   auditor: { label:'Auditor (Read-Only)', desc:'Can see everything, change nothing.', permissions:
     Object.fromEntries(MODULE_ACCESS_LIST.map(m=>[m.id,'view']))
   },
-  gst: { label:'GST Filer', desc:'GST and Reports only.', permissions: {
-    gst:'full', reports:'view', daybook:'view',
+  gst: { label:'GST Filer (View Only)', desc:'GST and Reports only, view-only — for someone who prepares a filing from what they see here but doesn\'t post entries.', permissions: {
+    gst:'view', reports:'view', daybook:'view',
     voucher:'hidden', pos:'hidden', calendar:'hidden', ledgers:'hidden', coa:'hidden',
     inventory:'hidden', reconcile:'hidden', assets:'hidden', parties:'hidden', orders:'hidden', payroll:'hidden',
   }},
-  full: { label:'Full Access', desc:'No restrictions — same as the owner, module-by-module.', permissions: {} },
-  custom: { label:'Custom', desc:'Set each module yourself below.', permissions: {} },
+  custom: { label:'Custom', desc:'Choose which modules are visible (view-only) yourself below.', permissions: {} },
 };
+// Hard cap on how many teammates a single company can have via Team Access. Enforced client-side —
+// the Invite button and form are simply unreachable past this count (see companyTeamModal() /
+// ctInviteCreateBtn's belt-and-braces re-check) — the same trust model this app already uses for the
+// Support/group groupUserLimit cap, just without a seat-request path since this number isn't meant to
+// be raised per-company the way a Support reseller's whole-group limit can be.
+const TEAM_ACCESS_MAX_MEMBERS = 2;
 /* ---------------- "SKm Group of Companies" — the shared demo company ----------------
    Built to showcase every one of the 28 Tally-standard ledger groups (all 15 Primary Groups and
    all 13 Sub-Groups) in a single company, spanning five complete past financial years plus the
@@ -8475,18 +8493,20 @@ function companyTeamModal(){
       <div class="modal-card" style="width:700px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div class="panel-head" style="padding:16px 20px;"><h2>Team Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
-          <p class="muted" style="font-size:12px;">Invite a bookkeeper, your external accountant, or anyone else who needs their own login to this company — with their own module-by-module access, separate from yours. They never see your other companies.</p>
+          <p class="muted" style="font-size:12px;">Invite a bookkeeper, your external accountant, or anyone else who needs their own login to this company — with their own module-by-module access, separate from yours. They never see your other companies. Team Access is always <strong>view-only</strong> (they can never create, edit or delete anything) and limited to ${TEAM_ACCESS_MAX_MEMBERS} teammates per company.</p>
           <div style="display:flex;gap:16px;flex-wrap:wrap;">
             <div style="min-width:200px;flex-shrink:0;">
               ${memberIds.map(uid=>{
                 const m = team[uid];
-                const restricted = (m.permissions && Object.values(m.permissions).some(v=>v && v!=='full')) || Array.isArray(m.ledgerGroups);
+                const hasHiddenOrLedgerLimit = (m.permissions && Object.values(m.permissions).some(v=>v==='hidden')) || Array.isArray(m.ledgerGroups);
                 return `<button type="button" class="btn small ${uid===selectedId?'':'secondary'}" data-select-team-member="${uid}" style="width:100%;text-align:left;margin-bottom:6px;display:flex;justify-content:space-between;">
-                  <span>${escapeHtml(m.name||m.username)}</span>${restricted?'<span title="Has restrictions">🔐</span>':'<span class="muted" style="font-size:10.5px;">Full</span>'}
+                  <span>${escapeHtml(m.name||m.username)}</span>${hasHiddenOrLedgerLimit?'<span title="Some sections hidden or ledger-restricted">🔐</span>':'<span class="muted" style="font-size:10.5px;">View Only</span>'}
                 </button>`;
               }).join('')}
               ${!memberIds.length ? `<div class="empty" style="margin-bottom:10px;">No teammates yet.</div>` : ''}
-              <button type="button" class="btn small" id="companyTeamInviteBtn" style="width:100%;">+ Invite Team Member</button>
+              ${memberIds.length < TEAM_ACCESS_MAX_MEMBERS
+                ? `<button type="button" class="btn small" id="companyTeamInviteBtn" style="width:100%;">+ Invite Team Member</button>`
+                : `<p class="muted" style="font-size:11px;margin:4px 0 0;text-align:center;">Team Access is limited to ${TEAM_ACCESS_MAX_MEMBERS} teammates per company. Remove one to invite another.</p>`}
             </div>
             <div style="flex:1;min-width:300px;">
               ${inviting ? companyTeamInviteFormHtml() : selected ? `
@@ -8497,13 +8517,15 @@ function companyTeamModal(){
                   </select>
                   <p class="muted" style="font-size:11px;margin:4px 0 0;">Applying a preset fills in the table below — review and tweak it, then Save.</p>
                 </div>
+                <!-- Team Access is always view-only (see memberModuleAccess()/COMPANY_TEAM_ROLE_PRESETS) --
+                     there is deliberately no "Full Access" option here, only whether a module is
+                     visible at all. -->
                 <table>
                   <tr><th>Module</th><th style="width:150px;">Access</th></tr>
                   ${MODULE_ACCESS_LIST.map(mod=>{
-                    const cur = (selected.permissions && selected.permissions[mod.id]) || 'full';
+                    const cur = (selected.permissions && selected.permissions[mod.id]) === 'hidden' ? 'hidden' : 'view';
                     return `<tr><td style="font-size:12.5px;">${escapeHtml(mod.label)}</td><td>
                       <select data-team-access-module="${mod.id}" style="font-size:11.5px;padding:3px 6px;">
-                        <option value="full" ${cur==='full'?'selected':''}>Full Access</option>
                         <option value="view" ${cur==='view'?'selected':''}>View Only</option>
                         <option value="hidden" ${cur==='hidden'?'selected':''}>Hidden</option>
                       </select>
@@ -30127,6 +30149,9 @@ function attachHandlers(){
       b.addEventListener('click', ()=>{ companyTeamMemberId = b.dataset.selectTeamMember; render(); });
     });
     document.getElementById('companyTeamInviteBtn')?.addEventListener('click', ()=>{
+      // Belt-and-braces -- the button itself is already omitted from the render once the company
+      // hits TEAM_ACCESS_MAX_MEMBERS (see companyTeamModal()), same convention as openGroupAddUserBtn.
+      if(Object.keys(currentCompany.teamMembers||{}).length >= TEAM_ACCESS_MAX_MEMBERS) return;
       companyTeamMemberId = 'invite';
       companyTeamInviteError = '';
       companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
@@ -30143,6 +30168,13 @@ function attachHandlers(){
     document.getElementById('ctInvitePreset')?.addEventListener('change', e=>{ companyTeamInviteDraft.preset = e.target.value; });
     document.getElementById('ctInviteCreateBtn')?.addEventListener('click', async ()=>{
       if(companyTeamInviteBusy) return;
+      // Re-check right before actually creating the account -- e.g. two tabs open on the same
+      // company's Team Access modal, one of which just invited the 2nd teammate.
+      if(Object.keys(currentCompany.teamMembers||{}).length >= TEAM_ACCESS_MAX_MEMBERS){
+        companyTeamInviteError = `Team Access is limited to ${TEAM_ACCESS_MAX_MEMBERS} teammates per company.`;
+        render();
+        return;
+      }
       const draft = {
         name: (document.getElementById('ctInviteName')?.value || '').trim(),
         username: (document.getElementById('ctInviteUsername')?.value || '').trim(),
@@ -30202,7 +30234,9 @@ function attachHandlers(){
       const preset = COMPANY_TEAM_ROLE_PRESETS[e.target.value];
       if(!preset) return;
       document.querySelectorAll('[data-team-access-module]').forEach(el=>{
-        el.value = preset.permissions[el.dataset.teamAccessModule] || 'full';
+        // 'view' is the fallback, not 'full' -- the <select> itself no longer even has a "Full
+        // Access" <option> (see companyTeamModal()), since Team Access can never grant edit access.
+        el.value = preset.permissions[el.dataset.teamAccessModule] || 'view';
       });
     });
     // ---- Ledger Group Access (companyTeamLedgerGroupSectionHtml()) ----
