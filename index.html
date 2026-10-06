@@ -5824,13 +5824,20 @@ function recentLedgerIdsFromVouchers(days, minCount){
 // recency via recentLedgerIdsFromVouchers(), falling back to alphabetical for ledgers with no recent
 // activity, instead of the arbitrary order state.ledgers happens to be in.
 function ledgerSelectOptionsHtml(selectedId, voucherType){
-  const recentIds = voucherType ? recentLedgersFor(voucherType, 5) : [];
+  // Scoped to visibleLedgersForCurrentUser() rather than state.ledgers so a ledger-group-restricted
+  // Company Team Access teammate (see allowedLedgerGroupsForCurrentUser()) can't post a voucher
+  // against a ledger outside their allowed groups — the currently-selected ledger is always kept
+  // even if it falls outside the restriction, so opening an existing entry never blanks its field.
+  const visible = visibleLedgersForCurrentUser();
+  const pickable = selectedId && !visible.some(l=>l.id===selectedId) && ledgerOf(selectedId)
+    ? [...visible, ledgerOf(selectedId)] : visible;
+  const recentIds = (voucherType ? recentLedgersFor(voucherType, 5) : []).filter(id=>pickable.some(l=>l.id===id));
   const opt = l => `<option value="${l.id}" ${selectedId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`;
   const recentHtml = recentIds.length
     ? `<optgroup label="Recently Used">${recentIds.map(id=>opt(ledgerOf(id))).join('')}</optgroup>`
     : '';
   const recencyRank = new Map(recentLedgerIdsFromVouchers(90, 20).map((id,idx)=>[id,idx]));
-  const orderedLedgers = state.ledgers.slice().sort((a,b)=>{
+  const orderedLedgers = pickable.slice().sort((a,b)=>{
     const ra = recencyRank.has(a.id) ? recencyRank.get(a.id) : Infinity;
     const rb = recencyRank.has(b.id) ? recencyRank.get(b.id) : Infinity;
     if(ra !== rb) return ra - rb;
@@ -5843,10 +5850,15 @@ function ledgerSelectOptionsHtml(selectedId, voucherType){
    separating Primary Groups from Sub-Groups and labeling each sub-group with its parent
    so ledgers like the two "Provisions" groups (one primary, one a sub-group of Current
    Liabilities) are unambiguous in the dropdown. Used by both the Chart of Accounts
-   "Add Ledger" form and the in-voucher Quick Add Ledger modal. */
-function groupOptionsHtml(selectedId){
-  const primaries = GROUPS.filter(g=>!g.parent).slice().sort((a,b)=>a.name.localeCompare(b.name));
-  const subs = GROUPS.filter(g=>g.parent).slice().sort((a,b)=>{
+   "Add Ledger" form and the in-voucher Quick Add Ledger modal.
+   onlyIds (optional): restrict the list to just these group ids — used to confine a ledger-group-
+   restricted Company Team Access teammate to creating/moving ledgers only within their allowed
+   groups. selectedId is always included even if it falls outside onlyIds, so editing an existing
+   ledger never silently drops its current group from the dropdown. */
+function groupOptionsHtml(selectedId, onlyIds){
+  const keep = g => !onlyIds || onlyIds.includes(g.id) || g.id===selectedId;
+  const primaries = GROUPS.filter(g=>!g.parent && keep(g)).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const subs = GROUPS.filter(g=>g.parent && keep(g)).slice().sort((a,b)=>{
     const pa = groupOf(a.parent), pb = groupOf(b.parent);
     const pcmp = (pa?pa.name:'').localeCompare(pb?pb.name:'');
     return pcmp!==0 ? pcmp : a.name.localeCompare(b.name);
@@ -5858,6 +5870,28 @@ function groupOptionsHtml(selectedId){
     return `<option value="${g.id}"${g.id===selectedId?' selected':''}>${g.name} — ${p?p.name:g.parent} (${g.cat})</option>`;
   }).join('');
   return `<optgroup label="Primary Groups">${primaryHtml}</optgroup><optgroup label="Sub-Groups">${subHtml}</optgroup>`;
+}
+// Checkbox-grid equivalent of groupOptionsHtml(), organized the same way (Primary Groups, then
+// Sub-Groups labeled with their parent) — used by companyTeamModal()'s ledger-group restriction
+// picker, where an owner can select any subset of the 28 groups rather than just one.
+function ledgerGroupCheckboxesHtml(selectedIds){
+  const sel = new Set(selectedIds||[]);
+  const primaries = GROUPS.filter(g=>!g.parent).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const subs = GROUPS.filter(g=>g.parent).slice().sort((a,b)=>{
+    const pa = groupOf(a.parent), pb = groupOf(b.parent);
+    const pcmp = (pa?pa.name:'').localeCompare(pb?pb.name:'');
+    return pcmp!==0 ? pcmp : a.name.localeCompare(b.name);
+  });
+  const row = (g, sublabel) => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;font-weight:400;">
+    <input type="checkbox" data-team-access-ledger-group="${g.id}" style="width:auto;" ${sel.has(g.id)?'checked':''}>
+    ${escapeHtml(g.name)}${sublabel?` <span class="muted">— ${escapeHtml(sublabel)}</span>`:''}
+  </label>`;
+  return `
+    <div style="columns:2;column-gap:18px;">
+      <div style="break-inside:avoid;margin-bottom:6px;"><strong style="font-size:11px;">Primary Groups</strong>${primaries.map(g=>row(g)).join('')}</div>
+      <div style="break-inside:avoid;"><strong style="font-size:11px;">Sub-Groups</strong>${subs.map(g=>row(g, (groupOf(g.parent)||{}).name||g.parent)).join('')}</div>
+    </div>
+  `;
 }
 
 /* ---------------- Admin Panel helpers ---------------- */
@@ -7100,6 +7134,40 @@ function isCompanyOwner(){ return !!(currentUser && currentCompany && currentCom
 function isCompanyTeamMember(forCompany){
   const c = forCompany || currentCompany;
   return !!(currentUser && c && c.teamMembers && c.teamMembers[currentUser.id]);
+}
+// ---- Ledger-group-level restriction (Company Team Access only) ----
+// Layers on top of the per-module Full/View/Hidden table above: even where a module is itself Full
+// or View, a Company Team Access teammate can be further confined to specific ledger GROUPS (e.g.
+// only Sales Accounts + Sundry Debtors, not Payroll-related ledgers) wherever this app lets someone
+// browse or pick an individual ledger directly — the Ledgers tab, Chart of Accounts, Parties, ledger
+// creation/alter, and the ledger pickers on the Voucher tab. Deliberately NOT applied inside Reports,
+// GST, Payroll, Assets, the Dashboard's own aggregate figures, or recurring-voucher templates — those
+// compute real trial-balance-derived totals across every ledger, and silently dropping some ledgers
+// out of an aggregate would make a wrong number look like a real one, which is worse than no
+// restriction at all. Use the module-level Hidden setting above if a teammate shouldn't see
+// Reports/GST/Payroll at all. currentCompany.teamMembers[uid].ledgerGroups is undefined/null for
+// every company and every member that predates this feature (and for anyone left on "All ledger
+// groups") — this is an opt-in extra layer, not a new default, so nothing that worked before changes
+// unless an owner deliberately turns it on for someone.
+function allowedLedgerGroupsForCurrentUser(){
+  if(currentUser && currentCompany && currentCompany.teamMembers && currentCompany.teamMembers[currentUser.id]){
+    const g = currentCompany.teamMembers[currentUser.id].ledgerGroups;
+    return Array.isArray(g) ? g : null;
+  }
+  return null;
+}
+function isLedgerGroupAllowed(groupId){
+  const allowed = allowedLedgerGroupsForCurrentUser();
+  return !allowed || allowed.includes(groupId);
+}
+function isLedgerVisibleToCurrentUser(l){ return !!l && isLedgerGroupAllowed(l.group); }
+// Single source of truth for "which ledgers can the current user see/pick" — every screen that lists
+// or offers ledgers for selection should filter through this (or isLedgerVisibleToCurrentUser for a
+// single ledger) rather than reading state.ledgers directly, so a restriction only has to be taught
+// to the permission model once.
+function visibleLedgersForCurrentUser(){
+  const allowed = allowedLedgerGroupsForCurrentUser();
+  return allowed ? state.ledgers.filter(l=>allowed.includes(l.group)) : state.ledgers;
 }
 // ---- Company Team Access — quick-apply role presets ----
 // Starting points for the same per-module Full/View/Hidden picker the Support/group "Manage Access"
@@ -8412,7 +8480,7 @@ function companyTeamModal(){
             <div style="min-width:200px;flex-shrink:0;">
               ${memberIds.map(uid=>{
                 const m = team[uid];
-                const restricted = m.permissions && Object.values(m.permissions).some(v=>v && v!=='full');
+                const restricted = (m.permissions && Object.values(m.permissions).some(v=>v && v!=='full')) || Array.isArray(m.ledgerGroups);
                 return `<button type="button" class="btn small ${uid===selectedId?'':'secondary'}" data-select-team-member="${uid}" style="width:100%;text-align:left;margin-bottom:6px;display:flex;justify-content:space-between;">
                   <span>${escapeHtml(m.name||m.username)}</span>${restricted?'<span title="Has restrictions">🔐</span>':'<span class="muted" style="font-size:10.5px;">Full</span>'}
                 </button>`;
@@ -8442,6 +8510,7 @@ function companyTeamModal(){
                     </td></tr>`;
                   }).join('')}
                 </table>
+                ${companyTeamLedgerGroupSectionHtml(selected)}
                 <div style="display:flex;gap:8px;margin-top:10px;">
                   <button class="btn small" id="saveCompanyTeamAccessBtn" type="button">Save Access for ${escapeHtml(selected.name||selected.username)}</button>
                   <button class="btn small danger" id="removeCompanyTeamMemberBtn" type="button">Remove from this company</button>
@@ -8451,6 +8520,30 @@ function companyTeamModal(){
           </div>
         </div>
       </div>
+    </div>
+  `;
+}
+// Ledger-group restriction picker shown inside companyTeamModal() below the per-module table — a
+// second, independent layer of granularity (see allowedLedgerGroupsForCurrentUser()'s comment for
+// why it's scoped to Ledgers/COA/Parties/Voucher Entry only, not Reports/GST/Payroll). Independent of
+// the module presets above on purpose: picking a role preset re-fills the module table but never
+// touches this, so an owner can apply "Bookkeeper" and then separately confine it to just Sales
+// ledgers without the two settings fighting each other.
+function companyTeamLedgerGroupSectionHtml(selected){
+  const restricted = Array.isArray(selected.ledgerGroups);
+  return `
+    <div class="section-title" style="margin-top:16px;">Ledger Group Access</div>
+    <p class="muted" style="font-size:11.5px;margin:-4px 0 8px;">Optionally confine this person to specific ledger groups (e.g. only Sales Accounts and Sundry Debtors) wherever they browse or pick an individual ledger — the Ledgers tab, Chart of Accounts, Parties, and the ledger fields on a voucher. This doesn't change what Reports, GST or Payroll show — use the module table above for that.</p>
+    <div style="display:flex;gap:16px;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;"><input type="radio" name="companyTeamLedgerGroupMode" value="all" style="width:auto;" ${!restricted?'checked':''}> All ledger groups</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:400;"><input type="radio" name="companyTeamLedgerGroupMode" value="custom" style="width:auto;" ${restricted?'checked':''}> Only selected groups</label>
+    </div>
+    <div id="companyTeamLedgerGroupGrid" style="${restricted?'':'display:none;'}border:1px solid var(--border);border-radius:6px;padding:10px 12px;max-height:220px;overflow-y:auto;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <span class="linklike" id="companyTeamLedgerGroupSelectAll" style="font-size:11px;cursor:pointer;">Select all</span>
+        <span class="linklike" id="companyTeamLedgerGroupClearAll" style="font-size:11px;cursor:pointer;">Clear all</span>
+      </div>
+      ${ledgerGroupCheckboxesHtml(selected.ledgerGroups)}
     </div>
   `;
 }
@@ -8472,7 +8565,7 @@ function companyTeamInviteFormHtml(){
       <select id="ctInvitePreset">
         ${Object.keys(COMPANY_TEAM_ROLE_PRESETS).map(k=>`<option value="${k}" ${k===d.preset?'selected':''}>${escapeHtml(COMPANY_TEAM_ROLE_PRESETS[k].label)}</option>`).join('')}
       </select>
-      <p class="muted" style="font-size:11px;margin:4px 0 0;">${escapeHtml(preset.desc)} You can fine-tune every module after inviting them.</p>
+      <p class="muted" style="font-size:11px;margin:4px 0 0;">${escapeHtml(preset.desc)} You can fine-tune every module — and confine them to specific ledger groups — after inviting them.</p>
     </div>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn small" id="ctInviteCreateBtn" type="button" ${companyTeamInviteBusy?'disabled':''}>${companyTeamInviteBusy?'Creating…':'Create & Invite'}</button>
@@ -23004,7 +23097,7 @@ function quickAddLedgerModal(){
           <div id="quickLedgerGroupHint" style="font-size:11px;margin:-6px 0 10px;min-height:14px;"></div>
           <div class="row">
             <div class="field"><label>Under Group</label>
-              <select id="quickLedgerGroup">${groupOptionsHtml()}</select>
+              <select id="quickLedgerGroup">${groupOptionsHtml(undefined, allowedLedgerGroupsForCurrentUser())}</select>
             </div>
             <div class="field" style="max-width:160px;"><label>Opening Balance</label><input type="number" id="quickLedgerOpening" value="0" step="0.01"></div>
             <div class="field" style="max-width:120px;"><label>Type</label>
@@ -23105,7 +23198,7 @@ function alterLedgerModal(){
               <div id="alterLedgerGroupHint" style="font-size:11px;margin-top:4px;min-height:14px;"></div>
             </div>
             <div class="field"><label>Under Group</label>
-              <select id="alterLedgerGroup">${groupOptionsHtml(l?l.group:undefined)}</select>
+              <select id="alterLedgerGroup">${groupOptionsHtml(l?l.group:undefined, allowedLedgerGroupsForCurrentUser())}</select>
             </div>
           </div>
           <div class="row">
@@ -24581,9 +24674,13 @@ function ledgerCategoryColor(l){
   })[cat] || 'var(--ink-faint)';
 }
 function viewLedgers(){
-  const sel = view==='ledgers' && window._selectedLedger ? window._selectedLedger : (state.ledgers[0] && state.ledgers[0].id);
+  // allowedLedgers is this user's full pickable set (every ledger, unless a ledger-group restriction
+  // applies — see visibleLedgersForCurrentUser()); the list below further narrows it by search text.
+  const allowedLedgers = visibleLedgersForCurrentUser();
+  const wantedSel = view==='ledgers' && window._selectedLedger ? window._selectedLedger : null;
+  const sel = (wantedSel && allowedLedgers.some(l=>l.id===wantedSel)) ? wantedSel : (allowedLedgers[0] && allowedLedgers[0].id);
   const q = ledgerSearchQuery.trim().toLowerCase();
-  const visible = q ? state.ledgers.filter(l=> l.name.toLowerCase().includes(q) || groupOf(l.group)?.name.toLowerCase().includes(q)) : state.ledgers;
+  const visible = q ? allowedLedgers.filter(l=> l.name.toLowerCase().includes(q) || groupOf(l.group)?.name.toLowerCase().includes(q)) : allowedLedgers;
   return `
     ${masthead('Ledgers','Account-wise statements')}
     <div class="row" style="align-items:flex-start;gap:20px;">
@@ -24619,6 +24716,11 @@ function viewLedgers(){
 function ledgerStatement(ledgerId){
   const l = ledgerOf(ledgerId);
   if(!l) return `<div class="empty">Ledger not found</div>`;
+  // Belt-and-braces: viewLedgers() only ever offers an allowed ledger as `sel`, but this function is
+  // reachable from a couple of other places too (e.g. a stale window._selectedLedger from earlier in
+  // the tab's session, before an owner changed someone's ledger-group restriction) — never render a
+  // restricted ledger's figures just because something upstream still points at its id.
+  if(!isLedgerVisibleToCurrentUser(l)) return moduleAccessDeniedView('This ledger');
   let running = l.opening || 0;
   const rows = [];
   const sorted = state.vouchers.slice().sort((a,b)=> a.date.localeCompare(b.date));
@@ -24813,6 +24915,7 @@ function bulkActionBar(kind, count, actions){
 function viewCOA(){
   const byCat = {};
   for(const g of GROUPS){ byCat[g.cat] = byCat[g.cat]||[]; byCat[g.cat].push(g); }
+  const coaLedgers = visibleLedgersForCurrentUser();
   return `
     ${masthead('Chart of Accounts','Groups and ledgers')}
     <div class="panel">
@@ -24823,7 +24926,7 @@ function viewCOA(){
             <div id="newLedgerGroupSuggest"></div>
           </div>
           <div class="field"><label>Under Group</label>
-            <select id="newLedgerGroup">${groupOptionsHtml()}</select>
+            <select id="newLedgerGroup">${groupOptionsHtml(undefined, allowedLedgerGroupsForCurrentUser())}</select>
           </div>
           <div class="field" style="max-width:160px;"><label>Opening Balance</label><input type="number" id="newLedgerOpening" value="0" step="0.01"></div>
           <div class="field" style="max-width:120px;"><label>Type</label>
@@ -24874,13 +24977,13 @@ function viewCOA(){
       {action:'tag-supplier', label:'Tag as Supplier'},
       {action:'untag', label:'Clear tag'},
     ])}
-    ${Object.keys(byCat).map(cat=>`
+    ${Object.keys(byCat).filter(cat=> !allowedLedgerGroupsForCurrentUser() || coaLedgers.some(l=>groupOf(l.group).cat===cat)).map(cat=>`
       <div class="section-title">${cat}</div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
           <table class="rb-card-table">
             <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="ledger-${escapeAttr(cat)}" aria-label="Select all ledgers in ${escapeAttr(cat)}"></th><th>Ledger</th><th>Group</th><th>GST</th><th>MSME</th><th>Party</th><th class="num">Balance</th></tr>
-            ${state.ledgers.filter(l=>groupOf(l.group).cat===cat).map(l=>{
+            ${coaLedgers.filter(l=>groupOf(l.group).cat===cat).map(l=>{
               const b = ledgerBalance(l.id);
               const msmeCell = bucketOf(l)==='curl'
                 ? `<span data-toggle-msme="${l.id}" class="linklike" style="cursor:pointer;font-size:11.5px;">${l.isMSME?'✓ MSME':'Mark MSME'}</span>`
@@ -24983,7 +25086,7 @@ function viewCOA(){
           <div class="field"><label>Ledger (Income/Expense)</label>
             <select id="newBudgetLedger">
               <option value="">Select ledger…</option>
-              ${state.ledgers.filter(l=>{ const g=groupOf(l.group); return g && (g.cat==='Income'||g.cat==='Expenses'); }).map(l=>`<option value="${l.id}">${l.name}</option>`).join('')}
+              ${coaLedgers.filter(l=>{ const g=groupOf(l.group); return g && (g.cat==='Income'||g.cat==='Expenses'); }).map(l=>`<option value="${l.id}">${l.name}</option>`).join('')}
             </select>
           </div>
           <div class="field" style="max-width:140px;"><label>Financial Year</label>
@@ -29089,8 +29192,9 @@ function partyAgeingTable(rows, emptyMsg, catKey){
   </table>`;
 }
 function viewParties(){
-  const customers = state.ledgers.filter(l=>l.partyType==='customer');
-  const suppliers = state.ledgers.filter(l=>l.partyType==='supplier');
+  const partyLedgers = visibleLedgersForCurrentUser();
+  const customers = partyLedgers.filter(l=>l.partyType==='customer');
+  const suppliers = partyLedgers.filter(l=>l.partyType==='supplier');
   const rowsFor = list => list.map(l=>({ ledger:l, summary: partyAgeingSummary(l.id) })).sort((a,b)=>b.summary.total-a.summary.total);
   let custRows = rowsFor(customers);
   let suppRows = rowsFor(suppliers);
@@ -29131,7 +29235,7 @@ function viewParties(){
 function partyDetailModal(){
   if(!partyDetailLedgerId) return '';
   const l = ledgerOf(partyDetailLedgerId);
-  if(!l) return '';
+  if(!l || !isLedgerVisibleToCurrentUser(l)) return '';
   const rows = partyAgeing(partyDetailLedgerId).sort((a,b)=> a.date===b.date?0:(a.date<b.date?-1:1));
   const total = r2(rows.reduce((s,r)=>s+r.remaining,0));
   return `
@@ -30101,6 +30205,22 @@ function attachHandlers(){
         el.value = preset.permissions[el.dataset.teamAccessModule] || 'full';
       });
     });
+    // ---- Ledger Group Access (companyTeamLedgerGroupSectionHtml()) ----
+    // Pure DOM show/hide on the radio toggle -- no render() here, same as the rest of this modal's
+    // controls not needing a full re-render until Save (see companyTeamPresetSelect above, which
+    // mutates <select> values directly rather than re-rendering too).
+    document.querySelectorAll('input[name="companyTeamLedgerGroupMode"]').forEach(r=>{
+      r.addEventListener('change', e=>{
+        const grid = document.getElementById('companyTeamLedgerGroupGrid');
+        if(grid) grid.style.display = e.target.value==='custom' ? '' : 'none';
+      });
+    });
+    document.getElementById('companyTeamLedgerGroupSelectAll')?.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-team-access-ledger-group]').forEach(el=>{ el.checked = true; });
+    });
+    document.getElementById('companyTeamLedgerGroupClearAll')?.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-team-access-ledger-group]').forEach(el=>{ el.checked = false; });
+    });
     document.getElementById('saveCompanyTeamAccessBtn')?.addEventListener('click', async ()=>{
       if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
       const next = {};
@@ -30108,6 +30228,13 @@ function attachHandlers(){
       currentCompany.teamMembers = currentCompany.teamMembers || {};
       if(!currentCompany.teamMembers[companyTeamMemberId]) return;
       currentCompany.teamMembers[companyTeamMemberId].permissions = next;
+      const groupMode = document.querySelector('input[name="companyTeamLedgerGroupMode"]:checked');
+      // Explicitly write null rather than deleting the key -- saveCompanyMeta() writes with
+      // {merge:true}, which deep-merges nested fields and so would silently leave a PREVIOUSLY saved
+      // ledgerGroups array in place in Firestore if this save simply omitted the key.
+      currentCompany.teamMembers[companyTeamMemberId].ledgerGroups = (groupMode && groupMode.value==='custom')
+        ? Array.from(document.querySelectorAll('[data-team-access-ledger-group]:checked')).map(el=>el.dataset.teamAccessLedgerGroup)
+        : null;
       const ok = await saveCompanyMeta(currentCompany);
       if(ok) toast('Access updated', {type:'success'});
       render();
