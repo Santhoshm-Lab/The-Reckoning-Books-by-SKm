@@ -6212,6 +6212,19 @@ async function adminCreateUserAccount(draft){
    delete accounts or companies, reassign owners, or change feature flags / edit the announcement.
    isFullAdmin() is the single gate every one of those destructive/sensitive actions checks. */
 function isFullAdmin(){ return !!(currentUser && currentUser.role==='admin'); }
+// Single source of truth for "may this signed-in account delete THIS company" -- mirrors the
+// Firestore 'allow delete' rule on companies/{companyId} exactly (isAdmin() full stop; a Support
+// user only within their own group; an independent/ungrouped owner only their own company), so the
+// client never offers a Delete control the server would reject anyway. A grouped 'user' account can
+// NEVER delete a company, even one they created themselves -- that authority belongs solely to the
+// Support admin who runs their group (or a full Administrator). Used by the Gateway card's ⋮ menu,
+// the in-company menubar's "Delete Company" item, and deleteCompanyById() itself as the final guard.
+function canDeleteCompanyQuick(c){
+  if(!currentUser || !c) return false;
+  if(isFullAdmin()) return true;
+  if(currentUser.role==='support') return c.groupId === currentUser.id;
+  return c.ownerId === currentUser.id && !c.groupId;
+}
 function roleLabel(u){
   if(!u) return 'User';
   if(u.role==='admin') return 'Admin';
@@ -7315,6 +7328,15 @@ async function loadCompanies(){
     if(isFullAdmin()){
       const snap = await db.collection('companies').get();
       companies = snap.docs.map(d=>d.data());
+    }else if(isTeamAccessOnlyUser()){
+      // An account that exists solely because it was invited via Company Team Access sees ONLY the
+      // company/companies explicitly shared with it -- never the shared sample company (that's for
+      // real signups exploring the app, not a scoped teammate credential), never another owner's or
+      // group's companies. See isTeamAccessOnlyUser()'s comment for why this is checked on the
+      // profile rather than per-company.
+      try{
+        companies = (await db.collection('companies').where('teamMemberIds','array-contains',currentUser.id).get()).docs.map(d=>d.data());
+      }catch(e){ console.error('Could not load team-access companies', e); companies = []; }
     }else{
       const mineSnap = await db.collection('companies').where('ownerId','==',currentUser.id).get();
       const mine = mineSnap.docs.map(d=>d.data());
@@ -7391,6 +7413,11 @@ async function deleteCompanyById(id){
   // menu item and the gateway card's ⋮ menu are already hidden client-side for a teammate as a matching
   // guard; this is the belt to that braces for any other path that might reach this function.
   if(isCompanyTeamMember(c)){ toast('Only the company owner can delete this company.'); return false; }
+  // A grouped 'user' account can never delete a company -- even one they created -- once it's part
+  // of a Support-administered group; that authority moved to the group's Support admin (or a full
+  // Administrator). See canDeleteCompanyQuick()'s comment for the matching Firestore rule this
+  // mirrors. Belt-and-braces: the UI controls that call this are already gated the same way.
+  if(!canDeleteCompanyQuick(c)){ toast("Only your group's Support administrator can delete this company."); return false; }
   const ok = window.confirm(`Delete company "${c.name}" and all its ledgers and vouchers?\n\nThis cannot be undone.`);
   if(!ok) return false;
   try{ await db.collection('companies').doc(id).delete(); }
@@ -7440,6 +7467,25 @@ async function deleteGroupMemberById(uid){
   groupMembers = groupMembers.filter(x=>x.id!==uid);
   toast('Account deleted');
   return true;
+}
+// Called the moment a company owner removes a Company Team Access teammate (see
+// removeCompanyTeamMemberBtn's handler) -- flips that account's own `blocked` flag so the exact same
+// login-time check every other account already goes through (`if(profile.blocked){ ... signOut ... }`
+// in the login/Google-sign-in/session-restore paths) locks them out immediately, even though a client
+// app can never delete the underlying Firebase Auth credential itself. The matching Firestore rule
+// (users/{uid}'s "allow update") only lets the inviting owner (teamOwnerId==their uid) flip this one
+// field to true -- never anything else, and never back to false, so this is a one-way revoke, not a
+// general account-editing door. Best-effort: a failure here still leaves the teammate removed from
+// the company itself (their access is already gone via teamMemberIds), it just means their login
+// wasn't also blocked, so the caller surfaces that separately rather than failing the whole action.
+async function blockCompanyTeamMemberAccount(uid){
+  try{
+    await db.collection('users').doc(uid).update({ blocked: true });
+    return true;
+  }catch(e){
+    console.error('Could not block removed Team Access account:', e);
+    return false;
+  }
 }
 
 /* ---------------- Demo company (sample data) ----------------
@@ -7553,6 +7599,18 @@ function isCompanyOwner(){ return !!(currentUser && currentCompany && currentCom
 function isCompanyTeamMember(forCompany){
   const c = forCompany || currentCompany;
   return !!(currentUser && c && c.teamMembers && c.teamMembers[currentUser.id]);
+}
+// True only for an account that exists SOLELY because someone invited it via Company Team Access
+// (companyTeamCreateUserAccount() always stamps teamOwnerId, never groupOwnerId -- see its own
+// comment). Deliberately narrower than isCompanyTeamMember(), which just asks "is this account a
+// teammate on the company currently open" -- this instead asks "does this account have no existence
+// of its own outside Team Access," which is what should gate account-level abilities like creating a
+// company or seeing the shared sample company (see loadCompanies()/the Gateway's create-company
+// controls). An ordinary account that happens to ALSO have been invited as someone's teammate (e.g.
+// a freelance accountant with their own books) must keep its normal abilities, which is why this
+// checks teamOwnerId on the PROFILE, not company membership.
+function isTeamAccessOnlyUser(){
+  return !!(currentUser && currentUser.teamOwnerId && currentUser.role==='user' && !currentUser.groupOwnerId);
 }
 // ---- Ledger-group-level restriction (Company Team Access only) ----
 // Layers on top of the per-module Full/View/Hidden table above: even where a module is itself Full
@@ -8247,6 +8305,7 @@ async function refreshCurrentSession(btnId){
           name: profile.name || currentUser.name, plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
           groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '',
           groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null,
+          teamOwnerId: profile.teamOwnerId || null,
         });
       }
     }
@@ -13117,7 +13176,7 @@ function render(){
       ${(currentUser && currentUser.role!=='support' && (canApproveVouchers() || state.pendingVouchers.some(p=>p.submittedBy===(currentUser&&currentUser.id)))) ? `<span id="menuApprovals">Approvals${state.pendingVouchers.length?` (${state.pendingVouchers.length})`:''}</span>` : ''}
       ${isCompanyOwner() && !(currentUser && currentUser.role==='support') ? `<span id="menuTeamAccess">Team Access</span>` : ''}
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
-      ${!(currentUser && ((currentUser.role==='user' && currentUser.groupOwnerId) || isCompanyTeamMember())) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
+      ${!isCompanyTeamMember() && canDeleteCompanyQuick(currentCompany) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
         <button class="theme-toggle" id="cmdkOpenBtn" type="button" title="Search ledgers, parties, vouchers, items, or jump to a screen" aria-label="Open command palette">🔎 Search <kbd style="margin-left:5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:10px;">Ctrl K</kbd></button>
         <button class="btn secondary small" id="refreshSessionBtn" type="button" style="padding:3px 10px;font-size:11px;" title="Reload this company's data, your plan, and any admin changes">⟳ Refresh</button>
@@ -16194,7 +16253,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, mobile: profile.mobile || '', email: profile.email || email || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
+        currentUser = { id: cred.user.uid, name: profile.name || username, username: profile.username || username, mobile: profile.mobile || '', email: profile.email || email || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null, teamOwnerId: profile.teamOwnerId || null };
         lastUsername = username;
         authDraft = { name:'', username:'', mobile:'', email:'' };
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
@@ -16251,7 +16310,7 @@ function renderLogin(){
           return;
         }
         const role = profile.role==='admin' ? 'admin' : (profile.role==='support' ? 'support' : 'user');
-        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', mobile: profile.mobile || '', email: profile.email || cred.user.email || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null };
+        currentUser = { id: cred.user.uid, name: profile.name || cred.user.displayName || '', username: profile.username || '', mobile: profile.mobile || '', email: profile.email || cred.user.email || '', isAdmin: role==='admin' || role==='support', role, plan: profile.plan||'free', planExpiry: profile.planExpiry||null, groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '', groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null, teamOwnerId: profile.teamOwnerId || null };
         lastUsername = profile.username || lastUsername;
         try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
         try{ await db.collection('users').doc(cred.user.uid).update({ lastLoginAt: new Date().toISOString() }); }catch(e){}
@@ -17013,6 +17072,11 @@ function renderGateway(){
           // exact same protection isReadOnlyMode()/canAccessCompany()/isCompanyTeamMember() give those
           // elsewhere in the app.
           const canQuickManage = !isDemoUser && (!isSharedDemoId(c.id) || isFullAdmin()) && !isMyTeamCompany;
+          // Delete is narrower still than Rename above: a grouped 'user' account can never delete a
+          // company (its own or a groupmate's), even when canQuickManage otherwise lets it rename
+          // one -- see canDeleteCompanyQuick()'s comment. Checked independently so this quick menu
+          // never offers a Delete action the Firestore rules (and deleteCompanyById()) would reject.
+          const canQuickDelete = canQuickManage && canDeleteCompanyQuick(c);
           const menuOpen = gatewayCardMenuOpenId===c.id;
           const actionsHtml = `
                 <button class="company-card-pin${pinned?' is-pinned':''}" data-pin-co="${c.id}" type="button" title="${pinned?'Unpin from top':'Pin to top'}" aria-label="${pinned?'Unpin':'Pin'} ${escapeAttr(c.name)}">${pinned?'★':'☆'}</button>
@@ -17022,7 +17086,7 @@ function renderGateway(){
                   ${menuOpen ? `
                   <div class="company-card-menu" role="menu">
                     <button type="button" data-rename-co="${c.id}" role="menuitem">✏️ Rename</button>
-                    <button type="button" data-delete-co="${c.id}" role="menuitem" class="is-danger">🗑️ Delete</button>
+                    ${canQuickDelete ? `<button type="button" data-delete-co="${c.id}" role="menuitem" class="is-danger">🗑️ Delete</button>` : ''}
                   </div>` : ''}
                 </div>` : ''}
                 <span class="company-card-arrow">→</span>`;
@@ -17064,6 +17128,11 @@ function renderGateway(){
           <div class="gw-empty-icon">🏢</div>
           <div class="gw-empty-title">No companies yet</div>
           <div class="gw-empty-sub">This demo account explores a shared sample company only.</div>
+        </div>` : (isTeamAccessOnlyUser() ? `
+        <div class="gw-empty-state">
+          <div class="gw-empty-icon">🏢</div>
+          <div class="gw-empty-title">No companies shared with you yet</div>
+          <div class="gw-empty-sub">Ask the company owner to invite you again under Team Access.</div>
         </div>` : `
         <div class="gw-getting-started">
           <div class="gw-gs-title">Let's get your books started</div>
@@ -17090,14 +17159,15 @@ function renderGateway(){
             </div>
           </div>
           <button class="btn" id="gwGettingStartedCreateBtn" type="button" style="width:100%;margin-top:16px;">Create Your First Company →</button>
-        </div>`))}
-        ${!isDemoUser && allMyCompanies.length ? `
+        </div>`)))}
+        ${!isDemoUser && !isTeamAccessOnlyUser() && allMyCompanies.length ? `
         <div class="company-card-add" id="openCreateCoBtn" tabindex="0" role="button" aria-label="Create a new company">
           <div class="gw-add-icon">+</div>
           <div class="gw-add-label">Create Company</div>
         </div>` : ''}
       </div>
       ${isDemoUser ? `<div class="muted" style="font-size:11.5px;margin-top:16px;text-align:center;">Demo accounts can't create a company — <a id="gwDemoSignupLink" style="cursor:pointer;color:var(--accent1);text-decoration:underline;">sign up for your own free account</a> to add your own.</div>` : ''}
+      ${isTeamAccessOnlyUser() ? `<div class="muted" style="font-size:11.5px;margin-top:16px;text-align:center;">Team Access accounts can only view the company shared with them — they can't create a company of their own.</div>` : ''}
         `;
       })()}
     </div>
@@ -17292,6 +17362,7 @@ function renderGateway(){
   function coValidateStep(step){
     if(step===1){
       if(isDemoUser) return 'Demo accounts can\'t create a company — sign up for your own free account to add your own.';
+      if(isTeamAccessOnlyUser()) return 'Team Access accounts can\'t create a company — ask the company owner for access instead.';
       if(!coform.name.trim()) return 'Enter a company name.';
       if(!coform.industry) return 'Pick an industry type — it helps tailor reports to your business.';
       return null;
@@ -19474,9 +19545,19 @@ service cloud.firestore {
       // be changed by the account itself, only by an Administrator (or, for the fields listed above,
       // the Support user administering that account's group). Without this restriction any signed-in
       // user could grant themselves admin/support access or a paid/lifetime plan directly.
+      // A company owner who invited this account via Company Team Access (teamOwnerId -- see
+      // companyTeamCreateUserAccount()) may flip ONLY its 'blocked' field, and only to revoke it --
+      // this is the real enforcement behind "Remove from this company" auto-blocking that teammate's
+      // login (see removeCompanyTeamMemberBtn's handler). Deliberately as narrow as the Support
+      // branch above: never role, plan, teamOwnerId or anything else, and an owner can never touch
+      // an account that isn't one of their own Team Access invitees.
       allow update: if isAdmin() || (
         isSupport() && resource.data.groupOwnerId == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','blocked','featureOverrides'])
+      ) || (
+        resource.data.teamOwnerId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['blocked']) &&
+        request.resource.data.blocked == true
       ) || (
         isOwner(uid) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','lastLoginAt','forceLogoutRequested','groupName','diLastSeen'])
@@ -19755,7 +19836,13 @@ function adminFilteredSortedUsers(){
   // inside their Support admin's own group tree instead (see the "N users →" link below, which
   // opens adminGroupTreeModal). This keeps the main Users table down to top-level accounts only:
   // Admins, Support admins, and independent users with no group.
-  let list = users.filter(u=>!u.groupOwnerId);
+  // A Team Access account (teamOwnerId set) that's since been removed from its one company and
+  // blocked (see blockCompanyTeamMemberAccount()/removeCompanyTeamMemberBtn's handler) is a dead
+  // credential with no further purpose -- it's filtered out here entirely rather than lingering as
+  // a "Blocked" row forever, which is what "removed from the admin panel" means in practice: the
+  // Firestore doc itself is kept (that's what keeps the login blocked), just hidden from view. A
+  // STILL-ACTIVE Team Access account is unaffected and continues to show normally.
+  let list = users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked));
   if(q){
     list = list.filter(u=>
       (u.name||'').toLowerCase().includes(q) ||
@@ -19832,7 +19919,7 @@ function adminUsersTab(){
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="adminUserSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(adminUserSearch)}" style="max-width:280px;">
-      <span class="muted" style="font-size:12px;">${list.length} of ${users.filter(u=>!u.groupOwnerId).length} account${users.filter(u=>!u.groupOwnerId).length===1?'':'s'}</span>
+      <span class="muted" style="font-size:12px;">${list.length} of ${users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked)).length} account${users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked)).length===1?'':'s'}</span>
       ${isFullAdmin() ? `<button class="btn small" id="openAddUserBtn" type="button" style="margin-left:auto;">+ Add User</button>` : ''}
     </div>
     ${selectedCount ? `
@@ -30322,14 +30409,23 @@ function wireApprovalsAccessTeamHandlers(){
       if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
       const m = currentCompany.teamMembers && currentCompany.teamMembers[companyTeamMemberId];
       if(!m) return;
-      const ok1 = window.confirm(`Remove ${m.name||m.username} from "${currentCompany.name}"? They'll no longer be able to open this company, but their login stays active.`);
+      const ok1 = window.confirm(`Remove ${m.name||m.username} from "${currentCompany.name}"? Their login will be blocked immediately and they won't be able to sign in again.`);
       if(!ok1) return;
       const removedId = companyTeamMemberId;
+      const removedName = m.name || m.username;
       delete currentCompany.teamMembers[removedId];
       currentCompany.teamMemberIds = (currentCompany.teamMemberIds||[]).filter(x=>x!==removedId);
       const ok = await saveCompanyMeta(currentCompany);
       companyTeamMemberId = null;
-      if(ok) toast('Removed from this company', {type:'success'});
+      if(ok){
+        const blocked = await blockCompanyTeamMemberAccount(removedId);
+        await logAudit(blocked ? 'account_blocked' : 'team_member_removed',
+          `Removed @${m.username||removedName} from "${currentCompany.name}" via Team Access${blocked ? ' — login blocked' : ' (could not auto-block login)'}`,
+          removedId, removedName).catch(()=>{});
+        toast(blocked
+          ? 'Removed from this company — their login has been blocked.'
+          : 'Removed from this company, but their login could not be blocked automatically — block them from the Admin Panel.', {type: blocked ? 'success' : 'error'});
+      }
       renderCurrentScreen();
     });
   }
@@ -33398,6 +33494,7 @@ async function restoreSessionFor(fbUser){
       plan: profile.plan||'free', planExpiry: profile.planExpiry||null,
       groupUserLimit: profile.groupUserLimit || 3, groupName: profile.groupName || '',
       groupOwnerId: profile.groupOwnerId || null, featureOverrides: profile.featureOverrides || null,
+      teamOwnerId: profile.teamOwnerId || null,
     };
     isDemoUser = profile.username === DEMO_ACCOUNT_USERNAME;
     lastUsername = profile.username || lastUsername;
