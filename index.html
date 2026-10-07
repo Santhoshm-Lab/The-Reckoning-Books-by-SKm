@@ -5531,6 +5531,7 @@ let groupCompanies = [];          // cache: companies owned by any group member 
 let groupTickets = [];            // cache: support tickets raised by group members
 let groupAuditLog = [];           // cache: audit log entries where actorUid or targetUid is the support user or a group member
 let groupUserDetailId = null;     // uid whose drill-down modal (companies + account info) is open, stacked above the Group Admin panel
+let groupAdminCompanyModalType = null; // null | 'approvals' | 'manageAccess' | 'companyTeam' -- which per-company modal (see openAdminCompanyModal()) is open, stacked above the Group Admin panel's Companies tab, same pattern as groupUserDetailId above. `modal` itself stays 'groupAdmin' the whole time -- unlike the in-company menubar path, where these same three modals set `modal` directly (there's no Group Admin panel underneath to stack on in that context).
 let groupFeatureAccessSearch = ''; // search box text on the Group Admin panel's Feature Access tab
 let groupFeatureAccessUserId = null; // uid currently selected on the Group Admin panel's Feature Access tab
 let groupAddUserOpen = false;     // whether the "Add User" dialog is open, stacked above the Group Admin panel
@@ -5682,20 +5683,57 @@ const QA_ENDPOINT = 'https://us-central1-' + FIREBASE_CONFIG.projectId + '.cloud
        that one Support account and any full Administrator. Regular 'user' accounts never get one.
    Stays on the free Firestore (Spark) plan: attachments are stored as base64 directly on the message
    document (same technique as Voucher Attachments above), capped well under Firestore's 1 MiB/document
-   limit -- no Firebase Storage, no Blaze billing plan required. */
+   limit -- no Firebase Storage, no Blaze billing plan required.
+   Four updates on top of the original send/receive core, each independent of the others:
+     - Real-time delivery: startInterchangePoll()/stopInterchangePoll() now attach Firestore
+       onSnapshot listeners instead of a 30s setInterval, so the unread badge, a toast+beep alert,
+       and the open thread's own message list all react the moment a document actually changes. See
+       diBadgeUnsubs/diLastKnownUpdatedAt and diReactToThreadDoc() near checkInterchangeUpdatesOnce().
+     - Richer attachments: up to DI_ATTACHMENT_MAX_FILES files per message (diPendingAttachments, an
+       array -- replaces the old single diPendingAttachment), and an oversized photo is auto
+       downscaled/recompressed via diCompressImage() instead of being flatly rejected.
+     - Search within a thread: diSearchOpen/diSearchQuery/diSearchMatchIds/diSearchActiveIdx drive a
+       small search bar in the panel header that highlights and jumps between matches.
+     - Broadcast to the whole group: diBroadcastDraft lets a Support account (group thread only) mark
+       the next Send as a pinned, highlighted announcement instead of an ordinary chat message.
+   Four more updates on top of those, same independence:
+     - Read receipts on announcements: a new interchangeReceipts collection (create-only, one doc per
+       viewer per broadcast message) -- diLoadThread() loads them for a group thread and auto-marks
+       every broadcast it shows (that isn't the viewer's own) as seen. See diReceipts/diMarkBroadcastSeen.
+     - Shared files gallery: diFilesOpen swaps the message list for every attachment already loaded
+       into diMessages[threadId] (diFilesForThread()/diFilesGalleryHtml()) -- no extra reads.
+     - Cross-device read sync: diGetLastSeen()/diMarkSeen() now read/write currentUser.diLastSeen (a
+       map field on the user's own Firestore doc, synced via a narrow self-update rule) instead of
+       localStorage, so the unread badge agrees across every device that account signs into.
+     - Reply/quote + desktop notifications: diReplyTo stages a quoted reference to an earlier message
+       for the next Send (stored denormalized on the message as replyTo); diDesktopNotifsEnabled()
+       (a genuinely per-browser preference, still in localStorage) gates a real OS-level Notification
+       in diNotifyNewMessage() when the tab is hidden and permission was granted. */
 let diOpen = false;              // whether the floating panel is expanded
 let diTab = 'group';             // Support role only: 'group' | 'admin' -- which of their two threads is showing
-let diMessages = {};             // threadId -> [{id, threadId, threadType, groupOwnerId, senderId, senderName, senderRole, text, attachment, createdAt}], lazy-loaded per thread
+let diMessages = {};             // threadId -> [{id, threadId, threadType, groupOwnerId, senderId, senderName, senderRole, text, attachments, broadcast, replyTo, createdAt}], lazy-loaded per thread
 let diLoading = false;           // currently fetching the active thread's messages
 let diSending = false;           // a send is in flight -- disables the input/Send button
 let diError = '';                // inline error text shown in the panel, if a load/send ever fails
 let diInputDraft = '';           // the compose box's current text, preserved across re-renders
-let diPendingAttachment = null;  // { name, mimeType, size, dataUrl } staged for the next Send, or null
+let diPendingAttachments = [];   // [{ name, mimeType, size, dataUrl }, ...] staged for the next Send -- up to DI_ATTACHMENT_MAX_FILES
+let diBroadcastDraft = false;    // Support role, group thread only: next Send is a pinned group-wide announcement (see diSendMessage's `broadcast` arg)
+let diReplyTo = null;            // { id, senderName, preview } of the message being quote-replied to, staged for the next Send, or null
 let diAdminThreads = [];         // Admin role only: every Support account's admin thread (their "inbox")
 let diActiveAdminThreadId = null;// Admin role only: which Support account's uid the inbox is currently drilled into (null = list view)
 let diUnreadBadge = false;       // true if some thread has activity this browser hasn't seen yet -- drives the red dot on the bubble
-let diPollHandle = null;         // setInterval handle for checkInterchangeUpdatesOnce(), same lightweight-polling pattern as the ticket/force-logout checks below
+let diBadgeUnsubs = [];          // onSnapshot unsubscribe fns from startInterchangePoll() (replaces the old diPollHandle setInterval handle), cleared by stopInterchangePoll()
+let diLastKnownUpdatedAt = {};   // threadId -> last interchangeThreads.updatedAt this tab has already reacted to (primes on each listener's first callback so page-load never fires a false alert)
+let diSearchOpen = false;        // whether the in-thread search bar is shown
+let diSearchQuery = '';          // current search bar text
+let diSearchMatchIds = [];       // message ids matching diSearchQuery, oldest-first (same order as the message list)
+let diSearchActiveIdx = -1;      // index into diSearchMatchIds for the Prev/Next-focused match, -1 = none
+let diFilesOpen = false;         // whether the shared-files gallery is showing instead of the message list
+let diReceipts = {};             // threadId -> { messageId -> [{uid, name, seenAt}] }, who has seen each broadcast -- loaded by diLoadThread() for group threads
+let diReceiptsSentFor = new Set(); // "threadId::messageId" keys this tab has already written a receipt for this session, so re-opening a thread doesn't re-write one every time
+const DI_ATTACHMENT_MAX_FILES = 4; // most attachments one message can carry
 const DI_ATTACHMENT_MAX_BYTES = 700 * 1024; // same 700 KB cap as Voucher Attachments -- base64 inflates ~4/3, staying safely under Firestore's 1 MiB/document limit
+const DI_MESSAGE_ATTACHMENTS_MAX_BYTES = 900 * 1024; // combined cap across every attachment in ONE message, leaving headroom under the 1 MiB/document limit once text + the rest of the doc is added
 
 function uid(p){ return p+'_'+Math.random().toString(36).slice(2,9); }
 function defaultFYStart(){
@@ -6592,8 +6630,8 @@ async function markMyTicketsSeen(){
 }
 
 /* ---------------- Data Interchange (group/admin messaging) ----------------
-   Core data-layer functions for the floating chat widget declared near QA_ENDPOINT above. Two
-   Firestore collections, both new (see RECOMMENDED_FIRESTORE_RULES for the rules addition they need):
+   Core data-layer functions for the floating chat widget declared near QA_ENDPOINT above. Three
+   Firestore collections, all new (see RECOMMENDED_FIRESTORE_RULES for the rules addition they need):
      interchangeThreads/{threadId}  -- one small summary doc per thread (who it's between, the last
                                         message preview/timestamp) so the Admin inbox and the unread-
                                         badge check can list "my conversations" without ever reading
@@ -6603,10 +6641,12 @@ async function markMyTicketsSeen(){
                                         whole conversation (sorted client-side afterwards, same
                                         no-composite-index convention loadAttachmentsForVoucher() uses
                                         above for the same reason).
-   "Seen" state is tracked in localStorage per threadId rather than in Firestore -- it only drives a
-   cosmetic red dot on the bubble, so it isn't worth a users/{uid} rules change (that document's
-   update rule already allowlists a narrow, deliberate set of self-editable fields; see
-   RECOMMENDED_FIRESTORE_RULES) or a shared-across-devices guarantee. */
+     interchangeReceipts/{autoId}   -- one doc per viewer per broadcast message seen (read receipts on
+                                        announcements -- see diLoadReceipts()/diMarkBroadcastSeen()).
+   "Seen" state (for the unread badge) lives on currentUser.diLastSeen, a map field on the signed-in
+   account's own users/{uid} doc, synced via a narrow self-update rule (see diGetLastSeen()/
+   diMarkSeen() and RECOMMENDED_FIRESTORE_RULES) -- not localStorage, so two devices signed into the
+   same account agree on what's unread. */
 function diMyGroupOwnerId(){
   if(!currentUser) return null;
   return currentUser.role==='support' ? currentUser.id : (currentUser.groupOwnerId || null);
@@ -6642,6 +6682,15 @@ async function diLoadThread(threadId, threadType, groupOwnerId){
     snap.forEach(doc=> rows.push({ id: doc.id, ...doc.data() }));
     rows.sort((a,b)=> (a.createdAt||'').localeCompare(b.createdAt||''));
     diMessages[threadId] = rows;
+    if(diSearchOpen && diSearchQuery) diRecomputeSearchMatches(rows);
+    // Read receipts only make sense for the group thread's pinned announcements -- load who's seen
+    // what so far, then record this viewer against every broadcast they can now see that isn't their
+    // own. diMarkBroadcastSeen() itself de-dupes (diReceiptsSentFor) so re-opening the same thread
+    // repeatedly doesn't write a fresh receipt every time.
+    if(threadType==='group'){
+      await diLoadReceipts(threadId, groupOwnerId);
+      rows.filter(m=>m.broadcast && m.senderId!==currentUser.id).forEach(m=> diMarkBroadcastSeen(m, threadId, threadType, groupOwnerId));
+    }
   }catch(e){
     console.error('Data Interchange — load messages failed:', e);
     diError = 'Could not load messages' + diErrDetail(e) + ' — check your connection and try again.';
@@ -6651,13 +6700,18 @@ async function diLoadThread(threadId, threadType, groupOwnerId){
   const el = document.getElementById('diMessagesEl');
   if(el) el.scrollTop = el.scrollHeight;
 }
-async function diSendMessage(threadId, threadType, groupOwnerId, text, attachment){
+async function diSendMessage(threadId, threadType, groupOwnerId, text, attachments, broadcast, replyTo){
   // Deliberately NOT gated by isReadOnlyMode() -- that flag is about a specific company's ledger data
   // (the shared demo company, an admin's view-only peek, per-module View Only access) and has nothing
   // to do with this messaging feature, which isn't scoped to any one company.
   if(!currentUser || !threadId) return;
   const trimmed = (text||'').trim();
-  if(!trimmed && !attachment) return;
+  const atts = Array.isArray(attachments) ? attachments.filter(Boolean) : [];
+  if(!trimmed && !atts.length) return;
+  // Broadcast is a Support-only, group-thread-only concept -- re-checked here (not just hidden in
+  // the UI) so a stray true from a stale draft never silently marks an admin-thread or non-Support
+  // message as a group-wide announcement. The Firestore rule re-checks the same thing server-side.
+  const isBroadcast = !!broadcast && currentUser.role==='support' && threadType==='group';
   diSending = true; diError = ''; diRerender();
   try{
     const now = new Date().toISOString();
@@ -6665,12 +6719,20 @@ async function diSendMessage(threadId, threadType, groupOwnerId, text, attachmen
     await db.collection('interchangeMessages').add({
       threadId, threadType, groupOwnerId,
       senderId: currentUser.id, senderName, senderRole: currentUser.role,
-      text: trimmed, attachment: attachment || null, createdAt: now,
+      text: trimmed, attachments: atts, broadcast: isBroadcast,
+      // Denormalized, not a live reference -- a quoted preview that never changes even if the
+      // original message later scrolls out of what's loaded. `replyTo` itself is already just
+      // { id, senderName, preview } (see wireDIWidget's [data-di-reply-to] handler), so this is a
+      // flat, small object straight onto the doc, same spirit as attachments.
+      replyTo: (replyTo && replyTo.id) ? replyTo : null,
+      createdAt: now,
     });
+    const attachmentSummary = atts.length ? `📎 ${atts.length>1 ? `${atts.length} files` : atts[0].name}` : '';
     const threadUpdate = {
       id: threadId, type: threadType, groupOwnerId,
       updatedAt: now, lastSenderId: currentUser.id, lastSenderName: senderName,
-      lastMessageText: trimmed || (attachment ? `📎 ${attachment.name}` : ''),
+      lastMessageText: trimmed || attachmentSummary,
+      lastMessageBroadcast: isBroadcast,
     };
     // Denormalize a label onto the thread doc so the Admin inbox (and a group thread's header) can
     // show "who"/"which group" without a second read per row -- but only from the side that actually
@@ -6681,8 +6743,13 @@ async function diSendMessage(threadId, threadType, groupOwnerId, text, attachmen
     }
     await db.collection('interchangeThreads').doc(threadId).set(threadUpdate, {merge:true});
     diInputDraft = '';
-    diPendingAttachment = null;
+    diPendingAttachments = [];
+    diBroadcastDraft = false;
+    diReplyTo = null;
     diMarkSeen(threadId, now);
+    // This tab just caused the update it's about to read back -- record it as already-known so the
+    // real-time listener's next callback (fired by our own write) doesn't alert us on our own message.
+    diLastKnownUpdatedAt[threadId] = now;
     await diLoadThread(threadId, threadType, groupOwnerId);
   }catch(e){
     console.error('Data Interchange — send failed:', e);
@@ -6693,16 +6760,71 @@ async function diSendMessage(threadId, threadType, groupOwnerId, text, attachmen
 }
 async function diAttachFile(file){
   if(!file) return;
-  if(file.size > DI_ATTACHMENT_MAX_BYTES){
-    toast(`"${file.name}" is ${fmt(file.size/1024)} KB — attachments are capped at ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB. Try a compressed photo or a smaller file.`);
+  if(diPendingAttachments.length >= DI_ATTACHMENT_MAX_FILES){
+    toast(`You can attach up to ${DI_ATTACHMENT_MAX_FILES} files per message — send this one first, then attach the rest in a follow-up.`);
     return;
   }
   try{
-    const dataUrl = await fileToDataUrl(file);
-    diPendingAttachment = { name: file.name, mimeType: file.type||'application/octet-stream', size: file.size, dataUrl };
+    let name = file.name, mimeType = file.type || 'application/octet-stream', size = file.size, dataUrl = null;
+    if(mimeType.startsWith('image/') && size > DI_ATTACHMENT_MAX_BYTES){
+      // Most "too big" attachments here are camera photos, which compress down to well under the
+      // cap with no visible quality loss at chat-bubble size -- auto-downscale/recompress instead
+      // of flatly rejecting them (diCompressImage() just below).
+      const compressed = await diCompressImage(file, DI_ATTACHMENT_MAX_BYTES);
+      if(compressed){ dataUrl = compressed.dataUrl; size = compressed.size; mimeType = compressed.mimeType; }
+    }
+    if(!dataUrl && size > DI_ATTACHMENT_MAX_BYTES){
+      toast(`"${file.name}" is ${fmt(file.size/1024)} KB — attachments are capped at ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB${mimeType.startsWith('image/')?' even after compression':''}. Try a smaller file.`);
+      return;
+    }
+    if(!dataUrl) dataUrl = await fileToDataUrl(file);
+    const combined = diPendingAttachments.reduce((s,a)=>s+(a.size||0), 0) + size;
+    if(combined > DI_MESSAGE_ATTACHMENTS_MAX_BYTES){
+      toast(`That would put this message's attachments over ${DI_MESSAGE_ATTACHMENTS_MAX_BYTES/1024|0} KB combined — send what you have first, then attach the rest in a follow-up message.`);
+      return;
+    }
+    diPendingAttachments = [...diPendingAttachments, { name, mimeType, size, dataUrl }];
     diRerender();
   }catch(e){
     toast('Could not attach that file');
+  }
+}
+// Downscales + recompresses an image file via <canvas> across a few passes until it fits under
+// maxBytes, lowering JPEG quality first and then physical dimensions -- turns a normal 2-4 MB
+// camera photo into something attachable without the user needing to resize it themselves first.
+// Returns null (caller falls back to the plain reject-if-too-big message) if the browser can't
+// decode the image, canvas export fails, or it still doesn't fit after every pass.
+async function diCompressImage(file, maxBytes){
+  let objectUrl;
+  try{
+    objectUrl = URL.createObjectURL(file);
+    const bitmap = await new Promise((resolve, reject)=>{
+      const img = new Image();
+      img.onload = ()=>resolve(img);
+      img.onerror = reject;
+      img.src = objectUrl;
+    });
+    let width = bitmap.naturalWidth || bitmap.width, height = bitmap.naturalHeight || bitmap.height;
+    if(!width || !height) return null;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    let quality = 0.82, dataUrl = '', size = Infinity;
+    for(let attempt=0; attempt<6; attempt++){
+      canvas.width = Math.max(1, Math.round(width));
+      canvas.height = Math.max(1, Math.round(height));
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
+      size = Math.round(dataUrl.length * 0.75); // base64 -> raw-byte estimate, good enough for this cap check
+      if(size <= maxBytes) break;
+      if(quality > 0.5) quality -= 0.12; else { width *= 0.75; height *= 0.75; }
+    }
+    if(size > maxBytes) return null;
+    return { dataUrl, size, mimeType: 'image/jpeg' };
+  }catch(e){
+    return null;
+  }finally{
+    if(objectUrl) URL.revokeObjectURL(objectUrl);
   }
 }
 async function diLoadAdminThreads(){
@@ -6720,6 +6842,53 @@ async function diLoadAdminThreads(){
   diLoading = false;
   diRerender();
 }
+// ---- Read receipts on announcements ----
+// Filtered on groupOwnerId (what the interchangeReceipts rule checks) + threadId (an extra filter,
+// harmless -- see the matching comment on diLoadThread()'s own query above). Grouped client-side into
+// threadId -> messageId -> [{uid, name, seenAt}], de-duped per uid in case a flaky retry ever wrote
+// more than one receipt for the same viewer/message, oldest-first.
+async function diLoadReceipts(threadId, groupOwnerId){
+  try{
+    const snap = await db.collection('interchangeReceipts')
+      .where('groupOwnerId','==',groupOwnerId)
+      .where('threadId','==',threadId)
+      .get();
+    const byMsg = {};
+    snap.forEach(doc=>{
+      const r = doc.data();
+      if(!r.messageId) return;
+      (byMsg[r.messageId] = byMsg[r.messageId] || []).push({ uid:r.uid, name:r.name, seenAt:r.seenAt });
+    });
+    Object.keys(byMsg).forEach(mid=>{
+      const byUid = new Map();
+      byMsg[mid].forEach(r=>{ if(!byUid.has(r.uid)) byUid.set(r.uid, r); });
+      byMsg[mid] = [...byUid.values()].sort((a,b)=> (a.seenAt||'').localeCompare(b.seenAt||''));
+    });
+    diReceipts[threadId] = byMsg;
+  }catch(e){ /* best-effort -- the "Seen by" line just stays empty/stale if this fails */ }
+}
+// Records that currentUser has now seen one broadcast message -- called automatically by
+// diLoadThread() for every announcement it loads into a group thread. Never for the sender's own
+// message (no point receipting yourself), and never twice in the same session for the same message
+// (diReceiptsSentFor), so reopening a thread repeatedly doesn't spam new receipt docs.
+async function diMarkBroadcastSeen(msg, threadId, threadType, groupOwnerId){
+  if(!currentUser || !msg || !msg.broadcast || msg.senderId===currentUser.id) return;
+  const key = threadId+'::'+msg.id;
+  if(diReceiptsSentFor.has(key)) return;
+  diReceiptsSentFor.add(key);
+  const seenAt = new Date().toISOString();
+  try{
+    await db.collection('interchangeReceipts').add({
+      messageId: msg.id, threadId, threadType, groupOwnerId,
+      uid: currentUser.id, name: currentUser.name || currentUser.username || 'User', seenAt,
+    });
+    diReceipts[threadId] = diReceipts[threadId] || {};
+    const list = diReceipts[threadId][msg.id] = diReceipts[threadId][msg.id] || [];
+    if(!list.some(r=>r.uid===currentUser.id)){ list.push({ uid: currentUser.id, name: currentUser.name||currentUser.username, seenAt }); diRerender(); }
+  }catch(e){
+    diReceiptsSentFor.delete(key); // let a later view of this thread retry
+  }
+}
 // Turns a caught error into a short, visible " (permission-denied)"-style suffix, so a rules/config
 // problem shows up right in the panel instead of only in the browser console -- meant to be read once
 // by whoever set the app up (it names the raw Firestore error code), then the underlying cause fixed.
@@ -6728,16 +6897,32 @@ function diErrDetail(e){
   const code = e.code || '';
   return code ? ` (${code})` : '';
 }
-function diLastSeenKey(threadId){ return 'rb_diLastSeen_' + threadId; }
+// Cross-device read sync: lives on currentUser.diLastSeen (a map field on the signed-in account's own
+// Firestore doc, synced via the users/{uid} update rule's self-editable allowlist -- see
+// RECOMMENDED_FIRESTORE_RULES) instead of localStorage, so two devices signed into the same account
+// agree on what's unread. currentUser is already the full profile doc read at login, so a synchronous
+// read here is just as cheap as the old localStorage lookup was -- no extra fetch needed.
 function diGetLastSeen(threadId){
-  try{ return localStorage.getItem(diLastSeenKey(threadId)) || ''; }catch(e){ return ''; }
+  return (currentUser && currentUser.diLastSeen && currentUser.diLastSeen[threadId]) || '';
 }
 function diMarkSeen(threadId, ts){
-  try{ localStorage.setItem(diLastSeenKey(threadId), ts || new Date().toISOString()); }catch(e){}
+  if(!currentUser || !threadId) return;
+  const when = ts || new Date().toISOString();
+  currentUser.diLastSeen = currentUser.diLastSeen || {};
+  currentUser.diLastSeen[threadId] = when; // reflect locally first -- every caller reads this synchronously
+  if(currentUser.id){
+    // A dot-path update() merges just this one nested key server-side (never clobbers another
+    // device's concurrent write to a different threadId the way re-sending the whole map could).
+    // Best-effort, same convention as every other write in this file that isn't itself the point of
+    // the action -- a failed sync here just means the badge stays stale until the next successful one.
+    db.collection('users').doc(currentUser.id).update({ ['diLastSeen.'+threadId]: when }).catch(()=>{});
+  }
 }
-// Same lightweight 30s-poll pattern as checkTicketUpdatesOnce()/checkForceLogoutOnce() above -- only
-// touches the small interchangeThreads summary docs, never the full message history, so it stays
-// cheap to run in the background the whole time someone's signed in.
+// Recomputes diUnreadBadge from scratch by re-reading the small interchangeThreads summary docs --
+// never the full message history, so it stays cheap. Originally run on a 30s setInterval; now it's
+// called from inside the onSnapshot listeners startInterchangePoll() sets up below, so it reacts
+// immediately instead of up to 30s late. Left as its own function (rather than folded into the
+// listener callback) since it's also useful as a one-off recheck right after diMarkSeen().
 async function checkInterchangeUpdatesOnce(){
   if(!currentUser) return;
   try{
@@ -6765,13 +6950,164 @@ async function checkInterchangeUpdatesOnce(){
     diRerender();
   }catch(e){ /* best-effort */ }
 }
+// Which thread (if any) the Data Interchange panel is actively showing right now -- a live update to
+// THAT thread should refresh its messages in place rather than alert over it (see diReactToThreadDoc).
+function diOpenThreadParts(){
+  if(!currentUser || !diOpen) return null;
+  if(currentUser.role==='admin'){
+    if(!diActiveAdminThreadId) return null;
+    return { threadId: diAdminThreadId(diActiveAdminThreadId), threadType:'admin', groupOwnerId: diActiveAdminThreadId };
+  }
+  if(currentUser.role==='support'){
+    return diTab==='admin'
+      ? { threadId: diAdminThreadId(currentUser.id), threadType:'admin', groupOwnerId: currentUser.id }
+      : { threadId: diGroupThreadId(), threadType:'group', groupOwnerId: currentUser.id };
+  }
+  const tid = diGroupThreadId();
+  return tid ? { threadId: tid, threadType:'group', groupOwnerId: currentUser.groupOwnerId||null } : null;
+}
+function diCurrentThreadId(){
+  const p = diOpenThreadParts();
+  return p ? p.threadId : null;
+}
+// Plays a short two-tone chime via the Web Audio API -- no audio asset/network fetch needed, so it
+// works offline the same as the rest of this file. Best-effort: browsers that block audio before a
+// user gesture, or don't have AudioContext at all, just silently get no sound (the toast still shows).
+function diPlayAlertSound(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(!Ctx) return;
+    const ctx = new Ctx();
+    const playTone = (freq, startAt, dur)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.12, startAt+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt+dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(startAt); osc.stop(startAt+dur+0.02);
+    };
+    const now = ctx.currentTime;
+    playTone(880, now, 0.11);
+    playTone(1180, now+0.13, 0.13);
+    setTimeout(()=>{ try{ ctx.close(); }catch(e){} }, 500);
+  }catch(e){ /* best-effort -- never let an audio failure interrupt anything */ }
+}
+// Desktop (OS-level) notifications are opt-in and genuinely per-browser (unlike diGetLastSeen/
+// diMarkSeen above, this really is a device preference, not account data), so it stays in
+// localStorage -- read fresh each time rather than cached, since the only writer is the toggle in
+// wireDIWidget and reads are cheap/infrequent (once per alert, once per header render).
+function diDesktopNotifsKey(){ return 'rb_diDesktopNotifs'; }
+function diDesktopNotifsEnabled(){
+  try{ return localStorage.getItem(diDesktopNotifsKey())==='1'; }catch(e){ return false; }
+}
+function diNotifyNewMessage(t){
+  // lastSenderName is always the actual sender of the message this alert is about; supportName is a
+  // different thing entirely (the group-identifying label on the THREAD doc, used by the Admin inbox
+  // list) and would show the wrong name here once the thread's most recent sender isn't the Support
+  // account itself (e.g. a teammate messaging their own group thread).
+  const who = t.lastSenderName || t.supportName || 'Someone';
+  const preview = t.lastMessageText || '📎 sent a file';
+  const title = t.lastMessageBroadcast ? `📢 Announcement from ${who}` : `💬 ${who}`;
+  toast(t.lastMessageBroadcast ? `${title}: ${preview}` : `${title}: ${preview}`, {type:'info'});
+  diPlayAlertSound();
+  // A real OS-level notification on top of the in-app toast -- only when the person opted in AND the
+  // tab is actually hidden/backgrounded (the toast+chime already cover "looking at this tab"; a second
+  // popup on top of that would just be noise) AND the browser still has permission at this moment
+  // (it can be revoked in browser settings after the toggle was turned on).
+  if(diDesktopNotifsEnabled() && typeof document!=='undefined' && document.hidden && typeof Notification!=='undefined' && Notification.permission==='granted'){
+    try{
+      const n = new Notification(title, { body: preview, tag: 'di-'+(t.id || who) });
+      n.onclick = ()=>{ try{ window.focus(); }catch(e){} };
+    }catch(e){ /* best-effort -- never let a notification failure interrupt anything */ }
+  }
+}
+// Reacts to one interchangeThreads summary doc's current value, called from every onSnapshot
+// listener startInterchangePoll() sets up. `primed` is false only on that listener's very first
+// callback (Firestore fires once immediately with whatever already exists -- that's page load, not
+// a new message, so the first callback only records updatedAt and never alerts).
+function diReactToThreadDoc(id, t, primed){
+  if(!t) return;
+  const fromOthers = t.lastSenderId && t.lastSenderId!==currentUser.id;
+  const isNewUpdate = t.updatedAt && t.updatedAt!==diLastKnownUpdatedAt[id];
+  if(primed && fromOthers && isNewUpdate){
+    const open = diOpenThreadParts();
+    if(open && open.threadId===id){
+      // The panel is already looking at this thread -- pull the new message in live instead of
+      // popping an alert over it.
+      diLoadThread(open.threadId, open.threadType, open.groupOwnerId).then(()=> diMarkSeen(id));
+    } else {
+      diNotifyNewMessage(t);
+      if(currentUser.role==='admin' && diOpen && !diActiveAdminThreadId) diLoadAdminThreads();
+    }
+  }
+  if(t.updatedAt) diLastKnownUpdatedAt[id] = t.updatedAt;
+}
+// Real-time delivery: attaches Firestore onSnapshot listeners on the interchangeThreads summary docs
+// this account can see, so the unread badge, the new-message alert, and the open thread's own
+// messages all react the moment something actually changes -- replaces the old 30s setInterval poll
+// (the old diPollHandle setInterval). Still touches only those small summary
+// docs, same cost profile as the poll it replaces, just event-driven instead of timed.
 function startInterchangePoll(){
   stopInterchangePoll();
+  if(!currentUser) return;
   checkInterchangeUpdatesOnce();
-  diPollHandle = setInterval(checkInterchangeUpdatesOnce, 30000);
+  if(currentUser.role==='admin'){
+    let primed = false;
+    diBadgeUnsubs.push(db.collection('interchangeThreads').where('type','==','admin').onSnapshot(snap=>{
+      snap.forEach(doc=> diReactToThreadDoc(doc.id, doc.data(), primed));
+      primed = true;
+      checkInterchangeUpdatesOnce();
+    }, ()=>{ /* best-effort -- a rules/connectivity hiccup here just means the badge/alert go stale, never a crash */ }));
+  } else {
+    const ids = [];
+    const gid = diGroupThreadId(); if(gid) ids.push(gid);
+    if(currentUser.role==='support') ids.push(diAdminThreadId(currentUser.id));
+    ids.forEach(id=>{
+      let primed = false;
+      diBadgeUnsubs.push(db.collection('interchangeThreads').doc(id).onSnapshot(doc=>{
+        diReactToThreadDoc(id, doc.exists ? doc.data() : null, primed);
+        primed = true;
+        checkInterchangeUpdatesOnce();
+      }, ()=>{}));
+    });
+  }
 }
 function stopInterchangePoll(){
-  if(diPollHandle){ clearInterval(diPollHandle); diPollHandle = null; }
+  diBadgeUnsubs.forEach(unsub=>{ try{ unsub(); }catch(e){} });
+  diBadgeUnsubs = [];
+  diLastKnownUpdatedAt = {};
+}
+// ---- Search within a thread ----
+function diHighlightText(text, query){
+  const esc = escapeHtml(text||'');
+  const q = (query||'').trim();
+  if(!q) return esc;
+  const escQuery = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if(!escQuery) return esc;
+  try{ return esc.replace(new RegExp(escQuery, 'gi'), m=>`<mark style="background:#FDE68A;color:#1B2420;border-radius:2px;">${m}</mark>`); }
+  catch(e){ return esc; }
+}
+function diRecomputeSearchMatches(msgs){
+  const q = diSearchQuery.trim().toLowerCase();
+  if(!q){ diSearchMatchIds = []; diSearchActiveIdx = -1; return; }
+  diSearchMatchIds = (msgs||[]).filter(m=>{
+    const inText = (m.text||'').toLowerCase().includes(q);
+    const atts = Array.isArray(m.attachments) && m.attachments.length ? m.attachments : (m.attachment ? [m.attachment] : []);
+    const inAttachment = atts.some(a=>(a.name||'').toLowerCase().includes(q));
+    return inText || inAttachment;
+  }).map(m=>m.id);
+  // Default to the most recent match rather than the oldest -- that's almost always the one someone
+  // searching a chat actually wants first.
+  diSearchActiveIdx = diSearchMatchIds.length ? diSearchMatchIds.length-1 : -1;
+}
+function diScrollToActiveMatch(){
+  const targetId = diSearchMatchIds[diSearchActiveIdx];
+  if(!targetId) return;
+  setTimeout(()=>{
+    document.getElementById('diMsg-'+targetId)?.scrollIntoView({behavior:'smooth', block:'center'});
+  }, 0);
 }
 
 // Toast stack: a small queue of transient messages rendered imperatively into #toastHost, kept
@@ -7897,6 +8233,13 @@ async function loadState(){
     state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
     state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
     state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
+    // Was missing entirely before this fix -- state.pendingVouchers never got reloaded from
+    // Firestore when opening a company (it only ever held whatever was pushed into it client-side
+    // in the current session, via the voucher-submission flow), so an Approvals modal opened after
+    // a page reload, or for a company other than the one you're already in, could read stale/empty
+    // pending-approval data. See savePendingVouchers() / company.pendingVouchers (what loadCompanies()
+    // puts on the companies[] array for companyPendingApprovalsCount()) for where this is written.
+    state.pendingVouchers = Array.isArray(data.pendingVouchers) ? data.pendingVouchers : [];
     state.docVaultSalt = data.docVaultSalt || null;
     state.docVaultVerifier = data.docVaultVerifier || null;
     state.automationLog = Array.isArray(data.automationLog) ? data.automationLog : [];
@@ -7924,6 +8267,7 @@ async function loadState(){
     state.purchaseOrders = [];
     state.deliveryChallans = [];
     state.taxDeductions = [];
+    state.pendingVouchers = [];
     state.docVaultSalt = null;
     state.docVaultVerifier = null;
     state.automationLog = [];
@@ -8008,6 +8352,30 @@ async function enterCompanyApp(company, opts={}){
   if(!modal && shouldOfferTour()) tourStep = 0;
   render();
   pushHistory();
+}
+// Re-renders whichever screen is actually showing. Approvals/Manage Access/Team Access can now be
+// opened two ways: from inside a company (screen==='app', via render()) or from a Support user's
+// Admin Panel on the Gateway screen (screen==='gateway', via renderGateway() -- see
+// openAdminCompanyModal() below). Their shared handlers (wireApprovalsAccessTeamHandlers()) and the
+// approve/reject-voucher actions call this instead of a hardcoded render() so an action taken from
+// the Admin Panel redraws the Admin Panel, not the full company shell.
+function renderCurrentScreen(){
+  if(screen==='gateway') renderGateway(); else render();
+}
+// Opens the Approvals / Manage Access / Team Access modal for a specific company directly from a
+// Support user's Admin Panel (Companies tab), STACKED on top of the Admin Panel itself (groupAdminModal())
+// rather than replacing it -- `modal` stays 'groupAdmin' throughout (the caller is already inside
+// that modal's own wiring) and groupAdminCompanyModalType records which of the three is showing, the
+// same stacking convention groupUserDetailId/groupAddUserOpen already use. Unlike enterCompanyApp(),
+// this never touches `screen` (stays 'gateway'), `view`, the FY picker, the first-run tour, or
+// browser history, since the user isn't "entering" the company at all. Loads just enough of that
+// company's data for the modal to be accurate: Approvals reads state.ledgers (to label each pending
+// voucher's entries) and state.pendingVouchers, so loadState() runs unconditionally -- cheap, and
+// Access/Team Access read straight off the company object so the extra load does them no harm either.
+async function openAdminCompanyModal(company, modalType){
+  currentCompany = company;
+  await loadState();
+  groupAdminCompanyModalType = modalType;
 }
 function ensureCoreLedgers(){
   let changed = false;
@@ -8149,7 +8517,7 @@ async function approvePendingVoucher(pvId){
   logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
   logAutomation('✅', `Approved ${pv.type} voucher for ₹${fmt(v.entries.reduce((s,e)=>s+(Number(e.dr)||0),0))} (submitted by ${pv.submittedByName||'a user'})`);
   toast('✓ Voucher approved and posted', {type:'success'});
-  render();
+  renderCurrentScreen();
 }
 async function rejectPendingVoucher(pvId){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -8162,7 +8530,7 @@ async function rejectPendingVoucher(pvId){
   await savePendingVouchers();
   logAutomation('🚫', `Rejected ${pv.type} voucher for ₹${fmt(pv.entries.reduce((s,e)=>s+(Number(e.dr)||0),0))} (submitted by ${pv.submittedByName||'a user'}) by ${currentUser.name||currentUser.username}`);
   toast('Voucher rejected', {type:'success'});
-  render();
+  renderCurrentScreen();
 }
 async function saveReconciliations(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -8382,14 +8750,22 @@ function voucherHistoryModal(){
 
 // ---- Maker-checker: Approvals modal ----
 const ALL_VOUCHER_TYPES_FOR_APPROVAL = ['Payment','Receipt','Sales','Purchase','Journal','Contra','Credit Note','Debit Note'];
-function approvalsModal(){
+function approvalsModal(opts={}){
+  // When opened from a Support user's Admin Panel (opts.stacked -- see openAdminCompanyModal()),
+  // this renders ON TOP of groupAdminModal() rather than replacing it, so it needs its own overlay/
+  // close ids -- reusing 'modalOverlayBg'/'modalClose' would collide with groupAdminModal()'s own
+  // (duplicate DOM ids), breaking getElementById-based close wiring. Same convention as
+  // groupUserDetailModal's 'userDetailOverlayBg'/'userDetailClose'. The in-company menubar path
+  // (opts.stacked unset) is the only modal on screen, so it keeps the plain shared ids.
+  const overlayId = opts.stacked ? 'adminCompanyModalOverlayBg' : 'modalOverlayBg';
+  const closeId = opts.stacked ? 'adminCompanyModalClose' : 'modalClose';
   const canApprove = canApproveVouchers();
   const pending = state.pendingVouchers.slice().sort((a,b)=> a.date<b.date?1:-1);
   const s = currentCompany.approvalSettings || {enabled:false, threshold:0, types:[]};
   return `
-    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="${overlayId}" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:640px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>Approvals${pending.length?` <span class="pill" style="font-size:10.5px;">${pending.length} pending</span>`:''}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>Approvals${pending.length?` <span class="pill" style="font-size:10.5px;">${pending.length} pending</span>`:''}</h2><button class="btn secondary small" id="${closeId}" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
           ${canApprove ? `
           <details style="margin-bottom:14px;" ${approvalSettingsDraft?'open':''}>
@@ -8429,14 +8805,17 @@ function approvalsModal(){
 }
 
 // ---- Manage Access modal (granular per-module RBAC for a Support account's group, per company) ----
-function manageAccessModal(){
+function manageAccessModal(opts={}){
+  // See approvalsModal()'s comment on opts.stacked -- same reason, same id-swap convention.
+  const overlayId = opts.stacked ? 'adminCompanyModalOverlayBg' : 'modalOverlayBg';
+  const closeId = opts.stacked ? 'adminCompanyModalClose' : 'modalClose';
   const members = groupMembers.filter(u=>u.role!=='support');
   const perms = currentCompany.memberPermissions || {};
   const selected = manageAccessUserId ? members.find(m=>m.id===manageAccessUserId) : null;
   return `
-    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="${overlayId}" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:680px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>Manage Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>Manage Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="${closeId}" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
           <p class="muted" style="font-size:12px;">Restrict what each member of your group can see or do in this company, module by module. Unset = Full Access, so nothing changes for a member until you set something here.</p>
           ${!members.length ? `<div class="empty">No group members yet — add users from the Admin panel first.</div>` : `
@@ -8482,16 +8861,19 @@ function manageAccessModal(){
 // this never needs a separate Firestore query for member names/usernames -- they're captured once at
 // invite time and stored right on company.teamMembers[uid], since a teammate here only ever belongs to
 // this one company.
-function companyTeamModal(){
+function companyTeamModal(opts={}){
+  // See approvalsModal()'s comment on opts.stacked -- same reason, same id-swap convention.
+  const overlayId = opts.stacked ? 'adminCompanyModalOverlayBg' : 'modalOverlayBg';
+  const closeId = opts.stacked ? 'adminCompanyModalClose' : 'modalClose';
   const team = currentCompany.teamMembers || {};
   const memberIds = Object.keys(team);
   const inviting = companyTeamMemberId==='invite';
   const selectedId = (!inviting && companyTeamMemberId && team[companyTeamMemberId]) ? companyTeamMemberId : null;
   const selected = selectedId ? team[selectedId] : null;
   return `
-    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="${overlayId}" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:700px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
-        <div class="panel-head" style="padding:16px 20px;"><h2>Team Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-head" style="padding:16px 20px;"><h2>Team Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="${closeId}" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
           <p class="muted" style="font-size:12px;">Invite a bookkeeper, your external accountant, or anyone else who needs their own login to this company — with their own module-by-module access, separate from yours. They never see your other companies. Team Access is always <strong>view-only</strong> (they can never create, edit or delete anything) and limited to ${TEAM_ACCESS_MAX_MEMBERS} teammates per company.</p>
           <div style="display:flex;gap:16px;flex-wrap:wrap;">
@@ -11726,6 +12108,42 @@ function diAttachmentHtml(att){
   }
   return `<a href="${att.dataUrl}" download="${escapeAttr(att.name)}" style="color:inherit;text-decoration:underline;font-size:12px;display:inline-flex;align-items:center;gap:4px;">📄 ${escapeHtml(att.name)} <span style="opacity:.75;">(${fmt((att.size||0)/1024)} KB)</span></a>`;
 }
+// One message's attachments, old shape or new -- `m.attachments` (an array) is what every message
+// sent after the richer-attachments update carries; `m.attachment` (singular) is what every message
+// sent before it still has in Firestore, so both are read here rather than migrating old documents.
+function diMessageAttachmentsHtml(m){
+  const list = Array.isArray(m.attachments) && m.attachments.length ? m.attachments : (m.attachment ? [m.attachment] : []);
+  if(!list.length) return '';
+  return `<div style="margin-top:${m.text?'6px':'0'};display:flex;flex-direction:column;gap:6px;">${list.map(diAttachmentHtml).join('')}</div>`;
+}
+// ---- Shared files gallery ----
+// Every attachment across every message already loaded into diMessages[threadId] -- no extra
+// Firestore read, since the thread's messages (and their attachments) are already in memory the
+// moment the panel has loaded this thread once. Newest first, which is backwards from the message
+// list itself (oldest-first) -- a file gallery is a "what did someone just send me" lookup, not a
+// chronological read.
+function diFilesForThread(threadId){
+  const msgs = diMessages[threadId] || [];
+  const files = [];
+  msgs.forEach(m=>{
+    const list = Array.isArray(m.attachments) && m.attachments.length ? m.attachments : (m.attachment ? [m.attachment] : []);
+    list.forEach(att=> files.push({ att, msgId: m.id, senderName: m.senderName, createdAt: m.createdAt }));
+  });
+  return files.sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+}
+function diFilesGalleryHtml(threadId){
+  const files = diFilesForThread(threadId);
+  if(!files.length) return `<div class="muted" style="font-size:11.5px;padding:6px 2px;">No files shared in this conversation yet.</div>`;
+  return files.map(f=>`
+    <div data-di-jump-to-msg="${escapeAttr(f.msgId)}" style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--border,#E1E7E3);cursor:pointer;">
+      <span style="font-size:17px;flex-shrink:0;">${(f.att.mimeType||'').startsWith('image/')?'🖼️':'📄'}</span>
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.att.name)}</div>
+        <div class="muted" style="font-size:10px;">${escapeHtml(f.senderName||'')} · ${fmtTimestamp(f.createdAt)} · ${fmt((f.att.size||0)/1024)} KB</div>
+      </div>
+    </div>
+  `).join('');
+}
 function diAdminInboxHtml(){
   return `
     <div id="diMessagesEl" style="flex:1;overflow-y:auto;">
@@ -11741,7 +12159,7 @@ function diAdminInboxHtml(){
                 <strong style="font-size:12px;${unread?'':'font-weight:600;'}">${escapeHtml(t.supportName||'Support account')}</strong>
                 <span class="muted" style="font-size:9.5px;white-space:nowrap;">${fmtTimestamp(t.updatedAt)}</span>
               </div>
-              <div class="muted" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.groupName?escapeHtml(t.groupName)+' — ':''}${escapeHtml(t.lastMessageText||'')}</div>
+              <div class="muted" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.groupName?escapeHtml(t.groupName)+' — ':''}${t.lastMessageBroadcast?'📢 ':''}${escapeHtml(t.lastMessageText||'')}</div>
             </div>
           </div>`;
         }).join('')}
@@ -11771,6 +12189,7 @@ function diPanel(){
   }
   const msgs = threadId ? (diMessages[threadId] || []) : [];
   const showingInbox = role==='admin' && !diActiveAdminThreadId;
+  const canBroadcast = role==='support' && threadType==='group'; // see diBroadcastDraft — Support, group thread only
   return `
     <div id="diPanelEl" style="position:fixed;right:86px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:460px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:90;">
       <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;gap:8px;background:${DI_COLOR};color:#fff;">
@@ -11778,37 +12197,78 @@ function diPanel(){
           <strong style="font-size:13px;">${escapeHtml(headerTitle)}</strong>
           ${!showingInbox && headerSub ? `<div style="font-size:10.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(headerSub)}</div>` : ''}
         </div>
-        <span id="diCloseBtn" style="cursor:pointer;font-size:15px;flex-shrink:0;">✕</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          <span id="diNotifsToggle" title="${diDesktopNotifsEnabled()?'Desktop alerts on — click to turn off':'Turn on desktop alerts for new messages'}" style="cursor:pointer;font-size:14px;${diDesktopNotifsEnabled()?'opacity:1;':'opacity:.6;'}">🔔</span>
+          ${!showingInbox && threadId ? `<span id="diFilesToggle" title="Shared files" style="cursor:pointer;font-size:14px;${diFilesOpen?'opacity:1;':'opacity:.85;'}">📁</span>` : ''}
+          ${!showingInbox && threadId ? `<span id="diSearchToggle" title="Search this conversation" style="cursor:pointer;font-size:14px;${diSearchOpen?'opacity:1;':'opacity:.85;'}">🔍</span>` : ''}
+          <span id="diCloseBtn" style="cursor:pointer;font-size:15px;">✕</span>
+        </div>
       </div>
       ${role==='support' ? `
       <div style="display:flex;border-bottom:1px solid var(--border,#E1E7E3);">
         <span data-di-tab="group" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='group'?`color:${DI_COLOR};border-bottom:2px solid ${DI_COLOR};`:'color:var(--ink-soft);'}">My Group</span>
         <span data-di-tab="admin" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='admin'?`color:${DI_COLOR};border-bottom:2px solid ${DI_COLOR};`:'color:var(--ink-soft);'}">Message Admin</span>
       </div>` : ''}
+      ${diSearchOpen && !showingInbox && threadId ? `
+      <div style="padding:6px 10px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;align-items:center;gap:6px;background:var(--surface-strong,#EEF3EF);">
+        <input id="diSearchBox" type="text" placeholder="Search messages or files…" value="${escapeAttr(diSearchQuery)}" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid var(--border,#E1E7E3);border-radius:6px;">
+        <span class="muted" style="font-size:10.5px;white-space:nowrap;">${diSearchQuery ? `${diSearchMatchIds.length ? diSearchActiveIdx+1 : 0}/${diSearchMatchIds.length}` : ''}</span>
+        <span id="diSearchPrev" title="Previous match" style="cursor:pointer;font-size:12px;${diSearchMatchIds.length?'':'opacity:.35;pointer-events:none;'}">‹</span>
+        <span id="diSearchNext" title="Next match" style="cursor:pointer;font-size:12px;${diSearchMatchIds.length?'':'opacity:.35;pointer-events:none;'}">›</span>
+        <span id="diSearchClose" style="cursor:pointer;font-size:13px;">✕</span>
+      </div>` : ''}
       ${showingInbox ? diAdminInboxHtml() : `
       <div id="diMessagesEl" style="flex:1;overflow-y:auto;padding:10px 12px;font-size:12.5px;line-height:1.5;">
         ${role==='admin' ? `<span id="diBackToInbox" class="linklike" style="cursor:pointer;font-size:11px;display:inline-block;margin-bottom:8px;">‹ All conversations</span>` : ''}
         ${!threadId ? `<div class="muted" style="font-size:11.5px;">You're not part of a group yet — a Support account needs to add you first.</div>` :
+          diFilesOpen ? diFilesGalleryHtml(threadId) :
           diLoading ? `<div class="muted" style="font-size:11.5px;">Loading…</div>` :
           msgs.length===0 ? `<div class="muted" style="font-size:11.5px;">No messages yet — say hello, or share a file.</div>` :
-          msgs.map(m=>`
-            <div style="margin-bottom:10px;display:flex;flex-direction:column;${m.senderId===currentUser.id?'align-items:flex-end;':'align-items:flex-start;'}">
+          msgs.map(m=>{
+            const isActiveMatch = diSearchOpen && diSearchQuery && diSearchMatchIds[diSearchActiveIdx]===m.id;
+            const isBroadcast = !!m.broadcast;
+            const seenList = isBroadcast ? (((diReceipts[threadId]||{})[m.id])||[]) : [];
+            return `
+            <div id="diMsg-${escapeAttr(m.id)}" style="margin-bottom:10px;display:flex;flex-direction:column;${m.senderId===currentUser.id?'align-items:flex-end;':'align-items:flex-start;'}">
               ${m.senderId!==currentUser.id ? `<div class="muted" style="font-size:10px;margin-bottom:2px;">${escapeHtml(m.senderName||'')}${m.senderRole==='support'?' · Support':m.senderRole==='admin'?' · Admin':''}</div>` : ''}
-              <div style="max-width:85%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;${m.senderId===currentUser.id ? `background:${DI_COLOR};color:#fff;` : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${m.text?escapeHtml(m.text):''}${m.attachment ? `<div style="margin-top:${m.text?'6px':'0'};">${diAttachmentHtml(m.attachment)}</div>` : ''}</div>
-              <div class="muted" style="font-size:9.5px;margin-top:2px;">${fmtTimestamp(m.createdAt)}</div>
+              <div style="max-width:88%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;${isActiveMatch?`outline:2px solid ${DI_COLOR};outline-offset:2px;`:''}${
+                isBroadcast
+                  ? 'background:#FEF3C7;color:#78350F;border:1px solid #F5C451;'
+                  : (m.senderId===currentUser.id ? `background:${DI_COLOR};color:#fff;` : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);')
+              }">${isBroadcast ? `<div style="font-size:10px;font-weight:700;margin-bottom:3px;">📢 ANNOUNCEMENT</div>` : ''}${m.replyTo ? `<div data-di-jump-to-msg="${escapeAttr(m.replyTo.id)}" style="cursor:pointer;border-left:2px solid ${m.senderId===currentUser.id&&!isBroadcast?'rgba(255,255,255,.65)':DI_COLOR};padding:2px 6px;margin-bottom:5px;opacity:.85;font-size:11px;">
+                <div style="font-weight:700;">${escapeHtml(m.replyTo.senderName||'')}</div>
+                <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.replyTo.preview||'')}</div>
+              </div>` : ''}${m.text?diHighlightText(m.text, diSearchOpen?diSearchQuery:''):''}${diMessageAttachmentsHtml(m)}</div>
+              <div class="muted" style="font-size:9.5px;margin-top:2px;display:flex;align-items:center;gap:7px;">
+                <span>${fmtTimestamp(m.createdAt)}</span>
+                <span data-di-reply-to="${escapeAttr(m.id)}" title="Reply" style="cursor:pointer;">↩</span>
+              </div>
+              ${isBroadcast && seenList.length ? `<div class="muted" style="font-size:9.5px;margin-top:2px;">👁 Seen by ${escapeHtml(seenList.slice(0,2).map(r=>r.name||'someone').join(', '))}${seenList.length>2?` +${seenList.length-2} more`:''}</div>` : ''}
             </div>
-          `).join('')}
+          `;}).join('')}
       </div>
       ${diError ? `<div style="color:#D64545;font-size:11.5px;padding:0 12px 6px;">${escapeHtml(diError)}</div>` : ''}
       ${threadId ? `
       <div style="padding:8px;border-top:1px solid var(--border,#E1E7E3);" data-di-thread="${escapeAttr(threadId)}" data-di-thread-type="${escapeAttr(threadType)}" data-di-group-owner="${escapeAttr(groupOwnerId||'')}">
-        ${diPendingAttachment ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:6px;background:var(--surface-strong);padding:5px 8px;border-radius:6px;">
-          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${escapeHtml(diPendingAttachment.name)} (${fmt(diPendingAttachment.size/1024)} KB)</span>
-          <span id="diRemoveAttachment" style="cursor:pointer;">✕</span>
+        ${diReplyTo ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:6px;background:var(--surface-strong);padding:5px 8px;border-radius:6px;border-left:3px solid ${DI_COLOR};">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;">${escapeHtml(diReplyTo.senderName||'')}</div>
+            <div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(diReplyTo.preview||'')}</div>
+          </div>
+          <span id="diCancelReply" style="cursor:pointer;">✕</span>
         </div>` : ''}
+        ${diPendingAttachments.length ? `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">${diPendingAttachments.map((a,i)=>`
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--surface-strong);padding:5px 8px;border-radius:6px;">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${escapeHtml(a.name)} (${fmt(a.size/1024)} KB)</span>
+            <span data-di-remove-attachment="${i}" style="cursor:pointer;">✕</span>
+          </div>`).join('')}</div>` : ''}
+        ${canBroadcast ? `
+        <label style="display:flex;align-items:center;gap:5px;font-size:10.5px;margin-bottom:6px;cursor:pointer;color:var(--ink-soft);">
+          <input type="checkbox" id="diBroadcastChk" ${diBroadcastDraft?'checked':''} style="margin:0;"> 📢 Send as announcement (highlighted for the whole group)
+        </label>` : ''}
         <div style="display:flex;gap:6px;align-items:center;">
-          <label for="diFileInput" title="Attach a file — up to ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB" style="cursor:pointer;display:flex;align-items:center;padding:0 4px;font-size:17px;">📎</label>
-          <input type="file" id="diFileInput" style="display:none;">
+          <label for="diFileInput" title="Attach up to ${DI_ATTACHMENT_MAX_FILES} files — ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB each" style="cursor:pointer;display:flex;align-items:center;padding:0 4px;font-size:17px;${diPendingAttachments.length>=DI_ATTACHMENT_MAX_FILES?'opacity:.4;pointer-events:none;':''}">📎</label>
+          <input type="file" id="diFileInput" multiple style="display:none;">
           <input id="diInputBox" type="text" placeholder="Type a message…" value="${escapeAttr(diInputDraft)}" style="flex:1;font-size:12.5px;padding:8px 10px;border:1px solid var(--border,#E1E7E3);border-radius:8px;" ${diSending?'disabled':''}>
           <button id="diSendBtn" class="btn small" type="button" ${diSending?'disabled':''}>Send</button>
         </div>
@@ -12373,11 +12833,20 @@ function wireDIWidget(){
   });
   wireKeyActivate('diFab');
   document.getElementById('diCloseBtn')?.addEventListener('click', ()=>{ diOpen = false; diRerender(); });
+  // Resets every piece of per-thread compose/search draft state -- shared by every place below that
+  // switches which thread is showing (tab switch, inbox drill-in/out), so none of it leaks across.
+  const diResetComposeAndSearch = ()=>{
+    diPendingAttachments = [];
+    diBroadcastDraft = false;
+    diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
+    diReplyTo = null;
+    diFilesOpen = false;
+  };
   document.querySelectorAll('[data-di-tab]').forEach(el=>{
     el.addEventListener('click', ()=>{
       if(diTab===el.dataset.diTab) return;
       diTab = el.dataset.diTab;
-      diPendingAttachment = null;
+      diResetComposeAndSearch();
       diError = '';
       const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
       const tType = diTab==='admin' ? 'admin' : 'group';
@@ -12388,7 +12857,7 @@ function wireDIWidget(){
   document.querySelectorAll('[data-di-open-thread]').forEach(el=>{
     el.addEventListener('click', ()=>{
       diActiveAdminThreadId = el.dataset.diOpenThread;
-      diPendingAttachment = null;
+      diResetComposeAndSearch();
       diError = '';
       const tid = diAdminThreadId(diActiveAdminThreadId);
       diRerender();
@@ -12397,27 +12866,124 @@ function wireDIWidget(){
   });
   document.getElementById('diBackToInbox')?.addEventListener('click', ()=>{
     diActiveAdminThreadId = null;
+    diResetComposeAndSearch();
     diError = '';
     diRerender();
     diLoadAdminThreads();
   });
-  document.getElementById('diFileInput')?.addEventListener('change', (e)=>{
-    const file = e.target.files && e.target.files[0];
-    if(file) diAttachFile(file);
+  document.getElementById('diFileInput')?.addEventListener('change', async (e)=>{
+    const files = Array.from(e.target.files || []);
+    for(const f of files){ await diAttachFile(f); } // sequential -- each call reads diPendingAttachments' current length/combined size before awaiting its own file read
     e.target.value = '';
   });
-  document.getElementById('diRemoveAttachment')?.addEventListener('click', ()=>{ diPendingAttachment = null; diRerender(); });
+  document.querySelectorAll('[data-di-remove-attachment]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const idx = Number(el.dataset.diRemoveAttachment);
+      diPendingAttachments = diPendingAttachments.filter((_,i)=>i!==idx);
+      diRerender();
+    });
+  });
+  document.getElementById('diBroadcastChk')?.addEventListener('change', e=>{ diBroadcastDraft = e.target.checked; });
+  // ---- Search within a thread ----
+  document.getElementById('diSearchToggle')?.addEventListener('click', ()=>{
+    diSearchOpen = !diSearchOpen;
+    if(!diSearchOpen){ diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1; }
+    else { diFilesOpen = false; } // search and the files gallery share the message-list area -- only one shows at a time
+    diRerender();
+    if(diSearchOpen) setTimeout(()=>document.getElementById('diSearchBox')?.focus(), 0);
+  });
+  document.getElementById('diSearchClose')?.addEventListener('click', ()=>{
+    diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
+    diRerender();
+  });
+  document.getElementById('diSearchBox')?.addEventListener('input', e=>{
+    diSearchQuery = e.target.value;
+    const open = diOpenThreadParts();
+    diRecomputeSearchMatches(open ? (diMessages[open.threadId]||[]) : []);
+    diRerender();
+    diScrollToActiveMatch();
+  });
+  document.getElementById('diSearchPrev')?.addEventListener('click', ()=>{
+    if(!diSearchMatchIds.length) return;
+    diSearchActiveIdx = (diSearchActiveIdx-1+diSearchMatchIds.length) % diSearchMatchIds.length;
+    diRerender();
+    diScrollToActiveMatch();
+  });
+  document.getElementById('diSearchNext')?.addEventListener('click', ()=>{
+    if(!diSearchMatchIds.length) return;
+    diSearchActiveIdx = (diSearchActiveIdx+1) % diSearchMatchIds.length;
+    diRerender();
+    diScrollToActiveMatch();
+  });
+  // ---- Shared files gallery ----
+  document.getElementById('diFilesToggle')?.addEventListener('click', ()=>{
+    diFilesOpen = !diFilesOpen;
+    if(diFilesOpen){ diSearchOpen = false; } // see diSearchToggle above -- mutually exclusive with search
+    diRerender();
+  });
+  // ---- Desktop notifications toggle ----
+  document.getElementById('diNotifsToggle')?.addEventListener('click', ()=>{
+    if(diDesktopNotifsEnabled()){
+      try{ localStorage.setItem(diDesktopNotifsKey(), '0'); }catch(e){}
+      diRerender();
+      return;
+    }
+    if(typeof Notification==='undefined'){ diError = 'Desktop notifications are not supported in this browser.'; diRerender(); return; }
+    if(Notification.permission==='granted'){
+      try{ localStorage.setItem(diDesktopNotifsKey(), '1'); }catch(e){}
+      diRerender();
+    } else if(Notification.permission==='denied'){
+      diError = 'Desktop notifications are blocked for this site in your browser settings.';
+      diRerender();
+    } else {
+      Notification.requestPermission().then(perm=>{
+        if(perm==='granted'){ try{ localStorage.setItem(diDesktopNotifsKey(), '1'); }catch(e){} }
+        diRerender();
+      });
+    }
+  });
+  // ---- Reply / quote ----
+  document.querySelectorAll('[data-di-reply-to]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const open = diOpenThreadParts();
+      if(!open) return;
+      const mid = el.dataset.diReplyTo;
+      const msg = (diMessages[open.threadId]||[]).find(m=>m.id===mid);
+      if(!msg) return;
+      const rawPreview = msg.text || (Array.isArray(msg.attachments) && msg.attachments.length ? '📎 '+msg.attachments.map(a=>a.name).join(', ') : (msg.attachment ? '📎 '+msg.attachment.name : ''));
+      diReplyTo = { id: msg.id, senderName: msg.senderName || '', preview: (rawPreview||'').slice(0,140) };
+      diRerender();
+      setTimeout(()=>document.getElementById('diInputBox')?.focus(), 0);
+    });
+  });
+  document.getElementById('diCancelReply')?.addEventListener('click', ()=>{ diReplyTo = null; diRerender(); });
+  // ---- Jump to a quoted/gallery message ----
+  document.querySelectorAll('[data-di-jump-to-msg]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const mid = el.dataset.diJumpToMsg;
+      if(diFilesOpen){ diFilesOpen = false; diRerender(); }
+      setTimeout(()=>{
+        const target = document.getElementById('diMsg-'+mid);
+        if(target){
+          target.scrollIntoView({ block: 'center' });
+          target.style.outline = `2px solid ${DI_COLOR}`;
+          target.style.outlineOffset = '2px';
+          setTimeout(()=>{ target.style.outline = ''; target.style.outlineOffset = ''; }, 1400);
+        }
+      }, diFilesOpen ? 0 : 30);
+    });
+  });
   const diInput = document.getElementById('diInputBox');
   diInput?.addEventListener('input', e=>{ diInputDraft = e.target.value; });
   const diDoSend = ()=>{
     const wrap = document.querySelector('[data-di-thread]');
     if(!wrap) return;
-    diSendMessage(wrap.dataset.diThread, wrap.dataset.diThreadType, wrap.dataset.diGroupOwner || null, diInputDraft, diPendingAttachment);
+    diSendMessage(wrap.dataset.diThread, wrap.dataset.diThreadType, wrap.dataset.diGroupOwner || null, diInputDraft, diPendingAttachments, diBroadcastDraft, diReplyTo);
   };
   document.getElementById('diSendBtn')?.addEventListener('click', diDoSend);
   diInput?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); diDoSend(); } });
   const diMsgs = document.getElementById('diMessagesEl');
-  if(diMsgs) diMsgs.scrollTop = diMsgs.scrollHeight;
+  if(diMsgs && !diSearchOpen && !diFilesOpen) diMsgs.scrollTop = diMsgs.scrollHeight;
 }
 
 // Small inline-SVG icon set shared by a few chrome bits (e.g. the Dashboard's Smart Insights card).
@@ -12467,9 +13033,14 @@ function render(){
       <span id="menuView" style="position:relative;">View${viewMenuOpen?viewDropdown():''}</span>
       <span id="menuBackup">Backup</span>
       <span id="menuHelp">Help</span>
-      ${(canApproveVouchers() || state.pendingVouchers.some(p=>p.submittedBy===(currentUser&&currentUser.id))) ? `<span id="menuApprovals">Approvals${state.pendingVouchers.length?` (${state.pendingVouchers.length})`:''}</span>` : ''}
-      ${currentUser && currentUser.role==='support' && currentCompany.groupId===currentUser.id ? `<span id="menuManageAccess">Access</span>` : ''}
-      ${isCompanyOwner() ? `<span id="menuTeamAccess">Team Access</span>` : ''}
+      <!-- Approvals / Access / Team Access are deliberately left off this menubar for a Support
+           user -- they're reached from that user's own Admin Panel instead (Companies tab, per-row
+           buttons), so a Support user's day-to-day menubar stays focused on the books themselves.
+           Nothing changes for anyone else: a plain company owner (no Admin Panel to move these into)
+           still sees Approvals/Team Access here exactly as before, and a full Administrator checker
+           still sees Approvals here too. -->
+      ${(currentUser && currentUser.role!=='support' && (canApproveVouchers() || state.pendingVouchers.some(p=>p.submittedBy===(currentUser&&currentUser.id)))) ? `<span id="menuApprovals">Approvals${state.pendingVouchers.length?` (${state.pendingVouchers.length})`:''}</span>` : ''}
+      ${isCompanyOwner() && !(currentUser && currentUser.role==='support') ? `<span id="menuTeamAccess">Team Access</span>` : ''}
       ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
       ${!(currentUser && ((currentUser.role==='user' && currentUser.groupOwnerId) || isCompanyTeamMember())) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
@@ -12588,6 +13159,7 @@ function render(){
         modal = 'groupAdmin';
         groupAdminTab = 'users';
         groupUserDetailId = null;
+        groupAdminCompanyModalType = null;
       }else{
         modal = 'adminPanel';
         adminTab = 'companies';
@@ -12606,6 +13178,7 @@ function render(){
       modal = 'groupAdmin';
       groupAdminTab = 'users';
       groupUserDetailId = null;
+      groupAdminCompanyModalType = null;
     }else{
       modal = 'adminPanel';
       adminTab = 'companies';
@@ -12657,12 +13230,9 @@ function render(){
     modal = 'approvals';
     render();
   });
-  document.getElementById('menuManageAccess')?.addEventListener('click', async ()=>{
-    manageAccessUserId = null;
-    if(!groupMembers.length) await loadGroupAdminData();
-    modal = 'manageAccess';
-    render();
-  });
+  // No menuManageAccess handler -- the "Access" menubar item was Support-only to begin with, and is
+  // now reached exclusively from that user's Admin Panel (Companies tab) instead; see the
+  // data-group-company-access handler near modal==='groupAdmin' below.
   document.getElementById('menuTeamAccess')?.addEventListener('click', ()=>{
     companyTeamMemberId = null;
     companyTeamInviteError = '';
@@ -12689,6 +13259,7 @@ function render(){
   document.getElementById('menuGroupAdmin')?.addEventListener('click', async ()=>{
     await loadGroupAdminData();
     groupAdminTab = 'overview';
+    groupAdminCompanyModalType = null;
     modal = 'groupAdmin';
     screen = 'gateway';
     renderGateway();
@@ -16396,6 +16967,16 @@ function renderGateway(){
     ${modal==='groupAdmin' ? groupAdminModal() : ''}
     ${modal==='groupAdmin' && groupUserDetailId ? groupUserDetailModal() : ''}
     ${modal==='groupAdmin' && groupAddUserOpen ? groupAddUserModal() : ''}
+    <!-- Approvals / Access / Team Access, opened from a Support user's Admin Panel (Companies tab)
+         via openAdminCompanyModal() -- see data-group-company-approvals/-access/-team near
+         modal==='groupAdmin' below. Stacked ON TOP of groupAdminModal() above (same pattern as
+         groupUserDetailModal/groupAddUserModal just above), not in place of it, so the Admin Panel
+         stays visible underneath -- modal stays 'groupAdmin'; groupAdminCompanyModalType says
+         which of the three is open. opts.stacked gives each its own overlay/close ids so they don't
+         collide with groupAdminModal()'s own (see approvalsModal()'s comment on this). -->
+    ${modal==='groupAdmin' && groupAdminCompanyModalType==='approvals' ? approvalsModal({stacked:true}) : ''}
+    ${modal==='groupAdmin' && groupAdminCompanyModalType==='manageAccess' ? manageAccessModal({stacked:true}) : ''}
+    ${modal==='groupAdmin' && groupAdminCompanyModalType==='companyTeam' ? companyTeamModal({stacked:true}) : ''}
     ${companyCreateModalOpen ? companyCreateModal() : ''}
     ${companyRenameModalOpen ? companyRenameModal() : ''}
     ${modal==='accountantDash' ? accountantDashModal() : ''}
@@ -16743,6 +17324,7 @@ function renderGateway(){
     userProfileMenuOpen = false;
     await loadGroupAdminData();
     groupAdminTab = 'overview';
+    groupAdminCompanyModalType = null;
     modal = 'groupAdmin';
     renderGateway();
   });
@@ -16818,8 +17400,10 @@ function renderGateway(){
       announcement = { message:'', active:false }; announcementDismissed = false;
       contactSupportOpen = false; contactSupportDraft = { subject:'', message:'' }; contactSupportNotice = '';
       myTickets = []; myTicketUpdateIds = new Set(); helpTab = 'info';
-      diOpen = false; diTab = 'group'; diMessages = {}; diPendingAttachment = null; diInputDraft = '';
+      diOpen = false; diTab = 'group'; diMessages = {}; diPendingAttachments = []; diBroadcastDraft = false; diInputDraft = '';
       diAdminThreads = []; diActiveAdminThreadId = null; diUnreadBadge = false;
+      diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
+      diReplyTo = null; diFilesOpen = false; diReceipts = {}; diReceiptsSentFor = new Set();
       if(wasDemo){
         screen = 'landing';
         renderLanding();
@@ -16832,10 +17416,11 @@ function renderGateway(){
   }
   if(modal==='help' || modal==='adminPanel' || modal==='groupAdmin'){
     const closeTopModal = ()=>{
-      modal = null; editingUserId = null; editingPlanUserId = null; reassigningCompanyId = null;
+      modal = null;
+      editingUserId = null; editingPlanUserId = null; reassigningCompanyId = null;
       editingTicketId = null; contactSupportOpen = false; contactSupportNotice = '';
       adminUserDetailId = null; selectedUserIds = {}; adminGroupDetailId = null;
-      groupUserDetailId = null; groupEditingTicketId = null;
+      groupUserDetailId = null; groupEditingTicketId = null; groupAdminCompanyModalType = null;
       renderGateway();
     };
     document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
@@ -16846,6 +17431,26 @@ function renderGateway(){
   } else if(screen==='gateway'){
     lastAutofocusedModal = null;
   }
+  // Approvals/Manage Access/Team Access, STACKED on top of the Admin Panel (groupAdminModal()) via
+  // groupAdminCompanyModalType -- see openAdminCompanyModal(). Own overlay/close ids
+  // (adminCompanyModalOverlayBg/-Close, see approvalsModal()'s opts.stacked) so this doesn't collide
+  // with groupAdminModal()'s own closeTopModal wiring just above -- closing this layer only clears
+  // groupAdminCompanyModalType and returns to the Admin Panel underneath, it never closes the Admin
+  // Panel itself. Same pattern as groupUserDetailModal's own close wiring below.
+  if(modal==='groupAdmin' && groupAdminCompanyModalType){
+    const closeAdminCompanyModal = ()=>{
+      groupAdminCompanyModalType = null;
+      renderGateway();
+    };
+    document.getElementById('adminCompanyModalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='adminCompanyModalOverlayBg') closeAdminCompanyModal();
+    });
+    document.getElementById('adminCompanyModalClose')?.addEventListener('click', closeAdminCompanyModal);
+  }
+  // Approvals / Access / Team Access' own internal controls (approve/reject, save rules, pick a
+  // member, invite/remove a teammate, etc.) -- shared with the in-company menubar path, see
+  // wireApprovalsAccessTeamHandlers() above attachHandlers().
+  wireApprovalsAccessTeamHandlers();
   if(modal==='help'){
     wireContactSupportHandlers(renderGateway);
     document.querySelectorAll('[data-help-tab]').forEach(el=>{
@@ -17724,6 +18329,7 @@ function renderGateway(){
       el.addEventListener('click', ()=>{
         groupAdminTab = el.dataset.groupAdminTab;
         editingUserId = null; groupEditingTicketId = null; groupUserDetailId = null; groupSelectedUserIds = {};
+        groupAdminCompanyModalType = null;
         renderGateway();
       });
     });
@@ -17762,6 +18368,51 @@ function renderGateway(){
         };
         modal = 'editCompany';
         render();
+      });
+    });
+    // Approvals / Access / Team Access -- moved here from the per-company menubar for a Support
+    // user (see render()'s menubar, which now omits all three of those items when
+    // currentUser.role==='support'). These open STACKED on top of the Admin Panel itself (`modal`
+    // stays 'groupAdmin' -- openAdminCompanyModal() sets groupAdminCompanyModalType, not `modal`)
+    // rather than replacing it, and WITHOUT calling enterCompanyApp() (which would switch `screen`
+    // to 'app' and show the full entered-company shell underneath). See
+    // wireApprovalsAccessTeamHandlers() for these modals' own internal controls (approve/reject,
+    // save access, invite, etc.), shared with the in-company menubar path and screen-aware via
+    // renderCurrentScreen().
+    document.querySelectorAll('[data-group-company-approvals]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const cid = el.dataset.groupCompanyApprovals;
+        const c = groupCompanies.find(x=>x.id===cid);
+        if(!c) return;
+        await openAdminCompanyModal(c, 'approvals');
+        renderGateway();
+      });
+    });
+    document.querySelectorAll('[data-group-company-access]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const cid = el.dataset.groupCompanyAccess;
+        const c = groupCompanies.find(x=>x.id===cid);
+        if(!c) return;
+        // Same resets the old menubar "Access" item made before opening this modal -- a fresh
+        // selection, and a belt-and-braces reload of groupMembers (normally already loaded, since
+        // getting here means the Admin Panel itself was opened first).
+        manageAccessUserId = null;
+        if(!groupMembers.length) await loadGroupAdminData();
+        await openAdminCompanyModal(c, 'manageAccess');
+        renderGateway();
+      });
+    });
+    document.querySelectorAll('[data-group-company-team]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const cid = el.dataset.groupCompanyTeam;
+        const c = groupCompanies.find(x=>x.id===cid);
+        if(!c) return;
+        // Same resets the old menubar "Team Access" item made before opening this modal.
+        companyTeamMemberId = null;
+        companyTeamInviteError = '';
+        companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
+        await openAdminCompanyModal(c, 'companyTeam');
+        renderGateway();
       });
     });
     document.querySelectorAll('[data-group-delete-company]').forEach(el=>{
@@ -18637,7 +19288,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','blocked','featureOverrides'])
       ) || (
         isOwner(uid) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','lastLoginAt','forceLogoutRequested','groupName'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','mobile','email','lastLoginAt','forceLogoutRequested','groupName','diLastSeen'])
       );
       // A doc with protected==true can never be deleted through this rule, by anyone — not even a
       // full Administrator. This is meant for the one primary/root Administrator account, so it can
@@ -18807,13 +19458,29 @@ service cloud.firestore {
       );
       // senderId can never be spoofed to someone else's uid, and a message can only ever be created
       // into a thread the sender actually belongs to (their own group, or their own admin line — an
-      // Administrator may post into ANY admin thread, replying as themselves).
+      // Administrator may post into ANY admin thread, replying as themselves). broadcast (the
+      // pinned group-wide-announcement flag) can only ever be set true by a Support account posting
+      // into its own group thread -- the client already gates this in the UI, but the rule is the
+      // real enforcement, same convention as everywhere else in this file.
       allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid &&
-        request.resource.data.text is string && request.resource.data.text.size() < 4000 && (
+        request.resource.data.text is string && request.resource.data.text.size() < 4000 &&
+        (!('broadcast' in request.resource.data) || request.resource.data.broadcast == false ||
+          (isSupport() && request.resource.data.threadType == 'group')) && (
           isAdmin() ||
           (request.resource.data.threadType == 'group' && request.resource.data.groupOwnerId == myGroupId()) ||
           (request.resource.data.threadType == 'admin' && isSupport() && request.resource.data.groupOwnerId == myGroupId())
         );
+      allow update, delete: if false;
+    }
+    match /interchangeReceipts/{receiptId} {
+      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      // A receipt records one viewer having seen one broadcast message -- readable by anyone who
+      // could read that group's messages (so the sender can see who's seen their announcement),
+      // writable only as a create-once record of the signed-in user's own view, and never editable
+      // or removable afterwards (not even by the viewer themselves).
+      allow get, list: if isSignedIn() && (isAdmin() || resource.data.groupOwnerId == myGroupId());
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid &&
+        (isAdmin() || request.resource.data.groupOwnerId == myGroupId());
       allow update, delete: if false;
     }
   }
@@ -19399,9 +20066,14 @@ function groupAdminCompaniesTab(){
           <td class="num">${(c.vouchers||[]).length}</td>
           <td class="muted" style="font-size:11px;">${lastActivity ? escapeHtml(lastActivity) : '—'}</td>
           <td>
-            <button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Open</button>
-            <button class="btn secondary small" data-group-edit-company="${escapeAttr(c.id)}" type="button">Edit</button>
-            <button class="btn secondary small" data-group-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);">Delete</button>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              <button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Open</button>
+              <button class="btn secondary small" data-group-edit-company="${escapeAttr(c.id)}" type="button">Edit</button>
+              <button class="btn secondary small" data-group-company-approvals="${escapeAttr(c.id)}" type="button">Approvals${companyPendingApprovalsCount(c)?` (${companyPendingApprovalsCount(c)})`:''}</button>
+              <button class="btn secondary small" data-group-company-access="${escapeAttr(c.id)}" type="button">Access</button>
+              ${c.ownerId===currentUser.id ? `<button class="btn secondary small" data-group-company-team="${escapeAttr(c.id)}" type="button">Team Access</button>` : ''}
+              <button class="btn secondary small" data-group-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);">Delete</button>
+            </div>
           </td>
         </tr>`;
       }).join('')}
@@ -29281,6 +29953,197 @@ function partyDetailModal(){
   `;
 }
 
+// Shared wiring for the Approvals / Manage Access / Team Access modals' own internal controls
+// (approve/reject a pending voucher, save approval rules, pick a member, save their access,
+// invite/remove a teammate, etc.) -- called from attachHandlers() below (screen==='app', reached
+// via a company's own menubar) AND from renderGateway()'s own wiring (screen==='gateway', reached
+// via a Support user's Admin Panel -- see data-group-company-approvals/-access/-team), since these
+// three modals can now be opened from either screen. Every "re-render after this action" call goes
+// through renderCurrentScreen() rather than a hardcoded render(), so it redraws whichever screen is
+// actually showing instead of silently switching the user into the other one.
+function wireApprovalsAccessTeamHandlers(){
+  // Each gate matches either context: `modal` itself (the in-company menubar path) OR
+  // groupAdminCompanyModalType (stacked on top of the Admin Panel -- see openAdminCompanyModal()).
+  if(modal==='approvals' || groupAdminCompanyModalType==='approvals'){
+    document.querySelectorAll('[data-approve-voucher]').forEach(b=>{
+      b.addEventListener('click', ()=> approvePendingVoucher(b.dataset.approveVoucher));
+    });
+    document.querySelectorAll('[data-reject-voucher]').forEach(b=>{
+      b.addEventListener('click', ()=> rejectPendingVoucher(b.dataset.rejectVoucher));
+    });
+    document.getElementById('saveApprovalSettingsBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const enabled = !!document.getElementById('approvalEnabledChk')?.checked;
+      const threshold = Number(document.getElementById('approvalThresholdInput')?.value)||0;
+      const types = Array.from(document.querySelectorAll('[data-approval-type]:checked')).map(el=>el.dataset.approvalType);
+      currentCompany.approvalSettings = { enabled, threshold, types };
+      approvalSettingsDraft = null;
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Approval rules saved', {type:'success'});
+      renderCurrentScreen();
+    });
+  }
+  if(modal==='manageAccess' || groupAdminCompanyModalType==='manageAccess'){
+    document.querySelectorAll('[data-select-access-member]').forEach(b=>{
+      b.addEventListener('click', ()=>{ manageAccessUserId = b.dataset.selectAccessMember; renderCurrentScreen(); });
+    });
+    document.getElementById('saveMemberAccessBtn')?.addEventListener('click', async ()=>{
+      if(!manageAccessUserId) return;
+      const next = {};
+      document.querySelectorAll('[data-access-module]').forEach(el=>{ next[el.dataset.accessModule] = el.value; });
+      currentCompany.memberPermissions = currentCompany.memberPermissions || {};
+      currentCompany.memberPermissions[manageAccessUserId] = next;
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Access updated', {type:'success'});
+      renderCurrentScreen();
+    });
+  }
+  if(modal==='companyTeam' || groupAdminCompanyModalType==='companyTeam'){
+    document.querySelectorAll('[data-select-team-member]').forEach(b=>{
+      b.addEventListener('click', ()=>{ companyTeamMemberId = b.dataset.selectTeamMember; renderCurrentScreen(); });
+    });
+    document.getElementById('companyTeamInviteBtn')?.addEventListener('click', ()=>{
+      // Belt-and-braces -- the button itself is already omitted from the render once the company
+      // hits TEAM_ACCESS_MAX_MEMBERS (see companyTeamModal()), same convention as openGroupAddUserBtn.
+      if(Object.keys(currentCompany.teamMembers||{}).length >= TEAM_ACCESS_MAX_MEMBERS) return;
+      companyTeamMemberId = 'invite';
+      companyTeamInviteError = '';
+      companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
+      renderCurrentScreen();
+    });
+    // ---- Invite form (companyTeamMemberId==='invite') ----
+    document.getElementById('ctInviteCancelBtn')?.addEventListener('click', ()=>{ companyTeamMemberId = null; renderCurrentScreen(); });
+    ['ctInviteName','ctInviteUsername','ctInviteMobile','ctInviteEmail','ctInvitePassword'].forEach(id=>{
+      document.getElementById(id)?.addEventListener('input', e=>{
+        const key = { ctInviteName:'name', ctInviteUsername:'username', ctInviteMobile:'mobile', ctInviteEmail:'email', ctInvitePassword:'password' }[id];
+        companyTeamInviteDraft[key] = e.target.value;
+      });
+    });
+    document.getElementById('ctInvitePreset')?.addEventListener('change', e=>{ companyTeamInviteDraft.preset = e.target.value; });
+    document.getElementById('ctInviteCreateBtn')?.addEventListener('click', async ()=>{
+      if(companyTeamInviteBusy) return;
+      // Re-check right before actually creating the account -- e.g. two tabs open on the same
+      // company's Team Access modal, one of which just invited the 2nd teammate.
+      if(Object.keys(currentCompany.teamMembers||{}).length >= TEAM_ACCESS_MAX_MEMBERS){
+        companyTeamInviteError = `Team Access is limited to ${TEAM_ACCESS_MAX_MEMBERS} teammates per company.`;
+        renderCurrentScreen();
+        return;
+      }
+      const draft = {
+        name: (document.getElementById('ctInviteName')?.value || '').trim(),
+        username: (document.getElementById('ctInviteUsername')?.value || '').trim(),
+        mobile: (document.getElementById('ctInviteMobile')?.value || '').trim(),
+        email: (document.getElementById('ctInviteEmail')?.value || '').trim(),
+        password: document.getElementById('ctInvitePassword')?.value || '',
+        preset: companyTeamInviteDraft.preset || 'bookkeeper',
+      };
+      companyTeamInviteDraft = draft;
+      if(!draft.name){ companyTeamInviteError = 'Please enter a name.'; renderCurrentScreen(); return; }
+      if(!isValidUsername(draft.username)){ companyTeamInviteError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; renderCurrentScreen(); return; }
+      if(!isValidEmail(draft.email)){ companyTeamInviteError = 'Please enter a valid email address.'; renderCurrentScreen(); return; }
+      if(!isValidMobile(draft.mobile)){ companyTeamInviteError = 'Please enter a valid 10-digit phone number.'; renderCurrentScreen(); return; }
+      if(!draft.password || draft.password.length < 6){ companyTeamInviteError = 'Password must be at least 6 characters.'; renderCurrentScreen(); return; }
+      companyTeamInviteBusy = true;
+      companyTeamInviteError = '';
+      renderCurrentScreen();
+      try{
+        const usernameKey = draft.username.toLowerCase();
+        const existingUsername = await db.collection('usernames').doc(usernameKey).get();
+        if(existingUsername.exists){
+          companyTeamInviteError = 'That username is already taken.';
+          companyTeamInviteBusy = false;
+          renderCurrentScreen();
+          return;
+        }
+        const profile = await companyTeamCreateUserAccount(draft);
+        const preset = COMPANY_TEAM_ROLE_PRESETS[draft.preset] || COMPANY_TEAM_ROLE_PRESETS.bookkeeper;
+        currentCompany.teamMembers = currentCompany.teamMembers || {};
+        currentCompany.teamMembers[profile.id] = {
+          name: profile.name, username: profile.username,
+          permissions: JSON.parse(JSON.stringify(preset.permissions || {})),
+          addedAt: new Date().toISOString(),
+        };
+        currentCompany.teamMemberIds = Array.from(new Set([...(currentCompany.teamMemberIds||[]), profile.id]));
+        const ok = await saveCompanyMeta(currentCompany);
+        companyTeamInviteBusy = false;
+        if(ok){
+          await logAudit('account_created', `Invited @${profile.username} (${profile.email}) to "${currentCompany.name}" via Team Access`, profile.id, profile.name).catch(()=>{});
+          companyTeamMemberId = profile.id;
+          toast(`@${profile.username} can now log in to "${currentCompany.name}" with the credentials you set.`, {type:'success'});
+        } else {
+          companyTeamInviteError = 'Account was created, but saving their access to this company failed — open Team Access again to retry.';
+        }
+        renderCurrentScreen();
+      }catch(err){
+        console.error('Invite team member failed:', err);
+        companyTeamInviteBusy = false;
+        companyTeamInviteError = err && err.code==='auth/email-already-in-use'
+          ? 'An account with this email already exists. Use a different email.'
+          : authErrorMessage(err, true);
+        renderCurrentScreen();
+      }
+    });
+    // ---- Selected teammate's permission editor ----
+    document.getElementById('companyTeamPresetSelect')?.addEventListener('change', e=>{
+      const preset = COMPANY_TEAM_ROLE_PRESETS[e.target.value];
+      if(!preset) return;
+      document.querySelectorAll('[data-team-access-module]').forEach(el=>{
+        // 'view' is the fallback, not 'full' -- the <select> itself no longer even has a "Full
+        // Access" <option> (see companyTeamModal()), since Team Access can never grant edit access.
+        el.value = preset.permissions[el.dataset.teamAccessModule] || 'view';
+      });
+    });
+    // ---- Ledger Group Access (companyTeamLedgerGroupSectionHtml()) ----
+    // Pure DOM show/hide on the radio toggle -- no re-render here, same as the rest of this modal's
+    // controls not needing a full re-render until Save (see companyTeamPresetSelect above, which
+    // mutates <select> values directly rather than re-rendering too).
+    document.querySelectorAll('input[name="companyTeamLedgerGroupMode"]').forEach(r=>{
+      r.addEventListener('change', e=>{
+        const grid = document.getElementById('companyTeamLedgerGroupGrid');
+        if(grid) grid.style.display = e.target.value==='custom' ? '' : 'none';
+      });
+    });
+    document.getElementById('companyTeamLedgerGroupSelectAll')?.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-team-access-ledger-group]').forEach(el=>{ el.checked = true; });
+    });
+    document.getElementById('companyTeamLedgerGroupClearAll')?.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-team-access-ledger-group]').forEach(el=>{ el.checked = false; });
+    });
+    document.getElementById('saveCompanyTeamAccessBtn')?.addEventListener('click', async ()=>{
+      if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
+      const next = {};
+      document.querySelectorAll('[data-team-access-module]').forEach(el=>{ next[el.dataset.teamAccessModule] = el.value; });
+      currentCompany.teamMembers = currentCompany.teamMembers || {};
+      if(!currentCompany.teamMembers[companyTeamMemberId]) return;
+      currentCompany.teamMembers[companyTeamMemberId].permissions = next;
+      const groupMode = document.querySelector('input[name="companyTeamLedgerGroupMode"]:checked');
+      // Explicitly write null rather than deleting the key -- saveCompanyMeta() writes with
+      // {merge:true}, which deep-merges nested fields and so would silently leave a PREVIOUSLY saved
+      // ledgerGroups array in place in Firestore if this save simply omitted the key.
+      currentCompany.teamMembers[companyTeamMemberId].ledgerGroups = (groupMode && groupMode.value==='custom')
+        ? Array.from(document.querySelectorAll('[data-team-access-ledger-group]:checked')).map(el=>el.dataset.teamAccessLedgerGroup)
+        : null;
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Access updated', {type:'success'});
+      renderCurrentScreen();
+    });
+    document.getElementById('removeCompanyTeamMemberBtn')?.addEventListener('click', async ()=>{
+      if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
+      const m = currentCompany.teamMembers && currentCompany.teamMembers[companyTeamMemberId];
+      if(!m) return;
+      const ok1 = window.confirm(`Remove ${m.name||m.username} from "${currentCompany.name}"? They'll no longer be able to open this company, but their login stays active.`);
+      if(!ok1) return;
+      const removedId = companyTeamMemberId;
+      delete currentCompany.teamMembers[removedId];
+      currentCompany.teamMemberIds = (currentCompany.teamMemberIds||[]).filter(x=>x!==removedId);
+      const ok = await saveCompanyMeta(currentCompany);
+      companyTeamMemberId = null;
+      if(ok) toast('Removed from this company', {type:'success'});
+      renderCurrentScreen();
+    });
+  }
+}
+
 /* ---------------- event handling ---------------- */
 function attachHandlers(){
   document.querySelectorAll('.navtab').forEach(b=>{
@@ -30110,184 +30973,7 @@ function attachHandlers(){
       render();
     });
   });
-  if(modal==='approvals'){
-    document.querySelectorAll('[data-approve-voucher]').forEach(b=>{
-      b.addEventListener('click', ()=> approvePendingVoucher(b.dataset.approveVoucher));
-    });
-    document.querySelectorAll('[data-reject-voucher]').forEach(b=>{
-      b.addEventListener('click', ()=> rejectPendingVoucher(b.dataset.rejectVoucher));
-    });
-    document.getElementById('saveApprovalSettingsBtn')?.addEventListener('click', async ()=>{
-      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-      const enabled = !!document.getElementById('approvalEnabledChk')?.checked;
-      const threshold = Number(document.getElementById('approvalThresholdInput')?.value)||0;
-      const types = Array.from(document.querySelectorAll('[data-approval-type]:checked')).map(el=>el.dataset.approvalType);
-      currentCompany.approvalSettings = { enabled, threshold, types };
-      approvalSettingsDraft = null;
-      const ok = await saveCompanyMeta(currentCompany);
-      if(ok) toast('Approval rules saved', {type:'success'});
-      render();
-    });
-  }
-  if(modal==='manageAccess'){
-    document.querySelectorAll('[data-select-access-member]').forEach(b=>{
-      b.addEventListener('click', ()=>{ manageAccessUserId = b.dataset.selectAccessMember; render(); });
-    });
-    document.getElementById('saveMemberAccessBtn')?.addEventListener('click', async ()=>{
-      if(!manageAccessUserId) return;
-      const next = {};
-      document.querySelectorAll('[data-access-module]').forEach(el=>{ next[el.dataset.accessModule] = el.value; });
-      currentCompany.memberPermissions = currentCompany.memberPermissions || {};
-      currentCompany.memberPermissions[manageAccessUserId] = next;
-      const ok = await saveCompanyMeta(currentCompany);
-      if(ok) toast('Access updated', {type:'success'});
-      render();
-    });
-  }
-  if(modal==='companyTeam'){
-    document.querySelectorAll('[data-select-team-member]').forEach(b=>{
-      b.addEventListener('click', ()=>{ companyTeamMemberId = b.dataset.selectTeamMember; render(); });
-    });
-    document.getElementById('companyTeamInviteBtn')?.addEventListener('click', ()=>{
-      // Belt-and-braces -- the button itself is already omitted from the render once the company
-      // hits TEAM_ACCESS_MAX_MEMBERS (see companyTeamModal()), same convention as openGroupAddUserBtn.
-      if(Object.keys(currentCompany.teamMembers||{}).length >= TEAM_ACCESS_MAX_MEMBERS) return;
-      companyTeamMemberId = 'invite';
-      companyTeamInviteError = '';
-      companyTeamInviteDraft = { name:'', username:'', mobile:'', email:'', password:'', preset:'bookkeeper' };
-      render();
-    });
-    // ---- Invite form (companyTeamMemberId==='invite') ----
-    document.getElementById('ctInviteCancelBtn')?.addEventListener('click', ()=>{ companyTeamMemberId = null; render(); });
-    ['ctInviteName','ctInviteUsername','ctInviteMobile','ctInviteEmail','ctInvitePassword'].forEach(id=>{
-      document.getElementById(id)?.addEventListener('input', e=>{
-        const key = { ctInviteName:'name', ctInviteUsername:'username', ctInviteMobile:'mobile', ctInviteEmail:'email', ctInvitePassword:'password' }[id];
-        companyTeamInviteDraft[key] = e.target.value;
-      });
-    });
-    document.getElementById('ctInvitePreset')?.addEventListener('change', e=>{ companyTeamInviteDraft.preset = e.target.value; });
-    document.getElementById('ctInviteCreateBtn')?.addEventListener('click', async ()=>{
-      if(companyTeamInviteBusy) return;
-      // Re-check right before actually creating the account -- e.g. two tabs open on the same
-      // company's Team Access modal, one of which just invited the 2nd teammate.
-      if(Object.keys(currentCompany.teamMembers||{}).length >= TEAM_ACCESS_MAX_MEMBERS){
-        companyTeamInviteError = `Team Access is limited to ${TEAM_ACCESS_MAX_MEMBERS} teammates per company.`;
-        render();
-        return;
-      }
-      const draft = {
-        name: (document.getElementById('ctInviteName')?.value || '').trim(),
-        username: (document.getElementById('ctInviteUsername')?.value || '').trim(),
-        mobile: (document.getElementById('ctInviteMobile')?.value || '').trim(),
-        email: (document.getElementById('ctInviteEmail')?.value || '').trim(),
-        password: document.getElementById('ctInvitePassword')?.value || '',
-        preset: companyTeamInviteDraft.preset || 'bookkeeper',
-      };
-      companyTeamInviteDraft = draft;
-      if(!draft.name){ companyTeamInviteError = 'Please enter a name.'; render(); return; }
-      if(!isValidUsername(draft.username)){ companyTeamInviteError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; render(); return; }
-      if(!isValidEmail(draft.email)){ companyTeamInviteError = 'Please enter a valid email address.'; render(); return; }
-      if(!isValidMobile(draft.mobile)){ companyTeamInviteError = 'Please enter a valid 10-digit phone number.'; render(); return; }
-      if(!draft.password || draft.password.length < 6){ companyTeamInviteError = 'Password must be at least 6 characters.'; render(); return; }
-      companyTeamInviteBusy = true;
-      companyTeamInviteError = '';
-      render();
-      try{
-        const usernameKey = draft.username.toLowerCase();
-        const existingUsername = await db.collection('usernames').doc(usernameKey).get();
-        if(existingUsername.exists){
-          companyTeamInviteError = 'That username is already taken.';
-          companyTeamInviteBusy = false;
-          render();
-          return;
-        }
-        const profile = await companyTeamCreateUserAccount(draft);
-        const preset = COMPANY_TEAM_ROLE_PRESETS[draft.preset] || COMPANY_TEAM_ROLE_PRESETS.bookkeeper;
-        currentCompany.teamMembers = currentCompany.teamMembers || {};
-        currentCompany.teamMembers[profile.id] = {
-          name: profile.name, username: profile.username,
-          permissions: JSON.parse(JSON.stringify(preset.permissions || {})),
-          addedAt: new Date().toISOString(),
-        };
-        currentCompany.teamMemberIds = Array.from(new Set([...(currentCompany.teamMemberIds||[]), profile.id]));
-        const ok = await saveCompanyMeta(currentCompany);
-        companyTeamInviteBusy = false;
-        if(ok){
-          await logAudit('account_created', `Invited @${profile.username} (${profile.email}) to "${currentCompany.name}" via Team Access`, profile.id, profile.name).catch(()=>{});
-          companyTeamMemberId = profile.id;
-          toast(`@${profile.username} can now log in to "${currentCompany.name}" with the credentials you set.`, {type:'success'});
-        } else {
-          companyTeamInviteError = 'Account was created, but saving their access to this company failed — open Team Access again to retry.';
-        }
-        render();
-      }catch(err){
-        console.error('Invite team member failed:', err);
-        companyTeamInviteBusy = false;
-        companyTeamInviteError = err && err.code==='auth/email-already-in-use'
-          ? 'An account with this email already exists. Use a different email.'
-          : authErrorMessage(err, true);
-        render();
-      }
-    });
-    // ---- Selected teammate's permission editor ----
-    document.getElementById('companyTeamPresetSelect')?.addEventListener('change', e=>{
-      const preset = COMPANY_TEAM_ROLE_PRESETS[e.target.value];
-      if(!preset) return;
-      document.querySelectorAll('[data-team-access-module]').forEach(el=>{
-        // 'view' is the fallback, not 'full' -- the <select> itself no longer even has a "Full
-        // Access" <option> (see companyTeamModal()), since Team Access can never grant edit access.
-        el.value = preset.permissions[el.dataset.teamAccessModule] || 'view';
-      });
-    });
-    // ---- Ledger Group Access (companyTeamLedgerGroupSectionHtml()) ----
-    // Pure DOM show/hide on the radio toggle -- no render() here, same as the rest of this modal's
-    // controls not needing a full re-render until Save (see companyTeamPresetSelect above, which
-    // mutates <select> values directly rather than re-rendering too).
-    document.querySelectorAll('input[name="companyTeamLedgerGroupMode"]').forEach(r=>{
-      r.addEventListener('change', e=>{
-        const grid = document.getElementById('companyTeamLedgerGroupGrid');
-        if(grid) grid.style.display = e.target.value==='custom' ? '' : 'none';
-      });
-    });
-    document.getElementById('companyTeamLedgerGroupSelectAll')?.addEventListener('click', ()=>{
-      document.querySelectorAll('[data-team-access-ledger-group]').forEach(el=>{ el.checked = true; });
-    });
-    document.getElementById('companyTeamLedgerGroupClearAll')?.addEventListener('click', ()=>{
-      document.querySelectorAll('[data-team-access-ledger-group]').forEach(el=>{ el.checked = false; });
-    });
-    document.getElementById('saveCompanyTeamAccessBtn')?.addEventListener('click', async ()=>{
-      if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
-      const next = {};
-      document.querySelectorAll('[data-team-access-module]').forEach(el=>{ next[el.dataset.teamAccessModule] = el.value; });
-      currentCompany.teamMembers = currentCompany.teamMembers || {};
-      if(!currentCompany.teamMembers[companyTeamMemberId]) return;
-      currentCompany.teamMembers[companyTeamMemberId].permissions = next;
-      const groupMode = document.querySelector('input[name="companyTeamLedgerGroupMode"]:checked');
-      // Explicitly write null rather than deleting the key -- saveCompanyMeta() writes with
-      // {merge:true}, which deep-merges nested fields and so would silently leave a PREVIOUSLY saved
-      // ledgerGroups array in place in Firestore if this save simply omitted the key.
-      currentCompany.teamMembers[companyTeamMemberId].ledgerGroups = (groupMode && groupMode.value==='custom')
-        ? Array.from(document.querySelectorAll('[data-team-access-ledger-group]:checked')).map(el=>el.dataset.teamAccessLedgerGroup)
-        : null;
-      const ok = await saveCompanyMeta(currentCompany);
-      if(ok) toast('Access updated', {type:'success'});
-      render();
-    });
-    document.getElementById('removeCompanyTeamMemberBtn')?.addEventListener('click', async ()=>{
-      if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
-      const m = currentCompany.teamMembers && currentCompany.teamMembers[companyTeamMemberId];
-      if(!m) return;
-      const ok1 = window.confirm(`Remove ${m.name||m.username} from "${currentCompany.name}"? They'll no longer be able to open this company, but their login stays active.`);
-      if(!ok1) return;
-      const removedId = companyTeamMemberId;
-      delete currentCompany.teamMembers[removedId];
-      currentCompany.teamMemberIds = (currentCompany.teamMemberIds||[]).filter(x=>x!==removedId);
-      const ok = await saveCompanyMeta(currentCompany);
-      companyTeamMemberId = null;
-      if(ok) toast('Removed from this company', {type:'success'});
-      render();
-    });
-  }
+  wireApprovalsAccessTeamHandlers();
   if(modal==='ocrScan'){
     document.getElementById('ocrFileInput')?.addEventListener('change', async e=>{
       const file = e.target.files[0];
