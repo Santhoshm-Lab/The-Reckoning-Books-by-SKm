@@ -4529,6 +4529,80 @@ const COUNTRIES = [
   'Zimbabwe',
 ];
 
+// Grouped Industry Type options for the Create Company wizard's Basic Info step -- lets a company
+// define what kind of business it is at creation time (shown in the gateway company card and
+// available for later reports/filters). Deliberately broad and grouped by <optgroup> rather than one
+// flat list, since a single business usually recognizes itself faster under a sector heading than by
+// scanning a hundred loose options. "Other / General Services" at the end of the last group is the
+// deliberate fallback so no one is ever stuck without a fit.
+const INDUSTRY_TYPES = [
+  { group: 'Retail & Trade', options: [
+    'General / Multi-Brand Retail','Supermarket & Grocery','Apparel & Fashion Retail','Footwear Retail',
+    'Electronics & Appliances Retail','Furniture & Home Decor Retail','Pharmacy & Medical Store','Jewelry & Watches',
+    'Books, Stationery & Gifts','Automobile Dealership','Spare Parts & Accessories','Hardware & Building Materials',
+    'Wholesale Trading','Import / Export Trading','E-commerce / Online Retail','Direct Selling / MLM',
+  ]},
+  { group: 'Manufacturing & Production', options: [
+    'General Manufacturing','Textile & Garment Manufacturing','Food & Beverage Processing','Chemical Manufacturing',
+    'Pharmaceutical Manufacturing','Automotive Manufacturing','Electronics & Electrical Manufacturing','Furniture Manufacturing',
+    'Plastics & Packaging','Steel & Metal Fabrication','Printing & Publishing (Production)','Leather & Footwear Manufacturing',
+    'Paper & Pulp','Cement & Building Materials',
+  ]},
+  { group: 'Construction & Real Estate', options: [
+    'Construction & Contracting','Civil Engineering & Infrastructure','Real Estate Development','Real Estate Brokerage / Agency',
+    'Interior Design & Fit-out','Architecture Services','Property Management',
+  ]},
+  { group: 'Professional & Business Services', options: [
+    'Accounting & Bookkeeping','Audit & Tax Advisory','Legal Services','Management Consulting',
+    'Marketing & Advertising Agency','Public Relations','Human Resources & Staffing','Recruitment Agency',
+    'Translation & Transcription Services','Photography & Videography','Printing Services',
+  ]},
+  { group: 'Technology & IT', options: [
+    'IT Services & Consulting','Software Development / SaaS','Web & App Development','Data Center & Cloud Hosting',
+    'Telecommunications','IT Hardware & Networking','Cybersecurity Services','BPO / Call Center',
+  ]},
+  { group: 'Healthcare & Life Sciences', options: [
+    'Hospitals & Clinics','Diagnostic Labs & Pathology','Dental Care','Pharmaceutical Trading & Distribution',
+    'Medical Equipment Supply','Veterinary Services','Fitness, Wellness & Spa','Nutrition & Dietetics',
+  ]},
+  { group: 'Hospitality, Food & Travel', options: [
+    'Restaurant & Food Service','Cafe, Bakery & Confectionery','Catering Services','Hotel, Resort & Lodging',
+    'Event Management','Travel Agency & Tour Operator',
+  ]},
+  { group: 'Education & Training', options: [
+    'Schools (K-12)','Colleges & Universities','Coaching & Tuition Centers','Vocational & Skill Training',
+    'Online Education / EdTech','Libraries & Research',
+  ]},
+  { group: 'Finance, Banking & Insurance', options: [
+    'Banking','NBFC / Lending & Finance','Insurance','Investment & Stock Broking',
+    'Microfinance','Chit Funds','Payment & Fintech Services',
+  ]},
+  { group: 'Agriculture & Allied', options: [
+    'Farming & Crop Production','Dairy & Livestock','Poultry Farming','Fisheries & Aquaculture',
+    'Agro Processing & Food Mills','Horticulture & Floriculture','Seeds, Fertilizers & Agro Inputs',
+  ]},
+  { group: 'Logistics, Transport & Trade', options: [
+    'Freight & Logistics','Courier & Parcel Delivery','Warehousing & Storage','Passenger Transport / Fleet',
+    'Shipping & Marine','Customs & Clearing Agency',
+  ]},
+  { group: 'Energy, Mining & Utilities', options: [
+    'Power Generation & Distribution','Oil & Gas','Renewable Energy (Solar/Wind)','Mining & Minerals',
+    'Water Supply & Utilities','Waste Management & Recycling',
+  ]},
+  { group: 'Media, Entertainment & Creative', options: [
+    'Film & TV Production','Publishing (Books/Magazines)','Advertising & Branding','Gaming & Esports',
+    'Music & Performing Arts','Photography Studio','Social Media & Content Creation',
+  ]},
+  { group: 'Non-Profit, Government & Community', options: [
+    'NGO / Non-Profit Organization','Trust / Society','Cooperative Society','Government Department / PSU',
+    'Religious Organization','Club / Association',
+  ]},
+  { group: 'Personal & Other Services', options: [
+    'Beauty, Salon & Personal Care','Cleaning & Facility Management','Security Services','Repair & Maintenance Services',
+    'Laundry & Dry Cleaning','Real Estate Rental (Residential/Commercial)','Other / General Services',
+  ]},
+];
+
 const STATES_BY_COUNTRY = {
   'Afghanistan': ['Badakhshan','Badghis','Baghlan','Balkh','Bamyan','Daykundi','Farah','Faryab','Ghazni','Ghōr','Helmand','Herat','Jowzjan','Kabul','Kandahar','Kapisa','Khost','Kunar','Kunduz Province','Laghman','Logar','Nangarhar','Nimruz','Nuristan','Paktia','Paktika','Panjshir','Parwan','Samangan','Sar-e Pol','Takhar','Urozgan','Zabul'],
   'Albania': ['Berat County','Berat District','Bulqizë District','Delvinë District','Devoll District','Dibër County','Dibër District','Durrës County','Durrës District','Elbasan County','Fier County','Fier District','Gjirokastër County','Gjirokastër District','Gramsh District','Has District','Kavajë District','Kolonjë District','Korçë County','Korçë District','Krujë District','Kuçovë District','Kukës County','Kukës District','Kurbin District','Lezhë County','Lezhë District','Librazhd District','Lushnjë District','Malësi e Madhe District','Mallakastër District','Mat District','Mirditë District','Peqin District','Përmet District','Pogradec District','Pukë District','Sarandë District','Shkodër County','Shkodër District','Skrapar District','Tepelenë District','Tirana County','Tirana District','Tropojë District','Vlorë County','Vlorë District'],
@@ -5305,8 +5379,9 @@ let passwordResetDone = false;     // true once the new password has been set su
 // who never touches this gets any change to the sign-in behavior they already had.
 let rememberMeChecked = true;
 let resetShowPassword = false;     // show/hide toggle state for this card's own password fields (kept separate from authShowPassword)
-let coform = { name:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+let coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
+let coformStep = 1; // 1-5 -- which page of the multi-step Create Company wizard is showing (see companyCreateModal())
 // Gateway 2026 round 2: grid/list toggle + sort mode are per-browser display preferences (same
 // localStorage convention as companyOpenedAt/companyPinned above); the quick-actions menu and
 // rename modal state are purely transient (never persisted).
@@ -16496,101 +16571,169 @@ function renderLogin(){
 // The "Create Company" form used to sit permanently open next to the company list on the Gateway
 // screen. It's now a modal, opened by a big obvious "+ Create Company" button, so the list itself
 // isn't crowded by a long form the person may not be about to fill in.
+// Create Company is deliberately a big, 5-step wizard rather than one dense form -- starting a new
+// company's books is a meaningful, one-time event (everything downstream -- financial year, currency,
+// tax IDs -- is hard to change later), so it gets a correspondingly considered, step-by-step flow
+// instead of being squeezed into a small dialog. coformStep (1-5) tracks which page is showing;
+// coform itself (see its declaration) holds every field across all five pages so nothing is lost when
+// a step's own inputs leave the DOM. See wireGateway... (the companyCreateModalOpen block below
+// renderGateway()) for the Next/Back/field wiring.
+const CO_WIZARD_STEPS = [
+  { n:1, icon:'🏢', label:'Basic Info' },
+  { n:2, icon:'📍', label:'Address' },
+  { n:3, icon:'☎️', label:'Contact' },
+  { n:4, icon:'📅', label:'Financial & Tax' },
+  { n:5, icon:'💱', label:'Currency & Review' },
+];
+function coStepHeader(icon, title, sub){
+  return `
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+    <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(44,160,28,.3);">${icon}</div>
+    <div>
+      <div style="font-size:16px;font-weight:800;color:var(--ink);">${title}</div>
+      <div class="muted" style="font-size:12px;margin-top:2px;">${sub}</div>
+    </div>
+  </div>`;
+}
+function coReviewRow(label, value){
+  return `<div><div class="muted" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;">${escapeHtml(label)}</div><div style="font-weight:600;color:var(--ink);margin-top:2px;word-break:break-word;">${escapeHtml(value)}</div></div>`;
+}
+function coStepBasicInfo(){
+  return `
+  ${coStepHeader('🏢','Tell us about your business', "The name and industry you pick here show up on the dashboard, invoices, and reports.")}
+  <label>Company Name</label>
+  <input type="text" id="coName" placeholder="e.g. Sunrise Traders" value="${escapeAttr(coform.name)}">
+  <label>Mailing Name (if different)</label>
+  <input type="text" id="coMailingName" placeholder="Same as company name if left blank" value="${escapeAttr(coform.mailingName)}">
+  <label>Industry Type</label>
+  <select id="coIndustry">
+    <option value="">Select an industry…</option>
+    ${INDUSTRY_TYPES.map(g=>`<optgroup label="${escapeAttr(g.group)}">${g.options.map(o=>`<option value="${escapeAttr(o)}" ${coform.industry===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</optgroup>`).join('')}
+  </select>
+  <p class="muted" style="font-size:11px;margin-top:6px;">Picking the closest match helps tailor reports later — you can change it anytime from Company settings. Don't see an exact fit? Use "Other / General Services" at the end of the list.</p>
+  ${isDemoUser ? `<p class="auth-error" style="margin-top:12px;">Demo accounts can't create a company — sign up for your own free account to add your own.</p>` : ''}
+  `;
+}
+function coStepAddress(){
+  return `
+  ${coStepHeader('📍','Where are you located?', 'Used on invoices and for state-wise / GST reporting.')}
+  <label>Address</label>
+  <input type="text" id="coAddress" placeholder="Building, street, area" value="${escapeAttr(coform.address)}">
+  <label>Country</label>
+  <select id="coCountry">
+    ${COUNTRIES.map(c=>`<option value="${escapeAttr(c)}" ${(coform.country||'India')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
+  </select>
+  <div class="row" style="gap:10px;">
+    <div style="flex:2;">
+      <label>State / Province</label>
+      <div id="coStateWrap">${stateProvinceControl('coState', coform.country, coform.state)}</div>
+    </div>
+    <div style="flex:1;">
+      <label>Pincode</label>
+      <input type="text" id="coPincode" placeholder="e.g. 600001" value="${escapeAttr(coform.pincode)}">
+    </div>
+  </div>
+  `;
+}
+function coStepContact(){
+  return `
+  ${coStepHeader('☎️','How can people reach you?', 'Shown on invoices and used for any reminders you send out.')}
+  <div class="row" style="gap:10px;">
+    <div style="flex:1;"><label>Phone</label><input type="text" id="coPhone" placeholder="Landline" value="${escapeAttr(coform.phone)}"></div>
+    <div style="flex:1;"><label>Mobile</label><input type="text" id="coMobile" placeholder="10-digit mobile" value="${escapeAttr(coform.mobile)}"></div>
+  </div>
+  <div class="row" style="gap:10px;">
+    <div style="flex:1;"><label>Email</label><input type="text" id="coEmail" placeholder="name@company.com" value="${escapeAttr(coform.email)}"></div>
+    <div style="flex:1;"><label>Website</label><input type="text" id="coWebsite" placeholder="www.company.com" value="${escapeAttr(coform.website)}"></div>
+  </div>
+  `;
+}
+function coStepFinancialTax(){
+  return `
+  ${coStepHeader('📅','Financial year & tax registration', 'Sets when your books start, and GST/PAN appear on returns and reports.')}
+  <div class="row" style="gap:10px;">
+    <div style="flex:1;"><label>Financial Year Begins From</label><input type="date" id="coFY" value="${coform.fyStart || defaultFYStart()}"></div>
+    <div style="flex:1;"><label>Books Beginning From</label><input type="date" id="coBooksFrom" value="${coform.booksFrom || coform.fyStart || defaultFYStart()}"></div>
+  </div>
+  <div class="section-title" style="margin-top:18px;">Tax Registration Details</div>
+  <label>GSTIN / UIN (optional)</label>
+  <input type="text" id="coGSTIN" placeholder="22AAAAA0000A1Z5" value="${escapeAttr(coform.gstin)}">
+  <label>PAN / Income Tax No. (optional)</label>
+  <input type="text" id="coPAN" placeholder="AAAAA0000A" value="${escapeAttr(coform.pan)}">
+  `;
+}
+function coStepCurrencyReview(){
+  return `
+  ${coStepHeader('💱','Currency & final review', "Last step — check everything looks right, then create the company.")}
+  <div class="section-title" style="margin-top:0;">Base Currency Information</div>
+  <div class="row" style="gap:10px;">
+    <div style="flex:1;"><label>Base Currency Symbol</label><input type="text" id="coCurrencySymbol" value="${escapeAttr(coform.currencySymbol||'₹')}"></div>
+    <div style="flex:1;"><label>Formal Name</label><input type="text" id="coCurrencyFormalName" value="${escapeAttr(coform.currencyFormalName||'INR')}"></div>
+  </div>
+  <div class="row" style="gap:10px;">
+    <div style="flex:1;">
+      <label>Decimal Places</label>
+      <select id="coDecimalPlaces">
+        ${[0,1,2,3,4].map(d=>`<option value="${d}" ${Number(coform.decimalPlaces)===d?'selected':''}>${d}</option>`).join('')}
+      </select>
+    </div>
+    <div style="flex:1;"><label>Fraction Unit (e.g. Paisa, Cents)</label><input type="text" id="coFractionUnit" value="${escapeAttr(coform.fractionUnit||'Paisa')}"></div>
+  </div>
+  <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:2px;">
+    <input type="checkbox" id="coSuffixSymbol" style="width:auto;" ${coform.suffixSymbol?'checked':''}> Show symbol after the amount (e.g. 100₹ instead of ₹100)
+  </label>
+  ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="muted" style="font-size:11px;margin-top:10px;">This company will be shared with the rest of your group — everyone in it will be able to work in the same books.</p>` : ''}
+
+  <div class="section-title">Review</div>
+  <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;font-size:12px;">
+    ${coReviewRow('Company', coform.name||'—')}
+    ${coReviewRow('Industry', coform.industry||'—')}
+    ${coReviewRow('Address', [coform.address,coform.state,coform.country].filter(Boolean).join(', ')||'—')}
+    ${coReviewRow('Contact', [coform.mobile,coform.email].filter(Boolean).join(' · ')||'—')}
+    ${coReviewRow('Financial Year', coform.fyStart||defaultFYStart())}
+    ${coReviewRow('GSTIN', coform.gstin||'—')}
+    ${coReviewRow('Currency', `${coform.currencySymbol||'₹'} (${coform.currencyFormalName||'INR'})`)}
+  </div>
+  `;
+}
 function companyCreateModal(){
+  const step = coformStep || 1;
   return `
   <div class="modal-overlay" id="createCoModalOverlayBg" role="dialog" aria-modal="true">
-    <div class="modal-card" style="width:560px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
-      <div class="panel-head"><h2>Create Company</h2><button class="btn secondary small" id="closeCreateCoBtn" type="button">✕</button></div>
-      <div style="padding:14px 18px;overflow-y:auto;flex:1;min-height:0;">
-        <label>Company Name</label>
-        <input type="text" id="coName" placeholder="e.g. Sunrise Traders" value="${escapeAttr(coform.name)}">
-        <label>Mailing Name (if different)</label>
-        <input type="text" id="coMailingName" placeholder="Same as company name if left blank" value="${escapeAttr(coform.mailingName)}">
-        <label>Address</label>
-        <input type="text" id="coAddress" placeholder="Building, street, area" value="${escapeAttr(coform.address)}">
-        <label>Country</label>
-        <select id="coCountry">
-          ${COUNTRIES.map(c=>`<option value="${escapeAttr(c)}" ${(coform.country||'India')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
-        </select>
-        <div class="row" style="gap:10px;">
-          <div style="flex:2;">
-            <label>State / Province</label>
-            <div id="coStateWrap">${stateProvinceControl('coState', coform.country, coform.state)}</div>
+    <div class="modal-card" style="width:900px;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:20px;">
+      <div style="position:relative;overflow:hidden;padding:26px 30px 22px;background:linear-gradient(120deg,#173B1E 0%,#1E7A12 55%,#2CA01C 100%);color:#fff;flex-shrink:0;">
+        <div style="position:absolute;top:-55%;right:-6%;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(242,153,74,0.4),transparent 70%);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-70%;left:-6%;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.10),transparent 70%);pointer-events:none;"></div>
+        <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:6px;">New Company</div>
+            <h2 style="font-size:23px;font-weight:800;margin:0;letter-spacing:-.02em;">🏢 Let's set up your books</h2>
+            <div style="font-size:12.5px;color:rgba(255,255,255,.85);margin-top:6px;max-width:500px;">A few quick steps to get your company's details, financial year, and currency right from day one.</div>
           </div>
-          <div style="flex:1;">
-            <label>Pincode</label>
-            <input type="text" id="coPincode" placeholder="e.g. 600001" value="${escapeAttr(coform.pincode)}">
-          </div>
+          <button class="btn secondary small" id="closeCreateCoBtn" type="button" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.32);color:#fff;flex-shrink:0;">✕</button>
         </div>
-
-        <div class="section-title" style="margin-top:16px;">Contact Details</div>
-        <div class="row" style="gap:10px;">
-          <div style="flex:1;">
-            <label>Phone</label>
-            <input type="text" id="coPhone" placeholder="Landline" value="${escapeAttr(coform.phone)}">
-          </div>
-          <div style="flex:1;">
-            <label>Mobile</label>
-            <input type="text" id="coMobile" placeholder="10-digit mobile" value="${escapeAttr(coform.mobile)}">
-          </div>
+        <div style="position:relative;z-index:1;display:flex;align-items:flex-start;gap:0;margin-top:24px;">
+          ${CO_WIZARD_STEPS.map((s,i)=>`
+            <div style="display:flex;align-items:center;flex:${i<CO_WIZARD_STEPS.length-1?'1':'0'};">
+              <div data-co-step-jump="${s.n}" style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:${s.n<=step?'pointer':'default'};min-width:68px;">
+                <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;
+                  background:${s.n<step?'#fff':s.n===step?'rgba(255,255,255,.95)':'rgba(255,255,255,.16)'};
+                  color:${s.n<=step?'#1E7A12':'rgba(255,255,255,.65)'};
+                  border:2px solid ${s.n<=step?'#fff':'rgba(255,255,255,.32)'};">${s.n<step?'✓':s.icon}</div>
+                <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:${s.n<=step?'#fff':'rgba(255,255,255,.55)'};white-space:nowrap;">${s.label}</div>
+              </div>
+              ${i<CO_WIZARD_STEPS.length-1?`<div style="flex:1;height:2px;margin:0 2px 18px;background:${s.n<step?'#fff':'rgba(255,255,255,.25)'};"></div>`:''}
+            </div>
+          `).join('')}
         </div>
-        <div class="row" style="gap:10px;">
-          <div style="flex:1;">
-            <label>Email</label>
-            <input type="text" id="coEmail" placeholder="name@company.com" value="${escapeAttr(coform.email)}">
-          </div>
-          <div style="flex:1;">
-            <label>Website</label>
-            <input type="text" id="coWebsite" placeholder="www.company.com" value="${escapeAttr(coform.website)}">
-          </div>
-        </div>
-
-        <div class="section-title" style="margin-top:16px;">Financial Year Details</div>
-        <div class="row" style="gap:10px;">
-          <div style="flex:1;">
-            <label>Financial Year Begins From</label>
-            <input type="date" id="coFY" value="${coform.fyStart || defaultFYStart()}">
-          </div>
-          <div style="flex:1;">
-            <label>Books Beginning From</label>
-            <input type="date" id="coBooksFrom" value="${coform.booksFrom || coform.fyStart || defaultFYStart()}">
-          </div>
-        </div>
-
-        <div class="section-title" style="margin-top:16px;">Tax Registration Details</div>
-        <label>GSTIN / UIN (optional)</label>
-        <input type="text" id="coGSTIN" placeholder="22AAAAA0000A1Z5" value="${escapeAttr(coform.gstin)}">
-        <label>PAN / Income Tax No. (optional)</label>
-        <input type="text" id="coPAN" placeholder="AAAAA0000A" value="${escapeAttr(coform.pan)}">
-
-        <div class="section-title" style="margin-top:16px;">Base Currency Information</div>
-        <div class="row" style="gap:10px;">
-          <div style="flex:1;">
-            <label>Base Currency Symbol</label>
-            <input type="text" id="coCurrencySymbol" value="${escapeAttr(coform.currencySymbol||'₹')}">
-          </div>
-          <div style="flex:1;">
-            <label>Formal Name</label>
-            <input type="text" id="coCurrencyFormalName" value="${escapeAttr(coform.currencyFormalName||'INR')}">
-          </div>
-        </div>
-        <div class="row" style="gap:10px;">
-          <div style="flex:1;">
-            <label>Decimal Places</label>
-            <select id="coDecimalPlaces">
-              ${[0,1,2,3,4].map(d=>`<option value="${d}" ${Number(coform.decimalPlaces)===d?'selected':''}>${d}</option>`).join('')}
-            </select>
-          </div>
-          <div style="flex:1;">
-            <label>Fraction Unit (e.g. Paisa, Cents)</label>
-            <input type="text" id="coFractionUnit" value="${escapeAttr(coform.fractionUnit||'Paisa')}">
-          </div>
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:2px;">
-          <input type="checkbox" id="coSuffixSymbol" style="width:auto;" ${coform.suffixSymbol?'checked':''}> Show symbol after the amount (e.g. 100₹ instead of ₹100)
-        </label>
-        ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="muted" style="font-size:11px;margin-top:10px;">This company will be shared with the rest of your group — everyone in it will be able to work in the same books.</p>` : ''}
-        <button class="btn" id="createCoBtn" type="button" style="width:100%;margin-top:12px;">Create Company</button>
+      </div>
+      <div style="padding:24px 30px;overflow-y:auto;flex:1;min-height:0;">
+        ${step===1?coStepBasicInfo():step===2?coStepAddress():step===3?coStepContact():step===4?coStepFinancialTax():coStepCurrencyReview()}
+      </div>
+      <div style="padding:16px 30px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:var(--surface-strong);">
+        <button class="btn secondary" id="coBackBtn" type="button" style="${step===1?'visibility:hidden;':''}">‹ Back</button>
+        <div class="muted" style="font-size:11px;">Step ${step} of ${CO_WIZARD_STEPS.length}</div>
+        ${step<CO_WIZARD_STEPS.length?`<button class="btn" id="coNextBtn" type="button">Next ›</button>`:`<button class="btn" id="createCoBtn" type="button">✓ Create Company</button>`}
       </div>
     </div>
   </div>
@@ -16997,6 +17140,7 @@ function renderGateway(){
   });
   document.getElementById('openCreateCoBtn')?.addEventListener('click', ()=>{
     companyCreateModalOpen = true;
+    coformStep = 1;
     renderGateway();
   });
   document.getElementById('gwDemoSignupLink')?.addEventListener('click', ()=> exitDemoSession('signup'));
@@ -17041,6 +17185,7 @@ function renderGateway(){
   });
   document.getElementById('gwGettingStartedCreateBtn')?.addEventListener('click', ()=>{
     companyCreateModalOpen = true;
+    coformStep = 1;
     renderGateway();
   });
   // Quick-actions (⋮) menu: toggling one closes any other (gatewayCardMenuOpenId holds at most one
@@ -17104,19 +17249,23 @@ function renderGateway(){
   document.getElementById('createCoModalOverlayBg')?.addEventListener('click', (e)=>{
     if(e.target.id==='createCoModalOverlayBg'){ companyCreateModalOpen = false; renderGateway(); }
   });
-  document.getElementById('coName').addEventListener('input', e=>{
-    coform.name = e.target.value;
-  });
-  document.getElementById('coMailingName').addEventListener('input', e=> coform.mailingName = e.target.value);
-  document.getElementById('coAddress').addEventListener('input', e=> coform.address = e.target.value);
+  // Every field below is guarded with ?. because only the CURRENT step's inputs exist in the DOM at
+  // any one time (companyCreateModal() renders one step's fields, not all five) -- each listener
+  // writes straight into coform as the person types, so coform carries the full draft across steps
+  // even after a step's own inputs are gone, and the final "Create Company" submit (at the bottom of
+  // this block) reads only from coform, never from document.getElementById(...).value.
+  document.getElementById('coName')?.addEventListener('input', e=> coform.name = e.target.value);
+  document.getElementById('coMailingName')?.addEventListener('input', e=> coform.mailingName = e.target.value);
+  document.getElementById('coIndustry')?.addEventListener('change', e=> coform.industry = e.target.value);
+  document.getElementById('coAddress')?.addEventListener('input', e=> coform.address = e.target.value);
   function bindCoStateField(){
     const el = document.getElementById('coState');
     if(!el) return;
     el.addEventListener(el.tagName==='SELECT' ? 'change' : 'input', e=> coform.state = e.target.value);
   }
   bindCoStateField();
-  document.getElementById('coPincode').addEventListener('input', e=> coform.pincode = e.target.value);
-  document.getElementById('coCountry').addEventListener('change', e=>{
+  document.getElementById('coPincode')?.addEventListener('input', e=> coform.pincode = e.target.value);
+  document.getElementById('coCountry')?.addEventListener('change', e=>{
     coform.country = e.target.value;
     // The State/Province control depends on the selected country (India gets a dropdown of Indian
     // states, everywhere else gets free text) — swap it in place and clear the old value, since a
@@ -17125,46 +17274,87 @@ function renderGateway(){
     document.getElementById('coStateWrap').innerHTML = stateProvinceControl('coState', coform.country, coform.state);
     bindCoStateField();
   });
-  document.getElementById('coPhone').addEventListener('input', e=> coform.phone = e.target.value);
-  document.getElementById('coMobile').addEventListener('input', e=> coform.mobile = e.target.value);
-  document.getElementById('coEmail').addEventListener('input', e=> coform.email = e.target.value);
-  document.getElementById('coWebsite').addEventListener('input', e=> coform.website = e.target.value);
-  document.getElementById('coFY').addEventListener('input', e=> coform.fyStart = e.target.value);
-  document.getElementById('coBooksFrom').addEventListener('input', e=> coform.booksFrom = e.target.value);
-  document.getElementById('coGSTIN').addEventListener('input', e=> coform.gstin = e.target.value);
-  document.getElementById('coPAN').addEventListener('input', e=> coform.pan = e.target.value);
-  document.getElementById('coCurrencySymbol').addEventListener('input', e=> coform.currencySymbol = e.target.value);
-  document.getElementById('coCurrencyFormalName').addEventListener('input', e=> coform.currencyFormalName = e.target.value);
-  document.getElementById('coDecimalPlaces').addEventListener('change', e=> coform.decimalPlaces = Number(e.target.value));
-  document.getElementById('coFractionUnit').addEventListener('input', e=> coform.fractionUnit = e.target.value);
-  document.getElementById('coSuffixSymbol').addEventListener('change', e=> coform.suffixSymbol = e.target.checked);
-  document.getElementById('createCoBtn').addEventListener('click', async ()=>{
-    if(isDemoUser){ toast('Demo accounts can\'t create a company — sign up for your own free account to add your own.'); return; }
-    const name = document.getElementById('coName').value.trim();
-    if(!name){ toast('Enter a company name'); return; }
-    const gstinEntered = document.getElementById('coGSTIN').value.trim();
-    if(gstinEntered && !isValidGSTIN(gstinEntered)){ toast('That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.'); return; }
-    const fyStart = document.getElementById('coFY').value || defaultFYStart();
+  document.getElementById('coPhone')?.addEventListener('input', e=> coform.phone = e.target.value);
+  document.getElementById('coMobile')?.addEventListener('input', e=> coform.mobile = e.target.value);
+  document.getElementById('coEmail')?.addEventListener('input', e=> coform.email = e.target.value);
+  document.getElementById('coWebsite')?.addEventListener('input', e=> coform.website = e.target.value);
+  document.getElementById('coFY')?.addEventListener('input', e=> coform.fyStart = e.target.value);
+  document.getElementById('coBooksFrom')?.addEventListener('input', e=> coform.booksFrom = e.target.value);
+  document.getElementById('coGSTIN')?.addEventListener('input', e=> coform.gstin = e.target.value);
+  document.getElementById('coPAN')?.addEventListener('input', e=> coform.pan = e.target.value);
+  document.getElementById('coCurrencySymbol')?.addEventListener('input', e=> coform.currencySymbol = e.target.value);
+  document.getElementById('coCurrencyFormalName')?.addEventListener('input', e=> coform.currencyFormalName = e.target.value);
+  document.getElementById('coDecimalPlaces')?.addEventListener('change', e=> coform.decimalPlaces = Number(e.target.value));
+  document.getElementById('coFractionUnit')?.addEventListener('input', e=> coform.fractionUnit = e.target.value);
+  document.getElementById('coSuffixSymbol')?.addEventListener('change', e=> coform.suffixSymbol = e.target.checked);
+  // Per-step validation gating "Next" -- only the two steps with a real correctness requirement block
+  // progress; everything else is optional and can be filled in (or skipped) in any order of thoroughness.
+  function coValidateStep(step){
+    if(step===1){
+      if(isDemoUser) return 'Demo accounts can\'t create a company — sign up for your own free account to add your own.';
+      if(!coform.name.trim()) return 'Enter a company name.';
+      if(!coform.industry) return 'Pick an industry type — it helps tailor reports to your business.';
+      return null;
+    }
+    if(step===4){
+      const gstinEntered = coform.gstin.trim();
+      if(gstinEntered && !isValidGSTIN(gstinEntered)) return 'That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.';
+      return null;
+    }
+    return null;
+  }
+  document.getElementById('coNextBtn')?.addEventListener('click', ()=>{
+    const err = coValidateStep(coformStep);
+    if(err){ toast(err); return; }
+    coformStep = Math.min(coformStep+1, CO_WIZARD_STEPS.length);
+    renderGateway();
+  });
+  document.getElementById('coBackBtn')?.addEventListener('click', ()=>{
+    coformStep = Math.max(coformStep-1, 1);
+    renderGateway();
+  });
+  // Clicking an earlier step's bubble jumps straight back to it (only steps already reached are
+  // clickable -- see companyCreateModal()'s cursor styling -- so this never lets someone skip ahead
+  // past validation).
+  document.querySelectorAll('[data-co-step-jump]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const n = Number(el.dataset.coStepJump);
+      if(n>=coformStep) return;
+      coformStep = n;
+      renderGateway();
+    });
+  });
+  document.getElementById('createCoBtn')?.addEventListener('click', async ()=>{
+    // Re-run every step's validation (not just the last one) -- a person can jump back and forth with
+    // the step bubbles, and nothing re-checks an earlier step on the way past it, so this is the one
+    // place that guarantees name/industry/GSTIN are still valid at the moment of creation.
+    for(const s of CO_WIZARD_STEPS){
+      const err = coValidateStep(s.n);
+      if(err){ toast(err); coformStep = s.n; renderGateway(); return; }
+    }
+    const name = coform.name.trim();
+    const fyStart = coform.fyStart || defaultFYStart();
     const company = {
       id: uid('co'), name,
-      mailingName: document.getElementById('coMailingName').value.trim(),
-      address: document.getElementById('coAddress').value.trim(),
-      state: document.getElementById('coState').value,
-      pincode: document.getElementById('coPincode').value.trim(),
-      country: document.getElementById('coCountry').value.trim() || 'India',
-      phone: document.getElementById('coPhone').value.trim(),
-      mobile: document.getElementById('coMobile').value.trim(),
-      email: document.getElementById('coEmail').value.trim(),
-      website: document.getElementById('coWebsite').value.trim(),
+      mailingName: coform.mailingName.trim(),
+      industry: coform.industry,
+      address: coform.address.trim(),
+      state: coform.state,
+      pincode: coform.pincode.trim(),
+      country: coform.country.trim() || 'India',
+      phone: coform.phone.trim(),
+      mobile: coform.mobile.trim(),
+      email: coform.email.trim(),
+      website: coform.website.trim(),
       fyStart,
-      booksFrom: document.getElementById('coBooksFrom').value || fyStart,
-      gstin: document.getElementById('coGSTIN').value.trim(),
-      pan: document.getElementById('coPAN').value.trim(),
-      currencySymbol: document.getElementById('coCurrencySymbol').value.trim() || '₹',
-      currencyFormalName: document.getElementById('coCurrencyFormalName').value.trim() || 'INR',
-      decimalPlaces: Number(document.getElementById('coDecimalPlaces').value),
-      fractionUnit: document.getElementById('coFractionUnit').value.trim() || 'Paisa',
-      suffixSymbol: document.getElementById('coSuffixSymbol').checked,
+      booksFrom: coform.booksFrom || fyStart,
+      gstin: coform.gstin.trim(),
+      pan: coform.pan.trim(),
+      currencySymbol: coform.currencySymbol.trim() || '₹',
+      currencyFormalName: coform.currencyFormalName.trim() || 'INR',
+      decimalPlaces: Number(coform.decimalPlaces),
+      fractionUnit: coform.fractionUnit.trim() || 'Paisa',
+      suffixSymbol: !!coform.suffixSymbol,
       ownerId: currentUser ? currentUser.id : null,
       // If this account belongs to a Support user's group (either because they WERE created by one,
       // or because they ARE that Support user), stamp the company with that group's id so every
@@ -17190,7 +17380,8 @@ function renderGateway(){
       return;
     }
     companies.push(company);
-    coform = { name:'', mailingName:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+    coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+    coformStep = 1;
     companyCreateModalOpen = false;
     await enterCompanyApp(company);
   });
