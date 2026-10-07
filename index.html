@@ -30335,13 +30335,14 @@ function wireApprovalsAccessTeamHandlers(){
         }
         const profile = await companyTeamCreateUserAccount(draft);
         const preset = COMPANY_TEAM_ROLE_PRESETS[draft.preset] || COMPANY_TEAM_ROLE_PRESETS.bookkeeper;
-        currentCompany.teamMembers = currentCompany.teamMembers || {};
-        currentCompany.teamMembers[profile.id] = {
+        const prevTeamMembers = currentCompany.teamMembers || {};
+        const prevTeamMemberIds = currentCompany.teamMemberIds || [];
+        currentCompany.teamMembers = { ...prevTeamMembers, [profile.id]: {
           name: profile.name, username: profile.username,
           permissions: JSON.parse(JSON.stringify(preset.permissions || {})),
           addedAt: new Date().toISOString(),
-        };
-        currentCompany.teamMemberIds = Array.from(new Set([...(currentCompany.teamMemberIds||[]), profile.id]));
+        } };
+        currentCompany.teamMemberIds = Array.from(new Set([...prevTeamMemberIds, profile.id]));
         const ok = await saveCompanyMeta(currentCompany);
         companyTeamInviteBusy = false;
         if(ok){
@@ -30349,7 +30350,14 @@ function wireApprovalsAccessTeamHandlers(){
           companyTeamMemberId = profile.id;
           toast(`@${profile.username} can now log in to "${currentCompany.name}" with the credentials you set.`, {type:'success'});
         } else {
-          companyTeamInviteError = 'Account was created, but saving their access to this company failed — open Team Access again to retry.';
+          // Roll back the optimistic local change -- saveCompanyMeta() already toasted the actual
+          // Firestore error (often a sign the Security Rules in the Firebase Console are out of
+          // date). Without this rollback the invited account would keep appearing as a "ghost"
+          // teammate in the list -- and counting toward the 2-member cap -- even though nothing
+          // was actually saved server-side.
+          currentCompany.teamMembers = prevTeamMembers;
+          currentCompany.teamMemberIds = prevTeamMemberIds;
+          companyTeamInviteError = `Their account was created (@${profile.username}), but saving their access to this company failed. This usually means the app's Firestore Security Rules haven't been updated in the Firebase Console yet. Fix that, then try the invite again.`;
         }
         renderCurrentScreen();
       }catch(err){
@@ -30413,19 +30421,32 @@ function wireApprovalsAccessTeamHandlers(){
       if(!ok1) return;
       const removedId = companyTeamMemberId;
       const removedName = m.name || m.username;
+      const removedUsername = m.username;
+      const prevTeamMembers = currentCompany.teamMembers;
+      const prevTeamMemberIds = currentCompany.teamMemberIds || [];
+      currentCompany.teamMembers = { ...prevTeamMembers };
       delete currentCompany.teamMembers[removedId];
-      currentCompany.teamMemberIds = (currentCompany.teamMemberIds||[]).filter(x=>x!==removedId);
+      currentCompany.teamMemberIds = prevTeamMemberIds.filter(x=>x!==removedId);
       const ok = await saveCompanyMeta(currentCompany);
-      companyTeamMemberId = null;
-      if(ok){
-        const blocked = await blockCompanyTeamMemberAccount(removedId);
-        await logAudit(blocked ? 'account_blocked' : 'team_member_removed',
-          `Removed @${m.username||removedName} from "${currentCompany.name}" via Team Access${blocked ? ' — login blocked' : ' (could not auto-block login)'}`,
-          removedId, removedName).catch(()=>{});
-        toast(blocked
-          ? 'Removed from this company — their login has been blocked.'
-          : 'Removed from this company, but their login could not be blocked automatically — block them from the Admin Panel.', {type: blocked ? 'success' : 'error'});
+      if(!ok){
+        // Roll back -- saveCompanyMeta() already toasted the actual Firestore error. Without this,
+        // the teammate would vanish from the list locally (making it LOOK like they were removed
+        // and blocked) even though nothing was actually saved server-side and their login was never
+        // touched -- exactly the confusing "I removed them but they can still log in" symptom this
+        // guards against. Keep them selected so the owner can see the error and retry.
+        currentCompany.teamMembers = prevTeamMembers;
+        currentCompany.teamMemberIds = prevTeamMemberIds;
+        renderCurrentScreen();
+        return;
       }
+      companyTeamMemberId = null;
+      const blocked = await blockCompanyTeamMemberAccount(removedId);
+      await logAudit(blocked ? 'account_blocked' : 'team_member_removed',
+        `Removed @${removedUsername||removedName} from "${currentCompany.name}" via Team Access${blocked ? ' — login blocked' : ' (could not auto-block login)'}`,
+        removedId, removedName).catch(()=>{});
+      toast(blocked
+        ? 'Removed from this company — their login has been blocked.'
+        : 'Removed from this company, but their login could not be blocked automatically — this usually means the Firestore Security Rules in the Firebase Console need updating. Block them manually from the Admin Panel for now.', {type: blocked ? 'success' : 'error'});
       renderCurrentScreen();
     });
   }
