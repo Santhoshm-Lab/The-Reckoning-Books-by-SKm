@@ -5693,6 +5693,7 @@ let recurringDraft = null; // null = not adding/editing a recurring template | {
 let restoreFile = null; // parsed backup JSON staged for confirmation in the Backup & Restore modal, or null
 let fixedAssetDraft = null; // null = not adding an asset | {name, ledgerId, cost, purchaseDate, usefulLifeYears, method, salvageValue}
 let ordersSubTab = 'quotation'; // which of the 4 pre-sale document types the Orders tab is showing
+let payrollSubTab = 'employees'; // which section of Payroll Management is showing -- see PAYROLL_SUBTABS
 let oform = null; // null = not adding/editing a pre-sale document | {docType, id?, partyLedgerId, date, narration, items:[{itemId,name,qty,rate,disc}], status}
 let pendingConvertDoc = null; // {docType, id} of the order document being converted, set by the Orders tab's "Convert to Voucher" button; the next voucher save marks it converted
 let budgetReportFY = null; // which FY the Budget vs Actual report is showing; null = default to the current FY the first time it's opened
@@ -9330,6 +9331,16 @@ const ORDER_DOC_META = {
   salesOrder:     { stateKey:'salesOrders',       save: ()=>saveSalesOrders(),      label:'Sales Order',      prefix:'SO',   partyRole:'customer' },
   purchaseOrder:  { stateKey:'purchaseOrders',    save: ()=>savePurchaseOrders(),   label:'Purchase Order',   prefix:'PO',   partyRole:'supplier' },
   deliveryChallan:{ stateKey:'deliveryChallans',  save: ()=>saveDeliveryChallans(), label:'Delivery Challan', prefix:'DC',   partyRole:'customer' },
+};
+// Which pill tab of Payroll Management each section lives under -- see payrollSubTab/viewPayroll().
+// Split out so the screen is no longer one long unsegmented scroll (6 sections, 2.5x any other
+// screen's height) -- same vtype-tabs pattern the Orders screen already uses for its 4 document types.
+const PAYROLL_SUBTABS = {
+  employees:   'Employees',
+  loans:       'Loans & Advances',
+  settlements: 'Settlements',
+  run:         'Run Payroll',
+  payslips:    'Payslips & Reports',
 };
 function nextOrderDocNo(docType){
   const meta = ORDER_DOC_META[docType];
@@ -19517,6 +19528,16 @@ service cloud.firestore {
         ? get(/databases/$(database)/documents/users/$(uid)).data.groupOwnerId
         : null;
     }
+    // Closes the self-create privilege-escalation gap flagged in the 2026-09-12 security fix: at
+    // account-creation time, a groupOwnerId can no longer be set to an arbitrary or made-up uid --
+    // it must reference a real, existing account whose role is actually 'support'. Before this check,
+    // ANY uid (even one that didn't exist) was accepted at face value by the create rule below, which
+    // (while it never granted the new account any privilege by itself) let a crafted profile claim
+    // group membership under an owner that was never actually verified to be a Support user at all.
+    function isSupportUid(uid) {
+      return uid != null && exists(/databases/$(database)/documents/users/$(uid))
+        && get(/databases/$(database)/documents/users/$(uid)).data.role == 'support';
+    }
 
     match /users/{uid} {
       // A Support user may fetch/list their own group's member docs (groupOwnerId lives right on
@@ -19532,10 +19553,17 @@ service cloud.firestore {
       // but role=='admin'/'support' and any paid/lifetime plan can only ever be granted afterwards,
       // by an existing Administrator. (The very first Administrator account is created by a one-time
       // manual write in the Firebase Console, never through this client-facing rule.)
+      // groupOwnerId, if present, must reference a real account whose role is actually 'support' --
+      // see isSupportUid() above. This doesn't yet verify the new account was invited by that specific
+      // Support user (that would need a pending-invite record or a server-side function, which this
+      // client-only app doesn't have), but it closes the simpler gap: a crafted profile could
+      // previously claim group membership under ANY uid, including one that never existed or wasn't a
+      // Support account at all.
       allow create: if isOwner(uid)
         && (!('role' in request.resource.data) || request.resource.data.role == 'user')
         && (!('plan' in request.resource.data) || request.resource.data.plan == 'free')
-        && !('featureOverrides' in request.resource.data);
+        && !('featureOverrides' in request.resource.data)
+        && (!('groupOwnerId' in request.resource.data) || request.resource.data.groupOwnerId == null || isSupportUid(request.resource.data.groupOwnerId));
       // A Support user may edit their own group members' everyday profile fields — including
       // block/unblock and Feature Overrides — but never role, groupOwnerId or groupUserLimit, so a
       // Support user can never promote themselves, re-home a member into someone else's group, or
@@ -21678,6 +21706,10 @@ function balanceSheetVisualCard(){
       <div class="panel-head"><h2>Balance Sheet</h2></div>
       <div class="panel-body">
         <canvas id="bsChart3D" width="360" height="220" style="width:100%;height:220px;display:block;"></canvas>
+        <div id="bsChart3DFallback" class="muted" style="display:none;height:220px;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;font-size:12px;">
+          <span>📊 Chart unavailable — 3D rendering couldn't load</span>
+          <button class="btn secondary small" type="button" data-retry-chart3d="true">↻ Retry</button>
+        </div>
         <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">
           ${legendRow('Total Assets', bs.totalAssets, '#2CA01C')}
           ${legendRow('Equity', bs.totalEquity, '#4F8EF7')}
@@ -21695,6 +21727,10 @@ function incomeStatementVisualCard(){
       <div class="panel-head"><h2>Income Statement</h2></div>
       <div class="panel-body">
         <canvas id="isChart3D" width="360" height="220" style="width:100%;height:220px;display:block;"></canvas>
+        <div id="isChart3DFallback" class="muted" style="display:none;height:220px;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;font-size:12px;">
+          <span>📊 Chart unavailable — 3D rendering couldn't load</span>
+          <button class="btn secondary small" type="button" data-retry-chart3d="true">↻ Retry</button>
+        </div>
         <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">
           ${legendRow('Revenue', is.revenue, '#F2994A')}
           ${legendRow('Total Expenses', totalExpenses, '#D64545')}
@@ -23419,8 +23455,41 @@ function init3DBarChart(canvasId, columns){
   }
   animate();
 }
+// Shows/hides a 3D chart's canvas vs. its "Chart unavailable" fallback message -- see
+// renderDashboardCharts() below, which previously bailed out silently (a blank white card) whenever
+// THREE hadn't loaded, with no indication anything was wrong (UI/UX audit, Sept 2026, Finding #4).
+function chart3DSetFallback(canvasId, showFallback){
+  const canvas = document.getElementById(canvasId);
+  const fallback = document.getElementById(canvasId+'Fallback');
+  if(canvas) canvas.style.display = showFallback ? 'none' : 'block';
+  if(fallback) fallback.style.display = showFallback ? 'flex' : 'none';
+}
+let chart3DRetryInFlight = false;
+// Lets the fallback card's "↻ Retry" button attempt to load the Three.js CDN script a second time,
+// for the common transient cases (slow network, a corporate proxy or ad-blocker that was just
+// allow-listed) without requiring a full page reload. If THREE is already loaded by the time this
+// runs, it just re-renders the charts immediately.
+function retryLoad3DCharts(){
+  if(typeof THREE !== 'undefined'){ renderDashboardCharts(); return; }
+  if(chart3DRetryInFlight) return;
+  chart3DRetryInFlight = true;
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  script.onload = ()=>{ chart3DRetryInFlight = false; renderDashboardCharts(); };
+  script.onerror = ()=>{
+    chart3DRetryInFlight = false;
+    toast('Still unable to load the 3D chart library — check your network connection or ad-blocker and try again.', {type:'error'});
+  };
+  document.head.appendChild(script);
+}
 function renderDashboardCharts(){
-  if(typeof THREE === 'undefined') return;
+  if(typeof THREE === 'undefined'){
+    chart3DSetFallback('bsChart3D', true);
+    chart3DSetFallback('isChart3D', true);
+    return;
+  }
+  chart3DSetFallback('bsChart3D', false);
+  chart3DSetFallback('isChart3D', false);
   const is = incomeStatementData();
   const bs = balanceSheetIFRSData(is.profitForPeriod);
   init3DBarChart('bsChart3D', [
@@ -29657,7 +29726,11 @@ function viewPayroll(){
       <div class="stat"><div class="label">Payslips Generated</div><div class="val">${state.salaryVouchers.length}</div></div>
       <div class="stat"><div class="label">Resigned Employees</div><div class="val">${resignedEmployees.length}</div></div>
     </div>
+    <div class="vtype-tabs" style="margin-bottom:14px;">
+      ${Object.keys(PAYROLL_SUBTABS).map(k=>`<button data-payroll-subtab="${k}" type="button" class="${payrollSubTab===k?'active':''}">${PAYROLL_SUBTABS[k]}</button>`).join('')}
+    </div>
 
+    ${payrollSubTab==='employees' ? `
     <div class="section-title">Employees</div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
@@ -29690,7 +29763,9 @@ function viewPayroll(){
     <div class="panel"><div class="panel-body">
       ${employeeDraft ? employeeDraftForm() : `<button class="btn secondary small" id="newEmployeeBtn" type="button">+ Add Employee</button>`}
     </div></div>
+    ` : ''}
 
+    ${payrollSubTab==='loans' ? `
     <div class="section-title">Loans &amp; Salary Advances</div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
@@ -29714,7 +29789,9 @@ function viewPayroll(){
       ${!activeEmployees.length ? `<p class="muted" style="font-size:11px;margin-top:6px;">Add an active employee first.</p>` : ''}
     </div></div>
     <p class="muted" style="font-size:11px;">An active loan's EMI is auto-deducted from that employee's take-home pay every time payroll is generated, until it's fully recovered — posted to a shared "${EMPLOYEE_LOAN_LEDGER_NAME}" asset ledger.</p>
+    ` : ''}
 
+    ${payrollSubTab==='settlements' ? `
     <div class="section-title">Full &amp; Final Settlements</div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
@@ -29737,7 +29814,9 @@ function viewPayroll(){
     </div>
     ${fnfDraft ? `<div class="panel"><div class="panel-body">${fnfDraftForm()}</div></div>` : (resignedEmployees.some(e=>!hasFnfSettlement(e.id)) ? `<p class="muted" style="font-size:11px;">Click "Run F&amp;F" next to a resigned employee above to settle their exit.</p>` : '')}
     <p class="muted" style="font-size:11px;">Full &amp; Final settlement covers leave encashment and other one-off dues on exit, recovers any remaining loan balance immediately (not EMI-wise), and posts to a shared "${FNF_SETTLEMENT_LEDGER_NAME}" ledger.</p>
+    ` : ''}
 
+    ${payrollSubTab==='run' ? `
     <div class="section-title">Generate Payroll</div>
     <div class="panel">
       <div class="panel-body">
@@ -29775,7 +29854,9 @@ function viewPayroll(){
         ` : `<p class="muted" style="font-size:12px;margin-top:8px;">Add an active employee above first.</p>`}
       </div>
     </div>
+    ` : ''}
 
+    ${payrollSubTab==='payslips' ? `
     <div class="section-title">Payslips</div>
     <div class="panel">
       <div class="panel-head">
@@ -29854,6 +29935,7 @@ function viewPayroll(){
       </div>
       <p class="muted" style="font-size:11px;padding:0 16px 12px;">Export gets the full per-employee, per-month breakup (with PAN) for filing — this on-screen summary is just the totals. This report only covers the fields already tracked per employee (PF/ESI/PT/TDS/PAN); it doesn't hold UAN, ESIC IP, or TAN details, so it's a starting worksheet for your filing, not a ready-to-submit government form.</p>
     </div>
+    ` : ''}
   `;
 }
 function printPayslip(salaryVoucherId){
@@ -30834,6 +30916,12 @@ function attachHandlers(){
   }
 
   if(view==='payroll'){
+    document.querySelectorAll('[data-payroll-subtab]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        payrollSubTab = el.dataset.payrollSubtab;
+        render();
+      });
+    });
     document.getElementById('newEmployeeBtn')?.addEventListener('click', ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
       employeeDraft = { name:'', designation:'', department:'', employmentType:'Full-time', joinDate: new Date().toISOString().slice(0,10), resignDate:'', pan:'', bankName:'', bankAccount:'', bankIFSC:'', basic:0, hra:0, allowances:0, bonus:0, pf:0, esi:0, pt:0, tds:0, otherDeductions:0, employerPF:0, employerESI:0 };
@@ -30996,6 +31084,7 @@ function attachHandlers(){
         if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
         const payFrom = state.ledgers.find(l=>['bank','cash'].includes(bucketOf(l)));
         fnfDraft = { employeeId: el.dataset.runFnf, date: new Date().toISOString().slice(0,10), leaveEncashment:0, otherDues:0, payFromLedgerId: payFrom?payFrom.id:'' };
+        payrollSubTab = 'settlements'; // "Run F&F" lives on the Employees tab, but its form renders under Settlements -- switch tabs so it's visible
         render();
       });
     });
@@ -31613,6 +31702,9 @@ function attachHandlers(){
       el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); run(); } });
     });
     renderDashboardCharts();
+    document.querySelectorAll('[data-retry-chart3d]').forEach(el=>{
+      el.addEventListener('click', ()=>{ retryLoad3DCharts(); });
+    });
     wireVizInteractivity();
     animateDashboardCounters();
   }
