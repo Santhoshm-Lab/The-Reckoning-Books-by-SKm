@@ -309,6 +309,11 @@
   .pill{display:inline-block;padding:4px 11px;border-radius:999px;font-size:10.5px;font-family:inherit;font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;}
   .pill.neg{background:var(--debit-bg);color:var(--debit);}
   .pill.pos{background:var(--credit-bg);color:var(--credit);}
+  /* Neutral/"open" status pill -- same grey treatment as .vtype-badge.vt-neutral (Day Book/GST's
+     voucher-type badge) so an open-ended status (e.g. Orders' "Open", pending a future action)
+     reads consistently with the rest of the app instead of each screen inventing its own inline
+     grey (the UI/UX audit's "Orders status badges" cosmetic note). */
+  .pill.neutral{background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border-strong);}
   /* Confidence badge on a Reconcile row that Bank-statement import auto-cleared (see
      bankReconcileEntries()'s autoMatched field) -- plain-language + a number, never a raw decimal,
      with the full "why" as a native tooltip so it stays out of the way until asked for. */
@@ -740,6 +745,11 @@
   .auth-users-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin:0 0 8px;text-align:center;}
   .user-pick-pill{display:inline-block;padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:700;background:var(--surface-strong);color:var(--ink-soft);cursor:pointer;transition:all .15s;border:1px solid var(--border);}
   .user-pick-pill:hover{background:var(--accent1);color:#fff;border-color:var(--accent1);}
+  .btn-link{background:none;border:none;color:var(--accent1);font-size:12.5px;font-weight:700;cursor:pointer;padding:6px 0;text-decoration:underline;}
+  .btn-link:hover{color:var(--accent2);}
+  .quick-unlock-card{padding-top:30px;}
+  .quick-unlock-avatar{width:56px;height:56px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));box-shadow:0 8px 20px rgba(44,160,28,0.28);}
+  .quick-unlock-note{margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--ink-faint);line-height:1.5;text-align:left;}
   @media (max-width:900px){
     .rb-letter-r{top:-4%;}
     .rb-letter-b{bottom:-6%;}
@@ -873,6 +883,18 @@
   .cmdk-item-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cmdk-item-sub{font-size:11px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cmdk-empty{padding:28px 14px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
+  /* Always-visible "Ask or do anything" bar (aiBarHtml()) -- the Ctrl+K palette's own cmdkResults()
+     engine, promoted from a shortcut-triggered overlay to a permanent fixture at the top of the
+     Dashboard. Styled as a distinct, slightly elevated control (gradient border + soft shadow) so it
+     reads as the primary entry point it's meant to be, not just another text input on the page. */
+  .aibar-wrap{position:relative;margin-bottom:18px;}
+  .aibar-inputwrap{display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:12px;background:var(--surface);border:1px solid transparent;background-image:linear-gradient(var(--surface),var(--surface)),linear-gradient(120deg,var(--accent1),var(--accent2));background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 2px 10px color-mix(in srgb, var(--ink) 6%, transparent);transition:box-shadow .15s ease;}
+  .aibar-inputwrap:focus-within{box-shadow:0 4px 16px color-mix(in srgb, var(--accent1) 22%, transparent);}
+  .aibar-input{border:none;background:transparent;font-size:14.5px;padding:2px 0;flex:1;color:var(--ink);}
+  .aibar-input:focus{outline:none;box-shadow:none;border:none;}
+  .aibar-kbd{flex-shrink:0;font-size:10.5px;font-weight:700;color:var(--ink-faint);background:var(--surface-strong);border:1px solid var(--border-strong);border-radius:5px;padding:2px 7px;font-family:inherit;}
+  .aibar-results{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 28px color-mix(in srgb, var(--ink) 14%, transparent);max-height:360px;overflow-y:auto;padding:8px;}
+  @media (max-width:760px){ .aibar-kbd{display:none;} }
   .cmdk-hint{display:flex;gap:16px;padding:9px 18px;border-top:1px solid var(--border);flex-shrink:0;font-size:10.5px;color:var(--ink-faint);}
   .cmdk-hint kbd{display:inline-block;background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:10px;margin-right:3px;}
   @media (max-width:560px){
@@ -896,7 +918,10 @@
     .bento-grid{grid-template-columns:1fr 1fr;}
     .bento-hero{grid-column:span 2;grid-row:span 1;}
     .bento-wide{grid-column:span 2;}
-    .main{padding:14px;}
+    /* Bottom padding reserves room for the Ask Your Books / Data Interchange floating bubbles
+       (see #qaFab/#diFab below) so they never sit visually on top of the last real element on an
+       ordinary (non-modal) screen -- the original gap this still-open audit finding flagged. */
+    .main{padding:14px 14px 86px;}
     .entry-row{grid-template-columns:1fr;}
     .row{flex-direction:column;}
     .viz-kpi-row.cols4{grid-template-columns:repeat(2,1fr);}
@@ -915,6 +940,20 @@
        Refresh + theme toggle group can together exceed a phone's width. Let the group wrap to its
        own line rather than forcing the whole page to scroll horizontally. */
     .menubar{flex-wrap:wrap;row-gap:6px;}
+  }
+
+  /* Ask Your Books (#qaFab) / Data Interchange (#diFab): on a true phone width the two 52px circular
+     buttons eat a meaningful fraction of the screen's width and sit permanently over whatever the
+     page last scrolled to (the UI/UX audit's Finding #1 "remaining, not yet fixed" item). Shrunk and
+     pulled tighter to the corner here; .fab-scroll-fade (toggled by wireFabScrollFade() while the
+     page is actively scrolling) fades + shrinks them out of the way instead, restoring them a moment
+     after scrolling stops. !important is needed because both buttons render with inline sizing
+     (qaWidget()/diWidget() use the same fixed 52px style at every width, for the desktop case). */
+  #qaFab, #diFab{transition:opacity .18s ease,transform .18s ease;}
+  @media (max-width:480px){
+    #qaFab{width:44px !important;height:44px !important;right:12px !important;bottom:12px !important;font-size:19px !important;}
+    #diFab{width:44px !important;height:44px !important;right:60px !important;bottom:12px !important;}
+    .fab-scroll-fade{opacity:0.25;transform:scale(0.82);pointer-events:none;}
   }
 
   /* ---------------- Landing / intro page (renderLanding()) — shown on a fresh visit, before
@@ -1355,12 +1394,26 @@
   .exception-row.warn{border-left-color:var(--gold,#F2A900);}
   .exception-row.info{border-left-color:var(--accent1);}
   .exception-icon{flex-shrink:0;font-size:14px;}
+  /* Gamified Financial Health card -- a row of live achievement badges (financialHealthBadges())
+     plus a day-based streak counter (financialHealthStreak on the company doc, updated once per
+     calendar day by updateFinancialHealthStreak()). Deliberately styled like the exception card's
+     sibling, not a copy of it: badges read "earned" (solid fill, checkmark) vs "not yet" (outline,
+     muted), the opposite emotional register from the exception queue's "something is wrong" rows. */
+  .health-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px;}
+  .health-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .health-title{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;}
+  .health-streak{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink-soft);background:var(--surface-strong);border-radius:999px;padding:4px 12px;}
+  .health-streak.is-lit{color:#B35B00;background:color-mix(in srgb, var(--gold) 18%, transparent);}
+  .health-badge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;}
+  .health-badge{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;font-size:12px;font-weight:600;border:1px solid var(--border-strong);background:var(--surface-strong);color:var(--ink-soft);cursor:default;}
+  .health-badge.ok{border-color:var(--credit);background:var(--credit-bg);color:var(--credit);}
+  .health-badge-check{flex-shrink:0;font-size:13px;}
   .exception-text{flex:1;min-width:0;}
   .exception-text b{color:var(--ink);}
   .exception-arrow{flex-shrink:0;color:var(--ink-faint);font-size:13px;}
 
   /* ---- Dashboard layout (visual pass only — every number here still comes from the same
-     dashboardExpenseDriver()/dashboardInsights()/renderDashboardCharts() etc. functions; this just
+     dashboardExpenseDriver()/dashboardInsights() etc. functions; this just
      gives their output a consistent grid-based structure instead of each round's card bolting
      itself on with its own one-off spacing/inline styles). All colors are existing design tokens
      so light/dark theming stays automatic. */
@@ -1663,7 +1716,6 @@
 <div class="toast-host" id="toastHost"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -5277,6 +5329,7 @@ const DASHBOARD_SECTIONS = {
   cashForecast:{label:'AI Cash-Flow Forecast'},
   collections: {label:'Collections Priority'},
   partyRisk:   {label:'Party Risk Dashboard'},
+  financialHealth: {label:'Financial Health Badges'},
 };
 let dashboardVisibleSections = (function(){
   try{
@@ -5654,6 +5707,24 @@ let ordersSearchQuery = '';
 // commandPaletteModal() further down.
 let cmdkQuery = '';
 let cmdkIndex = 0;
+// The "AI-first" always-visible bar on the Dashboard — same NL-parsing/navigation/search engine as
+// the Ctrl+K palette above (cmdkResults(), given this bar's own query instead of cmdkQuery), just
+// promoted to a permanent, always-on-screen entry point instead of a shortcut-triggered overlay.
+// Deliberately its own query/index/open state, kept separate from cmdkQuery/cmdkIndex, so having
+// this bar on screen never interferes with Ctrl+K (both can hold different in-progress text at once).
+let aibarQuery = '';
+let aibarIndex = 0;
+let aibarOpen = false;
+// Quick Unlock (passkey/biometric re-entry gate) -- see registerQuickUnlockPasskey()/
+// verifyQuickUnlockPasskey()/renderQuickUnlock() further down for the full picture. `quickUnlockUser`
+// holds the Firebase user object init()'s onAuthStateChanged handed us but has NOT yet been allowed
+// through to restoreSessionFor() -- i.e. a cached Firebase session exists on this device/browser AND
+// this device has a registered passkey for that uid, so the person must clear the passkey prompt
+// before the app actually opens their books. `quickUnlockError`/`quickUnlockVerifying` drive that
+// screen's own inline state.
+let quickUnlockUser = null;
+let quickUnlockError = '';
+let quickUnlockVerifying = false;
 // Voice input on the command palette, via the browser's built-in Web Speech API -- no server, no API
 // key. `cmdkRecognition` is the live SpeechRecognition instance (kept outside `state`/component
 // re-render since it's a live browser object, not data) and `cmdkVoiceActive` just drives the mic
@@ -12232,6 +12303,27 @@ function diWidget(){
     ${diOpen ? diPanel() : ''}
   `;
 }
+// Fades + shrinks the two floating bubbles (Ask Your Books / Data Interchange) while the user is
+// actively scrolling the current screen, restoring them a moment after scrolling stops -- so on a
+// phone they never sit frozen on top of whatever content was just scrolled underneath them. Only has
+// a visible effect on narrow viewports (see the @media(max-width:480px) rule for .fab-scroll-fade);
+// on desktop this still runs but changes nothing, which is harmless. Re-wired by attachHandlers() on
+// every render() since #mainContent is a brand-new DOM node each time (render() replaces app.innerHTML
+// wholesale), so any listener attached to the PREVIOUS node is already gone -- nothing to clean up here.
+function wireFabScrollFade(){
+  const scrollEl = document.getElementById('mainContent');
+  if(!scrollEl) return;
+  let fadeTimer = null;
+  scrollEl.addEventListener('scroll', ()=>{
+    document.getElementById('qaFab')?.classList.add('fab-scroll-fade');
+    document.getElementById('diFab')?.classList.add('fab-scroll-fade');
+    clearTimeout(fadeTimer);
+    fadeTimer = setTimeout(()=>{
+      document.getElementById('qaFab')?.classList.remove('fab-scroll-fade');
+      document.getElementById('diFab')?.classList.remove('fab-scroll-fade');
+    }, 450);
+  }, {passive:true});
+}
 // Deliberately its own color family, not var(--accent1)/(--accent2) (both shades of the app's brand
 // green, already used by "Ask Your Books") -- a genuinely different hue is what actually makes two
 // floating bubbles read as two different things at a glance, not just two slightly different greens.
@@ -13472,6 +13564,54 @@ function render(){
       el.addEventListener('click', ()=>{ const r = cmdkResults()[i]; if(r) r.run(); });
     });
   }
+  // Always-visible "Ask or do anything" bar on the Dashboard (aiBarHtml()) -- mirrors the Ctrl+K
+  // palette's own input/keydown wiring above, but drives aibarQuery/aibarIndex/aibarOpen and reuses
+  // cmdkResults(queryOverride) directly rather than a second copy of the NL-parsing/search logic.
+  // Scoped with a plain existence check (not a `modal===` gate) since the bar lives inline in the
+  // Dashboard markup, not inside the modal overlay.
+  if(document.getElementById('aibarInput')){
+    const aibarEl = document.getElementById('aibarInput');
+    const focusAibarInput = (caret)=>{
+      const el = document.getElementById('aibarInput');
+      if(!el) return;
+      el.focus();
+      const pos = caret==null ? el.value.length : caret;
+      try{ el.setSelectionRange(pos, pos); }catch(err){}
+    };
+    aibarEl.addEventListener('input', e=>{
+      aibarQuery = e.target.value;
+      aibarIndex = 0;
+      aibarOpen = aibarQuery.trim().length > 0;
+      const caret = e.target.selectionStart;
+      render();
+      focusAibarInput(caret);
+    });
+    aibarEl.addEventListener('focus', ()=>{
+      if(aibarQuery.trim().length > 0 && !aibarOpen){ aibarOpen = true; render(); focusAibarInput(); }
+    });
+    aibarEl.addEventListener('keydown', e=>{
+      const list = aibarOpen ? cmdkResults(aibarQuery) : [];
+      if(e.key==='ArrowDown'){ e.preventDefault(); if(!list.length) return; aibarIndex = Math.min(aibarIndex+1, list.length-1); render(); focusAibarInput(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); if(!list.length) return; aibarIndex = Math.max(aibarIndex-1, 0); render(); focusAibarInput(); }
+      else if(e.key==='Enter'){ e.preventDefault(); const r = list[aibarIndex]; if(r){ r.run(); aibarQuery=''; aibarIndex=0; aibarOpen=false; render(); } }
+      else if(e.key==='Escape'){ aibarQuery=''; aibarIndex=0; aibarOpen=false; render(); }
+    });
+    // Blur closes the dropdown, but on a short delay so a click on a result row (which blurs the
+    // input first) still has a chance to register before the dropdown is torn out of the DOM.
+    aibarEl.addEventListener('blur', ()=>{
+      setTimeout(()=>{ if(document.activeElement?.id!=='aibarInput'){ aibarOpen = false; render(); } }, 180);
+    });
+    document.querySelectorAll('[data-aibar-idx]').forEach(el=>{
+      const i = Number(el.dataset.aibarIdx);
+      el.addEventListener('mouseenter', ()=>{ if(aibarIndex!==i){ aibarIndex = i; render(); focusAibarInput(); } });
+      el.addEventListener('mousedown', (e)=>{
+        // mousedown (not click) fires before the input's blur handler tears down the dropdown.
+        e.preventDefault();
+        const r = cmdkResults(aibarQuery)[i];
+        if(r){ r.run(); aibarQuery=''; aibarIndex=0; aibarOpen=false; render(); }
+      });
+    });
+  }
   if(modal==='gstFormats'){
     document.querySelectorAll('[data-fmt-jump]').forEach(el=>{
       el.addEventListener('click', ()=>{ gstFormatIndex = Number(el.dataset.fmtJump); render(); });
@@ -13913,10 +14053,15 @@ function parseOcrReceiptText(text){
 
   return { amount, date, vendorText, vendorLedgerId, rawText: raw };
 }
-function cmdkResults(){
-  const q = cmdkQuery.trim().toLowerCase();
+// `queryOverride`, when passed, lets a second caller drive this same result list from its own text
+// state instead of the command palette's cmdkQuery -- see aiBarResults()/the always-visible "Ask or
+// do anything" bar below, which deliberately reuses this whole function rather than forking a second
+// copy of the NL-parsing + navigation + search logic.
+function cmdkResults(queryOverride){
+  const rawQuery = queryOverride!==undefined ? queryOverride : cmdkQuery;
+  const q = rawQuery.trim().toLowerCase();
   const results = [];
-  const txn = cmdkQuery.trim() ? parseTransactionPhrase(cmdkQuery) : null;
+  const txn = rawQuery.trim() ? parseTransactionPhrase(rawQuery) : null;
   if(txn){
     const type = txn.isPayment ? 'Payment' : 'Receipt';
     const counterLabel = txn.counterLedger ? txn.counterLedger.name : (txn.subject ? `"${txn.subject}" — pick a ledger` : 'pick a ledger');
@@ -14022,6 +14167,32 @@ function commandPaletteModal(){
         </div>
         <div class="cmdk-hint"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</span><span><kbd>Enter</kbd> Select</span><span><kbd>Esc</kbd> Close</span>${speechRecognitionSupported()?'<span>🎙️ Voice input available</span>':''}</div>
       </div>
+    </div>
+  `;
+}
+// The always-visible "Ask or do anything" bar (see CMDK_TABS/cmdkResults() above for the shared
+// engine). Rendered once at the top of the Dashboard — the screen most people land on first — so
+// the same drafting/navigation/search power the Ctrl+K palette already has is the first thing on
+// screen, not a shortcut a person has to already know about. Ctrl+K itself is untouched and keeps
+// working everywhere, including on the Dashboard, so nothing here is a replacement, only a promotion.
+function aiBarHtml(){
+  const results = aibarOpen ? cmdkResults(aibarQuery) : [];
+  if(aibarIndex >= results.length) aibarIndex = Math.max(0, results.length-1);
+  return `
+    <div class="aibar-wrap">
+      <div class="aibar-inputwrap">
+        <span class="cmdk-inputicon">✨</span>
+        <input type="text" id="aibarInput" class="aibar-input" placeholder="Ask or do anything — search, jump to a screen, or type a transaction…" value="${escapeAttr(aibarQuery)}" autocomplete="off" spellcheck="false">
+        <kbd class="aibar-kbd">Ctrl K</kbd>
+      </div>
+      ${aibarOpen ? `
+      <div class="aibar-results" id="aibarResultsEl">
+        ${results.length ? results.map((r,i)=>`
+          <div class="cmdk-item ${i===aibarIndex?'active':''}" data-aibar-idx="${i}">
+            <span class="cmdk-item-icon">${r.icon}</span>
+            <span class="cmdk-item-text"><span class="cmdk-item-title">${escapeHtml(r.title)}</span><span class="cmdk-item-sub">${escapeHtml(r.sub)}</span></span>
+          </div>`).join('') : `<div class="cmdk-empty">No matches for "${escapeHtml(aibarQuery)}"</div>`}
+      </div>` : ''}
     </div>
   `;
 }
@@ -17630,6 +17801,18 @@ function renderGateway(){
       }
     };
     document.addEventListener('click', gwUserProfileMenuCloseHandler);
+    document.getElementById('quickUnlockToggleBtn')?.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const hasPasskey = e.currentTarget.dataset.hasPasskey === '1';
+      if(hasPasskey){
+        removeQuickUnlockPasskey(currentUser.id);
+        toast('Quick Unlock turned off for this device.');
+        renderGateway();
+      } else {
+        await registerQuickUnlockPasskey();
+        renderGateway();
+      }
+    });
   }
   if(servicesMenuOpen){
     document.getElementById('gwAdminPanelLink')?.addEventListener('click', async (e)=>{
@@ -19186,6 +19369,20 @@ function userProfileDropdown(){
     <div class="gw-user-dropdown-rows">
       <div class="gw-user-dropdown-row"><span class="gw-user-dropdown-label">Admin Support</span><span class="gw-user-dropdown-value">thereckoningbooks@gmail.com</span></div>
     </div>` : ''}
+    ${webauthnSupported() ? (()=>{
+      const hasPasskey = !!getStoredPasskey(currentUser.id);
+      return `
+    <div class="gw-user-dropdown-divider"></div>
+    <div class="gw-user-dropdown-rows">
+      <div class="gw-user-dropdown-row">
+        <span class="gw-user-dropdown-label">Quick Unlock on this device</span>
+        <span class="gw-user-dropdown-value" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span>${hasPasskey ? '🔒 On' : 'Off'}</span>
+          <button class="btn secondary small" id="quickUnlockToggleBtn" type="button" data-has-passkey="${hasPasskey?'1':'0'}" style="padding:3px 10px;font-size:11px;">${hasPasskey ? 'Turn Off' : 'Set Up'}</button>
+        </span>
+      </div>
+    </div>`;
+    })() : ''}
   </div>`;
 }
 function adminTabIcon(id){
@@ -21358,6 +21555,86 @@ function vendorBankChangeFraudFlags(){
   }
   return flags.sort((a,b)=> b.amount-a.amount);
 }
+// Five live "good bookkeeping habit" checks, each computed straight from functions the rest of the
+// Dashboard already relies on -- deliberately never a new parallel source of truth. Returns
+// {id,label,icon,ok,detail} for each; a badge earns its green "ok" state the moment the underlying
+// condition is true, same as every other live Dashboard figure (no caching, no separate approval step).
+function financialHealthBadges(){
+  const overdue = overdueInvoices();
+  const today = new Date().toISOString().slice(0,10);
+  const STALE_DAYS = 21;
+  const bankLedgers = state.ledgers.filter(l=>bucketOf(l)==='bank');
+  let staleCount = 0;
+  for(const l of bankLedgers){
+    staleCount += bankReconcileEntries(l.id, today).filter(r=>{
+      if(r.cleared) return false;
+      const gap = Math.floor((new Date(today+'T00:00:00') - new Date(r.date+'T00:00:00'))/86400000);
+      return gap >= STALE_DAYS;
+    }).length;
+  }
+  let gstReady = true, gstDetail = 'No missing GSTIN/HSN on this month\'s GST invoices.';
+  try{
+    const g = gstReturnReadinessData(today.slice(0,7));
+    const missing = (g.missingGstinVouchers||[]).length + (g.missingHsnVouchers||[]).length;
+    gstReady = missing===0;
+    if(!gstReady) gstDetail = `${missing} GST invoice field${missing===1?'':'s'} missing this month (GSTIN or HSN).`;
+  }catch(e){ /* no GST-applicable vouchers yet this month -- treat as ready, nothing to flag */ }
+  const exceptions = dashboardExceptionQueue();
+  const pendingApprovals = (state.pendingVouchers||[]).length;
+
+  return [
+    { id:'overdue', label:'Zero Overdue Invoices', icon:'💳', ok: overdue.length===0,
+      detail: overdue.length===0 ? 'No overdue receivables right now.' : `${overdue.length} invoice${overdue.length===1?'':'s'} overdue.` },
+    { id:'reconciled', label:'Books Reconciled', icon:'🏦', ok: staleCount===0,
+      detail: staleCount===0 ? 'No bank entries stuck unreconciled.' : `${staleCount} bank entr${staleCount===1?'y':'ies'} unreconciled ${STALE_DAYS}+ days.` },
+    { id:'gst', label:'GST Ready', icon:'🧾', ok: gstReady, detail: gstDetail },
+    { id:'exceptions', label:'No Open Exceptions', icon:'🔔', ok: exceptions.length===0,
+      detail: exceptions.length===0 ? 'Nothing on the exception queue.' : `${exceptions.length} item${exceptions.length===1?'':'s'} flagged for review.` },
+    { id:'approvals', label:'Approvals Clear', icon:'✅', ok: pendingApprovals===0,
+      detail: pendingApprovals===0 ? 'Nothing waiting on approval.' : `${pendingApprovals} voucher${pendingApprovals===1?'':'s'} awaiting approval.` },
+  ];
+}
+// Day-based streak, the same mechanism Duolingo-style habit trackers use: it only moves once per
+// CALENDAR day (guarded by lastDate, so ten Dashboard renders in one day don't inflate it), and only
+// counts up on a day where every badge above is green, continuing only if YESTERDAY was also green
+// (financialHealthStreak.lastAllGreenDate) -- any gap of a non-green day resets it to 0, and the next
+// all-green day starts a fresh streak of 1. Persisted on the company doc (not localStorage) via the
+// existing saveCompanyMeta() pattern, so the streak is shared across whoever opens this company, not
+// reset per-browser the way the purely-cosmetic dashboard-layout preferences are.
+function updateFinancialHealthStreak(badges){
+  if(!currentCompany || isReadOnlyMode()) return currentCompany ? (currentCompany.financialHealthStreak||{count:0}) : {count:0};
+  const today = new Date().toISOString().slice(0,10);
+  const prev = currentCompany.financialHealthStreak || {count:0, lastDate:null, lastAllGreenDate:null};
+  if(prev.lastDate === today) return prev; // already recorded today -- nothing to do
+  const allGreen = badges.every(b=>b.ok);
+  let next;
+  if(allGreen){
+    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+    const count = (prev.lastAllGreenDate === yesterday) ? (prev.count||0)+1 : 1;
+    next = { count, lastDate: today, lastAllGreenDate: today };
+  }else{
+    next = { count: 0, lastDate: today, lastAllGreenDate: prev.lastAllGreenDate||null };
+  }
+  currentCompany.financialHealthStreak = next;
+  saveCompanyMeta(currentCompany).catch(()=>{});
+  return next;
+}
+function financialHealthCard(){
+  const badges = financialHealthBadges();
+  const streak = updateFinancialHealthStreak(badges);
+  const count = streak && streak.count || 0;
+  return `
+    <div class="health-card">
+      <div class="health-head">
+        <div class="health-title">🏆 Financial Health</div>
+        <span class="health-streak ${count>0?'is-lit':''}" title="${count>0 ? `All ${badges.length} checks have been green for ${count} day${count===1?'':'s'} in a row.` : 'Clear every check below today to start a streak.'}">🔥 ${count>0 ? `${count}-day streak` : 'No streak yet'}</span>
+      </div>
+      <div class="health-badge-grid">
+        ${badges.map(b=>`<span class="health-badge ${b.ok?'ok':''}" title="${escapeAttr(b.detail)}"><span class="health-badge-check">${b.ok?'✓':b.icon}</span>${escapeHtml(b.label)}</span>`).join('')}
+      </div>
+    </div>
+  `;
+}
 function dashboardExceptionQueueCard(){
   const items = dashboardExceptionQueue();
   if(!items.length) return '';
@@ -21510,6 +21787,7 @@ const DASHBOARD_TILES = {
   incomeTrend: {label:'Revenue, COGS & Margin Trend', render: ()=>incomeTrendCard()},
   incomeCombo: {label:'Revenue vs Margin', render: ()=>incomeComboCard()},
   expenseTreemap: {label:'Expense Breakdown', render: ()=>expenseTreemapCard()},
+  moneyFlowSankey: {label:'Money Flow', render: ()=>moneyFlowSankeyCard()},
   balanceSheetStacked: {label:'Balance Sheet Stacked', render: ()=>balanceSheetStackedCard()},
   assetDonut: {label:'Asset Mix', render: ()=>assetDonutCard()},
   balanceSheetKPIGauge: {label:'Balance Sheet KPIs', render: ()=>balanceSheetKPIGaugeCard()},
@@ -21560,10 +21838,11 @@ function viewDashboard(){
 
   const kpiVisible = dashboardVisibleSections.some(id=>['profit','cash','assets','liab','overdue'].includes(id));
   const overviewVisible = kpiVisible || isDashboardSectionVisible('monthCompare');
-  const insightsVisible = ['exceptions','insights','cashForecast','collections','partyRisk'].some(isDashboardSectionVisible);
+  const insightsVisible = ['exceptions','insights','cashForecast','collections','partyRisk','financialHealth'].some(isDashboardSectionVisible);
 
   return `
     ${masthead('Dashboard','Overview of the books')}
+    ${aiBarHtml()}
 
     ${(overdue.length || lowStockCount) ? `
     <div class="dash-alerts">
@@ -21604,6 +21883,7 @@ function viewDashboard(){
     <div class="dash-section">
       <div class="section-title">Insights &amp; AI</div>
       <div class="dash-insights-grid">
+        ${isDashboardSectionVisible('financialHealth') ? financialHealthCard() : ''}
         ${isDashboardSectionVisible('exceptions') ? dashboardExceptionQueueCard() : ''}
         ${isDashboardSectionVisible('insights') ? dashboardInsightsCard() : ''}
         ${isDashboardSectionVisible('cashForecast') ? cashFlowForecastCard() : ''}
@@ -21639,6 +21919,7 @@ function viewDashboard(){
         ${pinnableTile('incomeTrend', DASHBOARD_TILES.incomeTrend.label, incomeTrendCard())}
         ${pinnableTile('incomeCombo', DASHBOARD_TILES.incomeCombo.label, incomeComboCard())}
         ${pinnableTile('expenseTreemap', DASHBOARD_TILES.expenseTreemap.label, expenseTreemapCard())}
+        ${pinnableTile('moneyFlowSankey', DASHBOARD_TILES.moneyFlowSankey.label, moneyFlowSankeyCard())}
       </div>
 
       <div class="section-title">Balance Sheet Visuals</div>
@@ -21705,11 +21986,13 @@ function balanceSheetVisualCard(){
     <div class="panel" data-open-visual="balanceSheet" style="cursor:pointer;">
       <div class="panel-head"><h2>Balance Sheet</h2></div>
       <div class="panel-body">
-        <canvas id="bsChart3D" width="360" height="220" style="width:100%;height:220px;display:block;"></canvas>
-        <div id="bsChart3DFallback" class="muted" style="display:none;height:220px;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;font-size:12px;">
-          <span>📊 Chart unavailable — 3D rendering couldn't load</span>
-          <button class="btn secondary small" type="button" data-retry-chart3d="true">↻ Retry</button>
-        </div>
+        ${svgColumnChart([
+          { label: 'Assets', segments: [{ label:'Total Assets', value: bs.totalAssets, color:'#2CA01C' }] },
+          { label: 'Equity + Liabilities', segments: [
+            { label:'Equity', value: bs.totalEquity, color:'#4F8EF7' },
+            { label:'Liabilities', value: liabilities, color:'#D64545' },
+          ]},
+        ])}
         <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">
           ${legendRow('Total Assets', bs.totalAssets, '#2CA01C')}
           ${legendRow('Equity', bs.totalEquity, '#4F8EF7')}
@@ -21726,11 +22009,11 @@ function incomeStatementVisualCard(){
     <div class="panel" data-open-visual="incomeStatement" style="cursor:pointer;">
       <div class="panel-head"><h2>Income Statement</h2></div>
       <div class="panel-body">
-        <canvas id="isChart3D" width="360" height="220" style="width:100%;height:220px;display:block;"></canvas>
-        <div id="isChart3DFallback" class="muted" style="display:none;height:220px;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;font-size:12px;">
-          <span>📊 Chart unavailable — 3D rendering couldn't load</span>
-          <button class="btn secondary small" type="button" data-retry-chart3d="true">↻ Retry</button>
-        </div>
+        ${svgColumnChart([
+          { label:'Revenue', segments: [{ label:'Revenue', value: is.revenue, color:'#F2994A' }] },
+          { label:'Expenses', segments: [{ label:'Total Expenses', value: totalExpenses, color:'#D64545' }] },
+          { label: is.profitForPeriod>=0?'Net Profit':'Net Loss', segments: [{ label: is.profitForPeriod>=0?'Net Profit':'Net Loss', value: Math.abs(is.profitForPeriod), color: is.profitForPeriod>=0?'#2CA01C':'#D64545' }] },
+        ])}
         <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">
           ${legendRow('Revenue', is.revenue, '#F2994A')}
           ${legendRow('Total Expenses', totalExpenses, '#D64545')}
@@ -21827,9 +22110,10 @@ function hideChartTooltip(){
   if(el) el.classList.remove('show');
 }
 // Wires the three interaction layers described above onto whatever the dashboard just rendered.
-// Called once after every dashboard render (see the view==='dashboard' wiring block) — independent
-// of renderDashboardCharts(), which bails out early when Three.js hasn't loaded and would otherwise
-// silently take these plain-SVG charts' interactivity down with it.
+// Called once after every dashboard render (see the view==='dashboard' wiring block). Every chart
+// on the dashboard (including the Balance Sheet / Income Statement svgColumnChart() cards) is a
+// synchronous inline <svg> embedded directly in the render output, so there is no separate chart
+// init step to depend on — this is purely tooltip/click delegation over whatever just rendered.
 function wireVizInteractivity(){
   document.querySelectorAll('[data-tip-title]').forEach(el=>{
     el.addEventListener('mouseenter', e=>showChartTooltipFor(el, e));
@@ -22246,6 +22530,71 @@ function svgBalanceSheetStackedBars(bs){
   });
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;font-family:'Inter',sans-serif;overflow:visible;">${svg}</svg>`;
 }
+// Dependency-free inline-SVG money-flow (Sankey-style) diagram: a left column of inflow sources
+// feeding a single aggregate middle node, which fans back out into a right column of destination
+// categories. `columns` is an array of node-arrays (left/middle/right); `links` connects node ids
+// between adjacent columns. Each column is scaled independently to its own total (mapped to the
+// full plot height), so a column whose total differs from its neighbor's — e.g. expenses exceeding
+// revenue in a loss-making period — legitimately shows as a ribbon that widens or narrows between
+// its two ends, rather than being forced to a false shared scale. Node/link colors are passed in by
+// the caller (reusing this dashboard's existing VIZ_COLORS category assignments — see
+// dashboardMoneyFlowData() — so the same expense category keeps the same hue in the Sankey as it
+// already has in the Expense Breakdown treemap on the same screen). Both nodes and ribbons carry
+// the usual data-tip-* attributes, so wireVizInteractivity() gives them hover/focus tooltips for
+// free, exactly like every other chart here.
+function svgSankeyFlow(columns, links, opts={}){
+  const width = opts.width || 560, height = opts.height || 300;
+  const padTop = 16, padBottom = 16, padSide = 8, nodeW = 12, nodeGap = 8;
+  const plotH = height - padTop - padBottom;
+  const n = columns.length;
+  if(n < 2) return '';
+  const colX = columns.map((_,i)=> padSide + i*((width - padSide*2 - nodeW) / (n-1)) );
+
+  const laidOut = columns.map((col, ci)=>{
+    const total = col.reduce((s,nd)=>s+Math.max(0,nd.value||0),0) || 1;
+    const usableH = Math.max(1, plotH - nodeGap*Math.max(0,col.length-1));
+    const scale = usableH / total;
+    const stackH = col.reduce((s,nd)=>s+Math.max(0,nd.value||0)*scale,0) + nodeGap*Math.max(0,col.length-1);
+    let y = padTop + Math.max(0,(plotH - stackH)/2);
+    return col.map(nd=>{
+      const h = Math.max(2.5, Math.max(0,nd.value||0)*scale);
+      const node = { ...nd, colIndex:ci, x:colX[ci], y0:y, y1:y+h, h, scale };
+      y += h + nodeGap;
+      return node;
+    });
+  });
+  const nodeById = {};
+  laidOut.forEach(col=>col.forEach(nd=>{ nodeById[nd.id] = nd; }));
+
+  const usedOut = {}, usedIn = {};
+  let ribbonsSvg = '';
+  links.forEach(lk=>{
+    const s = nodeById[lk.source], t = nodeById[lk.target];
+    if(!s || !t) return;
+    const val = Math.max(0, lk.value||0);
+    const sThick = Math.max(1.5, val*s.scale), tThick = Math.max(1.5, val*t.scale);
+    const sOff = usedOut[lk.source]||0; usedOut[lk.source] = sOff + sThick;
+    const tOff = usedIn[lk.target]||0; usedIn[lk.target] = tOff + tThick;
+    const sy0 = s.y0+sOff, sy1 = sy0+sThick;
+    const ty0 = t.y0+tOff, ty1 = ty0+tThick;
+    const x0 = s.x+nodeW, x1 = t.x, xm = (x0+x1)/2;
+    const color = lk.color || t.color || s.color;
+    const path = `M${x0.toFixed(1)},${sy0.toFixed(1)} C${xm.toFixed(1)},${sy0.toFixed(1)} ${xm.toFixed(1)},${ty0.toFixed(1)} ${x1.toFixed(1)},${ty0.toFixed(1)} L${x1.toFixed(1)},${ty1.toFixed(1)} C${xm.toFixed(1)},${ty1.toFixed(1)} ${xm.toFixed(1)},${sy1.toFixed(1)} ${x0.toFixed(1)},${sy1.toFixed(1)} Z`;
+    ribbonsSvg += `<path class="viz-mark" data-tip-title="${escapeAttr(lk.label || (s.label+' → '+t.label))}" data-tip-value="₹${fmt(val)}" data-tip-color="${color}" tabindex="0" d="${path}" fill="${color}" opacity="0.55"></path>`;
+  });
+
+  const nodesSvg = laidOut.map(col=>col.map(nd=>{
+    const anchor = nd.mid ? 'middle' : (nd.colIndex===0 ? 'end' : 'start');
+    const labelX = nd.mid ? nd.x+nodeW/2 : (nd.colIndex===0 ? nd.x-7 : nd.x+nodeW+7);
+    const labelY = nd.mid ? nd.y0-7 : (nd.y0+nd.h/2+3.5);
+    return `<g class="viz-mark" data-tip-title="${escapeAttr(nd.label)}" data-tip-value="₹${fmt(nd.value)}" data-tip-color="${nd.color}" tabindex="0">
+      <rect x="${nd.x.toFixed(1)}" y="${nd.y0.toFixed(1)}" width="${nodeW}" height="${nd.h.toFixed(1)}" rx="3" fill="${nd.color}"></rect>
+    </g>
+    <text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="10.5" font-weight="700" fill="var(--ink-soft)" text-anchor="${anchor}">${escapeHtml(nd.label)}</text>`;
+  }).join('')).join('');
+
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;font-family:'Inter',sans-serif;overflow:visible;">${ribbonsSvg}${nodesSvg}</svg>`;
+}
 // True SVG donut (not a CSS conic-gradient, so each slice can carry its own hover/click handlers)
 // showing total-assets composition by functional bucket, with the grand total in the hollow
 // center — click a slice for the full Total Assets breakdown.
@@ -22422,6 +22771,46 @@ function incomeComboCard(){
           {key:'comboRevenue', label:'Total Revenue', color:VIZ_COLORS[0]},
           {key:'comboMargin', label:'Net Profit Margin %', color:VIZ_COLORS[1], dashed:true},
         ])}
+      </div>
+    </div>
+  `;
+}
+// Builds the node/link data for the Money Flow Sankey from the same incomeStatementData()/
+// dashboardExpenseTreemapData() figures every other Dashboard chart already uses — so the Sankey
+// never disagrees with the Profit Bridge or Expense Breakdown drawn from the same numbers. Colors
+// deliberately reuse dashboardExpenseTreemapData()'s own category→color assignments (cogs/dist/
+// admin/fin), so the same expense category keeps the same hue across both charts on this screen.
+function dashboardMoneyFlowData(is){
+  const sources = [];
+  if(is.revenue > 0) sources.push({ id:'rev', label:'Revenue', value:is.revenue, color:VIZ_COLORS[0] });
+  if(is.otherIncome > 0) sources.push({ id:'oinc', label:'Other Income', value:is.otherIncome, color:VIZ_COLORS[1] });
+  if(!sources.length) return null;
+
+  const expenseGroups = dashboardExpenseTreemapData(is); // [{key,label,color,total,...}], total>0 only
+  const destinations = expenseGroups.map(g=>({ id:g.key, label:g.label, value:g.total, color:g.color }));
+  if(is.profitForPeriod > 0) destinations.push({ id:'profit', label:'Net Profit', value:is.profitForPeriod, color:VIZ_COLORS[0] });
+  if(!destinations.length) return null;
+
+  const totalIn = sources.reduce((s,x)=>s+x.value,0);
+  const mid = { id:'mid', label:'Total Inflow', value:totalIn, color:'var(--ink-faint)', mid:true };
+  const columns = [ sources, [mid], destinations ];
+  const links = [
+    ...sources.map(s=>({ source:s.id, target:'mid', value:s.value, color:s.color })),
+    ...destinations.map(d=>({ source:'mid', target:d.id, value:d.value, color:d.color })),
+  ];
+  return { columns, links, totalIn, totalOut: destinations.reduce((s,x)=>s+x.value,0), shortfall: is.profitForPeriod < 0 ? -is.profitForPeriod : 0 };
+}
+function moneyFlowSankeyCard(){
+  const is = incomeStatementData();
+  const flow = dashboardMoneyFlowData(is);
+  return `
+    <div class="panel viz-panel">
+      <div class="panel-head"><h2>Money Flow</h2><span class="viz-sub">Sankey · life-to-date</span></div>
+      <div class="panel-body">
+        ${flow ? `
+        ${svgSankeyFlow(flow.columns, flow.links)}
+        <p class="muted" style="font-size:10.5px;margin:8px 0 0;">Ribbon width = amount. Hover any flow or node for the figure behind it.${flow.shortfall>0 ? ` Expenses exceeded inflow by ₹${fmt(flow.shortfall)} this period — the destination side runs wider than the source side above.` : ''}</p>
+        ` : `<div class="empty">Not enough transaction data yet to show where money is flowing.</div>`}
       </div>
     </div>
   `;
@@ -23376,135 +23765,6 @@ function migrateModal(){
       </div>
     </div>
   `;
-}
-
-/* ---------------- 3D bar charts (Three.js) ---------------- */
-let chart3DFrames = {}; // canvasId -> requestAnimationFrame id, so old loops stop when the canvas is replaced
-function init3DBarChart(canvasId, columns){
-  const canvas = document.getElementById(canvasId);
-  if(!canvas || typeof THREE === 'undefined') return;
-  if(chart3DFrames[canvasId]){ cancelAnimationFrame(chart3DFrames[canvasId]); delete chart3DFrames[canvasId]; }
-
-  const width = canvas.clientWidth || 360;
-  const height = canvas.clientHeight || 220;
-  let renderer;
-  try{
-    renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
-  }catch(e){ return; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  renderer.setSize(width, height, false);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, width/height, 0.1, 100);
-  camera.position.set(4.6, 3.4, 6.2);
-  camera.lookAt(0, 0.6, 0);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const dLight = new THREE.DirectionalLight(0xffffff, 0.75);
-  dLight.position.set(4, 7, 5);
-  scene.add(dLight);
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.25);
-  fillLight.position.set(-4, 2, -3);
-  scene.add(fillLight);
-
-  const columnTotals = columns.map(c=> c.segments.reduce((s,seg)=>s+Math.abs(seg.value),0));
-  const maxVal = Math.max(...columnTotals, 1);
-  const group = new THREE.Group();
-  const barWidth = 0.85, gap = 0.55;
-  const totalWidth = columns.length*barWidth + (columns.length-1)*gap;
-
-  // faint base grid for grounding
-  const gridGeo = new THREE.PlaneGeometry(totalWidth+2, 2.4);
-  const gridMat = new THREE.MeshBasicMaterial({ color:0xE1E7E3, transparent:true, opacity:0.5, side:THREE.DoubleSide });
-  const grid = new THREE.Mesh(gridGeo, gridMat);
-  grid.rotation.x = -Math.PI/2;
-  grid.position.y = -0.005;
-  group.add(grid);
-
-  columns.forEach((col,i)=>{
-    const x = -totalWidth/2 + barWidth/2 + i*(barWidth+gap);
-    let cumY = 0;
-    col.segments.forEach(seg=>{
-      const h = Math.max(0.06, (Math.abs(seg.value)/maxVal) * 2.7);
-      const geo = new THREE.BoxGeometry(barWidth, h, barWidth);
-      const mat = new THREE.MeshStandardMaterial({ color: seg.color, roughness:0.45, metalness:0.08 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.x = x;
-      mesh.position.y = cumY + h/2;
-      group.add(mesh);
-
-      const edges = new THREE.EdgesGeometry(geo);
-      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color:0x000000, transparent:true, opacity:0.12 }));
-      line.position.copy(mesh.position);
-      group.add(line);
-
-      cumY += h;
-    });
-  });
-  scene.add(group);
-
-  function animate(){
-    group.rotation.y += 0.0055;
-    renderer.render(scene, camera);
-    if(document.getElementById(canvasId)){
-      chart3DFrames[canvasId] = requestAnimationFrame(animate);
-    } else {
-      renderer.dispose();
-      delete chart3DFrames[canvasId];
-    }
-  }
-  animate();
-}
-// Shows/hides a 3D chart's canvas vs. its "Chart unavailable" fallback message -- see
-// renderDashboardCharts() below, which previously bailed out silently (a blank white card) whenever
-// THREE hadn't loaded, with no indication anything was wrong (UI/UX audit, Sept 2026, Finding #4).
-function chart3DSetFallback(canvasId, showFallback){
-  const canvas = document.getElementById(canvasId);
-  const fallback = document.getElementById(canvasId+'Fallback');
-  if(canvas) canvas.style.display = showFallback ? 'none' : 'block';
-  if(fallback) fallback.style.display = showFallback ? 'flex' : 'none';
-}
-let chart3DRetryInFlight = false;
-// Lets the fallback card's "↻ Retry" button attempt to load the Three.js CDN script a second time,
-// for the common transient cases (slow network, a corporate proxy or ad-blocker that was just
-// allow-listed) without requiring a full page reload. If THREE is already loaded by the time this
-// runs, it just re-renders the charts immediately.
-function retryLoad3DCharts(){
-  if(typeof THREE !== 'undefined'){ renderDashboardCharts(); return; }
-  if(chart3DRetryInFlight) return;
-  chart3DRetryInFlight = true;
-  const script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-  script.onload = ()=>{ chart3DRetryInFlight = false; renderDashboardCharts(); };
-  script.onerror = ()=>{
-    chart3DRetryInFlight = false;
-    toast('Still unable to load the 3D chart library — check your network connection or ad-blocker and try again.', {type:'error'});
-  };
-  document.head.appendChild(script);
-}
-function renderDashboardCharts(){
-  if(typeof THREE === 'undefined'){
-    chart3DSetFallback('bsChart3D', true);
-    chart3DSetFallback('isChart3D', true);
-    return;
-  }
-  chart3DSetFallback('bsChart3D', false);
-  chart3DSetFallback('isChart3D', false);
-  const is = incomeStatementData();
-  const bs = balanceSheetIFRSData(is.profitForPeriod);
-  init3DBarChart('bsChart3D', [
-    { segments: [{ value: bs.totalAssets, color: 0x2CA01C }] },
-    { segments: [
-      { value: bs.totalEquity, color: 0x4F8EF7 },
-      { value: bs.nonCurrentLiabTotal + bs.currentLiabTotal, color: 0xD64545 },
-    ]},
-  ]);
-  const totalExpenses = is.costOfSales + is.distributionCosts + is.adminExpenses + is.financeCosts;
-  init3DBarChart('isChart3D', [
-    { segments: [{ value: is.revenue, color: 0xF2994A }] },
-    { segments: [{ value: totalExpenses, color: 0xD64545 }] },
-    { segments: [{ value: Math.abs(is.profitForPeriod), color: is.profitForPeriod>=0 ? 0x2CA01C : 0xD64545 }] },
-  ]);
 }
 
 /* ---- Smart ledger suggestion (Voucher narration) ----
@@ -24935,7 +25195,7 @@ function viewOrders(){
             ${list.map(d=>{
               const party = ledgerOf(d.partyLedgerId);
               const amt = itemsSubtotal(d.items||[]);
-              const statusBadge = d.status==='converted' ? `<span class="pill pos">Converted</span>` : `<span class="pill" style="background:var(--border);color:var(--ink-faint);">Open</span>`;
+              const statusBadge = d.status==='converted' ? `<span class="pill pos">Converted</span>` : `<span class="pill neutral">Open</span>`;
               return `<tr>
                 <td class="ccard-title" data-label="${meta.prefix} No.">${meta.prefix}-${String(d.no).padStart(4,'0')}</td>
                 <td class="muted" data-label="Date">${d.date}</td>
@@ -26506,6 +26766,46 @@ function svgStackedBar(segments, opts={}){
   const titleSvg = opts.title ? `<text x="3" y="12" font-size="11.5" font-weight="700" fill="var(--ink-soft)">${escapeHtml(opts.title)}</text>` : '';
   const legend = segments.map(seg=>`<span style="display:inline-flex;align-items:center;gap:6px;margin-right:18px;font-size:11.5px;color:var(--ink-soft);"><span style="width:10px;height:10px;border-radius:2px;background:${seg.color};display:inline-block;"></span>${escapeHtml(seg.label)} (${(Math.max(0,seg.value||0)/total*100).toFixed(1)}%)</span>`).join('');
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;border-radius:6px;overflow:hidden;">${titleSvg}${rects}</svg><div style="margin-top:9px;">${legend}</div>`;
+}
+/* Lightweight, dependency-free inline-SVG grouped/stacked column chart — replaces the old
+   Three.js "3D bar chart" (init3DBarChart()) that used to sit on the Balance Sheet / Income
+   Statement dashboard cards via a <canvas> + CDN-loaded WebGL renderer. That approach needed an
+   external script to load, a post-render init pass (renderDashboardCharts()), and a visible
+   fallback for when the CDN script failed/was blocked — all genuine failure modes for a feature
+   that's purely decorative. A plain SVG string, computed synchronously and embedded directly in
+   the card's own template literal, has none of that: no network dependency, no load race, no
+   fallback state needed, and it gets click/tooltip interactivity for free via the existing
+   wireVizInteractivity() delegation (keyed on the same data-tip-* attributes every other chart
+   helper here uses).
+   `columns`: array of { label, segments: [{ label, value, color }, ...] } — each column draws its
+   segments stacked bottom-up; a column with one segment is just a plain bar. */
+function svgColumnChart(columns, opts={}){
+  const width = opts.width || 360, height = opts.height || 220;
+  const padTop = 10, padBottom = 26, padSide = 20;
+  const plotH = height - padTop - padBottom;
+  const colTotal = c => c.segments.reduce((s,seg)=>s+Math.abs(seg.value||0), 0);
+  const maxVal = Math.max(...columns.map(colTotal), 1);
+  const n = columns.length;
+  const gap = opts.gap || 28;
+  const colW = Math.min(64, (width - padSide*2 - gap*(n-1)) / n);
+  const totalW = n*colW + (n-1)*gap;
+  const startX = (width - totalW) / 2;
+
+  const bars = columns.map((col, i)=>{
+    const x = startX + i*(colW+gap);
+    let cumY = padTop + plotH;
+    const segsSvg = col.segments.map(seg=>{
+      const h = Math.max(2, (Math.abs(seg.value||0)/maxVal) * plotH);
+      cumY -= h;
+      return `<g class="viz-mark" data-tip-title="${escapeAttr(seg.label||col.label||'')}" data-tip-value="₹${fmt(seg.value||0)}" data-tip-color="${seg.color}" tabindex="0">
+        <rect x="${x.toFixed(2)}" y="${cumY.toFixed(2)}" width="${colW}" height="${h.toFixed(2)}" rx="4" fill="${seg.color}"></rect>
+      </g>`;
+    }).join('');
+    const labelY = padTop + plotH + 18;
+    return `${segsSvg}<text x="${(x+colW/2).toFixed(2)}" y="${labelY}" font-size="11" font-weight="600" fill="var(--ink-soft)" text-anchor="middle">${escapeHtml(col.label||'')}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" style="display:block;font-family:'Inter',sans-serif;overflow:visible;">${bars}</svg>`;
 }
 /* Rule-based, plain-language read of the Balance Sheet's liquidity, asset mix, leverage and
    internal balance — generated from the same figures shown in the statement above it. */
@@ -30536,6 +30836,7 @@ function wireApprovalsAccessTeamHandlers(){
 
 /* ---------------- event handling ---------------- */
 function attachHandlers(){
+  wireFabScrollFade();
   document.querySelectorAll('.navtab').forEach(b=>{
     b.addEventListener('click',()=>{
       const id = b.dataset.tab;
@@ -31700,10 +32001,6 @@ function attachHandlers(){
       };
       el.addEventListener('click', run);
       el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); run(); } });
-    });
-    renderDashboardCharts();
-    document.querySelectorAll('[data-retry-chart3d]').forEach(el=>{
-      el.addEventListener('click', ()=>{ retryLoad3DCharts(); });
     });
     wireVizInteractivity();
     animateDashboardCounters();
@@ -33574,6 +33871,232 @@ window.addEventListener('unhandledrejection', (e)=>{
   try{ logClientError('Unhandled promise rejection: ' + (e.reason && e.reason.message || e.reason), e.reason && e.reason.stack); }catch(err){}
 });
 
+/* ============================================================================================
+   Quick Unlock -- WebAuthn passkey / biometric re-entry gate
+   ============================================================================================
+   Honest framing, because it matters for a security feature: this app has no backend server, so
+   there is no second party able to verify a WebAuthn signature independently of this same browser
+   tab. This is therefore NOT a new server-verified trust boundary layered on top of Firebase Auth
+   -- it is a LOCAL convenience gate that stands in front of the session Firebase Auth already
+   restores automatically on this device. Without it, anyone who can unlock this device/browser can
+   resume a signed-in session with zero further check. With it, that same person must also clear a
+   platform-authenticator prompt (fingerprint/face/device PIN/security key) whose private key never
+   leaves the device's secure enclave/TPM and is never seen by this page's JS -- a real,
+   hardware-backed check, just one this page verifies against its OWN previously-stored public key
+   rather than a server's. That's comparable in spirit to how this app's Firestore Security Rules
+   are themselves the only enforcement layer (client-only, no backend) -- this gate is the same kind
+   of honest trade-off, applied to "is this still the same person at this device" instead of "is
+   this write allowed."
+
+   Mechanics: navigator.credentials.create()/.get() with pubKeyCredParams locked to alg:-7 (ES256 /
+   P-256) only, so verification only ever needs ONE Web Crypto algorithm. The public key is read
+   straight off the registration response via AuthenticatorAttestationResponse.getPublicKey() (SPKI
+   bytes) -- a WebAuthn Level 3 convenience that avoids hand-rolling a CBOR/COSE decoder over
+   attestationObject. The one piece of real cryptographic plumbing that's unavoidable: WebAuthn
+   assertions sign with ASN.1 DER-encoded ECDSA signatures, but Web Crypto's verify() wants the raw
+   IEEE P1363 (r||s) form -- see derSignatureToRaw() below. */
+
+// Feature-detects a platform that can actually do this -- no polyfill, no fallback crypto; devices
+// without it simply never see the Quick Unlock option (getStoredPasskey() finds nothing to use).
+function webauthnSupported(){
+  return typeof window !== 'undefined' && !!(window.PublicKeyCredential && navigator.credentials &&
+    navigator.credentials.create && navigator.credentials.get);
+}
+function bufToBase64url(buf){
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function base64urlToBuf(b64url){
+  const b64 = b64url.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((b64url.length+3)%4);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+// WebAuthn/FIDO2 assertion signatures are ASN.1 DER: 30 len [02 rlen r] [02 slen s]. Web Crypto's
+// ECDSA verify() instead wants the raw IEEE P1363 form -- r and s each left-padded to the curve's
+// byte length (32 for P-256) and concatenated. DER integers are sometimes padded with a leading
+// 0x00 (to keep the two's-complement value non-negative) and sometimes short a byte or two (if the
+// top byte would otherwise be >=0x80) -- both are normalized away here.
+function derSignatureToRaw(derBuf, keySizeBytes){
+  keySizeBytes = keySizeBytes || 32;
+  const der = new Uint8Array(derBuf);
+  let offset = 0;
+  if(der[offset++] !== 0x30) throw new Error('Invalid DER signature (expected SEQUENCE)');
+  let seqLen = der[offset++];
+  if(seqLen & 0x80){ offset += (seqLen & 0x7f); } // skip multi-byte length form, if present
+  function readInt(){
+    if(der[offset++] !== 0x02) throw new Error('Invalid DER signature (expected INTEGER)');
+    let len = der[offset++];
+    let bytes = der.slice(offset, offset+len);
+    offset += len;
+    while(bytes.length > keySizeBytes && bytes[0]===0x00) bytes = bytes.slice(1);
+    if(bytes.length < keySizeBytes){
+      const padded = new Uint8Array(keySizeBytes);
+      padded.set(bytes, keySizeBytes - bytes.length);
+      bytes = padded;
+    }
+    return bytes;
+  }
+  const r = readInt();
+  const s = readInt();
+  const raw = new Uint8Array(keySizeBytes*2);
+  raw.set(r, 0);
+  raw.set(s, keySizeBytes);
+  return raw.buffer;
+}
+function quickUnlockStorageKey(uid){ return 'rb_passkey_' + uid; }
+function getStoredPasskey(uid){
+  if(!uid) return null;
+  try{
+    const raw = localStorage.getItem(quickUnlockStorageKey(uid));
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function removeQuickUnlockPasskey(uid){
+  try{ localStorage.removeItem(quickUnlockStorageKey(uid)); }catch(e){}
+}
+// Registers a new platform-authenticator credential for the SIGNED-IN user on THIS device/browser,
+// and stores its id + SPKI public key locally (never sent anywhere -- there's no backend to send it
+// to). Call this from an already-authenticated context only (the Security row in the user's own
+// profile dropdown) -- never from the login/unlock screen itself, which only ever verifies.
+async function registerQuickUnlockPasskey(){
+  if(!currentUser) return false;
+  if(!webauthnSupported()){ toast('Passkeys/biometric unlock aren\'t supported in this browser.'); return false; }
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userIdBytes = new TextEncoder().encode(currentUser.id);
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'The Reckoning Books by SKm' },
+        user: { id: userIdBytes, name: currentUser.email || currentUser.username || currentUser.id, displayName: currentUser.name || currentUser.username || 'Account' },
+        pubKeyCredParams: [{ type:'public-key', alg:-7 }], // ES256/P-256 only -- keeps verify() to one algorithm
+        authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required', residentKey:'preferred' },
+        timeout: 60000,
+        attestation: 'none',
+      }
+    });
+    if(!cred) return false;
+    if(!cred.response.getPublicKey){
+      toast('This browser can\'t expose the passkey\'s public key — try a recent Chrome, Edge, or Safari.');
+      return false;
+    }
+    const spki = cred.response.getPublicKey();
+    const rec = {
+      credId: bufToBase64url(cred.rawId),
+      spki: bufToBase64url(spki),
+      label: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || 'This device',
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem(quickUnlockStorageKey(currentUser.id), JSON.stringify(rec));
+    toast('✓ Quick Unlock is on for this device — you\'ll be asked for it next time you open the app here.');
+    return true;
+  }catch(e){
+    console.error('Passkey registration failed:', e);
+    if(e && e.name==='NotAllowedError') toast('Passkey setup was cancelled.');
+    else toast('Could not set up Quick Unlock: ' + (e && e.message || 'unknown error'));
+    return false;
+  }
+}
+// Verifies a Quick Unlock assertion against the public key stored at registration time. Returns
+// true only if the device just produced a valid signature over a fresh challenge using the private
+// key matching that stored public key -- a replay of an old assertion fails (new random challenge
+// every call), and a different device/credential fails (allowCredentials is pinned to this one id).
+async function verifyQuickUnlockPasskey(uid){
+  const rec = getStoredPasskey(uid);
+  if(!rec) return false;
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ type:'public-key', id: base64urlToBuf(rec.credId) }],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+    });
+    if(!assertion) return false;
+    const key = await crypto.subtle.importKey('spki', base64urlToBuf(rec.spki), { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
+    const authenticatorData = assertion.response.authenticatorData;
+    const clientDataHash = await crypto.subtle.digest('SHA-256', assertion.response.clientDataJSON);
+    const signedData = new Uint8Array(authenticatorData.byteLength + clientDataHash.byteLength);
+    signedData.set(new Uint8Array(authenticatorData), 0);
+    signedData.set(new Uint8Array(clientDataHash), authenticatorData.byteLength);
+    const rawSig = derSignatureToRaw(assertion.response.signature, 32);
+    return !!(await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, key, rawSig, signedData.buffer));
+  }catch(e){
+    console.error('Passkey verification failed:', e);
+    return false;
+  }
+}
+// The gate screen itself -- shown by init()'s onAuthStateChanged handler INSTEAD OF calling
+// restoreSessionFor() immediately, whenever a cached Firebase session exists on this browser AND
+// this device has a Quick Unlock passkey registered for that uid. Deliberately minimal: no app
+// data is loaded or shown here (nothing in `quickUnlockUser` beyond what Firebase Auth itself
+// already handed us) until the gate clears.
+function renderQuickUnlock(){
+  const app = document.getElementById('app');
+  const fbUser = quickUnlockUser;
+  const name = (fbUser && (fbUser.displayName || fbUser.email)) || 'your account';
+  const initials = userInitials(fbUser && (fbUser.displayName || fbUser.email) || '?');
+  app.innerHTML = `
+    <div class="rb-bg">
+      <span class="rb-letter rb-letter-r">R</span>
+      <span class="rb-letter rb-letter-b">B</span>
+      <div class="rb-content">
+        <div class="titlebar">
+          <span>The Reckoning Books by SKm — Quick Unlock</span>
+          <span class="winbtns"><span>_</span><span>▢</span><span>✕</span></span>
+        </div>
+        <div class="login-shell" style="justify-content:center;">
+          <div class="login-card quick-unlock-card">
+            <div class="quick-unlock-avatar">${escapeHtml(initials)}</div>
+            <h1 style="font-size:19px;">Welcome back</h1>
+            <div class="login-by" style="margin-bottom:4px;">${escapeHtml(name)}</div>
+            <p class="login-tagline" style="margin-top:10px;">This device is set up for Quick Unlock. Verify it's you to continue — a fingerprint, face, device PIN, or security key.</p>
+            ${quickUnlockError ? `<div class="auth-error" style="margin-top:10px;">${escapeHtml(quickUnlockError)}</div>` : ''}
+            <button class="btn primary" id="quickUnlockBtn" type="button" style="width:100%;margin-top:16px;" ${quickUnlockVerifying?'disabled':''}>
+              ${quickUnlockVerifying ? 'Verifying…' : '🔒 Unlock'}
+            </button>
+            <button class="btn-link" id="quickUnlockFallbackBtn" type="button" style="width:100%;margin-top:10px;">Use your password instead</button>
+            <div class="quick-unlock-note">This only confirms it's still you on this device — it doesn't replace your account password, which still protects your account everywhere else.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('quickUnlockBtn')?.addEventListener('click', async ()=>{
+    quickUnlockVerifying = true;
+    quickUnlockError = '';
+    renderQuickUnlock();
+    const ok = await verifyQuickUnlockPasskey(fbUser.uid);
+    quickUnlockVerifying = false;
+    if(ok){
+      quickUnlockUser = null;
+      await restoreSessionFor(fbUser);
+    } else {
+      quickUnlockError = 'Could not verify — try again, or use your password instead.';
+      renderQuickUnlock();
+      document.getElementById('quickUnlockBtn')?.focus();
+    }
+  });
+  document.getElementById('quickUnlockFallbackBtn')?.addEventListener('click', async ()=>{
+    // Falling back to password means this device's cached session is no longer trusted on its own --
+    // sign out of it so the login screen genuinely requires the password, rather than quietly
+    // leaving the gated session resumable by just reloading the page again.
+    quickUnlockUser = null;
+    quickUnlockError = '';
+    try{ await fbAuth.signOut(); }catch(e){}
+    authMode = 'login';
+    authError = '';
+    screen = 'login';
+    renderLogin();
+  });
+}
+
 // Restores an existing Firebase Auth session (e.g. after a page reload) instead of dumping the
 // person back to the landing page even though they were never actually signed out. Every login path
 // in this app already writes a matching users/{uid} profile doc, so re-reading that one doc is
@@ -33683,8 +34206,21 @@ function setupHistoryRoot(){
   fbAuth.onAuthStateChanged(async (user)=>{
     if(sessionRestoreDone) return;
     sessionRestoreDone = true;
-    if(user) await restoreSessionFor(user);
-    else{ screen = 'landing'; renderLanding(); }
+    if(user && getStoredPasskey(user.uid)){
+      // This device has Quick Unlock set up for this cached session -- hold it at the gate instead
+      // of resuming straight into the books. setupHistoryRoot() still runs so Back/Forward has a
+      // root to land on; the gate itself is never pushed as its own history entry (see
+      // renderQuickUnlock()'s comment -- it resolves to either 'app'/'gateway' or 'login').
+      screen = 'quickUnlock';
+      quickUnlockUser = user;
+      quickUnlockError = '';
+      renderQuickUnlock();
+    } else if(user){
+      await restoreSessionFor(user);
+    } else {
+      screen = 'landing';
+      renderLanding();
+    }
     setupHistoryRoot();
   });
 })();
