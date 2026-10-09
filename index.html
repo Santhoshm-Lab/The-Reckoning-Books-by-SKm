@@ -587,6 +587,30 @@
   .gw-chip{background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.22);border-radius:14px;padding:10px 16px;min-width:88px;text-align:center;backdrop-filter:blur(6px);}
   .gw-chip .gw-chip-val{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;}
   .gw-chip .gw-chip-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.7);font-weight:700;margin-top:2px;}
+  .gw-resume-card{display:flex;align-items:center;gap:11px;margin-top:14px;padding:10px 14px;border-radius:12px;
+    background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.22);backdrop-filter:blur(6px);
+    cursor:pointer;max-width:380px;transition:background .15s ease,transform .15s ease;}
+  .gw-resume-card:hover, .gw-resume-card:focus-visible{background:rgba(255,255,255,0.2);transform:translateY(-1px);outline:none;}
+  .gw-resume-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:12px;color:#fff;flex-shrink:0;}
+  .gw-resume-body{min-width:0;}
+  .gw-resume-label{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.65);}
+  .gw-resume-detail{font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+  .gw-resume-dot{color:rgba(255,255,255,0.5);}
+  .gw-resume-arrow{color:rgba(255,255,255,0.6);flex-shrink:0;margin-left:2px;transition:transform .15s ease;}
+  .gw-resume-card:hover .gw-resume-arrow{transform:translateX(3px);color:#fff;}
+  .company-card-health{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap;}
+  .company-card-health-streak{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--ink-faint);background:var(--surface-strong);border-radius:999px;padding:2px 8px;}
+  .company-card-health-streak.is-lit{color:#B35B00;background:color-mix(in srgb, var(--gold, #F2A900) 18%, transparent);}
+  .company-card-health-flag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--debit);background:var(--debit-bg);border-radius:999px;padding:2px 8px;}
+  .trusted-device-row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);}
+  .trusted-device-row:last-child{border-bottom:none;}
+  .trusted-device-row.is-revoked{opacity:.55;}
+  .trusted-device-icon{font-size:18px;flex-shrink:0;width:28px;text-align:center;}
+  .trusted-device-body{flex:1;min-width:0;}
+  .trusted-device-label{font-size:13px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .trusted-device-badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--accent1);background:color-mix(in srgb, var(--accent1) 14%, transparent);border-radius:999px;padding:2px 7px;}
+  .trusted-device-meta{font-size:11.5px;color:var(--ink-faint);margin-top:1px;}
 
   .gw-wrap{max-width:980px;margin:0 auto;padding:26px 32px 10px;}
   .gw-section-title{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);margin:0 0 14px;display:flex;align-items:center;gap:8px;}
@@ -987,6 +1011,13 @@
   .landing-hero-glow{position:absolute;right:-120px;top:-120px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(242,169,0,0.35) 0%,transparent 70%);pointer-events:none;}
   .landing-hero-inner{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:28px 28px 0;display:grid;grid-template-columns:1.05fr 0.95fr;gap:40px;align-items:center;}
   .landing-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(242,169,0,0.16);border:1px solid rgba(242,169,0,0.4);color:#FFD584;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;border-radius:999px;margin-bottom:18px;animation:badgeGlow 2.6s ease-in-out infinite;}
+  .landing-audience-picker{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .landing-audience-picker-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,0.5);}
+  .landing-audience-pills{display:flex;gap:7px;flex-wrap:wrap;}
+  .landing-audience-pill{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.78);font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .landing-audience-pill:hover{background:rgba(255,255,255,0.15);color:#fff;}
+  .landing-audience-pill.is-active{background:linear-gradient(100deg,#FFD584,#8BEB9F);border-color:transparent;color:#123B1C;}
+  .landing-audience-pill-reset{background:transparent;border-style:dashed;}
   @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(242,169,0,0.28);}50%{box-shadow:0 0 0 6px rgba(242,169,0,0);}}
   .landing-hero h1{margin:0 0 16px;font-size:clamp(30px,4.2vw,46px);line-height:1.1;font-weight:900;letter-spacing:-.02em;color:#fff;}
   .landing-hero h1 em{font-style:normal;background:linear-gradient(100deg,#FFD584,#8BEB9F);-webkit-background-clip:text;background-clip:text;color:transparent;}
@@ -1002,6 +1033,47 @@
   .landing-section{max-width:1180px;margin:0 auto;padding:64px 28px;}
   .landing-section h2{font-size:clamp(22px,3vw,30px);font-weight:800;letter-spacing:-.01em;color:var(--ink);margin:0 0 14px;text-align:center;}
   .landing-section-sub{text-align:center;color:var(--ink-soft);font-size:13.5px;max-width:620px;margin:0 auto 40px;line-height:1.6;}
+  .roi-calc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:30px 32px;max-width:880px;margin:0 auto;display:grid;grid-template-columns:1.1fr 1fr;gap:34px;align-items:center;}
+  .roi-calc-inputs{display:flex;flex-direction:column;gap:18px;}
+  .roi-calc-field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+  .roi-calc-field input[type="number"]{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:14px;background:var(--surface-strong);color:var(--ink);}
+  .roi-calc-field input[type="range"]{width:100%;accent-color:var(--accent1);}
+  .roi-calc-note{font-size:11px;margin:4px 0 0;}
+  .roi-calc-outputs{display:flex;flex-direction:column;gap:12px;}
+  .roi-calc-output{background:var(--surface-strong);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center;}
+  .roi-calc-output-n{font-size:24px;font-weight:900;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .roi-calc-output-l{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+  .roi-calc-output-highlight{background:linear-gradient(100deg,rgba(46,125,50,0.12),rgba(242,169,0,0.12));border-color:var(--accent1);}
+  .roi-calc-output-highlight .roi-calc-output-n{color:var(--accent1);}
+  @media (max-width:720px){ .roi-calc-card{grid-template-columns:1fr;padding:24px 20px;} }
+  .demo-widget-body{min-height:340px;}
+  .demo-widget-panel{padding:22px 26px;}
+  .demo-widget-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .demo-widget-metric{background:var(--surface-strong);border:1px solid var(--border);border-radius:10px;padding:14px 12px;text-align:center;}
+  .dwm-label{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+  .dwm-value{font-size:19px;font-weight:900;color:var(--ink);margin-top:4px;font-variant-numeric:tabular-nums;}
+  .dwm-value.pos{color:var(--credit);}
+  .dwm-value.neg{color:var(--debit);}
+  .demo-widget-recent-heading{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:10px;}
+  .demo-widget-voucher-list{display:flex;flex-direction:column;gap:8px;}
+  .demo-widget-voucher-row{display:flex;align-items:center;gap:12px;background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-size:12.5px;}
+  .demo-widget-voucher-type{font-weight:700;color:var(--accent1);min-width:64px;}
+  .demo-widget-voucher-desc{flex:1;color:var(--ink-soft);}
+  .demo-widget-voucher-amt{font-weight:700;font-variant-numeric:tabular-nums;}
+  .demo-widget-voucher-form{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:560px;margin:0 auto;}
+  .demo-widget-field{display:flex;flex-direction:column;gap:6px;}
+  .demo-widget-field label{font-size:12px;font-weight:700;color:var(--ink);}
+  .demo-widget-field select,.demo-widget-field input{border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13.5px;background:var(--surface-strong);color:var(--ink);font-family:inherit;}
+  .demo-widget-voucher-form .auth-error,.demo-widget-voucher-form > button{grid-column:1 / -1;}
+  .demo-widget-voucher-form > button{justify-self:center;margin-top:4px;}
+  .demo-widget-tb-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .demo-widget-tb-table th{text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);padding:0 0 8px;}
+  .demo-widget-tb-table th:first-child,.demo-widget-tb-table td:first-child{text-align:left;}
+  .demo-widget-tb-table td{text-align:right;padding:7px 0;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;}
+  .demo-widget-tb-table tfoot td{font-weight:800;border-top:2px solid var(--ink);padding-top:10px;}
+  .demo-widget-tb-balanced{text-align:center;font-size:12.5px;font-weight:700;margin:16px 0 0;color:var(--credit);}
+  .demo-widget-tb-balanced.is-unbalanced{color:var(--debit);}
+  @media (max-width:640px){ .demo-widget-metrics{grid-template-columns:1fr 1fr;} .demo-widget-voucher-form{grid-template-columns:1fr;} }
   .landing-intro{padding-top:56px;}
   .landing-intro-grid{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:start;}
   .landing-intro-grid p{font-size:14px;line-height:1.85;color:var(--ink-soft);margin:0 0 18px;}
@@ -1010,6 +1082,9 @@
   .landing-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 14px;text-align:center;}
   .landing-stat .n{font-size:22px;font-weight:900;color:var(--accent1);letter-spacing:-.02em;}
   .landing-stat .l{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:3px;}
+  .landing-public-stats{max-width:1180px;margin:0 auto;padding:0 28px;}
+  .landing-public-stats-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;}
+  .landing-public-stats-asof{text-align:center;font-size:11px;margin:8px 0 0;}
 
   .landing-feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
   .landing-feature-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 18px;transition:transform .18s ease,box-shadow .18s ease;overflow:hidden;}
@@ -5432,6 +5507,16 @@ let passwordResetDone = false;     // true once the new password has been set su
 // who never touches this gets any change to the sign-in behavior they already had.
 let rememberMeChecked = true;
 let resetShowPassword = false;     // show/hide toggle state for this card's own password fields (kept separate from authShowPassword)
+// Passkey-first signup/login (WebAuthn PRF) -- see setupPasskeyLogin()/unwrapPasskeyLoginPassword()
+// further down. signupUsePasskey: step-2 signup toggle, replaces the password/confirm fields with a
+// single "Create a Passkey" explanation+button when on, so the account's real password is a random
+// string the person never has to see or type (still recoverable via the normal "Forgot password?"
+// email flow, same as any account). passkeyLoginBusy/-Error are the login screen's own "Continue
+// with a Passkey" button state, kept separate from authError since that message is about the
+// username/password fields specifically.
+let signupUsePasskey = false;
+let passkeyLoginBusy = false;
+let passkeyLoginError = '';
 let coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
 let coformStep = 1; // 1-5 -- which page of the multi-step Create Company wizard is showing (see companyCreateModal())
@@ -5526,6 +5611,22 @@ function lastViewedTabLabel(companyId){
     return tab ? tab.label : '';
   }catch(e){ return ''; }
 }
+// The single most-recently-opened company across the whole account, for the Gateway's "Continue
+// where you left off" resume card -- a cross-company companion to the per-card "Opened X ago · Last
+// viewed: Y" recency text above (which still requires scanning the grid to find the right card).
+// enterCompanyApp() already resumes on that company's own last-viewed TAB on its own (see its
+// `rb_lastTab_` read) -- this only needs to pick WHICH company, from the same companyOpenedAt map
+// pinning/sorting already reads, restricted to companies this account can actually still open.
+function mostRecentlyOpenedCompany(visible){
+  let best = null, bestMs = -Infinity;
+  for(const c of visible){
+    const iso = companyOpenedAt[c.id];
+    if(!iso) continue;
+    const ms = new Date(iso).getTime();
+    if(!isNaN(ms) && ms > bestMs){ bestMs = ms; best = c; }
+  }
+  return best;
+}
 let modal = null;          // null | 'editCompany' | 'help' | 'isDetail'
 let lastAutofocusedModal = null; // tracks which modal autofocusModalIfNeeded() last moved focus for
                                   // (see its own comment) -- reset to null whenever modal closes.
@@ -5599,6 +5700,107 @@ let myTickets = [];      // cache of the current user's own support tickets, loa
 let newsletterEmail = '';
 let newsletterSending = false;
 let newsletterNotice = '';
+// Landing hero audience personalization -- `undefined` means "not loaded from localStorage yet this
+// session" (ensureLandingAudienceLoaded() resolves it the first time renderLanding() runs), `null`
+// means "explicitly general / no audience picked", and a LANDING_AUDIENCES id means that segment's
+// copy is showing. Kept distinct from `null` so a first-time visitor and someone who deliberately
+// clicked "General" aren't conflated.
+let landingAudience = undefined;
+// ROI / switching-cost calculator (landing page, #calculator) -- deliberately takes its inputs from
+// the VISITOR rather than asserting a savings figure ourselves: there's no honest way to claim "you
+// will save X%" without knowing their current process, and this app has no fixed pricing to compare
+// against a competitor's, so the only defensible calculator here is "here's what YOUR numbers say,
+// using YOUR assumption for how much switching helps". See computeRoiOutputs()/wireRoiCalculator().
+let roiHoursPerWeek = 6;
+let roiHourlyRate = 500;
+let roiSavingsPercent = 40;
+// Public landing-page stats strip (admin-refreshed, see computePublicStats()/refreshPublicStats()).
+// publicStatsCurrent mirrors whatever is CURRENTLY saved at appMeta/publicStats (null until
+// loadPublicStatsCurrent() resolves, or if it's never been refreshed) -- shown in the Admin Panel so
+// an Administrator can see what's actually live before/after refreshing it.
+let publicStatsCurrent = null;
+let publicStatsRefreshing = false;
+let publicStatsError = '';
+// Embedded live interactive demo widget (landing page, #demo) -- a genuinely clickable mini preview
+// (Dashboard / Voucher Entry / Reports) running ENTIRELY client-side on seeded, obviously-fake data:
+// no Firebase calls, nothing persisted anywhere (not even localStorage -- a reload resets it), and
+// "Save Voucher" nudges toward signing up instead of silently pretending to save. demoWidgetLedgers
+// is lazily cloned from DEMO_WIDGET_LEDGERS_SEED the first time the widget is touched (see
+// ensureDemoWidgetSeeded()) so edits never mutate the seed itself across repeated visits/renders.
+let demoWidgetTab = 'dashboard'; // 'dashboard' | 'voucher' | 'reports'
+let demoWidgetLedgers = null;
+let demoWidgetVouchers = [];
+let demoWidgetForm = { type:'Payment', dr:'', cr:'', amount:'' };
+let demoWidgetError = '';
+// Seed ledgers for the demo widget -- small, obviously-fake numbers chosen so the books already
+// balance: assets+expenses (125000+480000+95000+320000+45000 = 1,065,000) equals
+// liabilities+capital+income (60000+355000+650000 = 1,065,000). 'type' only decides each ledger's
+// NORMAL side (see demoWidgetNormalSide()) -- Capital Account is modeled as a credit-normal
+// ("liability-side") balance here, the same simplification a basic accounting-equation demo uses.
+const DEMO_WIDGET_LEDGERS_SEED = [
+  { name:'Cash', type:'asset', balance:125000 },
+  { name:'Bank Account', type:'asset', balance:480000 },
+  { name:'Accounts Receivable', type:'asset', balance:95000 },
+  { name:'Purchase Account', type:'expense', balance:320000 },
+  { name:'Rent Expense', type:'expense', balance:45000 },
+  { name:'Accounts Payable', type:'liability', balance:60000 },
+  { name:'Capital Account', type:'liability', balance:355000 },
+  { name:'Sales Account', type:'income', balance:650000 },
+];
+const DEMO_WIDGET_VOUCHER_TYPES = ['Payment','Receipt','Sales','Purchase','Journal','Contra'];
+function demoWidgetNormalSide(type){
+  return (type==='asset' || type==='expense') ? 'debit' : 'credit';
+}
+// Lazily clones the seed into demoWidgetLedgers the first time the widget is touched, so repeated
+// visits/renders never mutate DEMO_WIDGET_LEDGERS_SEED itself -- and seeds the voucher form's
+// starting ledgers (a plausible default pairing) the very first time only.
+function ensureDemoWidgetSeeded(){
+  if(demoWidgetLedgers) return;
+  demoWidgetLedgers = DEMO_WIDGET_LEDGERS_SEED.map(l=>({...l}));
+  if(!demoWidgetForm.dr) demoWidgetForm.dr = 'Cash';
+  if(!demoWidgetForm.cr) demoWidgetForm.cr = 'Sales Account';
+}
+function demoWidgetLedgerBalance(name){
+  ensureDemoWidgetSeeded();
+  const l = demoWidgetLedgers.find(x=>x.name===name);
+  return l ? l.balance : 0;
+}
+// Applies one side of a double-entry posting to a single ledger: entrySide is 'debit' or 'credit'.
+// A ledger's balance increases when entrySide matches its own normal side, decreases otherwise --
+// real double-entry bookkeeping, the same rule the actual app's own voucher-save logic follows.
+function applyEntryToLedger(name, entrySide, amount){
+  ensureDemoWidgetSeeded();
+  const l = demoWidgetLedgers.find(x=>x.name===name);
+  if(!l) return;
+  const normal = demoWidgetNormalSide(l.type);
+  l.balance += (entrySide===normal ? amount : -amount);
+}
+function addDemoWidgetVoucher(type, drName, crName, amount){
+  ensureDemoWidgetSeeded();
+  applyEntryToLedger(drName, 'debit', amount);
+  applyEntryToLedger(crName, 'credit', amount);
+  demoWidgetVouchers.unshift({ type, dr:drName, cr:crName, amount, at:new Date().toISOString() });
+}
+function demoWidgetMetrics(){
+  ensureDemoWidgetSeeded();
+  const cash = demoWidgetLedgerBalance('Cash') + demoWidgetLedgerBalance('Bank Account');
+  const income = demoWidgetLedgers.filter(l=>l.type==='income').reduce((s,l)=>s+l.balance,0);
+  const expense = demoWidgetLedgers.filter(l=>l.type==='expense').reduce((s,l)=>s+l.balance,0);
+  const netProfit = income - expense;
+  const receivable = demoWidgetLedgerBalance('Accounts Receivable');
+  const payable = demoWidgetLedgerBalance('Accounts Payable');
+  return { cash, netProfit, receivable, payable };
+}
+// Always balances by construction -- every posting moves equal debit/credit amounts (see
+// addDemoWidgetVoucher()) -- but is computed fresh from the ledger balances each time rather than
+// assumed, so a test can genuinely verify it instead of taking that on faith.
+function demoWidgetTrialBalanceRows(){
+  ensureDemoWidgetSeeded();
+  return demoWidgetLedgers.map(l=>{
+    const normal = demoWidgetNormalSide(l.type);
+    return { name:l.name, debit: normal==='debit' ? l.balance : 0, credit: normal==='credit' ? l.balance : 0 };
+  });
+}
 let myTicketUpdateIds = new Set(); // "<ticketId>_<updatedAt>" keys already toasted this session — avoids re-toasting the same admin update on every 30s poll, while still catching the NEXT update to that same ticket
 const DEFAULT_FEATURE_FLAGS = { inventoryRequiresPaid:false, importRequiresPaid:false, reconcileRequiresPaid:false, gstRequiresPaid:false, assetsRequiresPaid:false, partiesRequiresPaid:false, ordersRequiresPaid:false, payrollRequiresPaid:false, posRequiresPaid:false };
 let featureFlags = { ...DEFAULT_FEATURE_FLAGS }; // settings/featureFlags doc
@@ -5693,6 +5895,20 @@ let alterLedgerId = null;
 let ledgerDeleteConfirmId = null;
 let ledgerDeletePasswordError = '';
 let ledgerDeletePasswordBusy = false;
+// Generic step-up re-verification gate (see requireStepUp()/stepUpVerifyModal() further down) for a
+// handful of high-risk actions OUTSIDE the Ledgers tab's own existing password-reauth pattern above
+// -- Delete Company, Force Logout (admin), and saving a change to a teammate's access. stepUpPending
+// holds {actionLabel, onConfirmed}; null means the gate isn't open.
+let stepUpPending = null;
+let stepUpPasswordError = '';
+let stepUpBusy = false;
+// Trusted Devices manager (see trustedDevicesModal()/openTrustedDevicesModal() further down) --
+// lists every browser that has ever registered a Quick Unlock passkey for this account (Firestore
+// users/{uid}/trustedDevices/{deviceId}), independent of which one this session is running on, so
+// a lost/stolen device's Quick Unlock can be revoked remotely. null = not loaded yet this modal.
+let trustedDevicesList = null;
+let trustedDevicesLoading = false;
+let trustedDevicesError = '';
 // Contextual search/filter inputs added across the remaining modules (Day Book, Item Master,
 // Inventory, Parties, Orders) -- same free-text-filter convention as ledgerSearchQuery above.
 let daybookSearchQuery = '';
@@ -6248,6 +6464,45 @@ async function loadAdminPanelData(){
   await loadFeatureFlags();
   await refreshSupportTickets();
   await refreshNewsletterSignups();
+  await loadPublicStatsCurrent();
+}
+// ---- Public landing-page stats strip (task #230) -- a single appMeta/publicStats doc, refreshed
+// ON-DEMAND by a full Administrator from here (never automatically, and never by anything a landing
+// visitor's own actions could trigger). Deliberately NOT a live counter: the figures are exactly as
+// stale as the last time someone clicked Refresh, and the landing page says so outright next to the
+// numbers -- the honest alternative to a fake "real-time" ticker this client-only app has no backend
+// to actually drive.
+function computePublicStats(){
+  const stats = computeAdminStats();
+  let totalVouchers = 0;
+  for(const c of companies){
+    const vouchers = Array.isArray(c.vouchers) ? c.vouchers : [];
+    totalVouchers += vouchers.length;
+  }
+  return { totalUsers: stats.totalUsers, totalCompanies: stats.totalCompanies, totalVouchers };
+}
+async function loadPublicStatsCurrent(){
+  try{
+    const doc = await db.collection('appMeta').doc('publicStats').get();
+    publicStatsCurrent = doc.exists ? doc.data() : null;
+  }catch(e){ publicStatsCurrent = null; }
+}
+async function refreshPublicStats(){
+  if(!isFullAdmin()) return; // the Firestore rule only grants appMeta writes to an Administrator anyway
+  publicStatsRefreshing = true;
+  publicStatsError = '';
+  renderGateway();
+  try{
+    const payload = { ...computePublicStats(), asOf: new Date().toISOString() };
+    await db.collection('appMeta').doc('publicStats').set(payload);
+    publicStatsCurrent = payload;
+    toast('Public stats refreshed — now live on the landing page.', {type:'success'});
+  }catch(e){
+    console.error('Could not refresh public stats:', e);
+    publicStatsError = 'Could not save — this usually means the Firestore Security Rules in the Firebase Console need updating for the appMeta collection.';
+  }
+  publicStatsRefreshing = false;
+  renderGateway();
 }
 // Lets a full Administrator create a real, ready-to-use account for someone else directly from the
 // Users tab, with a password the admin sets right there — no email verification link involved.
@@ -13358,6 +13613,7 @@ function render(){
     ${modal==='quickAddItem' ? quickAddItemModal() : ''}
     ${modal==='alterLedger' ? alterLedgerModal() : ''}
     ${modal==='deleteLedgerPassword' ? deleteLedgerPasswordModal() : ''}
+    ${modal==='stepUpVerify' ? stepUpVerifyModal() : ''}
     ${modal==='reconcileHelp' ? reconcileHelpModal() : ''}
     ${modal==='recurring' ? recurringModal() : ''}
     ${modal==='backup' ? backupModal() : ''}
@@ -13503,12 +13759,14 @@ function render(){
     pushHistory();
   });
   document.getElementById('menuDeleteCompany')?.addEventListener('click', async ()=>{
-    const deleted = await deleteCompanyById(currentCompany.id);
-    if(deleted){
-      screen = 'gateway';
-      renderGateway();
-      pushHistory();
-    }
+    requireStepUp(`Delete company "${currentCompany.name}"`, async ()=>{
+      const deleted = await deleteCompanyById(currentCompany.id);
+      if(deleted){
+        screen = 'gateway';
+        renderGateway();
+        pushHistory();
+      }
+    });
   });
 
   if(viewMenuOpen){
@@ -15211,6 +15469,26 @@ const LANDING_FEATURES = [
   { icon:'security', title:'Real Accounts, Real Security', body:'Email-verified accounts, an admin panel, and a full audit log — zero installs, runs entirely in your browser.' },
 ];
 
+// ---- Audience-personalized hero (landing page): a small "Tailor this page for:" pill row swaps
+// the hero headline/subhead/fact-chips to speak directly to one kind of business, grounded in
+// modules that are ACTUALLY built (Quick Sale POS for retail, Inventory/Fixed Assets for
+// manufacturing, Recurring invoices + Payroll for services, the Accountant Dashboard for CA firms)
+// rather than generic marketing claims -- nothing here promises a feature this app doesn't have.
+// The choice persists per-browser (localStorage) so a returning retailer doesn't have to re-pick it.
+const LANDING_AUDIENCES = [
+  { id:'retail', label:'Retail & Trading', badge:'★ Built for retail & trading', headline:'Bookkeeping that keeps up with <em>every sale</em>.', sub:'Ring up sales with built-in Quick Sale POS, track stock as it moves, and let every voucher balance itself — GST-ready invoicing and a Day Book that never falls behind the till.', chip1:'Quick Sale POS, built in', chip2:'Stock tracked with every sale' },
+  { id:'manufacturing', label:'Manufacturing', badge:'★ Built for manufacturers', headline:'From raw material to <em>balanced books</em>.', sub:'Track raw materials and finished goods through Inventory and Fixed Assets, journal every stock adjustment, and roll it all up into GST-ready Trial Balance and Profit &amp; Loss reports your CA can use as-is.', chip1:'Inventory & Fixed Assets tracked', chip2:'Stock adjustments, fully journaled' },
+  { id:'services', label:'Services & Consulting', badge:'★ Built for services & consulting', headline:'Invoice, track, and close the books — <em>no spreadsheet needed</em>.', sub:'Recurring invoices for retainer clients, Payroll for your team, and reports that show exactly where the revenue is coming from — all balanced, all audit-logged, all in one place.', chip1:'Recurring invoices, automated', chip2:'Payroll, built in' },
+  { id:'accountants', label:'Accountants & CA Firms', badge:'★ Built for accountants & CA firms', headline:'Every client\'s books, <em>one account</em>.', sub:'Manage every client company from a single login, each one fully separate — with a dedicated Accountant Dashboard surfacing outstanding invoices, overdue bills and unreconciled banks across your whole client list at a glance.', chip1:'Multi-client Accountant Dashboard', chip2:'Every company, fully separated' },
+];
+// Resolves `undefined` ("not loaded from localStorage yet this session") to either `null` (general,
+// including an explicit "no preference saved") or a LANDING_AUDIENCES id -- called once per
+// renderLanding() so a reload/returning visit keeps showing whichever segment they last picked.
+function ensureLandingAudienceLoaded(){
+  if(landingAudience !== undefined) return;
+  try{ landingAudience = localStorage.getItem('rb_landing_audience') || null; }catch(e){ landingAudience = null; }
+}
+
 // ---- Full module explorer: every module in the app, grouped, searchable, filterable by category.
 // Content is grounded in what's actually shipped (cross-checked against the real CMDK_TABS/VOUCHER_TYPES/
 // GROUPS/reports list and the project's own feature changelog) -- nothing here is aspirational. ----
@@ -15379,6 +15657,166 @@ function landingHowItWorksSection(){
   `;
 }
 
+// ---- Embedded live interactive demo widget (#demo): a genuinely clickable mini preview of the
+// Dashboard / Voucher Entry / Reports screens, running entirely client-side on the seeded data
+// above. Reuses the same .browser-mock / .landing-showcase-tab chrome as the static showcase below
+// for visual consistency, but this one actually works -- switching tabs and saving a voucher
+// recomputes real numbers. See demoWidgetPanelHtml()/wireDemoWidget() for the click-through logic. ----
+function demoWidgetUrlFor(tab){
+  return 'reckoning-books.web.app/demo/' + tab;
+}
+function demoWidgetLedgerOptions(selectedName){
+  ensureDemoWidgetSeeded();
+  return demoWidgetLedgers.map(l=>`<option value="${escapeAttr(l.name)}" ${l.name===selectedName?'selected':''}>${escapeHtml(l.name)}</option>`).join('');
+}
+function demoWidgetDashboardPanel(){
+  const m = demoWidgetMetrics();
+  const fmt = (n)=> '₹' + Math.round(n).toLocaleString('en-IN');
+  const recent = demoWidgetVouchers.slice(0,5);
+  return `
+    <div class="demo-widget-panel demo-widget-dashboard">
+      <div class="demo-widget-metrics">
+        <div class="demo-widget-metric"><div class="dwm-label">Cash Position</div><div class="dwm-value">${fmt(m.cash)}</div></div>
+        <div class="demo-widget-metric"><div class="dwm-label">Net Profit</div><div class="dwm-value ${m.netProfit>=0?'pos':'neg'}">${fmt(m.netProfit)}</div></div>
+        <div class="demo-widget-metric"><div class="dwm-label">Receivables</div><div class="dwm-value">${fmt(m.receivable)}</div></div>
+        <div class="demo-widget-metric"><div class="dwm-label">Payables</div><div class="dwm-value">${fmt(m.payable)}</div></div>
+      </div>
+      <div class="demo-widget-recent">
+        <div class="demo-widget-recent-heading">Recent Vouchers</div>
+        ${recent.length===0 ? `<p class="muted" style="font-size:12.5px;">No vouchers yet — try the Voucher Entry tab.</p>` : `
+        <div class="demo-widget-voucher-list">
+          ${recent.map(v=>`
+          <div class="demo-widget-voucher-row">
+            <span class="demo-widget-voucher-type">${escapeHtml(v.type)}</span>
+            <span class="demo-widget-voucher-desc">${escapeHtml(v.dr)} → ${escapeHtml(v.cr)}</span>
+            <span class="demo-widget-voucher-amt">${fmt(v.amount)}</span>
+          </div>`).join('')}
+        </div>`}
+      </div>
+    </div>
+  `;
+}
+function demoWidgetVoucherPanel(){
+  ensureDemoWidgetSeeded();
+  return `
+    <div class="demo-widget-panel demo-widget-voucher">
+      <div class="demo-widget-voucher-form">
+        <div class="demo-widget-field">
+          <label for="demoWidgetType">Voucher Type</label>
+          <select id="demoWidgetType">
+            ${DEMO_WIDGET_VOUCHER_TYPES.map(t=>`<option value="${t}" ${demoWidgetForm.type===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="demo-widget-field">
+          <label for="demoWidgetDr">Debit Ledger</label>
+          <select id="demoWidgetDr">${demoWidgetLedgerOptions(demoWidgetForm.dr)}</select>
+        </div>
+        <div class="demo-widget-field">
+          <label for="demoWidgetCr">Credit Ledger</label>
+          <select id="demoWidgetCr">${demoWidgetLedgerOptions(demoWidgetForm.cr)}</select>
+        </div>
+        <div class="demo-widget-field">
+          <label for="demoWidgetAmount">Amount (₹)</label>
+          <input type="number" id="demoWidgetAmount" min="0" step="1" placeholder="e.g. 5000" value="${escapeAttr(demoWidgetForm.amount)}">
+        </div>
+        ${demoWidgetError ? `<p class="auth-error" id="demoWidgetErrorMsg">${escapeHtml(demoWidgetError)}</p>` : ''}
+        <button class="btn" id="demoWidgetSaveBtn" type="button">Save Voucher</button>
+      </div>
+    </div>
+  `;
+}
+function demoWidgetReportsPanel(){
+  const rows = demoWidgetTrialBalanceRows();
+  const fmt = (n)=> n ? '₹'+Math.round(n).toLocaleString('en-IN') : '—';
+  const totalDebit = rows.reduce((s,r)=>s+r.debit,0);
+  const totalCredit = rows.reduce((s,r)=>s+r.credit,0);
+  const balanced = totalDebit===totalCredit;
+  return `
+    <div class="demo-widget-panel demo-widget-reports">
+      <table class="demo-widget-tb-table">
+        <thead><tr><th>Ledger</th><th>Debit</th><th>Credit</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${fmt(r.debit)}</td><td>${fmt(r.credit)}</td></tr>`).join('')}
+        </tbody>
+        <tfoot><tr><td>Total</td><td>${fmt(totalDebit)}</td><td>${fmt(totalCredit)}</td></tr></tfoot>
+      </table>
+      <p class="demo-widget-tb-balanced ${balanced?'is-balanced':'is-unbalanced'}">${balanced ? '✓ Trial balance is balanced — exactly what the real app checks on every entry.' : '⚠ Out of balance'}</p>
+    </div>
+  `;
+}
+function demoWidgetPanelHtml(tab){
+  ensureDemoWidgetSeeded();
+  if(tab==='voucher') return demoWidgetVoucherPanel();
+  if(tab==='reports') return demoWidgetReportsPanel();
+  return demoWidgetDashboardPanel();
+}
+function landingDemoWidgetSection(){
+  ensureDemoWidgetSeeded();
+  return `
+    <div class="landing-section reveal" id="demo" style="padding-top:8px;">
+      <h2>Try it yourself — right now, no sign-up</h2>
+      <p class="landing-section-sub">A real, clickable mini version of the app, running entirely in your browser on made-up sample data. Nothing you do here is saved or sent anywhere — reload the page and it resets.</p>
+      <div class="landing-showcase-tabs">
+        <button class="landing-showcase-tab${demoWidgetTab==='dashboard'?' active':''}" type="button" data-demo-tab="dashboard">Dashboard</button>
+        <button class="landing-showcase-tab${demoWidgetTab==='voucher'?' active':''}" type="button" data-demo-tab="voucher">Voucher Entry</button>
+        <button class="landing-showcase-tab${demoWidgetTab==='reports'?' active':''}" type="button" data-demo-tab="reports">Reports</button>
+      </div>
+      <div class="browser-mock">
+        <div class="browser-mock-bar">
+          <div class="browser-mock-dots"><span></span><span></span><span></span></div>
+          <div class="browser-mock-url" id="demoWidgetUrl">${escapeHtml(demoWidgetUrlFor(demoWidgetTab))}</div>
+        </div>
+        <div class="browser-mock-body demo-widget-body" id="demoWidgetBody">
+          ${demoWidgetPanelHtml(demoWidgetTab)}
+        </div>
+      </div>
+      <p class="muted" style="text-align:center;margin-top:14px;font-size:12px;">This is a live, working preview — not a video or a set of screenshots.</p>
+    </div>
+  `;
+}
+function renderDemoWidgetBody(){
+  const body = document.getElementById('demoWidgetBody');
+  if(!body) return;
+  body.innerHTML = demoWidgetPanelHtml(demoWidgetTab);
+  const urlEl = document.getElementById('demoWidgetUrl');
+  if(urlEl) urlEl.textContent = demoWidgetUrlFor(demoWidgetTab);
+  document.querySelectorAll('[data-demo-tab]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.demoTab===demoWidgetTab);
+  });
+  if(demoWidgetTab==='voucher') wireDemoWidgetVoucherForm();
+}
+function wireDemoWidgetVoucherForm(){
+  document.getElementById('demoWidgetType')?.addEventListener('change', (e)=>{ demoWidgetForm.type = e.target.value; });
+  document.getElementById('demoWidgetDr')?.addEventListener('change', (e)=>{ demoWidgetForm.dr = e.target.value; });
+  document.getElementById('demoWidgetCr')?.addEventListener('change', (e)=>{ demoWidgetForm.cr = e.target.value; });
+  document.getElementById('demoWidgetAmount')?.addEventListener('input', (e)=>{ demoWidgetForm.amount = e.target.value; });
+  document.getElementById('demoWidgetSaveBtn')?.addEventListener('click', ()=>{
+    const dr = document.getElementById('demoWidgetDr')?.value;
+    const cr = document.getElementById('demoWidgetCr')?.value;
+    const type = document.getElementById('demoWidgetType')?.value || 'Payment';
+    const amountEl = document.getElementById('demoWidgetAmount');
+    const amount = Number(amountEl?.value);
+    demoWidgetForm = { type, dr, cr, amount: amountEl?.value || '' };
+    if(!dr || !cr || dr===cr){ demoWidgetError = 'Pick two different ledgers for debit and credit.'; renderDemoWidgetBody(); return; }
+    if(!amount || amount<=0){ demoWidgetError = 'Enter an amount greater than zero.'; renderDemoWidgetBody(); return; }
+    demoWidgetError = '';
+    addDemoWidgetVoucher(type, dr, cr, amount);
+    demoWidgetForm.amount = '';
+    renderDemoWidgetBody();
+    toast("Saved — exactly like it would in your real company's books. Ready to do this for real?", { type:'success', action: { label:'Create Free Account', run: ()=>goToLogin('signup') } });
+  });
+}
+function wireDemoWidget(){
+  ensureDemoWidgetSeeded();
+  document.querySelectorAll('[data-demo-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      demoWidgetTab = btn.dataset.demoTab;
+      renderDemoWidgetBody();
+    });
+  });
+  if(demoWidgetTab==='voucher') wireDemoWidgetVoucherForm();
+}
+
 // ---- Product showcase: tabbed browser-chrome mockup, real screenshots of the live app ----
 const LANDING_SHOWCASE_SHOTS = [
   { id:'dashboard', label:'Dashboard', headline:'Live, not static.', url:'reckoning-books.web.app/dashboard', b64:LANDING_SHOT_DASHBOARD_B64, caption:'<strong>Live, not static.</strong> Net profit, cash position, an exception queue that flags what actually needs attention, and a 30/60/90-day cash-flow forecast — computed from your real books, every time you open it.' },
@@ -15491,6 +15929,39 @@ const LANDING_SECURITY_POINTS = [
   { icon:'check', title:'A full, unerasable audit log', body:'Every admin action — role changes, company reassignment, user creation — is written to an audit log that even a full Administrator cannot edit or delete.' },
   { icon:'check', title:'No lock-in, ever', body:'Every report exports to Excel on demand, and a full company backup is one click away — your data is always yours to take with you.' },
 ];
+// ---- ROI / switching-cost calculator -- deliberately asks the VISITOR for their own numbers rather
+// than asserting a savings claim ourselves (see roiHoursPerWeek's own comment for why). ----
+function landingRoiCalculatorSection(){
+  return `
+    <div class="landing-section landing-roi reveal" id="calculator" style="padding-top:8px;">
+      <h2>What is manual bookkeeping costing you?</h2>
+      <p class="landing-section-sub">A rough, honest estimate — built from numbers you choose, not ones we picked for you.</p>
+      <div class="roi-calc-card">
+        <div class="roi-calc-inputs">
+          <div class="roi-calc-field">
+            <label for="roiHoursInput">Hours per week on manual bookkeeping today</label>
+            <input type="number" id="roiHoursInput" min="0" max="80" step="0.5" value="${roiHoursPerWeek}">
+          </div>
+          <div class="roi-calc-field">
+            <label for="roiRateInput">Value of that time, per hour (₹)</label>
+            <input type="number" id="roiRateInput" min="0" step="10" value="${roiHourlyRate}">
+          </div>
+          <div class="roi-calc-field">
+            <label for="roiPercentSlider">Assume switching cuts that time by <span id="roiPercentLabel">${roiSavingsPercent}%</span></label>
+            <input type="range" id="roiPercentSlider" min="10" max="70" step="5" value="${roiSavingsPercent}">
+            <p class="muted roi-calc-note">That percentage is your own assumption — drag it to whatever feels realistic for you. We're not claiming a number on your behalf.</p>
+          </div>
+        </div>
+        <div class="roi-calc-outputs">
+          <div class="roi-calc-output"><div class="roi-calc-output-n" id="roiHoursSavedOut">0</div><div class="roi-calc-output-l">Hours saved / week</div></div>
+          <div class="roi-calc-output"><div class="roi-calc-output-n" id="roiYearlyHoursOut">0</div><div class="roi-calc-output-l">Hours saved / year</div></div>
+          <div class="roi-calc-output roi-calc-output-highlight"><div class="roi-calc-output-n" id="roiYearlyValueOut">₹0</div><div class="roi-calc-output-l">Value of that time / year</div></div>
+        </div>
+      </div>
+      <p class="muted" style="text-align:center;margin-top:16px;font-size:12px;">Free to start — so there's no subscription cost of our own to weigh against this.</p>
+    </div>
+  `;
+}
 function landingSecuritySection(){
   return `
     <div class="landing-section" id="security" style="padding-top:8px;">
@@ -15538,6 +16009,13 @@ function landingFaqSection(){
 
 function renderLanding(){
   const app = document.getElementById('app');
+  ensureLandingAudienceLoaded();
+  const activeAudience = LANDING_AUDIENCES.find(a=>a.id===landingAudience) || null;
+  const heroBadge = activeAudience ? activeAudience.badge : '★ Real double-entry accounting';
+  const heroHeadline = activeAudience ? activeAudience.headline : 'Bookkeeping, done <em>properly</em>.';
+  const heroSub = activeAudience ? activeAudience.sub : 'The Reckoning Books is a complete double-entry accounting system for real businesses — vouchers that only save once debits equal credits, ledgers with running balances, GST built in, and reports you can actually hand to your CA. No installs. No spreadsheets pretending to be an accounting system.';
+  const heroChip1 = activeAudience ? activeAudience.chip1 : 'Debits = Credits, every time';
+  const heroChip2 = activeAudience ? activeAudience.chip2 : `${VOUCHER_TYPES.length} voucher types, fully built`;
   app.innerHTML = `
     <div class="landing-page">
       <div class="landing-nav sticky-nav" id="landingNav">
@@ -15546,7 +16024,9 @@ function renderLanding(){
           <a href="#how-it-works">How It Works</a>
           <a href="#features">Features</a>
           <a href="#modules">All Modules</a>
+          <a href="#demo">Live Demo</a>
           <a href="#showcase">See It In Action</a>
+          <a href="#calculator">Time Saved</a>
           <a href="#security">Security</a>
           <a href="#faq">FAQ</a>
         </div>
@@ -15567,7 +16047,9 @@ function renderLanding(){
         <a href="#how-it-works" data-mobile-nav-link="1">How It Works</a>
         <a href="#features" data-mobile-nav-link="1">Features</a>
         <a href="#modules" data-mobile-nav-link="1">All Modules</a>
+        <a href="#demo" data-mobile-nav-link="1">Live Demo</a>
         <a href="#showcase" data-mobile-nav-link="1">See It In Action</a>
+        <a href="#calculator" data-mobile-nav-link="1">Time Saved</a>
         <a href="#security" data-mobile-nav-link="1">Security</a>
         <a href="#faq" data-mobile-nav-link="1">FAQ</a>
         <button class="btn secondary" id="landingMobileTryDemoBtn" type="button">Try Demo</button>
@@ -15580,9 +16062,16 @@ function renderLanding(){
         <div class="aurora-orb" style="width:260px;height:260px;bottom:-130px;right:4%;background:radial-gradient(circle,rgba(242,169,0,0.32),transparent 70%);animation:auroraDrift2 14s ease-in-out infinite;"></div>
         <div class="landing-hero-inner">
           <div>
-            <div class="landing-badge">★ Real double-entry accounting</div>
-            <h1>Bookkeeping, done <em>properly</em>.</h1>
-            <p class="landing-hero-sub">The Reckoning Books is a complete double-entry accounting system for real businesses — vouchers that only save once debits equal credits, ledgers with running balances, GST built in, and reports you can actually hand to your CA. No installs. No spreadsheets pretending to be an accounting system.</p>
+            <div class="landing-audience-picker" role="group" aria-label="Tailor this page for your kind of business">
+              <span class="landing-audience-picker-label">Tailor this page for:</span>
+              <div class="landing-audience-pills">
+                ${LANDING_AUDIENCES.map(a=>`<button type="button" class="landing-audience-pill${activeAudience&&activeAudience.id===a.id?' is-active':''}" data-audience="${a.id}">${escapeHtml(a.label)}</button>`).join('')}
+                ${activeAudience ? `<button type="button" class="landing-audience-pill landing-audience-pill-reset" data-audience="">✕ General</button>` : ''}
+              </div>
+            </div>
+            <div class="landing-badge">${heroBadge}</div>
+            <h1>${heroHeadline}</h1>
+            <p class="landing-hero-sub">${heroSub}</p>
             <div class="landing-hero-ctas">
               <button class="btn" id="landingHeroSignupBtn" type="button">Create Your Free Account →</button>
               <button class="btn secondary" id="landingHeroTryDemoBtn" type="button">Try Demo →</button>
@@ -15596,8 +16085,8 @@ function renderLanding(){
           </div>
           <div class="landing-hero-art">
             ${svgLedgerHero()}
-            <div class="landing-fact-chip landing-fact-chip-1"><span class="fc-icon">✓</span> Debits = Credits, every time</div>
-            <div class="landing-fact-chip landing-fact-chip-2"><span class="fc-icon">⟳</span> ${VOUCHER_TYPES.length} voucher types, fully built</div>
+            <div class="landing-fact-chip landing-fact-chip-1"><span class="fc-icon">✓</span> ${escapeHtml(heroChip1)}</div>
+            <div class="landing-fact-chip landing-fact-chip-2"><span class="fc-icon">⟳</span> ${escapeHtml(heroChip2)}</div>
           </div>
         </div>
       </div>
@@ -15611,6 +16100,8 @@ function renderLanding(){
           <div class="landing-stat"><div class="n" data-count="${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)}">0</div><div class="l">Modules, Total</div></div>
         </div>
       </div>
+
+      <div class="landing-public-stats" id="landingPublicStats"></div>
 
       <div class="landing-section landing-intro reveal">
         <h2>Why The Reckoning Books exists</h2>
@@ -15638,7 +16129,11 @@ function renderLanding(){
 
       ${landingModulesSection()}
 
+      ${landingDemoWidgetSection()}
+
       ${landingShowcaseSection()}
+
+      ${landingRoiCalculatorSection()}
 
       <div class="landing-visual-band">
         <div class="landing-visual-inner reveal">
@@ -15686,7 +16181,9 @@ function renderLanding(){
             <a href="#how-it-works">How It Works</a>
             <a href="#features">Features</a>
             <a href="#modules">All Modules</a>
+            <a href="#demo">Live Demo</a>
             <a href="#showcase">See It In Action</a>
+            <a href="#calculator">Time Saved</a>
             <a href="#security">Security</a>
             <a href="#faq">FAQ</a>
           </div>
@@ -15721,6 +16218,14 @@ function renderLanding(){
     renderLogin();
     pushHistory();
   };
+  document.querySelectorAll('.landing-audience-pill').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.audience || null;
+      landingAudience = id;
+      try{ if(id) localStorage.setItem('rb_landing_audience', id); else localStorage.removeItem('rb_landing_audience'); }catch(e){}
+      renderLanding();
+    });
+  });
   document.getElementById('landingLoginBtn')?.addEventListener('click', ()=>goToLogin('login'));
   document.getElementById('landingHeroLoginBtn')?.addEventListener('click', ()=>goToLogin('login'));
   document.getElementById('landingSignupBtn')?.addEventListener('click', ()=>goToLogin('signup'));
@@ -15765,6 +16270,73 @@ function renderLanding(){
   wireLandingScrollStory();
   wireLandingHeroParallax();
   wireLandingModulesExplorer();
+  wireDemoWidget();
+  wireRoiCalculator();
+  loadLandingPublicStats();
+}
+// ---- ROI / switching-cost calculator (#calculator): recomputes and writes straight into the
+// output spans on every input/slider change, rather than a full renderLanding() per keystroke/drag
+// tick -- a full re-render on every pixel of a dragged slider would be janky and would re-trigger
+// the .reveal scroll-in animations pointlessly. State (roiHoursPerWeek etc.) is still kept in sync
+// so a later full render (e.g. switching audience pills) doesn't reset what the visitor typed.
+function computeRoiOutputs(){
+  const hoursEl = document.getElementById('roiHoursInput');
+  const rateEl = document.getElementById('roiRateInput');
+  const percentEl = document.getElementById('roiPercentSlider');
+  if(!hoursEl || !rateEl || !percentEl) return;
+  const hours = Math.max(0, Number(hoursEl.value) || 0);
+  const rate = Math.max(0, Number(rateEl.value) || 0);
+  const percent = Math.max(0, Math.min(100, Number(percentEl.value) || 0));
+  roiHoursPerWeek = hours; roiHourlyRate = rate; roiSavingsPercent = percent;
+  const hoursSavedWeek = hours * (percent / 100);
+  const hoursSavedYear = hoursSavedWeek * 52;
+  const valueSavedYear = hoursSavedYear * rate;
+  const fmtHours = (n) => n.toLocaleString('en-IN', { maximumFractionDigits: 1 });
+  const fmtMoney = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+  const hoursOut = document.getElementById('roiHoursSavedOut');
+  const yearHoursOut = document.getElementById('roiYearlyHoursOut');
+  const yearValueOut = document.getElementById('roiYearlyValueOut');
+  const percentLabel = document.getElementById('roiPercentLabel');
+  if(hoursOut) hoursOut.textContent = fmtHours(hoursSavedWeek);
+  if(yearHoursOut) yearHoursOut.textContent = fmtHours(hoursSavedYear);
+  if(yearValueOut) yearValueOut.textContent = fmtMoney(valueSavedYear);
+  if(percentLabel) percentLabel.textContent = percent + '%';
+}
+function wireRoiCalculator(){
+  const hoursEl = document.getElementById('roiHoursInput');
+  const rateEl = document.getElementById('roiRateInput');
+  const percentEl = document.getElementById('roiPercentSlider');
+  if(!hoursEl || !rateEl || !percentEl) return;
+  [hoursEl, rateEl, percentEl].forEach(el => el.addEventListener('input', computeRoiOutputs));
+  computeRoiOutputs();
+}
+// ---- Public landing-page stats strip (task #230): reads the admin-refreshed appMeta/publicStats
+// doc and patches it straight into #landingPublicStats -- deliberately NOT part of renderLanding()'s
+// own synchronous template (there's no public doc to show at all until an Administrator has
+// refreshed it at least once, and a signed-out visitor has no Firestore access to anything else
+// that could stand in for it meanwhile). Hidden entirely rather than showing zeros when the doc
+// doesn't exist yet or the read fails -- a product with no visible stats reads as normal; a product
+// visibly claiming "0 businesses signed up" does not.
+async function loadLandingPublicStats(){
+  const container = document.getElementById('landingPublicStats');
+  if(!container) return;
+  try{
+    const doc = await db.collection('appMeta').doc('publicStats').get();
+    if(!doc.exists){ container.innerHTML = ''; return; }
+    const d = doc.data();
+    const asOfLabel = d.asOf ? new Date(d.asOf).toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' }) : '';
+    container.innerHTML = `
+      <div class="landing-public-stats-inner">
+        <div class="landing-stat"><div class="n" data-count="${Number(d.totalUsers)||0}">0</div><div class="l">Businesses Signed Up</div></div>
+        <div class="landing-stat"><div class="n" data-count="${Number(d.totalCompanies)||0}">0</div><div class="l">Companies Being Kept</div></div>
+        <div class="landing-stat"><div class="n" data-count="${Number(d.totalVouchers)||0}">0</div><div class="l">Vouchers Posted, Balanced</div></div>
+      </div>
+      <p class="muted landing-public-stats-asof">${asOfLabel ? `As of ${escapeHtml(asOfLabel)}` : ''} — refreshed by the team, not a live counter.</p>
+    `;
+    animateCountUpsIn(container);
+  }catch(e){
+    container.innerHTML = '';
+  }
 }
 // ---- Mobile slide-out menu: burger opens it, scrim/close/any link closes it ----
 function wireLandingMobileMenu(){
@@ -15983,6 +16555,40 @@ function wireAuthInlineValidation(){
   wireFieldHint('authUsername','authUsernameHint', isValidUsername, { valid:'Looks good', invalid:'Letters, numbers, dots, dashes and underscores only' });
   wireFieldHint('authMobile','authMobileHint', isValidMobile, { valid:'Looks good', invalid:'Enter exactly 10 digits' });
   wireFieldHint('authEmail','authEmailHint', isValidEmail, { valid:'Looks good', invalid:'Enter a valid email address' });
+  wireUsernameAvailabilityHint('authUsername','authUsernameHint');
+}
+// Layers a debounced, LIVE availability check on top of wireFieldHint's synchronous format check for
+// the same input/hint pair -- only fires once the format is already valid (no point spending a
+// Firestore read on something that'll fail format validation anyway), and only on signup's own
+// username field (wireFieldHint's own !hint guard already makes this a no-op on the Login form,
+// since that form has no #authUsernameHint element at all -- see renderLogin()). Reuses the exact
+// same `usernames/{lowercasedUsername}` existence doc every submit-time check already reads
+// (submitAuth() etc.), so this adds no new Firestore read shape, just an earlier, incremental one.
+let authUsernameAvailToken = 0;
+function wireUsernameAvailabilityHint(inputId, hintId){
+  const input = document.getElementById(inputId);
+  const hint = document.getElementById(hintId);
+  if(!input || !hint) return;
+  let timer = null;
+  input.addEventListener('input', ()=>{
+    const v = input.value.trim();
+    clearTimeout(timer);
+    if(!v || !isValidUsername(v)) return; // wireFieldHint's own listener (registered first) already
+                                            // set the right empty/format-invalid message for this case
+    const myToken = ++authUsernameAvailToken;
+    hint.textContent = 'Checking availability…';
+    hint.className = 'field-hint';
+    timer = setTimeout(async ()=>{
+      try{
+        const doc = await db.collection('usernames').doc(v.toLowerCase()).get();
+        if(myToken !== authUsernameAvailToken) return; // a newer keystroke/response has since landed
+        if(doc.exists){ hint.textContent = '✗ That username is already taken'; hint.className = 'field-hint is-invalid'; }
+        else{ hint.textContent = '✓ Available'; hint.className = 'field-hint is-valid'; }
+      }catch(e){
+        if(myToken===authUsernameAvailToken){ hint.textContent = 'Looks good'; hint.className = 'field-hint is-valid'; }
+      }
+    }, 450);
+  });
 }
 // ---- Login page 2026 round 2: Caps Lock warning, live password-match hint, a generated strong
 // password, and Enter-key submit/advance. All purely additive -- none of these change what
@@ -16104,6 +16710,7 @@ function wireAuthModeSwitch(){
     if(authMode===mode) return;
     authMode = mode;
     authError = '';
+    signupUsePasskey = false;
     renderLogin();
   };
   document.getElementById('authModeSwitchLogin')?.addEventListener('click', ()=>setMode('login'));
@@ -16241,6 +16848,18 @@ function renderLogin(){
             `}
             <p style="margin:6px 0 0;"><a id="signupStartOverLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Not you? Start over</a></p>
 
+            ${signupUsePasskey ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+              <label style="margin:0;">Sign-in method</label>
+              <a id="signupUsePasswordInsteadLink" style="font-size:11.5px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Use a password instead</a>
+            </div>
+            <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:6px;">
+              <div style="font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;">🔑 Sign in with a Passkey</div>
+              <p class="muted" style="font-size:11.5px;margin:4px 0 0;">No password to create or remember — your device's own biometric/screen-lock (fingerprint, face, or PIN) will sign you in here from now on. You can still reset access by email if you ever lose this device.</p>
+            </div>
+            ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
+            <button class="btn" id="authSubmitBtn" type="button" style="width:100%;margin-top:16px;">Create Passkey & Account →</button>
+            ` : `
             <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
               <label style="margin:0;">Password</label>
               <button type="button" id="authGeneratePwBtn" class="pw-suggest-btn">⚡ Suggest strong password</button>
@@ -16256,10 +16875,12 @@ function renderLogin(){
             <div class="field-wrap"><span class="field-icon">${authFieldIcon('lock')}</span><input type="${pwType}" id="authConfirmPassword" placeholder="Re-enter password" autocomplete="new-password"></div>
             <div class="caps-warning" id="authConfirmPasswordCapsWarn" hidden>⇪ Caps Lock is on</div>
             <div class="field-hint" id="authPwMatchHint"></div>
+            ${webauthnSupported() ? `<p style="margin:8px 0 0;"><a id="signupUsePasskeyInsteadLink" style="font-size:11.5px;cursor:pointer;color:var(--accent1);text-decoration:underline;">🔑 Use a Passkey instead — no password to remember</a></p>` : ''}
 
             ${authError ? `<p class="auth-error">${escapeHtml(authError)}</p>` : ''}
 
             <button class="btn" id="authSubmitBtn" type="button" style="width:100%;margin-top:16px;">Create Account →</button>
+            `}
             ` : `
             <label>Full Name</label>
             <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authName" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(authDraft.name)}" autocomplete="name" ${verifyLinkAwaiting?'disabled':''}></div>
@@ -16285,6 +16906,21 @@ function renderLogin(){
             <button class="btn ${verifyLinkSending?'btn-busy':''}" id="verifyEmailBtn" type="button" style="width:100%;margin-top:16px;" ${verifyBtnDisabled?'disabled':''}>${verifyBtnLabel}</button>
             ${verifyLinkAwaiting ? `<p style="margin:8px 0 0;text-align:center;"><a id="signupUseDifferentEmailLink" style="font-size:12px;cursor:pointer;color:var(--accent1);text-decoration:underline;">Use a different email</a></p>` : ''}
             `) : `
+            ${(()=>{
+              const passkeyRec = webauthnSupported() ? anyStoredPasskeyLogin() : null;
+              if(!passkeyRec) return '';
+              return `
+            <button class="btn ${passkeyLoginBusy?'btn-busy':''}" id="authPasskeyLoginBtn" type="button" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;" ${passkeyLoginBusy?'disabled':''}>
+              🔑 ${passkeyLoginBusy?'Verifying…':`Continue as @${escapeHtml(passkeyRec.username||'')}`}
+            </button>
+            ${passkeyLoginError ? `<p class="auth-error">${escapeHtml(passkeyLoginError)}</p>` : ''}
+            <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+              <div style="flex:1;height:1px;background:var(--border);"></div>
+              <span class="muted" style="font-size:11px;">OR</span>
+              <div style="flex:1;height:1px;background:var(--border);"></div>
+            </div>
+              `;
+            })()}
             <label>Username</label>
             <div class="field-wrap"><span class="field-icon">${authFieldIcon('user')}</span><input type="text" id="authUsername" placeholder="Your username" value="${escapeAttr(authDraft.username || lastUsername)}" autocomplete="username"></div>
 
@@ -16340,7 +16976,10 @@ function renderLogin(){
 
   const submitAuth = async ()=>{
     authError = '';
-    const password = document.getElementById('authPassword').value || '';
+    // #authPassword doesn't exist in the DOM at all on the signup step when signupUsePasskey is on
+    // (that whole field is replaced by the "Create a Passkey" explainer block) -- optional-chain it
+    // rather than assuming the element is always present.
+    const password = document.getElementById('authPassword')?.value || '';
     const submitBtn = document.getElementById('authSubmitBtn');
     if(isSignup){
       // Step 2 only — by the time this button exists at all, the email is already verified
@@ -16355,15 +16994,26 @@ function renderLogin(){
       if(usernameEl) authDraft.username = usernameEl.value.trim();
       if(mobileEl) authDraft.mobile = mobileEl.value.trim();
       const { name, username, mobile, email } = authDraft;
-      const confirm = document.getElementById('authConfirmPassword').value || '';
+      const confirm = document.getElementById('authConfirmPassword')?.value || '';
       if(!name || !username || !mobile || !email){ authError = 'Please fill in your name, username and mobile number.'; renderLogin(); return; }
       // Same format checks step 1 (onVerifyEmailClick) normally already ran before the link was sent
       // — needed here too now that a lost draft lets someone type these in for the first time here.
       if(!isValidUsername(username)){ authError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; renderLogin(); return; }
       if(!isValidMobile(mobile)){ authError = 'Mobile number must be exactly 10 digits.'; renderLogin(); return; }
-      if(!password){ authError = 'Please create a password.'; renderLogin(); return; }
-      if(password.length<6){ authError = 'Password must be at least 6 characters.'; renderLogin(); return; }
-      if(password!==confirm){ authError = 'Passwords do not match.'; renderLogin(); return; }
+      // Passkey-first signup (task #227): the account's real Firebase password is a long random
+      // string the person never sees or types -- generated here, wrapped with a PRF-derived key via
+      // setupPasskeyLogin() below, and never persisted anywhere in plaintext (not in Firestore, not
+      // in localStorage). They can still recover access with the normal "Forgot password?" email
+      // flow if this device is ever lost, exactly like a password-based account.
+      let effectivePassword = password;
+      if(signupUsePasskey){
+        if(!webauthnSupported()){ authError = 'Passkeys aren\'t supported in this browser — please use a password instead.'; renderLogin(); return; }
+        effectivePassword = generateStrongPassword(32);
+      }else{
+        if(!password){ authError = 'Please create a password.'; renderLogin(); return; }
+        if(password.length<6){ authError = 'Password must be at least 6 characters.'; renderLogin(); return; }
+        if(password!==confirm){ authError = 'Passwords do not match.'; renderLogin(); return; }
+      }
       submitBtn.disabled = true;
       submitBtn.classList.add('btn-busy');
       const usernameKey = username.toLowerCase();
@@ -16375,13 +17025,23 @@ function renderLogin(){
         // provider ID as email/password, just without a password set yet) — so linkWithCredential
         // here would always fail with auth/provider-already-linked. Setting the password directly
         // on the existing identity is the correct call in this situation.
-        await pendingVerifyUser.updatePassword(password);
+        await pendingVerifyUser.updatePassword(effectivePassword);
         const profile = { id: pendingVerifyUser.uid, name, username, usernameLower: usernameKey, mobile, email, role:'user', plan:'free', planExpiry:null, createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() };
         await db.collection('users').doc(pendingVerifyUser.uid).set(profile);
         await db.collection('usernames').doc(usernameKey).set({ email });
+        if(signupUsePasskey){
+          const passkeyOk = await setupPasskeyLogin(pendingVerifyUser.uid, username, email, effectivePassword);
+          if(!passkeyOk){
+            // The account still exists either way (with that random password) -- just not yet
+            // unlockable by passkey on THIS device. "Forgot password?" is the honest recovery path
+            // here, same as it is for a normal account whose owner forgets a self-chosen password.
+            toast('Account created, but the Passkey could not be set up on this device — use "Forgot password?" on the login screen to set a password instead, or try setting up a Passkey again later.', {type:'error'});
+          }
+        }
         lastUsername = username;
         currentUser = { id: pendingVerifyUser.uid, name, username, mobile, email, isAdmin:false, role:'user', plan:'free', planExpiry:null };
         authDraft = { name:'', username:'', mobile:'', email:'' };
+        signupUsePasskey = false;
         pendingVerifyUser = null; pendingVerifyEmail = ''; verifyLinkAwaiting = false; verifyLinkCooldownUntil = 0;
         verifyLinkNotice = ''; verifyLinkError = '';
         await clearPendingSignupDraft();
@@ -16466,6 +17126,50 @@ function renderLogin(){
   };
 
   document.getElementById('authSubmitBtn')?.addEventListener('click', submitAuth);
+  document.getElementById('authPasskeyLoginBtn')?.addEventListener('click', async ()=>{
+    if(passkeyLoginBusy) return;
+    const rec = anyStoredPasskeyLogin();
+    if(!rec) return;
+    passkeyLoginBusy = true;
+    passkeyLoginError = '';
+    authError = '';
+    renderLogin();
+    try{
+      const unwrappedPassword = await unwrapPasskeyLoginPassword(rec);
+      if(!unwrappedPassword){
+        passkeyLoginBusy = false;
+        passkeyLoginError = 'Could not verify with this Passkey — try your username and password instead.';
+        renderLogin();
+        return;
+      }
+      // Populate the existing username/password fields (already in the DOM -- the login form
+      // renders them unconditionally alongside this button) and run through the SAME login
+      // codepath (submitAuth's else-branch) that a typed-in login uses -- profile load, blocked
+      // check, currentUser assignment, audit logging all stay in exactly one place rather than
+      // being duplicated here.
+      passkeyLoginBusy = false;
+      const usernameEl = document.getElementById('authUsername');
+      const passwordEl = document.getElementById('authPassword');
+      if(usernameEl) usernameEl.value = rec.username;
+      if(passwordEl) passwordEl.value = unwrappedPassword;
+      await submitAuth();
+    }catch(e){
+      console.error('Passkey login failed:', e);
+      passkeyLoginBusy = false;
+      passkeyLoginError = 'Passkey sign-in failed — try your username and password instead.';
+      renderLogin();
+    }
+  });
+  document.getElementById('signupUsePasskeyInsteadLink')?.addEventListener('click', ()=>{
+    signupUsePasskey = true;
+    authError = '';
+    renderLogin();
+  });
+  document.getElementById('signupUsePasswordInsteadLink')?.addEventListener('click', ()=>{
+    signupUsePasskey = false;
+    authError = '';
+    renderLogin();
+  });
 
   // "Continue with Google" — sidesteps Firebase's email-based quotas entirely (see the googleAuthUser
   // comment near its declaration) since Google's own OAuth popup is what verifies the person, not an
@@ -16659,6 +17363,7 @@ function renderLogin(){
     pendingVerifyUser = null; pendingVerifyEmail = ''; verifyLinkAwaiting = false; verifyLinkCooldownUntil = 0;
     verifyLinkNotice = ''; verifyLinkError = '';
     authDraft = { name:'', username:'', mobile:'', email:'' };
+    signupUsePasskey = false;
     await clearPendingSignupDraft();
   };
   document.getElementById('authToggleModeLink')?.addEventListener('click', async ()=>{
@@ -17198,6 +17903,24 @@ function renderGateway(){
             <div class="gw-hero-eyebrow">${escapeHtml(greeting)}</div>
             <h1>Welcome back, <em>${escapeHtml(currentUser.name.split(' ')[0]||currentUser.name)}</em></h1>
             <div class="gw-hero-sub">Select a company below to pick up where you left off, or create a new one to get started.</div>
+            ${(()=>{
+              if(myCompanies.length<2) return '';
+              const resumeCo = mostRecentlyOpenedCompany(myCompanies);
+              if(!resumeCo) return '';
+              const resumeTab = lastViewedTabLabel(resumeCo.id) || 'Dashboard';
+              const initials = (resumeCo.name||'?').trim().slice(0,2).toUpperCase();
+              const palette = ['linear-gradient(135deg,#2CA01C,#1E7A12)','linear-gradient(135deg,#F2994A,#C9701A)','linear-gradient(135deg,#4A90D9,#2563AD)','linear-gradient(135deg,#B15CDE,#7B3FA0)','linear-gradient(135deg,#E0546B,#B23350)','linear-gradient(135deg,#2FB6A6,#1D8377)'];
+              const bg = palette[Math.abs((resumeCo.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
+              return `
+              <div class="gw-resume-card" id="gwResumeBtn" data-resume-co="${resumeCo.id}" role="button" tabindex="0" aria-label="Continue in ${escapeAttr(resumeCo.name)}, ${escapeAttr(resumeTab)}">
+                <div class="gw-resume-icon" style="background:${bg};">${escapeHtml(initials)}</div>
+                <div class="gw-resume-body">
+                  <div class="gw-resume-label">Continue where you left off</div>
+                  <div class="gw-resume-detail">${escapeHtml(resumeCo.name)} <span class="gw-resume-dot">·</span> ${escapeHtml(resumeTab)}</div>
+                </div>
+                <span class="gw-resume-arrow">→</span>
+              </div>`;
+            })()}
           </div>
           <div class="gw-hero-chips">
             <div class="gw-chip"><div class="gw-chip-val" data-count="${myCompanies.length}">0</div><div class="gw-chip-lbl">Compan${myCompanies.length===1?'y':'ies'}</div></div>
@@ -17248,6 +17971,20 @@ function renderGateway(){
           const recencyText = (openedAgo?`Opened ${openedAgo}`:'Not opened yet') + (lastLabel?` · Last viewed: ${lastLabel}`:'');
           const isMyTeamCompany = currentUser && c.teamMembers && c.teamMembers[currentUser.id];
           const badgesHtml = `${isSharedDemoId(c.id)?'<span class="pill pos">Sample</span>':''}${c.groupId?'<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Shared</span>':''}${!isMyTeamCompany && c.teamMemberIds && c.teamMemberIds.length ? '<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">Team</span>' : ''}`;
+          // At-a-glance health, computed straight off this company's own stored fields -- same
+          // cross-company helpers the Accountant Dashboard already uses (companyOverdueInvoices() etc.),
+          // so this needs no loadState()/enterCompanyApp() call for any company that isn't currently
+          // open. Deliberately a glance, not a full audit: three cheap flags (overdue invoices, stale
+          // bank entries, pending approvals) folded into one "N need attention" chip, plus the existing
+          // financialHealthStreak count (set only while a company is actually open, via the Dashboard's
+          // own Financial Health card) shown as a flame when it's running.
+          const streakCount = (c.financialHealthStreak && c.financialHealthStreak.count) || 0;
+          const healthFlags = [companyOverdueInvoices(c).length>0, companyUnreconciledBankCount(c)>0, companyPendingApprovalsCount(c)>0].filter(Boolean).length;
+          const healthHtml = (streakCount>0 || healthFlags>0) ? `
+            <div class="company-card-health">
+              ${streakCount>0 ? `<span class="company-card-health-streak is-lit" title="${streakCount} day${streakCount===1?'':'s'} of all financial-health checks green">🔥 ${streakCount}-day streak</span>` : ''}
+              ${healthFlags>0 ? `<span class="company-card-health-flag" title="${healthFlags} area${healthFlags===1?'':'s'} flagged: ${[companyOverdueInvoices(c).length>0?'overdue invoices':'', companyUnreconciledBankCount(c)>0?'unreconciled bank entries':'', companyPendingApprovalsCount(c)>0?'pending approvals':''].filter(Boolean).join(', ')}">⚠ ${healthFlags} need${healthFlags===1?'s':''} attention</span>` : ''}
+            </div>` : '';
           // Rename/Delete are Gateway-only shortcuts, so they deliberately stay out of reach for the
           // shared demo company (unless you're the full Administrator), for demo sessions entirely, and
           // for a Company Team Access teammate (isMyTeamCompany) viewing a company they don't own -- the
@@ -17280,6 +18017,7 @@ function renderGateway(){
                 <div class="company-card-recency">${recencyText}</div>
               </div>
               ${badgesHtml ? `<div class="company-card-badges">${badgesHtml}</div>` : ''}
+              ${healthHtml}
               <div class="company-card-stats">
                 <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
                 <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
@@ -17294,6 +18032,7 @@ function renderGateway(){
             </div>
             <div class="company-card-name">${escapeHtml(c.name)}</div>
             <div class="company-card-badges">${badgesHtml}</div>
+            ${healthHtml}
             <div class="company-card-stats">
               <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
               <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
@@ -17376,6 +18115,8 @@ function renderGateway(){
     ${companyRenameModalOpen ? companyRenameModal() : ''}
     ${modal==='accountantDash' ? accountantDashModal() : ''}
     ${modal==='consolidation' ? consolidationModal() : ''}
+    ${modal==='stepUpVerify' ? stepUpVerifyModal() : ''}
+    ${modal==='trustedDevices' ? trustedDevicesModal() : ''}
     ${diWidget()}
       </div>
     </div>
@@ -17389,6 +18130,15 @@ function renderGateway(){
       if(!c || !canAccessCompany(c)) return;
       await enterCompanyApp(c);
     });
+  });
+  document.getElementById('gwResumeBtn')?.addEventListener('click', async ()=>{
+    const id = document.getElementById('gwResumeBtn').dataset.resumeCo;
+    const c = companies.find(x=>x.id===id);
+    if(!c || !canAccessCompany(c)) return;
+    await enterCompanyApp(c); // resumes on its own last-viewed tab automatically -- see enterCompanyApp()
+  });
+  document.getElementById('gwResumeBtn')?.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); e.currentTarget.click(); }
   });
   document.getElementById('openCreateCoBtn')?.addEventListener('click', ()=>{
     companyCreateModalOpen = true;
@@ -17469,8 +18219,11 @@ function renderGateway(){
       e.stopPropagation();
       gatewayCardMenuOpenId = null;
       const id = el.dataset.deleteCo;
-      const ok = await deleteCompanyById(id);
-      renderGateway();
+      const c = companies.find(x=>x.id===id);
+      requireStepUp(`Delete company "${c?c.name:id}"`, async ()=>{
+        const ok = await deleteCompanyById(id);
+        renderGateway();
+      });
     });
   });
   // Keyboard-first navigation for the company grid, matching the rest of the app's keyboard-first
@@ -17813,6 +18566,17 @@ function renderGateway(){
         renderGateway();
       }
     });
+    document.getElementById('manageTrustedDevicesBtn')?.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      userProfileMenuOpen = false;
+      await openTrustedDevicesModal();
+    });
+    document.getElementById('passkeyLoginToggleBtn')?.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      removePasskeyLogin(currentUser.id);
+      toast('Passkey Sign-In turned off for this device — your regular password still works.');
+      renderGateway();
+    });
   }
   if(servicesMenuOpen){
     document.getElementById('gwAdminPanelLink')?.addEventListener('click', async (e)=>{
@@ -17907,6 +18671,8 @@ function renderGateway(){
   // member, invite/remove a teammate, etc.) -- shared with the in-company menubar path, see
   // wireApprovalsAccessTeamHandlers() above attachHandlers().
   wireApprovalsAccessTeamHandlers();
+  wireStepUpVerifyModal();
+  wireTrustedDevicesModal();
   if(modal==='help'){
     wireContactSupportHandlers(renderGateway);
     document.querySelectorAll('[data-help-tab]').forEach(el=>{
@@ -17937,9 +18703,11 @@ function renderGateway(){
       el.addEventListener('click', async ()=>{
         if(!isFullAdmin()) return;
         const cid = el.dataset.deleteOrphan;
-        const c = companies.find(x=>x.id===cid);
-        const ok = await deleteCompanyById(cid);
-        if(ok){ logAudit('orphan_deleted', `Deleted orphaned company "${c?c.name:cid}"`, cid, c?c.name:cid); renderGateway(); }
+        const rowName = el.closest('tr')?.querySelector('td')?.textContent || cid;
+        requireStepUp(`Delete orphaned company "${rowName}"`, async ()=>{
+          const ok = await deleteCompanyById(cid);
+          if(ok){ logAudit('orphan_deleted', `Deleted orphaned company "${rowName}"`, cid, rowName); renderGateway(); }
+        });
       });
     });
     document.getElementById('saveAnnouncementBtn')?.addEventListener('click', async ()=>{
@@ -17962,6 +18730,7 @@ function renderGateway(){
         btn.disabled = false;
       }
     });
+    document.getElementById('refreshPublicStatsBtn')?.addEventListener('click', refreshPublicStats);
   }
   if(modal==='adminPanel' && adminTab==='users'){
     document.getElementById('adminUserSearchInput')?.addEventListener('input', (e)=>{
@@ -18073,16 +18842,18 @@ function renderGateway(){
         const uid = el.dataset.forceLogout;
         const u = users.find(x=>x.id===uid);
         if(!u) return;
-        el.disabled = true;
-        try{
-          await db.collection('users').doc(uid).set({ forceLogoutRequested:true }, {merge:true});
-          await logAudit('force_logout', `Forced ${u.name} (@${u.username}) to sign out on their next check`, uid, u.name);
-          toast(`${u.name} will be signed out (within 30s of their next check)`);
-        }catch(err){
-          console.error('Force logout failed:', err);
-          toast('Could not force logout — ' + (err && (err.code || err.message) || 'unknown error'));
-        }
-        el.disabled = false;
+        requireStepUp(`Force ${u.name} (@${u.username}) to sign out`, async ()=>{
+          el.disabled = true;
+          try{
+            await db.collection('users').doc(uid).set({ forceLogoutRequested:true }, {merge:true});
+            await logAudit('force_logout', `Forced ${u.name} (@${u.username}) to sign out on their next check`, uid, u.name);
+            toast(`${u.name} will be signed out (within 30s of their next check)`);
+          }catch(err){
+            console.error('Force logout failed:', err);
+            toast('Could not force logout — ' + (err && (err.code || err.message) || 'unknown error'));
+          }
+          el.disabled = false;
+        });
       });
     });
     document.querySelectorAll('[data-edit-plan]').forEach(el=>{
@@ -19383,6 +20154,24 @@ function userProfileDropdown(){
       </div>
     </div>`;
     })() : ''}
+    ${getStoredPasskeyLogin(currentUser.id) ? `
+    <div class="gw-user-dropdown-divider"></div>
+    <div class="gw-user-dropdown-rows">
+      <div class="gw-user-dropdown-row">
+        <span class="gw-user-dropdown-label">Passkey Sign-In on this device</span>
+        <span class="gw-user-dropdown-value" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span>🔑 On</span>
+          <button class="btn secondary small" id="passkeyLoginToggleBtn" type="button" style="padding:3px 10px;font-size:11px;">Turn Off</button>
+        </span>
+      </div>
+    </div>` : ''}
+    <div class="gw-user-dropdown-divider"></div>
+    <div class="gw-user-dropdown-rows">
+      <div class="gw-user-dropdown-row">
+        <span class="gw-user-dropdown-label">Trusted Devices</span>
+        <span class="gw-user-dropdown-value"><button class="btn secondary small" id="manageTrustedDevicesBtn" type="button" style="padding:3px 10px;font-size:11px;">Manage →</button></span>
+      </div>
+    </div>
   </div>`;
 }
 function adminTabIcon(id){
@@ -19472,6 +20261,14 @@ function adminOverviewTab(){
       <input type="checkbox" id="announcementActive" style="width:auto;" ${announcementDraft.active?'checked':''} ${isFullAdmin()?'':'disabled'}> Show this banner to users
     </label>
     <button class="btn secondary small" id="saveAnnouncementBtn" type="button" style="margin-top:8px;" ${isFullAdmin()?'':'disabled'}>Save Announcement</button>
+
+    <div class="section-title" style="margin-top:18px;">Public Stats Strip (Landing Page)</div>
+    <p class="muted" style="font-size:12px;margin-top:0;">A deliberately NOT-live counter shown to signed-out visitors on the landing page — refresh it here whenever you want the public figures to move. The landing page labels it as last-refreshed, never as real-time.</p>
+    ${publicStatsCurrent ? `
+    <p style="font-size:12.5px;margin:6px 0;">Currently live: <strong>${publicStatsCurrent.totalUsers}</strong> users · <strong>${publicStatsCurrent.totalCompanies}</strong> companies · <strong>${publicStatsCurrent.totalVouchers}</strong> vouchers — as of ${new Date(publicStatsCurrent.asOf).toLocaleString()}</p>
+    ` : `<p class="muted" style="font-size:12px;margin:6px 0;">Never refreshed yet — the landing page won't show this section until it is.</p>`}
+    ${publicStatsError ? `<p style="color:var(--debit,#B3261E);font-size:12px;margin:4px 0;">${escapeHtml(publicStatsError)}</p>` : ''}
+    <button class="btn secondary small" id="refreshPublicStatsBtn" type="button" ${isFullAdmin()?'':'disabled'} ${publicStatsRefreshing?'disabled':''}>${publicStatsRefreshing?'Refreshing…':'Refresh Public Stats'}</button>
 
     <details class="disclosure" ${orphans.length?'open':''}>
       <summary>Orphaned Companies <span class="pill ${orphans.length?'neg':''}" style="margin-left:6px;">${orphans.length}</span></summary>
@@ -19979,6 +20776,27 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid &&
         (isAdmin() || request.resource.data.groupOwnerId == myGroupId());
       allow update, delete: if false;
+    }
+    // Trusted Devices manager (Quick Unlock passkey registry) -- each doc records one browser that
+    // has registered a Quick Unlock passkey for its owner, so it can be listed and revoked from any
+    // other browser. Owner-only in both directions: nobody but the account itself can see or change
+    // its own device list, not even an Administrator or Support -- there's no legitimate reason for
+    // anyone else to read or revoke someone's Quick Unlock devices.
+    match /users/{uid}/trustedDevices/{deviceId} {
+      allow get, list: if isOwner(uid);
+      allow create, update: if isOwner(uid);
+      allow delete: if isOwner(uid);
+    }
+    // Public landing-page stats strip (task #230) -- a single doc, refreshed on-demand by an
+    // Administrator from the Admin Panel (see refreshPublicStats()), never written automatically or
+    // by anything client-facing a visitor could trigger. Publicly READABLE with no auth at all
+    // (the landing page shows it to a signed-out visitor), since it holds nothing more sensitive
+    // than rounded aggregate counts -- never a user's name, email, or company data.
+    match /appMeta/{docId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
   }
 }`;
@@ -24601,6 +25419,186 @@ function deleteLedgerPasswordModal(){
       </div>
     </div>
   `;
+}
+// Generic step-up re-verification -- the same idea as deleteLedgerPasswordModal() above, generalized
+// to every OTHER high-risk action in the app: Delete Company, Force Logout (admin), and saving a
+// change to a teammate's access (see the three call sites this wraps, further down). Two ways to
+// clear the gate: the signed-in user's own Quick Unlock passkey, when this device has one registered
+// -- fast, but only a LOCAL/hardware-backed check (see the Quick Unlock feature's own honesty note,
+// above restoreSessionFor()) -- or Firebase's own reauthenticateWithCredential with the login
+// password, which Firebase itself verifies server-side. The password path is always offered, even
+// when a passkey exists, so the gate never depends on one single mechanism being available.
+function requireStepUp(actionLabel, onConfirmed){
+  stepUpPending = { actionLabel, onConfirmed };
+  stepUpPasswordError = '';
+  stepUpBusy = false;
+  modal = 'stepUpVerify';
+  renderCurrentScreen();
+}
+function stepUpVerifyModal(){
+  if(!stepUpPending) return '';
+  const hasPasskey = webauthnSupported() && !!getStoredPasskey(currentUser.id);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:420px;">
+        <div class="panel-head"><h2>Confirm it's you</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p style="margin-top:0;">This is a sensitive action — <strong>${escapeHtml(stepUpPending.actionLabel)}</strong>. Verify your identity to continue.</p>
+          ${hasPasskey ? `
+          <button class="btn" id="stepUpPasskeyBtn" type="button" style="width:100%;margin-bottom:10px;" ${stepUpBusy?'disabled':''}>🔒 Verify with Passkey</button>
+          <p class="muted" style="font-size:11px;text-align:center;margin:-4px 0 12px;">or verify with your password instead</p>
+          ` : ''}
+          <div class="field"><label>Your Password</label><input type="password" id="stepUpPasswordInput" autocomplete="current-password" placeholder="Login password" ${hasPasskey?'':'autofocus'}></div>
+          ${stepUpPasswordError ? `<p style="color:var(--debit,#B3261E);font-size:12.5px;margin:2px 0 8px;">${escapeHtml(stepUpPasswordError)}</p>` : ''}
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="btn" id="stepUpPasswordSubmit" type="button" ${stepUpBusy?'disabled':''}>${stepUpBusy?'Checking…':'Verify with Password'}</button>
+            <button class="btn secondary" id="stepUpCancelBtn" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Wiring for stepUpVerifyModal() above -- called from BOTH attachHandlers() (in-app menubar's
+// Delete Company) and renderGateway()'s own wiring (Gateway card Delete, Admin Panel Force Logout
+// and orphan-company delete, Team Access saves reached via a Support user's Admin Panel), since the
+// three actions it gates live on both sides of that screen/app split. Internally a no-op unless the
+// gate is actually open, so calling it unconditionally from both places is safe.
+function wireStepUpVerifyModal(){
+  if(modal!=='stepUpVerify' || !stepUpPending) return;
+  const finishStepUp = ()=>{
+    const cb = stepUpPending.onConfirmed;
+    stepUpPending = null;
+    stepUpPasswordError = '';
+    stepUpBusy = false;
+    modal = null;
+    renderCurrentScreen();
+    cb && cb();
+  };
+  document.getElementById('stepUpCancelBtn')?.addEventListener('click', ()=>{
+    stepUpPending = null;
+    stepUpPasswordError = '';
+    stepUpBusy = false;
+    modal = null;
+    renderCurrentScreen();
+  });
+  document.getElementById('stepUpPasskeyBtn')?.addEventListener('click', async ()=>{
+    stepUpBusy = true;
+    stepUpPasswordError = '';
+    renderCurrentScreen();
+    const ok = await verifyQuickUnlockPasskey(currentUser.id);
+    if(ok){ finishStepUp(); return; }
+    stepUpBusy = false;
+    stepUpPasswordError = 'Passkey verification failed — try again, or verify with your password instead.';
+    renderCurrentScreen();
+  });
+  const submitPassword = async ()=>{
+    const pwInput = document.getElementById('stepUpPasswordInput');
+    const pw = pwInput ? pwInput.value : '';
+    if(!pw){ stepUpPasswordError = 'Enter your login password'; renderCurrentScreen(); return; }
+    stepUpBusy = true;
+    stepUpPasswordError = '';
+    renderCurrentScreen();
+    try{
+      const email = usernameToEmail(currentUser.username);
+      const credential = firebase.auth.EmailAuthProvider.credential(email, pw);
+      await fbAuth.currentUser.reauthenticateWithCredential(credential);
+    }catch(e){
+      stepUpBusy = false;
+      stepUpPasswordError = 'Incorrect password — try again.';
+      renderCurrentScreen();
+      return;
+    }
+    finishStepUp();
+  };
+  document.getElementById('stepUpPasswordSubmit')?.addEventListener('click', submitPassword);
+  document.getElementById('stepUpPasswordInput')?.addEventListener('keydown', (e)=>{ if(e.key==='Enter') submitPassword(); });
+}
+// Opens the Trusted Devices manager (modal==='trustedDevices') and loads the list fresh every time
+// -- it's meant to answer "what can unlock my account right now, from anywhere", so a stale
+// in-memory list (e.g. still showing a device the user just revoked in another tab) would defeat
+// the point. A load failure (rules not yet deployed, offline) still opens the modal with an inline
+// error rather than silently doing nothing, since "I can't see my devices" is itself useful to know.
+async function openTrustedDevicesModal(){
+  if(!currentUser) return;
+  modal = 'trustedDevices';
+  trustedDevicesList = null;
+  trustedDevicesLoading = true;
+  trustedDevicesError = '';
+  renderGateway();
+  try{
+    const snap = await db.collection('users').doc(currentUser.id).collection('trustedDevices').orderBy('lastUsedAt','desc').get();
+    const rows = [];
+    snap.forEach(doc=>rows.push({ id: doc.id, ...doc.data() }));
+    trustedDevicesList = rows;
+  }catch(e){
+    console.error('Could not load Trusted Devices:', e);
+    trustedDevicesList = [];
+    trustedDevicesError = 'Could not load your devices — this usually means the Firestore Security Rules in the Firebase Console need updating for the trustedDevices collection, or you\'re offline.';
+  }
+  trustedDevicesLoading = false;
+  renderGateway();
+}
+function trustedDevicesModal(){
+  const thisDeviceId = getOrCreateDeviceId();
+  const rows = trustedDevicesList || [];
+  const activeRows = rows.filter(d=>!d.revoked);
+  const revokedRows = rows.filter(d=>d.revoked);
+  const rowHtml = (d)=>{
+    const isThisDevice = d.id === thisDeviceId;
+    const lastUsed = d.lastUsedAt ? relativeTimeAgo(d.lastUsedAt) : (d.createdAt ? relativeTimeAgo(d.createdAt) : '—');
+    return `<div class="trusted-device-row${d.revoked?' is-revoked':''}" data-device-row="${escapeAttr(d.id)}">
+      <div class="trusted-device-icon">${d.revoked ? '🚫' : '🔓'}</div>
+      <div class="trusted-device-body">
+        <div class="trusted-device-label">${escapeHtml(d.label||'Unknown device')}${isThisDevice ? ' <span class="trusted-device-badge">This device</span>' : ''}</div>
+        <div class="trusted-device-meta">${d.revoked ? 'Quick Unlock turned off' : `Last used ${lastUsed}`}</div>
+      </div>
+      ${d.revoked ? '' : `<button class="btn secondary small" data-revoke-device="${escapeAttr(d.id)}" type="button">Revoke</button>`}
+    </div>`;
+  };
+  return `<div class="modal-overlay" id="trustedDevicesOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-card" style="width:460px;max-height:80vh;display:flex;flex-direction:column;">
+      <div class="panel-head"><h2>Trusted Devices</h2><button class="btn secondary small" id="trustedDevicesClose" type="button" aria-label="Close">✕</button></div>
+      <div class="panel-body" style="overflow-y:auto;">
+        <p class="muted" style="margin-top:0;font-size:12.5px;">Every browser where Quick Unlock has been turned on for your account. Revoking a device turns Quick Unlock off there immediately — it won't be asked for again, and if that browser is still around it'll need the full login next time.</p>
+        ${trustedDevicesLoading ? `<p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>` : ''}
+        ${trustedDevicesError ? `<p style="color:var(--debit,#B3261E);font-size:12.5px;">${escapeHtml(trustedDevicesError)}</p>` : ''}
+        ${!trustedDevicesLoading && !trustedDevicesError && rows.length===0 ? `<p class="muted" style="text-align:center;padding:24px 0;">No devices have Quick Unlock turned on yet. Set it up from the Security section of your profile menu.</p>` : ''}
+        ${activeRows.map(rowHtml).join('')}
+        ${revokedRows.length ? `<div class="muted" style="font-size:11px;margin:12px 0 4px;text-transform:uppercase;letter-spacing:.03em;">Previously revoked</div>${revokedRows.map(rowHtml).join('')}` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+function wireTrustedDevicesModal(){
+  if(modal!=='trustedDevices') return;
+  const close = ()=>{ modal = null; renderGateway(); };
+  document.getElementById('trustedDevicesOverlayBg')?.addEventListener('click', (e)=>{ if(e.target.id==='trustedDevicesOverlayBg') close(); });
+  document.getElementById('trustedDevicesClose')?.addEventListener('click', close);
+  document.querySelectorAll('[data-revoke-device]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const deviceId = btn.dataset.revokeDevice;
+      btn.disabled = true;
+      btn.textContent = 'Revoking…';
+      try{
+        await db.collection('users').doc(currentUser.id).collection('trustedDevices').doc(deviceId).set({ revoked: true }, {merge:true});
+        if(deviceId === getOrCreateDeviceId()){
+          // Revoking the device we're currently on -- turn Quick Unlock off locally right away too,
+          // rather than waiting for the next unlock attempt's revocation check to catch it.
+          removeQuickUnlockPasskey(currentUser.id);
+        }
+        const row = (trustedDevicesList||[]).find(d=>d.id===deviceId);
+        if(row) row.revoked = true;
+        toast('Device revoked — Quick Unlock is off there now.', {type:'success'});
+        renderGateway();
+      }catch(e){
+        console.error('Could not revoke device:', e);
+        btn.disabled = false;
+        btn.textContent = 'Revoke';
+        toast('Could not revoke that device — check your connection and try again.', {type:'error'});
+      }
+    });
+  });
 }
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -30779,21 +31777,30 @@ function wireApprovalsAccessTeamHandlers(){
     });
     document.getElementById('saveCompanyTeamAccessBtn')?.addEventListener('click', async ()=>{
       if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
+      const member = (currentCompany.teamMembers||{})[companyTeamMemberId];
+      if(!member) return;
+      // Read every field OUT of the form right now, before requireStepUp() swaps `modal` to
+      // 'stepUpVerify' -- that re-render removes this Team Access form from the DOM entirely (it's
+      // only rendered while modal==='groupAdmin'/'teamAccess'), so anything not captured here would
+      // be lost by the time the step-up gate clears and this save actually runs.
       const next = {};
       document.querySelectorAll('[data-team-access-module]').forEach(el=>{ next[el.dataset.teamAccessModule] = el.value; });
-      currentCompany.teamMembers = currentCompany.teamMembers || {};
-      if(!currentCompany.teamMembers[companyTeamMemberId]) return;
-      currentCompany.teamMembers[companyTeamMemberId].permissions = next;
       const groupMode = document.querySelector('input[name="companyTeamLedgerGroupMode"]:checked');
-      // Explicitly write null rather than deleting the key -- saveCompanyMeta() writes with
-      // {merge:true}, which deep-merges nested fields and so would silently leave a PREVIOUSLY saved
-      // ledgerGroups array in place in Firestore if this save simply omitted the key.
-      currentCompany.teamMembers[companyTeamMemberId].ledgerGroups = (groupMode && groupMode.value==='custom')
+      const ledgerGroups = (groupMode && groupMode.value==='custom')
         ? Array.from(document.querySelectorAll('[data-team-access-ledger-group]:checked')).map(el=>el.dataset.teamAccessLedgerGroup)
         : null;
-      const ok = await saveCompanyMeta(currentCompany);
-      if(ok) toast('Access updated', {type:'success'});
-      renderCurrentScreen();
+      requireStepUp(`Change access for ${member.name||member.username}`, async ()=>{
+        currentCompany.teamMembers = currentCompany.teamMembers || {};
+        if(!currentCompany.teamMembers[companyTeamMemberId]) return;
+        currentCompany.teamMembers[companyTeamMemberId].permissions = next;
+        // Explicitly write null rather than deleting the key -- saveCompanyMeta() writes with
+        // {merge:true}, which deep-merges nested fields and so would silently leave a PREVIOUSLY
+        // saved ledgerGroups array in place in Firestore if this save simply omitted the key.
+        currentCompany.teamMembers[companyTeamMemberId].ledgerGroups = ledgerGroups;
+        const ok = await saveCompanyMeta(currentCompany);
+        if(ok) toast('Access updated', {type:'success'});
+        renderCurrentScreen();
+      });
     });
     document.getElementById('removeCompanyTeamMemberBtn')?.addEventListener('click', async ()=>{
       if(!companyTeamMemberId || companyTeamMemberId==='invite') return;
@@ -30804,32 +31811,38 @@ function wireApprovalsAccessTeamHandlers(){
       const removedId = companyTeamMemberId;
       const removedName = m.name || m.username;
       const removedUsername = m.username;
-      const prevTeamMembers = currentCompany.teamMembers;
-      const prevTeamMemberIds = currentCompany.teamMemberIds || [];
-      currentCompany.teamMembers = { ...prevTeamMembers };
-      delete currentCompany.teamMembers[removedId];
-      currentCompany.teamMemberIds = prevTeamMemberIds.filter(x=>x!==removedId);
-      const ok = await saveCompanyMeta(currentCompany);
-      if(!ok){
-        // Roll back -- saveCompanyMeta() already toasted the actual Firestore error. Without this,
-        // the teammate would vanish from the list locally (making it LOOK like they were removed
-        // and blocked) even though nothing was actually saved server-side and their login was never
-        // touched -- exactly the confusing "I removed them but they can still log in" symptom this
-        // guards against. Keep them selected so the owner can see the error and retry.
-        currentCompany.teamMembers = prevTeamMembers;
-        currentCompany.teamMemberIds = prevTeamMemberIds;
+      // All data this action needs (removedId/removedName/removedUsername) is read from
+      // currentCompany above, not from the DOM -- so it's safe to defer the entire mutation +
+      // Firestore write into the step-up callback (unlike the Team Access save above, nothing
+      // here depends on form inputs that requireStepUp()'s re-render would remove from the DOM).
+      requireStepUp(`Remove ${removedName} from "${currentCompany.name}"`, async ()=>{
+        const prevTeamMembers = currentCompany.teamMembers;
+        const prevTeamMemberIds = currentCompany.teamMemberIds || [];
+        currentCompany.teamMembers = { ...prevTeamMembers };
+        delete currentCompany.teamMembers[removedId];
+        currentCompany.teamMemberIds = prevTeamMemberIds.filter(x=>x!==removedId);
+        const ok = await saveCompanyMeta(currentCompany);
+        if(!ok){
+          // Roll back -- saveCompanyMeta() already toasted the actual Firestore error. Without this,
+          // the teammate would vanish from the list locally (making it LOOK like they were removed
+          // and blocked) even though nothing was actually saved server-side and their login was never
+          // touched -- exactly the confusing "I removed them but they can still log in" symptom this
+          // guards against. Keep them selected so the owner can see the error and retry.
+          currentCompany.teamMembers = prevTeamMembers;
+          currentCompany.teamMemberIds = prevTeamMemberIds;
+          renderCurrentScreen();
+          return;
+        }
+        companyTeamMemberId = null;
+        const blocked = await blockCompanyTeamMemberAccount(removedId);
+        await logAudit(blocked ? 'account_blocked' : 'team_member_removed',
+          `Removed @${removedUsername||removedName} from "${currentCompany.name}" via Team Access${blocked ? ' — login blocked' : ' (could not auto-block login)'}`,
+          removedId, removedName).catch(()=>{});
+        toast(blocked
+          ? 'Removed from this company — their login has been blocked.'
+          : 'Removed from this company, but their login could not be blocked automatically — this usually means the Firestore Security Rules in the Firebase Console need updating. Block them manually from the Admin Panel for now.', {type: blocked ? 'success' : 'error'});
         renderCurrentScreen();
-        return;
-      }
-      companyTeamMemberId = null;
-      const blocked = await blockCompanyTeamMemberAccount(removedId);
-      await logAudit(blocked ? 'account_blocked' : 'team_member_removed',
-        `Removed @${removedUsername||removedName} from "${currentCompany.name}" via Team Access${blocked ? ' — login blocked' : ' (could not auto-block login)'}`,
-        removedId, removedName).catch(()=>{});
-      toast(blocked
-        ? 'Removed from this company — their login has been blocked.'
-        : 'Removed from this company, but their login could not be blocked automatically — this usually means the Firestore Security Rules in the Firebase Console need updating. Block them manually from the Admin Panel for now.', {type: blocked ? 'success' : 'error'});
-      renderCurrentScreen();
+      });
     });
   }
 }
@@ -32844,6 +33857,7 @@ function attachHandlers(){
       render();
     });
   }
+  wireStepUpVerifyModal();
   if(modal==='alterLedger'){
     wireLedgerGroupSuggestion('alterLedgerName','alterLedgerGroup','alterLedgerGroupHint');
     document.getElementById('alterLedgerCurrency')?.addEventListener('change', e=>{
@@ -33958,6 +34972,41 @@ function getStoredPasskey(uid){
 function removeQuickUnlockPasskey(uid){
   try{ localStorage.removeItem(quickUnlockStorageKey(uid)); }catch(e){}
 }
+// A stable per-browser-profile id (NOT per-user -- it identifies the browser install, not an
+// account) used to key each Trusted Devices Firestore doc at users/{uid}/trustedDevices/{deviceId}.
+// Persists across Quick Unlock being turned off/back on in the same browser, so re-registering
+// updates the same device record instead of spawning a duplicate.
+function getOrCreateDeviceId(){
+  try{
+    let id = localStorage.getItem('rb_deviceId');
+    if(!id){
+      id = (typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : ('dev_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+      localStorage.setItem('rb_deviceId', id);
+    }
+    return id;
+  }catch(e){ return 'dev_unknown'; }
+}
+// A human-readable "Chrome on Windows" / "Safari on iPhone" style label for the Trusted Devices
+// list, parsed from the user agent string -- a lot more identifiable than the bare platform string
+// (e.g. "Win32") this used to store. Best-effort only: an unrecognized UA just falls back to the
+// generic "Browser"/"this device" terms rather than guessing.
+function deviceLabelFromUserAgent(){
+  const ua = (navigator.userAgent || '');
+  let browser = 'Browser';
+  if(/Edg\//.test(ua)) browser = 'Edge';
+  else if(/OPR\//.test(ua)) browser = 'Opera';
+  else if(/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome';
+  else if(/Firefox\//.test(ua)) browser = 'Firefox';
+  else if(/Safari\//.test(ua) && /Version\//.test(ua)) browser = 'Safari';
+  let os = 'this device';
+  if(/Windows/.test(ua)) os = 'Windows';
+  else if(/iPhone/.test(ua)) os = 'iPhone';
+  else if(/iPad/.test(ua)) os = 'iPad';
+  else if(/Macintosh|Mac OS X/.test(ua)) os = 'Mac';
+  else if(/Android/.test(ua)) os = 'Android';
+  else if(/Linux/.test(ua)) os = 'Linux';
+  return `${browser} on ${os}`;
+}
 // Registers a new platform-authenticator credential for the SIGNED-IN user on THIS device/browser,
 // and stores its id + SPKI public key locally (never sent anywhere -- there's no backend to send it
 // to). Call this from an already-authenticated context only (the Security row in the user's own
@@ -33985,13 +35034,30 @@ async function registerQuickUnlockPasskey(){
       return false;
     }
     const spki = cred.response.getPublicKey();
+    const deviceId = getOrCreateDeviceId();
+    const nowIso = new Date().toISOString();
     const rec = {
       credId: bufToBase64url(cred.rawId),
       spki: bufToBase64url(spki),
-      label: (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || 'This device',
-      createdAt: new Date().toISOString(),
+      label: deviceLabelFromUserAgent(),
+      deviceId,
+      createdAt: nowIso,
     };
     localStorage.setItem(quickUnlockStorageKey(currentUser.id), JSON.stringify(rec));
+    // Also register this device in Firestore so it shows up (and can be revoked) from ANY browser
+    // via the Trusted Devices manager -- non-fatal if this fails (e.g. the Firestore rule below
+    // hasn't been deployed yet): Quick Unlock still works locally either way, it just won't be
+    // remotely visible/revocable until the rule is in place.
+    try{
+      await db.collection('users').doc(currentUser.id).collection('trustedDevices').doc(deviceId).set({
+        label: rec.label,
+        createdAt: nowIso,
+        lastUsedAt: nowIso,
+        revoked: false,
+      }, {merge:true});
+    }catch(e){
+      console.error('Could not register this device in the Trusted Devices list (Firestore rules may need updating):', e);
+    }
     toast('✓ Quick Unlock is on for this device — you\'ll be asked for it next time you open the app here.');
     return true;
   }catch(e){
@@ -34026,10 +35092,165 @@ async function verifyQuickUnlockPasskey(uid){
     signedData.set(new Uint8Array(authenticatorData), 0);
     signedData.set(new Uint8Array(clientDataHash), authenticatorData.byteLength);
     const rawSig = derSignatureToRaw(assertion.response.signature, 32);
-    return !!(await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, key, rawSig, signedData.buffer));
+    const verified = !!(await crypto.subtle.verify({ name:'ECDSA', hash:'SHA-256' }, key, rawSig, signedData.buffer));
+    if(!verified) return false;
+    // Honor remote revocation from the Trusted Devices manager (see trustedDevicesModal() further
+    // down) -- if this device's record was revoked from another browser/session, fail closed and
+    // self-heal by clearing the local passkey so the user isn't silently re-prompted here forever.
+    // This check fails OPEN (treats a lookup error as "not revoked") on any network/offline/rules
+    // error, so an unreachable Firestore or an as-yet-undeployed rule never locks a legitimate user
+    // out of their own device -- the whole point of Quick Unlock is working without a round trip.
+    const deviceId = rec.deviceId || getOrCreateDeviceId();
+    try{
+      const doc = await db.collection('users').doc(uid).collection('trustedDevices').doc(deviceId).get();
+      if(doc.exists && doc.data().revoked){
+        removeQuickUnlockPasskey(uid);
+        toast('Quick Unlock was turned off for this device from the Trusted Devices list.', {type:'error'});
+        return false;
+      }
+      db.collection('users').doc(uid).collection('trustedDevices').doc(deviceId)
+        .set({ lastUsedAt: new Date().toISOString() }, {merge:true}).catch(()=>{});
+    }catch(e){ /* fail open -- see comment above */ }
+    return true;
   }catch(e){
     console.error('Passkey verification failed:', e);
     return false;
+  }
+}
+// ---------------- Passkey-first signup/login (WebAuthn PRF) ----------------
+// A SEPARATE credential + storage key from Quick Unlock above -- Quick Unlock only re-verifies an
+// identity Firebase Auth already trusts (an existing cached session); this logs all the way in from
+// a signed-out state, by recovering the account's actual Firebase password. That password is never
+// typed or seen by the person when signupUsePasskey is used at signup -- it's a long random string,
+// generated once, and immediately wrapped with a key derived from the passkey's PRF (pseudo-random
+// function) extension output before being stored, so the plaintext password never touches
+// localStorage or Firestore. The PRF output itself is also never stored -- it's re-derived fresh
+// from a new assertion every time (registration AND every later login), which is only possible
+// because PRF outputs are deterministic for a given (credential, salt) pair. A fixed, non-secret
+// salt is fine here: what keeps this safe is the credential's own private key (bound to this
+// device's authenticator) and allowCredentials pinning the assertion to that one exact credential,
+// not any secrecy in the salt.
+const PASSKEY_LOGIN_PRF_SALT = new TextEncoder().encode('rb-passkey-login-v1');
+function passkeyLoginStorageKey(uid){ return 'rb_passkey_login_' + uid; }
+function getStoredPasskeyLogin(uid){
+  if(!uid) return null;
+  try{
+    const raw = localStorage.getItem(passkeyLoginStorageKey(uid));
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function removePasskeyLogin(uid){
+  try{ localStorage.removeItem(passkeyLoginStorageKey(uid)); }catch(e){}
+}
+// Nobody is signed in yet on the login screen, so there's no uid to key off of -- this scans every
+// rb_passkey_login_* entry on this browser and returns whichever was set up most recently. Only one
+// device-wide "Continue with a Passkey" button is offered at a time (same single-account-at-a-time
+// assumption Quick Unlock already makes); a second account signing in with a password on this same
+// device simply overwrites this with its own record the next time passkey sign-in is set up.
+function anyStoredPasskeyLogin(){
+  let best = null, bestMs = -Infinity;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(!k || !k.startsWith('rb_passkey_login_')) continue;
+      try{
+        const rec = JSON.parse(localStorage.getItem(k));
+        const ms = rec && rec.createdAt ? new Date(rec.createdAt).getTime() : 0;
+        if(ms >= bestMs){ bestMs = ms; best = rec; }
+      }catch(e){}
+    }
+  }catch(e){}
+  return best;
+}
+// Registers a NEW platform credential with the PRF extension and immediately wraps `password` with
+// a PRF-derived AES-256-GCM key, storing only the ciphertext (never the password, never the PRF
+// output/key). Call this right after the account's Firebase password has already been set (signup
+// step 2, with signupUsePasskey on) -- `password` is whatever was just set via updatePassword().
+// Returns false (never throws past this boundary) on any failure, including the common "this
+// device/browser doesn't support PRF" case -- the account still exists with that password either
+// way, so callers should treat false as "couldn't set up the shortcut on this device", not as the
+// signup itself having failed.
+async function setupPasskeyLogin(uid, username, email, password){
+  if(!webauthnSupported()) return false;
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userIdBytes = new TextEncoder().encode(uid);
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'The Reckoning Books by SKm' },
+        user: { id: userIdBytes, name: email || username || uid, displayName: username || 'Account' },
+        pubKeyCredParams: [{ type:'public-key', alg:-7 }],
+        authenticatorSelection: { authenticatorAttachment:'platform', userVerification:'required', residentKey:'required' },
+        timeout: 60000,
+        attestation: 'none',
+        extensions: { prf: {} },
+      }
+    });
+    if(!cred) return false;
+    const credId = bufToBase64url(cred.rawId);
+    // create()'s own clientExtensionResults only reports whether PRF is ENABLED on this credential,
+    // not an actual output -- a fresh get() with an eval salt is required to produce one, both now
+    // (to derive the wrapping key) and again at every future login (to re-derive the same key).
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type:'public-key', id: base64urlToBuf(credId) }],
+        userVerification: 'required',
+        extensions: { prf: { eval: { first: PASSKEY_LOGIN_PRF_SALT } } },
+        timeout: 60000,
+      }
+    });
+    const ext = assertion && assertion.getClientExtensionResults && assertion.getClientExtensionResults();
+    const prfOutput = ext && ext.prf && ext.prf.results && ext.prf.results.first;
+    if(!prfOutput){
+      toast('This device/browser doesn\'t support Passkey-based sign-in (no PRF) — your account still works, just set up a password from "Forgot password?" instead.');
+      return false;
+    }
+    const key = await crypto.subtle.importKey('raw', prfOutput, 'AES-GCM', false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(password));
+    const rec = {
+      credId,
+      username, email, uid,
+      wrapped: bufToBase64url(ciphertext),
+      iv: bufToBase64url(iv),
+      label: deviceLabelFromUserAgent(),
+      deviceId: getOrCreateDeviceId(),
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem(passkeyLoginStorageKey(uid), JSON.stringify(rec));
+    return true;
+  }catch(e){
+    console.error('Passkey sign-in setup failed:', e);
+    return false;
+  }
+}
+// Unwraps the stored random Firebase password via a fresh PRF assertion from the SAME credential
+// setupPasskeyLogin() registered -- deterministic per (credential, salt), so this reproduces the
+// exact same AES-GCM key without the key itself ever having been persisted anywhere. Returns null
+// (never throws) on any failure -- a cancelled prompt, an unrecognized/removed credential, a wrong
+// device -- so callers fall back to a normal typed password rather than getting stuck.
+async function unwrapPasskeyLoginPassword(rec){
+  try{
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ type:'public-key', id: base64urlToBuf(rec.credId) }],
+        userVerification: 'required',
+        extensions: { prf: { eval: { first: PASSKEY_LOGIN_PRF_SALT } } },
+        timeout: 60000,
+      }
+    });
+    const ext = assertion && assertion.getClientExtensionResults && assertion.getClientExtensionResults();
+    const prfOutput = ext && ext.prf && ext.prf.results && ext.prf.results.first;
+    if(!prfOutput) return null;
+    const key = await crypto.subtle.importKey('raw', prfOutput, 'AES-GCM', false, ['decrypt']);
+    const plaintext = await crypto.subtle.decrypt({ name:'AES-GCM', iv: base64urlToBuf(rec.iv) }, key, base64urlToBuf(rec.wrapped));
+    return new TextDecoder().decode(plaintext);
+  }catch(e){
+    console.error('Passkey sign-in unwrap failed:', e);
+    return null;
   }
 }
 // The gate screen itself -- shown by init()'s onAuthStateChanged handler INSTEAD OF calling
