@@ -213,6 +213,53 @@
     .sidebar-collapse-btn{display:none;}
   }
 
+  /* ---------------- Oct 10, 2026 sidebar round 3: collapsible sections, Recently Viewed,
+     collapsed-rail hover flyout, resizable width ---------------- */
+  /* Collapsible sections -- navSection() now renders its header as a <button data-section-toggle>
+     with a trailing chevron (see toggleSidebarSection()/getCollapsedSections()); Favorites and
+     Recently Viewed keep rendering a plain, non-interactive <div class="nav-section-label"> (see
+     favoritesNavSection()/recentNavSection()) so these button-only resets are tag-qualified and
+     never leak onto those. */
+  button.nav-section-label{background:none;border:none;margin:0;font-family:inherit;text-align:left;width:100%;cursor:pointer;}
+  button.nav-section-label:hover{color:var(--ink);}
+  .nav-section-chevron{margin-left:auto;flex-shrink:0;stroke:currentColor;fill:none;transition:transform .15s ease;}
+  button.nav-section-label[aria-expanded="false"] .nav-section-chevron{transform:rotate(-90deg);}
+  .nav-section-group{display:flex;flex-direction:column;gap:2px;overflow:hidden;}
+  .nav-section-group.collapsed{display:none;}
+  /* The collapse toggle itself is hidden in icon-only rail mode (no room for the label) -- rather
+     than leave a section's items permanently hidden with no way to reopen them without first
+     expanding the whole rail, always show them while the rail is collapsed. */
+  .tabstrip.collapsed .nav-section-group.collapsed{display:flex;}
+
+  /* Hover flyout -- the collapsed/icon-only rail's richer replacement for the plain `title` tooltip
+     (still the expanded-mode affordance; this stays hidden there). A SINGLE shared element
+     (#sidebarFlyout, positioned/filled by attachSidebarFlyouts() on mouseenter/focus of whichever
+     row -- see tab()'s and attachSidebarFlyouts()'s own comments) rather than one per row: .tabstrip
+     only declares overflow-y:auto, but per the CSS overflow spec a non-visible overflow-y forces the
+     computed overflow-x to auto as well, so anything meant to escape past the 60px collapsed rail via
+     an ordinary `position:absolute` ancestor gets silently clipped -- `position:fixed` on one shared,
+     JS-positioned element sidesteps that clipping entirely. */
+  #sidebarFlyout{position:fixed;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;
+    min-width:150px;max-width:220px;padding:8px 11px;border-radius:10px;background:var(--surface-strong);
+    border:1px solid var(--border-strong);box-shadow:0 10px 26px -6px color-mix(in srgb, var(--ink) 30%, transparent);
+    opacity:0;pointer-events:none;transition:opacity .12s ease;z-index:200;}
+  #sidebarFlyout.visible{opacity:1;}
+  .navtab-flyout-label{font-size:12px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .navtab-flyout-sub{font-size:10.5px;font-weight:600;color:var(--ink-faint);white-space:nowrap;}
+  @media (prefers-reduced-motion: reduce){ #sidebarFlyout{transition:none;} }
+  @media (max-width:1024px){ #sidebarFlyout{display:none;} }
+
+  /* Resizable width -- a thin drag handle, a SIBLING of .tabstrip inside .body-shell (never a
+     CHILD -- a child would count toward .tabstrip's own scrollHeight measurement, same trap already
+     worked around for the brand header/company card). See attachSidebarResizeHandle()/sidebarWidth.
+     Hidden while the rail is collapsed (fixed 60px, nothing to resize) and below desktop width,
+     where the rail is forced to icon-only or horizontal regardless of sidebarWidth. */
+  .sidebar-resize-handle{flex-shrink:0;width:6px;cursor:col-resize;background:transparent;position:relative;}
+  .sidebar-resize-handle::after{content:'';position:absolute;top:0;bottom:0;left:2px;width:2px;border-radius:2px;background:transparent;transition:background .15s ease;}
+  .sidebar-resize-handle:hover::after,.sidebar-resize-handle.dragging::after{background:color-mix(in srgb, var(--accent1) 45%, var(--border-strong));}
+  .tabstrip.collapsed + .sidebar-resize-handle{display:none;}
+  @media (max-width:1024px){ .sidebar-resize-handle{display:none;} }
+
   /* ---------------- Modern pill tab bar (Admin Panel / Group Admin panel) ---------------- */
   .modern-tabbar{display:flex;gap:6px;padding:14px 20px 16px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(44,160,28,0.05),transparent);border-bottom:1px solid var(--border);}
   .modern-tab{display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--ink-soft);border:1px solid transparent;padding:8px 15px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:-.005em;transition:all .15s ease;white-space:nowrap;}
@@ -4283,6 +4330,11 @@ document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
 // as darkMode just above it.
 let sidebarCollapsed = false;
 try{ sidebarCollapsed = localStorage.getItem('rb_sidebar_collapsed')==='1'; }catch(e){}
+// Oct 10, 2026 sidebar round 3 -- persisted expanded-mode width (drag handle, see
+// attachSidebarResizeHandle()). Never applied while collapsed -- the fixed 60px rail width always
+// wins then, so this is only ever read/used when sidebarCollapsed is false.
+let sidebarWidth = 240;
+try{ const w = parseInt(localStorage.getItem('rb_sidebar_width'), 10); if(w>=170 && w<=340) sidebarWidth = w; }catch(e){}
 const EMAIL_DOMAIN = '@reckoningbooks.local'; // admin's fixed synthetic email only — regular accounts now use the real email they sign up with
 // Brand mark for the landing page (renderLanding()) — the actual generated logo icon,
 // downsized and inlined as base64 so the app stays a single self-contained HTML file.
@@ -13659,10 +13711,11 @@ function render(){
     </div>
     ` : ''}
     <div class="body-shell">
-      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}">
+      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}"${sidebarCollapsed?'':` style="width:${sidebarWidth}px"`}>
         <div class="navtab-indicator" id="navtabIndicator"></div>
         ${sidebarBrandHeader()}
         ${favoritesNavSection()}
+        ${recentNavSection()}
         ${tab('dashboard','Dashboard','D')}
         ${navSection('Vouchers & Entry', [
           tab('voucher','Voucher','V'),
@@ -13691,6 +13744,8 @@ function render(){
           <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>Collapse</span>
         </button>
       </div>
+      <div class="sidebar-resize-handle" id="sidebarResizeHandle" title="Drag to resize sidebar" role="separator" aria-orientation="vertical" aria-label="Resize sidebar"></div>
+      <div class="navtab-flyout" id="sidebarFlyout" role="tooltip"></div>
       <div class="main" id="mainContent" tabindex="-1">${renderView()}</div>
     </div>
     <div class="statusbar">
@@ -14153,6 +14208,127 @@ function toggleSidebarCollapsed(){
   try{ localStorage.setItem('rb_sidebar_collapsed', sidebarCollapsed?'1':'0'); }catch(e){}
   render();
 }
+// ---- Oct 10, 2026 sidebar round 3: collapsible sections -- each of the 4 static navSection()
+// groups (Vouchers & Entry / Masters / Reports & Compliance / Operations) can be folded shut,
+// per-signed-in-uid, in localStorage (same reasoning as Favorites above re: the users/{uid} rules
+// allowlist). Deliberately NOT applied to Favorites/Recently-Viewed -- see navSection() vs.
+// favoritesNavSection()/recentNavSection(), which never call sectionSlug()/render a toggle button.
+function sectionSlug(label){
+  return String(label).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
+function sidebarCollapsedSectionsKey(){
+  return 'rb_sidebar_collapsed_sections_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
+}
+function getCollapsedSections(){
+  try{
+    const raw = localStorage.getItem(sidebarCollapsedSectionsKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+function toggleSidebarSection(slug){
+  const cur = getCollapsedSections();
+  const idx = cur.indexOf(slug);
+  if(idx>-1) cur.splice(idx,1); else cur.push(slug);
+  try{ localStorage.setItem(sidebarCollapsedSectionsKey(), JSON.stringify(cur)); }catch(e){}
+  render();
+}
+// ---- Oct 10, 2026 sidebar round 3: Recently Viewed -- the last few distinct modules actually
+// navigated to via goToTab() (see recordSidebarRecent(), called from goToTab()), newest first,
+// per-signed-in-uid in localStorage. Rendered as its own section above the static ones (see
+// recentNavSection()), filtered to exclude the module currently open and anything already pinned
+// to Favorites -- Favorites is the user's deliberate choice, so it takes visual priority over the
+// same module showing up a second time here.
+const SIDEBAR_RECENT_MAX = 5;
+function sidebarRecentKey(){
+  return 'rb_sidebar_recent_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
+}
+function getSidebarRecent(){
+  try{
+    const raw = localStorage.getItem(sidebarRecentKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter(id=>SIDEBAR_MODULE_LABELS[id] && !isModuleHidden(id)) : [];
+  }catch(e){ return []; }
+}
+function recordSidebarRecent(id){
+  if(!SIDEBAR_MODULE_LABELS[id]) return;
+  const cur = getSidebarRecent().filter(x=>x!==id);
+  cur.unshift(id);
+  try{ localStorage.setItem(sidebarRecentKey(), JSON.stringify(cur.slice(0,SIDEBAR_RECENT_MAX))); }catch(e){}
+}
+function recentNavSection(){
+  const favs = getSidebarFavorites();
+  const recent = getSidebarRecent().filter(id=>id!==view && !favs.includes(id)).slice(0,SIDEBAR_RECENT_MAX);
+  if(!recent.length) return '';
+  const html = recent.map(id=>{
+    const meta = SIDEBAR_MODULE_LABELS[id];
+    return meta ? tab(id, meta.label, meta.key) : '';
+  }).filter(Boolean).join('');
+  return html ? `<div class="nav-section-label">⟲ Recently Viewed</div>${html}` : '';
+}
+// ---- Oct 10, 2026 sidebar round 3: resizable width -- a drag handle (see render()'s
+// .sidebar-resize-handle, a SIBLING of .tabstrip, not a child, so it never affects the tabstrip's
+// own scroll-height measurement) lets the user drag the expanded sidebar between 170-340px, applied
+// via a conditional inline width style that's omitted entirely while collapsed (letting
+// .tabstrip.collapsed{width:60px} win untouched) and persisted globally (not per-uid -- this is a
+// screen/device-level choice, same as sidebarCollapsed). The mousemove/mouseup listeners are
+// document-level and must be attached exactly ONCE at script load (see bottom of this block) since
+// `document` itself is never recreated by render() -- only the handle's own mousedown is re-bound
+// per render, from attachSidebarResizeHandle(), since that specific element IS recreated every time.
+let sidebarResizeDragging = false;
+function attachSidebarResizeHandle(){
+  const handle = document.getElementById('sidebarResizeHandle');
+  if(!handle) return;
+  handle.addEventListener('mousedown', (e)=>{
+    e.preventDefault();
+    sidebarResizeDragging = true;
+    document.body.style.cursor = 'col-resize';
+  });
+}
+document.addEventListener('mousemove', (e)=>{
+  if(!sidebarResizeDragging) return;
+  const strip = document.querySelector('.tabstrip');
+  if(!strip) return;
+  const next = Math.max(170, Math.min(340, e.clientX - strip.getBoundingClientRect().left));
+  sidebarWidth = Math.round(next);
+  strip.style.width = sidebarWidth + 'px';
+});
+// Shared hover flyout (#sidebarFlyout, see tab()'s own comment for why it's a single element
+// outside .tabstrip rather than nested markup per row) -- shown only while the rail is collapsed,
+// on mouseenter/focus of any `.navtab-row[data-flyout-label]`, positioned via a plain getBoundingClientRect()
+// read since #sidebarFlyout is `position:fixed` (viewport-relative, immune to .tabstrip's own
+// forced-auto overflow-x clipping). Re-bound every render() like the other per-row listeners, since
+// every row is a brand-new element each time.
+function attachSidebarFlyouts(){
+  const flyoutEl = document.getElementById('sidebarFlyout');
+  if(!flyoutEl) return;
+  const show = (row)=>{
+    if(!sidebarCollapsed) return;
+    const label = row.dataset.flyoutLabel;
+    if(!label) return;
+    const sub = row.dataset.flyoutSub;
+    flyoutEl.innerHTML = `<span class="navtab-flyout-label">${escapeHtml(label)}</span>${sub ? `<span class="navtab-flyout-sub">${escapeHtml(sub)}</span>` : ''}`;
+    const r = row.getBoundingClientRect();
+    flyoutEl.style.left = (r.right + 8) + 'px';
+    flyoutEl.style.top = (r.top + r.height/2) + 'px';
+    flyoutEl.classList.add('visible');
+  };
+  const hide = ()=>{ flyoutEl.classList.remove('visible'); };
+  document.querySelectorAll('.navtab-row[data-flyout-label]').forEach(row=>{
+    row.addEventListener('mouseenter', ()=>show(row));
+    row.addEventListener('mouseleave', hide);
+    const btn = row.querySelector('.navtab');
+    btn?.addEventListener('focus', ()=>show(row));
+    btn?.addEventListener('blur', hide);
+  });
+}
+document.addEventListener('mouseup', ()=>{
+  if(!sidebarResizeDragging) return;
+  sidebarResizeDragging = false;
+  document.body.style.cursor = '';
+  try{ localStorage.setItem('rb_sidebar_width', String(sidebarWidth)); }catch(e){}
+  positionSidebarIndicator();
+});
 // ---- Live status badges: a quiet, glanceable "does this need me" signal right on the sidebar tab
 // itself, reusing the same computations their own screens already do rather than inventing new
 // ones -- Orders gets a count of still-open sales/purchase documents (viewOrders()'s own "Open"
@@ -14200,7 +14376,20 @@ function tab(id,label,shortcutLetter){
   if(gated) titleBits.push('Paid-plan feature');
   else if(viewOnly) titleBits.push('View Only for your account');
   else if(shortcutLetter) titleBits.push('Shortcut: '+shortcutLetter);
-  return `<div class="navtab-row">
+  // Oct 10, 2026 round 3: a richer hover flyout, shown ONLY while the rail is collapsed -- the full
+  // label plus whatever live badge/gating info the plain icon alone can't show. NOT rendered as a
+  // child of .navtab-row: .tabstrip only declares `overflow-y:auto`, and per the CSS overflow spec a
+  // declared overflow-y that isn't 'visible' forces the computed overflow-x to 'auto' too (confirmed
+  // via getComputedStyle -- it's not an authoring oversight, both axes really do compute to 'auto'
+  // together), so anything positioned to escape past the 60px collapsed rail via `left:100%` gets
+  // silently clipped by .tabstrip's own scroll box despite `position:absolute` and a correct rect.
+  // A single SHARED flyout element (#sidebarFlyout, rendered once as a sibling of .tabstrip -- see
+  // render()'s .body-shell markup) sidesteps this: it's `position:fixed`, so it isn't clipped by any
+  // ancestor's overflow, and attachHandlers() moves/fills/shows it on mouseenter/focus of whichever
+  // row is being pointed at, via the data-flyout-label/-sub attributes set here.
+  const flyoutBadgeText = !badge ? '' : badge.type==='dot' ? 'Needs attention' : `${badge.value} pending`;
+  const flyoutSub = gated ? 'Paid-plan feature' : viewOnly ? 'View Only for your account' : flyoutBadgeText;
+  return `<div class="navtab-row" data-flyout-label="${escapeAttr(label)}${isFav?' ★':''}"${flyoutSub ? ` data-flyout-sub="${escapeAttr(flyoutSub)}"` : ''}>
     <button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${escapeAttr(titleBits.join(' — '))}"><span class="navtab-icon">${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span>${badgeHtml}</button>
     ${!gated ? `<button class="navtab-pin-btn ${isFav?'pinned':''}" type="button" data-pin-tab="${id}" title="${isFav?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isFav?'Unpin '+escapeAttr(label)+' from Favorites':'Pin '+escapeAttr(label)+' to Favorites'}">${isFav?'★':'☆'}</button>` : ''}
   </div>`;
@@ -14213,7 +14402,10 @@ function tab(id,label,shortcutLetter){
 // nothing.
 function navSection(label, items){
   const html = items.filter(Boolean).join('');
-  return html ? `<div class="nav-section-label">${escapeHtml(label)}</div>${html}` : '';
+  if(!html) return '';
+  const slug = sectionSlug(label);
+  const collapsed = getCollapsedSections().includes(slug);
+  return `<button class="nav-section-label" type="button" data-section-toggle="${escapeAttr(slug)}" aria-expanded="${collapsed?'false':'true'}">${escapeHtml(label)}<svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="nav-section-group ${collapsed?'collapsed':''}">${html}</div>`;
 }
 // Pinned Favorites -- a second, reordered view onto whichever modules the user has starred (see
 // getSidebarFavorites()/toggleSidebarFavorite()), pinned above every other section. Reuses tab()
@@ -14332,6 +14524,7 @@ function goToTab(id){
   }
   const prevIndicatorRect = captureSidebarIndicatorRect();
   view = id;
+  recordSidebarRecent(id);
   if(view==='reports') reportsSelected = null;
   if(view==='dashboard') dashCountersAnimated = false; // count up again each time you land on the Dashboard
   if(view==='pos' && !pos) pos = newPosCart(); // fresh cart the first time POS is opened this session
@@ -32185,6 +32378,14 @@ function attachHandlers(){
     b.addEventListener('click', ()=>{ toggleSidebarFavorite(b.dataset.pinTab); });
   });
   document.getElementById('sidebarCompanyCardBtn')?.addEventListener('click', switchToCompanyGateway);
+  // Oct 10, 2026 round 3: each static section header's fold/unfold toggle (see navSection()) and the
+  // resize-handle's mousedown (document-level mousemove/mouseup are bound once at script top level,
+  // not here -- see attachSidebarResizeHandle()'s own comment).
+  document.querySelectorAll('[data-section-toggle]').forEach(b=>{
+    b.addEventListener('click', ()=>{ toggleSidebarSection(b.dataset.sectionToggle); });
+  });
+  attachSidebarResizeHandle();
+  attachSidebarFlyouts();
   // Lands the sliding active-tab pill (see positionSidebarIndicator()) in its correct spot on every
   // single render -- goToTab() separately layers its own FLIP animation on top of this via
   // animateSidebarIndicatorFrom(), but every OTHER render() (closing a modal, toggling the collapse
