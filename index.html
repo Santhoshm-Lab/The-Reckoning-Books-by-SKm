@@ -113,6 +113,57 @@
      visible tab, so a role with a whole group hidden by RBAC never sees an orphaned header. */
   .nav-section-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding:14px 11px 5px;}
 
+  /* ---------------- Oct 10, 2026 sidebar upgrade: row wrapper + pin, badges, collapse rail ----------------
+     .navtab is wrapped in .navtab-row so the Favorites star can sit as its own sibling <button>
+     rather than nested inside the already-clickable .navtab -- keeps the whole row a single click
+     target for navigation while the star stays independently clickable/focusable. */
+  .navtab-row{position:relative;display:flex;align-items:stretch;}
+  .navtab-row .navtab{flex:1;min-width:0;}
+  .navtab-pin-btn{position:absolute;top:50%;right:4px;transform:translateY(-50%);width:22px;height:22px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:6px;
+    font-size:13px;line-height:1;cursor:pointer;color:var(--ink-faint);opacity:0;transition:opacity .15s ease,color .15s ease,transform .15s ease;}
+  .navtab-row:hover .navtab-pin-btn,.navtab-pin-btn.pinned,.navtab-pin-btn:focus-visible{opacity:1;}
+  .navtab-pin-btn.pinned{color:var(--gold,#F2A900);}
+  .navtab-pin-btn:hover{transform:translateY(-50%) scale(1.18);background:color-mix(in srgb, currentColor 12%, transparent);}
+  .navtab-row:has(.navtab.active) .navtab-pin-btn{color:rgba(255,255,255,0.8);}
+  .navtab-row:has(.navtab.active) .navtab-pin-btn.pinned{color:#fff;}
+  /* Live status badges (see sidebarTabBadge()) -- a small gold count pill for "how many", a plain
+     dot for "needs a look", pushed to the row's right edge by margin-left:auto. Sits inside .navtab
+     itself (ahead of the pin star, which is absolutely positioned above it) so it still reads
+     correctly if the star is hidden (collapsed rail, or a gated tab with no star at all). */
+  .navtab-badge.count{margin-left:auto;margin-right:20px;background:var(--gold,#F2A900);color:#fff;font-size:10px;font-weight:800;line-height:1;padding:2px 6px;border-radius:999px;flex-shrink:0;}
+  .navtab.active .navtab-badge.count{background:rgba(255,255,255,0.32);}
+  .navtab-badge.dot{margin-left:auto;margin-right:22px;width:7px;height:7px;border-radius:50%;background:var(--debit);flex-shrink:0;}
+  .navtab.active .navtab-badge.dot{background:#fff;}
+  /* Collapsible icon-only rail -- a manual, persisted (rb_sidebar_collapsed) version of the same
+     icons-only treatment the tablet breakpoint already applies automatically below 1024px; this
+     just makes it available as a choice at any width for anyone who'd rather trade labels for more
+     room. The hover tooltip (title attr, already on every .navtab) keeps naming each tab. */
+  .tabstrip.collapsed{width:60px;padding:16px 8px;}
+  .tabstrip.collapsed .navtab{justify-content:center;padding:8px 0;}
+  .tabstrip.collapsed .navtab-label,
+  .tabstrip.collapsed .nav-section-label,
+  .tabstrip.collapsed .navtab-pin-btn{display:none;}
+  .tabstrip.collapsed .navtab-badge.count{position:absolute;top:3px;right:3px;margin:0;min-width:15px;height:15px;font-size:8.5px;padding:0 3px;display:flex;align-items:center;justify-content:center;}
+  .tabstrip.collapsed .navtab{position:relative;}
+  .tabstrip.collapsed .navtab-badge.dot{position:absolute;top:6px;right:9px;margin:0;}
+  .sidebar-collapse-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin-top:8px;padding:7px 0;
+    border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-strong);color:var(--ink-faint);
+    font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+  .sidebar-collapse-btn:hover{background:var(--surface);color:var(--ink);border-color:var(--border-strong);}
+  .sidebar-collapse-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;transition:transform .2s ease;}
+  .tabstrip.collapsed .sidebar-collapse-btn{padding:7px;}
+  .tabstrip.collapsed .sidebar-collapse-btn svg{transform:rotate(180deg);}
+  .tabstrip.collapsed .sidebar-collapse-btn span{display:none;}
+  @media (max-width:760px){
+    /* Below tablet width the sidebar is already a horizontal wrapping strip (see the body-shell
+       rule further down) -- the collapsed rail is a desktop/tablet concept, so neutralize its width
+       override here rather than fighting the phone layout, and hide the toggle itself. */
+    .tabstrip.collapsed{width:auto;padding:12px 14px 8px;}
+    .tabstrip.collapsed .navtab{width:auto;border-radius:999px;padding:7px 10px;justify-content:flex-start;}
+    .sidebar-collapse-btn{display:none;}
+  }
+
   /* ---------------- Modern pill tab bar (Admin Panel / Group Admin panel) ---------------- */
   .modern-tabbar{display:flex;gap:6px;padding:14px 20px 16px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(44,160,28,0.05),transparent);border-bottom:1px solid var(--border);}
   .modern-tab{display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--ink-soft);border:1px solid transparent;padding:8px 15px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:-.005em;transition:all .15s ease;white-space:nowrap;}
@@ -4178,6 +4229,11 @@ const db = firebase.firestore();
 let darkMode = false;
 try{ darkMode = localStorage.getItem('rb_darkMode')==='1'; }catch(e){}
 document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+// Oct 10, 2026 sidebar upgrade -- whether the sidebar nav is showing icons-only (see tabstrip
+// CSS/attachHandlers' #sidebarCollapseBtn) -- a manual, persisted-per-device choice, same pattern
+// as darkMode just above it.
+let sidebarCollapsed = false;
+try{ sidebarCollapsed = localStorage.getItem('rb_sidebar_collapsed')==='1'; }catch(e){}
 const EMAIL_DOMAIN = '@reckoningbooks.local'; // admin's fixed synthetic email only — regular accounts now use the real email they sign up with
 // Brand mark for the landing page (renderLanding()) — the actual generated logo icon,
 // downsized and inlined as base64 so the app stays a single self-contained HTML file.
@@ -13554,7 +13610,8 @@ function render(){
     </div>
     ` : ''}
     <div class="body-shell">
-      <div class="tabstrip">
+      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}">
+        ${favoritesNavSection()}
         ${tab('dashboard','Dashboard','D')}
         ${navSection('Vouchers & Entry', [
           tab('voucher','Voucher','V'),
@@ -13578,6 +13635,9 @@ function render(){
           tab('orders','Orders','O'),
           tab('payroll','Payroll Management','y'),
         ])}
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" title="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}" aria-label="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>Collapse</span>
+        </button>
       </div>
       <div class="main" id="mainContent" tabindex="-1">${renderView()}</div>
     </div>
@@ -14005,6 +14065,90 @@ function tabIcon(id){
   };
   return `<svg class="tab-icon" viewBox="0 0 24 24">${icons[id]||''}</svg>`;
 }
+// ---------------- Oct 10, 2026 sidebar upgrade: Pinned Favorites, live status badges, keyboard
+// quick-jump -- all three share this one id->label/shortcut lookup (the same label/letter pairs
+// already passed into every tab() call in render(), just collected in one place so Favorites and
+// the Alt+1-9 fallback order don't have to duplicate them) plus SIDEBAR_MODULE_ORDER, its natural
+// top-to-bottom sidebar order. ----------------
+const SIDEBAR_MODULE_LABELS = {
+  dashboard:{label:'Dashboard',       key:'D'},
+  voucher:  {label:'Voucher',         key:'V'},
+  pos:      {label:'POS / Quick Sale',key:'Q'},
+  daybook:  {label:'Day Book',        key:'B'},
+  calendar: {label:'Calendar',        key:'C'},
+  ledgers:  {label:'Ledgers',         key:'L'},
+  coa:      {label:'Accounts',        key:'A'},
+  inventory:{label:'Inventory Control',key:'I'},
+  reports:  {label:'Reports',         key:'R'},
+  gst:      {label:'GST',             key:'G'},
+  reconcile:{label:'Reconcile',       key:'e'},
+  assets:   {label:'Assets',          key:'s'},
+  parties:  {label:'Parties',         key:'p'},
+  orders:   {label:'Orders',          key:'O'},
+  payroll:  {label:'Payroll Management',key:'y'},
+};
+const SIDEBAR_MODULE_ORDER = Object.keys(SIDEBAR_MODULE_LABELS);
+// ---- Pinned Favorites: which module ids the signed-in user has starred, pinned to the top of the
+// sidebar (see favoritesNavSection() below). Deliberately stored in localStorage, per signed-in uid,
+// rather than as a new field on the users/{uid} Firestore doc -- that doc's security rule only
+// allows self-updates to touch a fixed allowlist of fields (name/mobile/email/lastLoginAt/
+// forceLogoutRequested/groupName/diLastSeen), so a brand-new favoriteModules field would need a
+// manual Firestore Rules change in the console before it could ever save. This is also just a
+// genuinely device-level UI preference (which modules YOU want at the top, on THIS device) rather
+// than data that needs to sync across devices or be backed up, so localStorage is the right call on
+// its own merits, not only as a workaround.
+function sidebarFavoritesKey(){
+  return 'rb_sidebar_favorites_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
+}
+function getSidebarFavorites(){
+  try{
+    const raw = localStorage.getItem(sidebarFavoritesKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter(id=>SIDEBAR_MODULE_LABELS[id] && !isModuleHidden(id)) : [];
+  }catch(e){ return []; }
+}
+function toggleSidebarFavorite(id){
+  const favs = getSidebarFavorites();
+  const idx = favs.indexOf(id);
+  if(idx>-1) favs.splice(idx,1); else favs.push(id);
+  try{ localStorage.setItem(sidebarFavoritesKey(), JSON.stringify(favs)); }catch(e){}
+  render();
+}
+function toggleSidebarCollapsed(){
+  sidebarCollapsed = !sidebarCollapsed;
+  try{ localStorage.setItem('rb_sidebar_collapsed', sidebarCollapsed?'1':'0'); }catch(e){}
+  render();
+}
+// ---- Live status badges: a quiet, glanceable "does this need me" signal right on the sidebar tab
+// itself, reusing the same computations their own screens already do rather than inventing new
+// ones -- Orders gets a count of still-open sales/purchase documents (viewOrders()'s own "Open"
+// stat, just summed across all four document types instead of only the one currently selected
+// sub-tab); Reconcile gets a count of not-yet-cleared entries across every bank ledger (the same
+// bankReconcileEntries() the Reconcile screen itself lists); GST gets a plain dot when this month's
+// return has outstanding readiness issues (missing GSTIN/HSN -- see gstReturnReadinessData(), the
+// same engine behind the GST Return Readiness card). Every other tab gets no badge.
+function sidebarOrdersPendingCount(){
+  return Object.values(ORDER_DOC_META).reduce((sum,meta)=> sum + (state[meta.stateKey]||[]).filter(d=>d.status!=='converted').length, 0);
+}
+function sidebarReconcileUnclearedCount(){
+  const today = new Date().toISOString().slice(0,10);
+  let count = 0;
+  for(const l of state.ledgers){
+    if(bucketOf(l)!=='bank') continue;
+    count += bankReconcileEntries(l.id, today).filter(r=>!r.cleared).length;
+  }
+  return count;
+}
+function sidebarGstFilingDue(){
+  const d = gstReturnReadinessData(new Date().toISOString().slice(0,7));
+  return d.missingGstinVouchers.length>0 || d.missingHsnVouchers.length>0;
+}
+function sidebarTabBadge(id){
+  if(id==='orders'){ const n = sidebarOrdersPendingCount(); return n>0 ? {type:'count', value:n} : null; }
+  if(id==='reconcile'){ const n = sidebarReconcileUnclearedCount(); return n>0 ? {type:'count', value:n} : null; }
+  if(id==='gst'){ return sidebarGstFilingDue() ? {type:'dot'} : null; }
+  return null;
+}
 function tab(id,label,shortcutLetter){
   if(isModuleHidden(id)) return ''; // RBAC: this member has no access to this module at all -- omit the tab entirely, not just lock it
   const idx = shortcutLetter ? label.toLowerCase().indexOf(shortcutLetter.toLowerCase()) : -1;
@@ -14013,7 +14157,19 @@ function tab(id,label,shortcutLetter){
     : escapeHtml(label);
   const gated = isTabGated(id);
   const viewOnly = memberModuleAccess(id)==='view';
-  return `<button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${gated?'Paid-plan feature':viewOnly?'View Only for your account':'Shortcut: '+(shortcutLetter||'')}"><span class="navtab-icon">${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span></button>`;
+  const badge = sidebarTabBadge(id);
+  const badgeHtml = !badge ? '' : badge.type==='dot'
+    ? `<span class="navtab-badge dot" aria-hidden="true"></span>`
+    : `<span class="navtab-badge count">${badge.value>99?'99+':badge.value}</span>`;
+  const isFav = getSidebarFavorites().includes(id);
+  const titleBits = [label];
+  if(gated) titleBits.push('Paid-plan feature');
+  else if(viewOnly) titleBits.push('View Only for your account');
+  else if(shortcutLetter) titleBits.push('Shortcut: '+shortcutLetter);
+  return `<div class="navtab-row">
+    <button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${escapeAttr(titleBits.join(' — '))}"><span class="navtab-icon">${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span>${badgeHtml}</button>
+    ${!gated ? `<button class="navtab-pin-btn ${isFav?'pinned':''}" type="button" data-pin-tab="${id}" title="${isFav?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isFav?'Unpin '+escapeAttr(label)+' from Favorites':'Pin '+escapeAttr(label)+' to Favorites'}">${isFav?'★':'☆'}</button>` : ''}
+  </div>`;
 }
 // Groups a run of tab() results under a small uppercase header in the sidebar (see .nav-section-label)
 // -- Vouchers & Entry / Masters / Reports & Compliance / Operations, the same Masters/Vouchers/Reports
@@ -14024,6 +14180,20 @@ function tab(id,label,shortcutLetter){
 function navSection(label, items){
   const html = items.filter(Boolean).join('');
   return html ? `<div class="nav-section-label">${escapeHtml(label)}</div>${html}` : '';
+}
+// Pinned Favorites -- a second, reordered view onto whichever modules the user has starred (see
+// getSidebarFavorites()/toggleSidebarFavorite()), pinned above every other section. Reuses tab()
+// verbatim for each favorite so the icon, badge, RBAC gating and active-state treatment can never
+// drift out of sync with that module's "real" entry further down the list. Renders nothing when
+// the user hasn't pinned anything yet, rather than showing an empty "Favorites" header.
+function favoritesNavSection(){
+  const favs = getSidebarFavorites();
+  if(!favs.length) return '';
+  const html = favs.map(id=>{
+    const meta = SIDEBAR_MODULE_LABELS[id];
+    return meta ? tab(id, meta.label, meta.key) : '';
+  }).filter(Boolean).join('');
+  return html ? `<div class="nav-section-label">★ Favorites</div>${html}` : '';
 }
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
@@ -14054,6 +14224,26 @@ document.addEventListener('keydown', (e)=>{
   const tag = t && t.tagName;
   if(tag==='INPUT' || tag==='SELECT' || tag==='TEXTAREA' || (t && t.isContentEditable)) return;
   const id = TAB_SHORTCUTS[e.key.toLowerCase()];
+  if(!id) return;
+  e.preventDefault();
+  goToTab(id);
+});
+// Alt+1 through Alt+9 jump straight to the Nth sidebar module -- the Nth entry of the user's own
+// Pinned Favorites (see getSidebarFavorites()) when they've pinned any, otherwise the first 9
+// modules in the sidebar's own top-to-bottom order (SIDEBAR_MODULE_ORDER). A SEPARATE listener from
+// the plain-letter shortcuts above (digits vs. letters, so the two never collide) and deliberately
+// scoped to digit keys only, same no-modal/no-field guard as that listener.
+function sidebarQuickJumpTargets(){
+  const favs = getSidebarFavorites();
+  const base = favs.length ? favs : SIDEBAR_MODULE_ORDER.filter(id=>!isModuleHidden(id));
+  return base.slice(0,9);
+}
+document.addEventListener('keydown', (e)=>{
+  if(screen!=='app' || modal) return;
+  if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const n = Number(e.key);
+  if(!(n>=1 && n<=9)) return;
+  const id = sidebarQuickJumpTargets()[n-1];
   if(!id) return;
   e.preventDefault();
   goToTab(id);
@@ -14969,6 +15159,9 @@ function helpInfoTab(){
       • <strong style="color:var(--ink);">Reports</strong> — Trial Balance, Income Statement and Balance Sheet in Schedule III (Division I) format, Ratio Analysis, Cash Flow — exportable to Excel.<br>
       • <strong style="color:var(--ink);">GST</strong> — output/input tax summary and a downloadable GST statement.<br><br>
       Use <strong style="color:var(--ink);">Company</strong> to switch companies, and <strong style="color:var(--ink);">Edit</strong> to update this company's name, financial year, or GSTIN.
+    </p>
+    <p class="muted" style="font-size:11.5px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);line-height:1.7;">
+      <strong style="color:var(--ink);">Sidebar tips:</strong> hover a tab and click ☆ to pin it to <strong style="color:var(--ink);">Favorites</strong> at the top — then <kbd style="background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;">Alt+1</kbd> through <kbd style="background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;">Alt+9</kbd> jump straight to your pinned tabs in order (or the first 9 modules if none are pinned). "Collapse" at the bottom of the sidebar switches it to icons-only.
     </p>
     <p class="muted" style="font-size:11.5px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
       This software is created by Santhosh Kumar MuraliKrishnan.<br>
@@ -31860,6 +32053,13 @@ function attachHandlers(){
         });
       }
     });
+  });
+  // Oct 10, 2026 sidebar upgrade: the collapse-rail toggle and each tab's Favorites star. The star
+  // is a sibling <button>, not nested inside .navtab (see the .navtab-row markup in tab()), so its
+  // own click never also fires the .navtab listener above -- no stopPropagation() needed.
+  document.getElementById('sidebarCollapseBtn')?.addEventListener('click', ()=>{ toggleSidebarCollapsed(); });
+  document.querySelectorAll('[data-pin-tab]').forEach(b=>{
+    b.addEventListener('click', ()=>{ toggleSidebarFavorite(b.dataset.pinTab); });
   });
 
   document.getElementById('openRecurringBtn')?.addEventListener('click', ()=>{
