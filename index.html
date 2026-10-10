@@ -213,13 +213,12 @@
     .sidebar-collapse-btn{display:none;}
   }
 
-  /* ---------------- Oct 10, 2026 sidebar round 3: collapsible sections, Recently Viewed,
-     collapsed-rail hover flyout, resizable width ---------------- */
+  /* ---------------- Oct 10, 2026 sidebar round 3: collapsible sections, collapsed-rail hover
+     flyout, resizable width ---------------- */
   /* Collapsible sections -- navSection() now renders its header as a <button data-section-toggle>
-     with a trailing chevron (see toggleSidebarSection()/getCollapsedSections()); Favorites and
-     Recently Viewed keep rendering a plain, non-interactive <div class="nav-section-label"> (see
-     favoritesNavSection()/recentNavSection()) so these button-only resets are tag-qualified and
-     never leak onto those. */
+     with a trailing chevron (see toggleSidebarSection()/getCollapsedSections()); Favorites keeps
+     rendering a plain, non-interactive <div class="nav-section-label"> (see favoritesNavSection())
+     so these button-only resets are tag-qualified and never leak onto that. */
   button.nav-section-label{background:none;border:none;margin:0;font-family:inherit;text-align:left;width:100%;cursor:pointer;}
   button.nav-section-label:hover{color:var(--ink);}
   .nav-section-chevron{margin-left:auto;flex-shrink:0;stroke:currentColor;fill:none;transition:transform .15s ease;}
@@ -13715,7 +13714,6 @@ function render(){
         <div class="navtab-indicator" id="navtabIndicator"></div>
         ${sidebarBrandHeader()}
         ${favoritesNavSection()}
-        ${recentNavSection()}
         ${tab('dashboard','Dashboard','D')}
         ${navSection('Vouchers & Entry', [
           tab('voucher','Voucher','V'),
@@ -14211,8 +14209,8 @@ function toggleSidebarCollapsed(){
 // ---- Oct 10, 2026 sidebar round 3: collapsible sections -- each of the 4 static navSection()
 // groups (Vouchers & Entry / Masters / Reports & Compliance / Operations) can be folded shut,
 // per-signed-in-uid, in localStorage (same reasoning as Favorites above re: the users/{uid} rules
-// allowlist). Deliberately NOT applied to Favorites/Recently-Viewed -- see navSection() vs.
-// favoritesNavSection()/recentNavSection(), which never call sectionSlug()/render a toggle button.
+// allowlist). Deliberately NOT applied to Favorites -- see navSection() vs. favoritesNavSection(),
+// which never calls sectionSlug()/renders a toggle button.
 function sectionSlug(label){
   return String(label).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 }
@@ -14232,39 +14230,6 @@ function toggleSidebarSection(slug){
   if(idx>-1) cur.splice(idx,1); else cur.push(slug);
   try{ localStorage.setItem(sidebarCollapsedSectionsKey(), JSON.stringify(cur)); }catch(e){}
   render();
-}
-// ---- Oct 10, 2026 sidebar round 3: Recently Viewed -- the last few distinct modules actually
-// navigated to via goToTab() (see recordSidebarRecent(), called from goToTab()), newest first,
-// per-signed-in-uid in localStorage. Rendered as its own section above the static ones (see
-// recentNavSection()), filtered to exclude the module currently open and anything already pinned
-// to Favorites -- Favorites is the user's deliberate choice, so it takes visual priority over the
-// same module showing up a second time here.
-const SIDEBAR_RECENT_MAX = 5;
-function sidebarRecentKey(){
-  return 'rb_sidebar_recent_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
-}
-function getSidebarRecent(){
-  try{
-    const raw = localStorage.getItem(sidebarRecentKey());
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.filter(id=>SIDEBAR_MODULE_LABELS[id] && !isModuleHidden(id)) : [];
-  }catch(e){ return []; }
-}
-function recordSidebarRecent(id){
-  if(!SIDEBAR_MODULE_LABELS[id]) return;
-  const cur = getSidebarRecent().filter(x=>x!==id);
-  cur.unshift(id);
-  try{ localStorage.setItem(sidebarRecentKey(), JSON.stringify(cur.slice(0,SIDEBAR_RECENT_MAX))); }catch(e){}
-}
-function recentNavSection(){
-  const favs = getSidebarFavorites();
-  const recent = getSidebarRecent().filter(id=>id!==view && !favs.includes(id)).slice(0,SIDEBAR_RECENT_MAX);
-  if(!recent.length) return '';
-  const html = recent.map(id=>{
-    const meta = SIDEBAR_MODULE_LABELS[id];
-    return meta ? tab(id, meta.label, meta.key) : '';
-  }).filter(Boolean).join('');
-  return html ? `<div class="nav-section-label">⟲ Recently Viewed</div>${html}` : '';
 }
 // ---- Oct 10, 2026 sidebar round 3: resizable width -- a drag handle (see render()'s
 // .sidebar-resize-handle, a SIBLING of .tabstrip, not a child, so it never affects the tabstrip's
@@ -14524,7 +14489,6 @@ function goToTab(id){
   }
   const prevIndicatorRect = captureSidebarIndicatorRect();
   view = id;
-  recordSidebarRecent(id);
   if(view==='reports') reportsSelected = null;
   if(view==='dashboard') dashCountersAnimated = false; // count up again each time you land on the Dashboard
   if(view==='pos' && !pos) pos = newPosCart(); // fresh cart the first time POS is opened this session
