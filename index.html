@@ -131,10 +131,17 @@
      same pattern Stripe/Mercury/Ramp/QuickBooks/Xero all use -- so nothing competes with the brand-
      green active pill for attention. All values derive from the existing --surface-strong/--accent1
      tokens, so this adapts automatically in dark mode exactly like the rest of the app, with no
-     separate dark-mode override needed. */
+     separate dark-mode override needed.
+     Oct 10, 2026 round 4 -- "colored icons" request, mocked up as 3 options and approved as Option B:
+     neutral chip + colored line only. The chip's background/shadow/material above is UNCHANGED; only
+     the icon's own line color at rest now reads the per-module --nav-hue custom property (set inline
+     per icon in tab(), from SIDEBAR_ICON_HUES) instead of the flat --ink-soft, falling back to
+     --ink-soft for any icon with no hue (e.g. admin/command-palette icons sharing .tab-icon, which
+     don't set --nav-hue and so are unaffected). Hover/active below are intentionally left overriding
+     color back to one shared tone each, matching exactly what the approved mockup showed. */
   .navtab-icon{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex-shrink:0;
     background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, var(--surface-strong)), color-mix(in srgb, var(--accent1) 4%, var(--surface-strong)));
-    color:var(--ink-soft);
+    color:var(--nav-hue, var(--ink-soft));
     box-shadow:inset 0 1px 0 rgba(255,255,255,.4), inset 0 -2px 3px -2px rgba(0,0,0,.08);
     transition:background .18s ease, color .18s ease, box-shadow .25s ease, transform .35s cubic-bezier(.34,1.56,.64,1);}
   /* On hover the chip deepens toward the one brand hue and casts a soft green glow -- confirms
@@ -14175,6 +14182,19 @@ const SIDEBAR_MODULE_LABELS = {
   payroll:  {label:'Payroll Management',key:'y'},
 };
 const SIDEBAR_MODULE_ORDER = Object.keys(SIDEBAR_MODULE_LABELS);
+// Oct 10, 2026 round 4: colored sidebar icons -- per-module hue, applied ONLY to the icon's own line
+// color (stroke/fill via currentColor on .tab-icon), never to the chip background, which stays the
+// same neutral "soft glass" treatment for every module (see .navtab-icon below). Mocked up as three
+// options against the real running app and approved by the user as "Option B -- neutral chip,
+// colored line only" -- a deliberate, more muted/professional evolution of the Sept 30 rainbow-chip
+// palette that was explicitly rejected ("dosent look in a professional way"), not a reversion to it:
+// these are deeper/more saturated "Tailwind-600-ish" hues rather than pastels, and they tint only a
+// thin icon line sitting on a neutral chip rather than filling the whole chip with color.
+const SIDEBAR_ICON_HUES = {
+  dashboard:'#4F46E5', voucher:'#2563EB', pos:'#7C3AED', daybook:'#D97706', calendar:'#E11D48',
+  ledgers:'#059669',   coa:'#0D9488',     inventory:'#EA580C', reports:'#0284C7', gst:'#C026D3',
+  reconcile:'#16A34A', assets:'#0891B2',  parties:'#DB2777', orders:'#CA8A04', payroll:'#9333EA',
+};
 // ---- Pinned Favorites: which module ids the signed-in user has starred, pinned to the top of the
 // sidebar (see favoritesNavSection() below). Deliberately stored in localStorage, per signed-in uid,
 // rather than as a new field on the users/{uid} Firestore doc -- that doc's security rule only
@@ -14355,7 +14375,7 @@ function tab(id,label,shortcutLetter){
   const flyoutBadgeText = !badge ? '' : badge.type==='dot' ? 'Needs attention' : `${badge.value} pending`;
   const flyoutSub = gated ? 'Paid-plan feature' : viewOnly ? 'View Only for your account' : flyoutBadgeText;
   return `<div class="navtab-row" data-flyout-label="${escapeAttr(label)}${isFav?' ★':''}"${flyoutSub ? ` data-flyout-sub="${escapeAttr(flyoutSub)}"` : ''}>
-    <button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${escapeAttr(titleBits.join(' — '))}"><span class="navtab-icon">${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span>${badgeHtml}</button>
+    <button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${escapeAttr(titleBits.join(' — '))}"><span class="navtab-icon" style="--nav-hue:${SIDEBAR_ICON_HUES[id]||''}">${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span>${badgeHtml}</button>
     ${!gated ? `<button class="navtab-pin-btn ${isFav?'pinned':''}" type="button" data-pin-tab="${id}" title="${isFav?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isFav?'Unpin '+escapeAttr(label)+' from Favorites':'Pin '+escapeAttr(label)+' to Favorites'}">${isFav?'★':'☆'}</button>` : ''}
   </div>`;
 }
