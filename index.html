@@ -62,13 +62,62 @@
   /* Body shell → left sidebar nav + main content, side by side */
   .body-shell{display:flex;flex:1;min-height:0;}
 
-  /* Tab strip → vertical sidebar nav */
-  .tabstrip{display:flex;flex-direction:column;gap:2px;padding:16px 11px;background:var(--surface);border-right:1px solid var(--border);width:206px;flex-shrink:0;overflow-y:auto;}
-  .navtab{font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 10px;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .1s ease;display:flex;align-items:center;gap:11px;width:100%;text-align:left;}
+  /* Tab strip → vertical sidebar nav
+     Oct 10, 2026 "more attractive" pass -- subtle vertical gradient wash (barely-there accent tint
+     top-to-bottom, pure token-derived so it adapts automatically in dark mode) instead of a flat
+     surface fill, plus a soft elevated shadow (also token-derived) replacing the hard 1px border's
+     sole job of separating the rail from the main content -- the border stays, just softer, with
+     the shadow doing the actual depth work. `position:relative` is new too -- it's what lets the
+     sliding active-tab indicator (`.navtab-indicator` below) position itself against the rail. */
+  .tabstrip{position:relative;display:flex;flex-direction:column;gap:2px;padding:16px 11px;
+    background:linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent1) 3%, var(--surface)) 100%);
+    border-right:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    box-shadow:2px 0 16px -6px color-mix(in srgb, var(--ink) 16%, transparent);
+    width:206px;flex-shrink:0;overflow-y:auto;}
+  .navtab{position:relative;z-index:1;font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 10px;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);cursor:pointer;color:var(--ink-soft);transition:background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .1s ease;display:flex;align-items:center;gap:11px;width:100%;text-align:left;}
   .navtab:hover:not(.active){background:var(--surface-strong);color:var(--ink);}
   .navtab:active:not(.active){transform:scale(0.98);}
-  .navtab.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:var(--accent2);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
+  /* The active tab's own gradient/shadow moved onto .navtab-indicator (a single persistent element
+     that slides between tabs -- see positionSidebarIndicator()/animateSidebarIndicatorFrom()) so
+     .navtab.active itself now only carries the text/icon color change; the colored pill underneath
+     it is what actually glides from the old active tab to the new one. */
+  .navtab.active{background:transparent;color:#fff;border-color:transparent;}
+  .navtab-indicator{position:absolute;left:0;top:0;z-index:0;border-radius:var(--radius-sm);
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    box-shadow:0 3px 10px rgba(44,160,28,0.28);
+    opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.3,.9,.4,1);will-change:transform;}
+  @media (prefers-reduced-motion: reduce){ .navtab-indicator{transition:none;} }
   .btn.secondary.active{background:var(--accent1);color:#fff;border-color:var(--accent1);}
+  /* ---- Sidebar brand header (pinned above Dashboard) -- same gold→green badge language as the
+     login screen's .login-logo, just smaller, so the sidebar reads as this product's own workspace
+     rather than starting cold into a list of tabs. ---- */
+  .sidebar-brand{display:flex;align-items:center;gap:9px;padding:1px 9px 13px;margin-bottom:5px;border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent);}
+  .sidebar-brand-mark{width:27px;height:27px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11.5px;letter-spacing:-.02em;color:#fff;background:linear-gradient(135deg, #F2A900, var(--accent1));box-shadow:0 3px 9px rgba(44,160,28,0.3);}
+  .sidebar-brand-text{min-width:0;overflow:hidden;}
+  .sidebar-brand-name{font-size:12px;font-weight:800;color:var(--ink);letter-spacing:-.008em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sidebar-brand-tag{font-size:9px;font-weight:700;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tabstrip.collapsed .sidebar-brand{justify-content:center;padding:1px 0 13px;}
+  .tabstrip.collapsed .sidebar-brand-text{display:none;}
+  /* ---- Company mini-card footer -- the familiar Slack/Notion/Linear workspace-switcher pattern,
+     pinned near the bottom of the rail; reuses the exact same "switch company" flow the Company
+     menubar item already triggers (see switchToCompanyGateway()), so this isn't purely decorative. */
+  .sidebar-company-card{display:flex;align-items:center;gap:9px;width:100%;margin-top:10px;padding:7px 8px;
+    border:1px solid var(--border);border-radius:10px;background:var(--surface-strong);cursor:pointer;
+    font-family:inherit;text-align:left;transition:background .15s ease,border-color .15s ease,transform .1s ease;}
+  .sidebar-company-card:hover{background:color-mix(in srgb, var(--accent1) 8%, var(--surface-strong));border-color:var(--border-strong);}
+  .sidebar-company-card:active{transform:scale(0.98);}
+  .sidebar-company-avatar{width:26px;height:26px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:10.5px;letter-spacing:-.01em;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));}
+  .sidebar-company-info{min-width:0;overflow:hidden;display:flex;flex-direction:column;}
+  .sidebar-company-name{font-size:11.5px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sidebar-company-sub{font-size:9.5px;font-weight:600;color:var(--ink-faint);}
+  .tabstrip.collapsed .sidebar-company-card{justify-content:center;padding:7px;}
+  .tabstrip.collapsed .sidebar-company-info{display:none;}
+  /* A tiny accent dot ahead of each section label -- a small, token-colored touch that reads as
+     "these are grouped" rather than relying on spacing/typography alone. */
+  .nav-section-label{display:flex;align-items:center;gap:6px;}
+  .nav-section-label::before{content:'';width:4px;height:4px;border-radius:50%;background:color-mix(in srgb, var(--accent1) 55%, var(--ink-faint));flex-shrink:0;}
+  .tabstrip.collapsed .nav-section-label::before{display:none;}
   /* The bold single letter inside a label marks that tab's keyboard shortcut (see TAB_SHORTCUTS) --
      a faint currentColor-tinted chip behind just that letter reads as a keyboard-hint affordance,
      rather than the plain underline (which, mid-word, looked more like a stray typo than a hint). */
@@ -119,7 +168,7 @@
      target for navigation while the star stays independently clickable/focusable. */
   .navtab-row{position:relative;display:flex;align-items:stretch;}
   .navtab-row .navtab{flex:1;min-width:0;}
-  .navtab-pin-btn{position:absolute;top:50%;right:4px;transform:translateY(-50%);width:22px;height:22px;flex-shrink:0;
+  .navtab-pin-btn{position:absolute;top:50%;right:4px;transform:translateY(-50%);z-index:2;width:22px;height:22px;flex-shrink:0;
     display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:6px;
     font-size:13px;line-height:1;cursor:pointer;color:var(--ink-faint);opacity:0;transition:opacity .15s ease,color .15s ease,transform .15s ease;}
   .navtab-row:hover .navtab-pin-btn,.navtab-pin-btn.pinned,.navtab-pin-btn:focus-visible{opacity:1;}
@@ -13611,6 +13660,8 @@ function render(){
     ` : ''}
     <div class="body-shell">
       <div class="tabstrip ${sidebarCollapsed?'collapsed':''}">
+        <div class="navtab-indicator" id="navtabIndicator"></div>
+        ${sidebarBrandHeader()}
         ${favoritesNavSection()}
         ${tab('dashboard','Dashboard','D')}
         ${navSection('Vouchers & Entry', [
@@ -13635,6 +13686,7 @@ function render(){
           tab('orders','Orders','O'),
           tab('payroll','Payroll Management','y'),
         ])}
+        ${sidebarCompanyCard()}
         <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" title="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}" aria-label="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}">
           <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>Collapse</span>
         </button>
@@ -13705,25 +13757,7 @@ function render(){
   wireQAWidget();
   wireDIWidget();
 
-  document.getElementById('menuCompany').addEventListener('click', ()=>{
-    if(adminViewOnlyCompanyId){
-      adminViewOnlyCompanyId = null;
-      currentCompany = null;
-      if(currentUser && currentUser.role==='support'){
-        modal = 'groupAdmin';
-        groupAdminTab = 'users';
-        groupUserDetailId = null;
-        groupAdminCompanyModalType = null;
-      }else{
-        modal = 'adminPanel';
-        adminTab = 'companies';
-        adminUserDetailId = null;
-      }
-    }
-    screen = 'gateway';
-    renderGateway();
-    pushHistory();
-  });
+  document.getElementById('menuCompany').addEventListener('click', switchToCompanyGateway);
   document.getElementById('refreshSessionBtn')?.addEventListener('click', ()=> refreshCurrentSession('refreshSessionBtn'));
   document.getElementById('exitAdminViewBtn')?.addEventListener('click', ()=>{
     adminViewOnlyCompanyId = null;
@@ -14195,6 +14229,93 @@ function favoritesNavSection(){
   }).filter(Boolean).join('');
   return html ? `<div class="nav-section-label">★ Favorites</div>${html}` : '';
 }
+// ---- Oct 10, 2026 "more attractive" sidebar pass: brand header, company mini-card, sliding
+// active-tab indicator. ----
+function sidebarBrandHeader(){
+  return `<div class="sidebar-brand">
+    <span class="sidebar-brand-mark">RB</span>
+    <span class="sidebar-brand-text"><span class="sidebar-brand-name">The Reckoning Books</span><span class="sidebar-brand-tag">by SKm</span></span>
+  </div>`;
+}
+// Two-letter initials for the company avatar -- "Acme Retail Pvt Ltd" -> "AR" (first letter of the
+// first two words), a single-word name -> its own first two letters ("Acme" -> "AC").
+function companyInitials(name){
+  if(!name) return '?';
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if(!words.length) return '?';
+  if(words.length===1) return words[0].slice(0,2).toUpperCase();
+  return (words[0][0]+words[1][0]).toUpperCase();
+}
+function sidebarCompanyCard(){
+  if(!currentCompany) return '';
+  return `<button class="sidebar-company-card" id="sidebarCompanyCardBtn" type="button" title="Switch company">
+    <span class="sidebar-company-avatar">${escapeHtml(companyInitials(currentCompany.name))}</span>
+    <span class="sidebar-company-info"><span class="sidebar-company-name">${escapeHtml(currentCompany.name)}</span><span class="sidebar-company-sub">Switch company</span></span>
+  </button>`;
+}
+// Shared by the Company menubar item AND the new sidebar company card (see sidebarCompanyCard())
+// -- previously inlined only in the #menuCompany click handler; pulled out here so both triggers
+// land on the exact same "go back to the company list" flow rather than two copies drifting apart.
+function switchToCompanyGateway(){
+  if(adminViewOnlyCompanyId){
+    adminViewOnlyCompanyId = null;
+    currentCompany = null;
+    if(currentUser && currentUser.role==='support'){
+      modal = 'groupAdmin';
+      groupAdminTab = 'users';
+      groupUserDetailId = null;
+      groupAdminCompanyModalType = null;
+    }else{
+      modal = 'adminPanel';
+      adminTab = 'companies';
+      adminUserDetailId = null;
+    }
+  }
+  screen = 'gateway';
+  renderGateway();
+  pushHistory();
+}
+// ---- Sliding active-tab indicator -- render() fully replaces the sidebar's innerHTML on every
+// navigation, so a plain CSS transition on the indicator's own position can't animate on its own:
+// there's no "previous frame" for the browser to interpolate from, just a brand-new element already
+// sitting in its final spot. This does a small manual FLIP (First-Last-Invert-Play): goToTab()
+// captures the indicator's on-screen position right before re-rendering, lets the re-render happen
+// (the fresh indicator lands instantly at its real final position via positionSidebarIndicator(),
+// called from attachHandlers() on every render), then this function offsets it right back to where
+// it visually WAS with transitions off, forces a reflow, and clears that offset with transitions on
+// -- so what the eye sees is one continuous glide from the old active tab to the new one, even
+// though the DOM node itself is brand new.
+function positionSidebarIndicator(){
+  const strip = document.querySelector('.tabstrip');
+  const indicator = document.getElementById('navtabIndicator');
+  if(!strip || !indicator) return;
+  const active = strip.querySelector('.navtab.active');
+  if(!active){ indicator.style.opacity = '0'; return; }
+  const stripRect = strip.getBoundingClientRect();
+  const activeRect = active.getBoundingClientRect();
+  indicator.style.opacity = '1';
+  indicator.style.left = (activeRect.left - stripRect.left) + 'px';
+  indicator.style.top = (activeRect.top - stripRect.top + strip.scrollTop) + 'px';
+  indicator.style.width = activeRect.width + 'px';
+  indicator.style.height = activeRect.height + 'px';
+}
+function captureSidebarIndicatorRect(){
+  const indicator = document.getElementById('navtabIndicator');
+  return indicator && indicator.style.opacity!=='0' ? indicator.getBoundingClientRect() : null;
+}
+function animateSidebarIndicatorFrom(prevRect){
+  if(!prevRect) return;
+  const indicator = document.getElementById('navtabIndicator');
+  if(!indicator) return;
+  const newRect = indicator.getBoundingClientRect();
+  const dy = prevRect.top - newRect.top;
+  if(Math.abs(dy) < 1) return; // already in place -- nothing to animate (e.g. re-rendering the same tab)
+  indicator.style.transition = 'none';
+  indicator.style.transform = `translateY(${dy}px)`;
+  indicator.offsetHeight; // force a reflow so the browser commits the "from" position before animating away from it
+  indicator.style.transition = '';
+  indicator.style.transform = 'translateY(0)';
+}
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
    inside a text field/dropdown, and no modal is covering the tabs. */
@@ -14209,12 +14330,14 @@ function goToTab(id){
     toast(`Your account doesn't have access to this section — ask your group admin.`);
     return;
   }
+  const prevIndicatorRect = captureSidebarIndicatorRect();
   view = id;
   if(view==='reports') reportsSelected = null;
   if(view==='dashboard') dashCountersAnimated = false; // count up again each time you land on the Dashboard
   if(view==='pos' && !pos) pos = newPosCart(); // fresh cart the first time POS is opened this session
   if(currentCompany){ try{ localStorage.setItem('rb_lastTab_'+currentCompany.id, id); }catch(e){} }
   render();
+  animateSidebarIndicatorFrom(prevIndicatorRect);
   pushHistory();
 }
 document.addEventListener('keydown', (e)=>{
@@ -32061,6 +32184,13 @@ function attachHandlers(){
   document.querySelectorAll('[data-pin-tab]').forEach(b=>{
     b.addEventListener('click', ()=>{ toggleSidebarFavorite(b.dataset.pinTab); });
   });
+  document.getElementById('sidebarCompanyCardBtn')?.addEventListener('click', switchToCompanyGateway);
+  // Lands the sliding active-tab pill (see positionSidebarIndicator()) in its correct spot on every
+  // single render -- goToTab() separately layers its own FLIP animation on top of this via
+  // animateSidebarIndicatorFrom(), but every OTHER render() (closing a modal, toggling the collapse
+  // rail, pinning a favorite, etc.) still needs the indicator to land in the right place, just
+  // without an animated glide.
+  positionSidebarIndicator();
 
   document.getElementById('openRecurringBtn')?.addEventListener('click', ()=>{
     recurringDraft = null;
