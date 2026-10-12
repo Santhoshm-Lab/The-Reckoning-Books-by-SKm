@@ -83,7 +83,7 @@
      it is what actually glides from the old active tab to the new one. */
   .navtab.active{background:transparent;color:#fff;border-color:transparent;}
   .navtab-indicator{position:absolute;left:0;top:0;z-index:0;border-radius:var(--radius-sm);
-    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    background:linear-gradient(135deg,var(--sidebar-accent, var(--accent1)),var(--sidebar-accent, var(--accent2)));
     box-shadow:0 3px 10px rgba(44,160,28,0.28);
     opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.3,.9,.4,1);will-change:transform;}
   @media (prefers-reduced-motion: reduce){ .navtab-indicator{transition:none;} }
@@ -116,7 +116,7 @@
   /* A tiny accent dot ahead of each section label -- a small, token-colored touch that reads as
      "these are grouped" rather than relying on spacing/typography alone. */
   .nav-section-label{display:flex;align-items:center;gap:6px;}
-  .nav-section-label::before{content:'';width:4px;height:4px;border-radius:50%;background:color-mix(in srgb, var(--accent1) 55%, var(--ink-faint));flex-shrink:0;}
+  .nav-section-label::before{content:'';width:4px;height:4px;border-radius:50%;background:color-mix(in srgb, var(--sidebar-accent, var(--accent1)) 55%, var(--ink-faint));flex-shrink:0;}
   .tabstrip.collapsed .nav-section-label::before{display:none;}
   /* The bold single letter inside a label marks that tab's keyboard shortcut (see TAB_SHORTCUTS) --
      a faint currentColor-tinted chip behind just that letter reads as a keyboard-hint affordance,
@@ -147,9 +147,9 @@
   /* On hover the chip deepens toward the one brand hue and casts a soft green glow -- confirms
      "this is clickable" without any per-module color variety. */
   .navtab:hover:not(.active) .navtab-icon{
-    background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 26%, var(--surface-strong)), color-mix(in srgb, var(--accent1) 12%, var(--surface-strong)));
+    background:linear-gradient(135deg, color-mix(in srgb, var(--sidebar-accent, var(--accent1)) 26%, var(--surface-strong)), color-mix(in srgb, var(--sidebar-accent, var(--accent1)) 12%, var(--surface-strong)));
     color:var(--accent2);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 5px 12px -4px color-mix(in srgb, var(--accent1) 45%, transparent);}
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 5px 12px -4px color-mix(in srgb, var(--sidebar-accent, var(--accent1)) 45%, transparent);}
   .navtab.active .navtab-icon{background:rgba(255,255,255,0.22);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.4);}
   @media (prefers-reduced-motion: no-preference){
     /* A little spring in the icon itself on hover/press -- kept to the icon chip, not the whole row,
@@ -265,6 +265,93 @@
   .sidebar-resize-handle:hover::after,.sidebar-resize-handle.dragging::after{background:color-mix(in srgb, var(--accent1) 45%, var(--border-strong));}
   .tabstrip.collapsed + .sidebar-resize-handle{display:none;}
   @media (max-width:1024px){ .sidebar-resize-handle{display:none;} }
+
+  /* ---------------- Oct 12, 2026 sidebar round 5: search/filter, drag-to-reorder & custom groups,
+     notification bell, accent picker ---------------- */
+  .sidebar-search-wrap{position:relative;display:flex;align-items:center;margin:2px 0 10px;}
+  .sidebar-search-icon{position:absolute;left:9px;font-size:11px;opacity:.55;pointer-events:none;}
+  .sidebar-search-wrap input{width:100%;padding:7px 28px 7px 27px;border:1px solid var(--border);border-radius:9px;
+    background:var(--surface-strong);color:var(--ink);font-family:inherit;font-size:11.5px;font-weight:600;
+    transition:border-color .15s ease,background .15s ease;}
+  .sidebar-search-wrap input::placeholder{color:var(--ink-faint);font-weight:500;}
+  .sidebar-search-wrap input:focus{outline:none;border-color:var(--sidebar-accent, var(--accent1));background:var(--surface);}
+  .sidebar-search-clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:18px;height:18px;
+    display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:5px;
+    font-size:10px;color:var(--ink-faint);cursor:pointer;}
+  .sidebar-search-clear:hover{background:var(--surface);color:var(--ink);}
+  .tabstrip.collapsed .sidebar-search-wrap{display:none;}
+  .sidebar-filter-empty{padding:14px 11px;font-size:11px;color:var(--ink-faint);text-align:center;}
+
+  /* Each group header now sits in its own row alongside an optional delete ✕ (custom groups only --
+     see navSection()'s isCustom param); the plain Favorites label (favoritesNavSection(), never a
+     button) is untouched since it isn't built through navSection(). */
+  .nav-section-label-row{display:flex;align-items:center;}
+  .nav-section-label-row .nav-section-label{flex:1;}
+  .nav-section-delete-btn{flex-shrink:0;width:18px;height:18px;margin-right:6px;display:flex;align-items:center;
+    justify-content:center;border:none;background:transparent;border-radius:5px;font-size:9.5px;
+    color:var(--ink-faint);cursor:pointer;opacity:0;transition:opacity .15s ease,color .15s ease,background .15s ease;}
+  .nav-section-label-row:hover .nav-section-delete-btn{opacity:1;}
+  .nav-section-delete-btn:hover{background:color-mix(in srgb, var(--debit) 15%, transparent);color:var(--debit);}
+  .tabstrip.collapsed .nav-section-delete-btn{display:none;}
+  /* A newly-created custom group with nothing dragged into it yet still needs a visible drop
+     target (see navSection()'s "stay visible while empty" exception for isCustom groups). */
+  .nav-section-empty-hint{margin:2px 11px;padding:10px 8px;border:1.5px dashed var(--border);
+    border-radius:8px;font-size:10.5px;font-weight:600;color:var(--ink-faint);text-align:center;}
+  .tabstrip.collapsed .nav-section-empty-hint{display:none;}
+
+  /* Drag-to-reorder -- dragged row dims and drop targets get a highlighted ring/insertion line. */
+  .navtab-row[draggable="true"]{cursor:grab;}
+  .navtab-row.sidebar-dragging{opacity:.35;}
+  .navtab-row.sidebar-drag-over-row{box-shadow:inset 0 2px 0 0 var(--sidebar-accent, var(--accent1));}
+  .nav-section-group.sidebar-drag-over{background:color-mix(in srgb, var(--sidebar-accent, var(--accent1)) 8%, transparent);
+    border-radius:8px;outline:1.5px dashed color-mix(in srgb, var(--sidebar-accent, var(--accent1)) 45%, transparent);outline-offset:-1px;}
+
+  .sidebar-add-group-btn{width:100%;margin-top:4px;padding:8px 11px;border:1px dashed var(--border-strong);
+    border-radius:9px;background:transparent;color:var(--ink-faint);font-family:inherit;font-size:11.5px;
+    font-weight:700;text-align:left;cursor:pointer;transition:border-color .15s ease,color .15s ease,background .15s ease;}
+  .sidebar-add-group-btn:hover{border-color:var(--sidebar-accent, var(--accent1));color:var(--ink);background:var(--surface-strong);}
+  .tabstrip.collapsed .sidebar-add-group-btn{display:none;}
+  .sidebar-add-group-form{display:flex;align-items:center;gap:5px;margin-top:4px;padding:3px;}
+  .sidebar-add-group-form input{flex:1;min-width:0;padding:6px 9px;border:1px solid var(--border-strong);
+    border-radius:8px;background:var(--surface);color:var(--ink);font-family:inherit;font-size:11.5px;font-weight:600;}
+  .sidebar-add-group-form input:focus{outline:none;border-color:var(--sidebar-accent, var(--accent1));}
+  .sidebar-add-group-form button{flex-shrink:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--border);border-radius:7px;background:var(--surface-strong);color:var(--ink-soft);
+    font-size:11px;cursor:pointer;}
+  .sidebar-add-group-form button:hover{background:var(--surface);color:var(--ink);}
+  #sidebarAddGroupConfirm{color:var(--credit);border-color:color-mix(in srgb, var(--credit) 40%, var(--border));}
+
+  /* Utility row -- bell + accent picker side by side, just above the company card. */
+  .sidebar-utility-row{display:flex;align-items:center;gap:6px;margin-top:10px;}
+  .tabstrip.collapsed .sidebar-utility-row{flex-direction:column;}
+  .sidebar-bell-wrap,.sidebar-accent-wrap{position:relative;flex:1;}
+  .sidebar-bell-btn,.sidebar-accent-btn{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
+    gap:5px;padding:7px 0;border:1px solid var(--border);border-radius:9px;background:var(--surface-strong);
+    font-size:13px;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease;}
+  .sidebar-bell-btn:hover,.sidebar-accent-btn:hover{background:var(--surface);border-color:var(--border-strong);}
+  .sidebar-bell-count{position:absolute;top:-4px;right:calc(50% - 20px);min-width:14px;height:14px;padding:0 3px;
+    display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--gold,#F2A900);
+    color:#fff;font-size:8.5px;font-weight:800;line-height:1;}
+  .sidebar-accent-swatch-preview{width:11px;height:11px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);}
+  .sidebar-bell-panel,.sidebar-accent-panel{position:absolute;bottom:calc(100% + 6px);left:0;z-index:150;
+    min-width:200px;padding:10px;border-radius:11px;background:var(--surface-strong);border:1px solid var(--border-strong);
+    box-shadow:0 12px 28px -6px color-mix(in srgb, var(--ink) 30%, transparent);}
+  .sidebar-bell-panel-title,.sidebar-accent-panel-title{font-size:10px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-faint);padding:0 2px 8px;}
+  .sidebar-bell-item{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 8px;border:none;background:transparent;border-radius:7px;font-family:inherit;text-align:left;cursor:pointer;}
+  .sidebar-bell-item:hover{background:var(--surface);}
+  .sidebar-bell-item-label{font-size:11.5px;font-weight:700;color:var(--ink);}
+  .sidebar-bell-item-value{font-size:10px;font-weight:700;color:var(--gold,#F2A900);flex-shrink:0;}
+  .sidebar-bell-empty{padding:10px 8px;font-size:11px;color:var(--ink-faint);text-align:center;}
+  .sidebar-accent-swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .sidebar-accent-swatch{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);transition:transform .12s ease,border-color .12s ease;}
+  .sidebar-accent-swatch:hover{transform:scale(1.12);}
+  .sidebar-accent-swatch.is-selected{border-color:var(--ink);}
+  .sidebar-accent-reset{width:100%;margin-top:9px;padding:6px 0;border:1px solid var(--border);border-radius:7px;
+    background:transparent;color:var(--ink-faint);font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;}
+  .sidebar-accent-reset:hover{color:var(--ink);background:var(--surface);}
 
   /* ---------------- Modern pill tab bar (Admin Panel / Group Admin panel) ---------------- */
   .modern-tabbar{display:flex;gap:6px;padding:14px 20px 16px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(44,160,28,0.05),transparent);border-bottom:1px solid var(--border);}
@@ -846,6 +933,55 @@
   .company-card-menu button:hover{background:var(--surface-strong);}
   .company-card-menu button.is-danger{color:var(--debit);}
   .company-card-menu button.is-danger:hover{background:rgba(217,58,58,0.1);}
+  .company-card-menu-divider{height:1px;background:var(--border);margin:4px 2px;}
+
+  /* ---------------- Oct 12, 2026 Gateway round: folders/tags, bulk actions, setup checklist ---------------- */
+  .gw-folder-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-4px 0 16px;}
+  .gw-folder-chip{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;border:1px solid var(--border);
+    background:var(--surface);color:var(--ink-soft);font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s ease;}
+  .gw-folder-chip:hover{border-color:var(--border-strong);color:var(--ink);}
+  .gw-folder-chip.is-active{background:linear-gradient(135deg,var(--accent1),var(--accent2));border-color:transparent;color:#fff;}
+  .gw-folder-chip-count{font-size:10px;font-weight:800;opacity:.75;}
+  .gw-folder-chip.is-active .gw-folder-chip-count{opacity:.85;}
+  .gw-folder-chip-del{margin-left:2px;opacity:.6;border-radius:50%;padding:0 2px;}
+  .gw-folder-chip-del:hover{opacity:1;}
+  .gw-folder-chip-add{border-style:dashed;color:var(--ink-faint);background:transparent;}
+  .gw-folder-chip-add:hover{border-color:var(--accent1);color:var(--accent1);}
+  .gw-folder-add-form{display:flex;align-items:center;gap:4px;}
+  .gw-folder-add-form input{padding:5px 9px;border:1px solid var(--border-strong);border-radius:999px;background:var(--surface);
+    color:var(--ink);font-size:11.5px;font-weight:600;width:130px;}
+  .gw-folder-add-form button{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);background:var(--surface-strong);
+    color:var(--ink-soft);font-size:10px;cursor:pointer;}
+  .gw-folder-add-form button:hover{background:var(--surface);color:var(--ink);}
+
+  .gw-bulk-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin-bottom:14px;
+    border-radius:12px;background:var(--surface-strong);border:1px solid var(--border);}
+  .gw-bulk-count{font-size:12px;font-weight:800;color:var(--ink);margin-right:4px;}
+  .gw-bulk-bar select{width:auto;padding:6px 26px 6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+    color:var(--ink);font-size:11.5px;font-weight:600;}
+  .company-card-bulk-check{position:absolute;top:12px;left:12px;z-index:3;width:20px;height:20px;border-radius:6px;
+    border:2px solid var(--border-strong);background:var(--surface);color:#fff;font-size:11px;font-weight:900;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .company-card-bulk-check.is-checked{background:var(--accent1);border-color:var(--accent1);}
+  .company-card-row .company-card-bulk-check{position:static;flex-shrink:0;}
+  .company-card.is-bulk-selected,.company-card-row.is-bulk-selected{border-color:var(--accent1);box-shadow:0 0 0 2px color-mix(in srgb, var(--accent1) 30%, transparent);}
+
+  .company-card-checklist{display:flex;align-items:center;gap:8px;width:100%;margin-top:10px;padding:0;border:none;
+    background:transparent;cursor:pointer;font-family:inherit;text-align:left;}
+  .company-card-checklist-bar{flex:1;height:5px;border-radius:999px;background:var(--border);overflow:hidden;}
+  .company-card-checklist-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent1),var(--gold));transition:width .2s ease;}
+  .company-card-checklist-label{flex-shrink:0;font-size:10px;font-weight:700;color:var(--ink-faint);}
+  .company-card-checklist:hover .company-card-checklist-label{color:var(--accent1);}
+  .company-card-row .company-card-checklist{width:auto;min-width:110px;flex-shrink:0;margin:0;}
+
+  .setup-checklist-list{display:flex;flex-direction:column;gap:8px;}
+  .setup-checklist-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:transparent;}
+  .setup-checklist-item.is-done{background:var(--surface-strong);}
+  .setup-checklist-dot{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:800;color:var(--ink-faint);border:1.5px solid var(--border-strong);}
+  .setup-checklist-item.is-done .setup-checklist-dot{background:var(--credit);border-color:var(--credit);color:#fff;}
+  .setup-checklist-label{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .setup-checklist-item.is-done .setup-checklist-label{color:var(--ink-faint);text-decoration:line-through;}
 
   /* List view: single-column rows instead of a card grid -- built as its own markup branch in
      renderGateway() rather than reflowing the grid card with CSS alone, so each layout stays simple. */
@@ -4341,6 +4477,112 @@ try{ sidebarCollapsed = localStorage.getItem('rb_sidebar_collapsed')==='1'; }cat
 // wins then, so this is only ever read/used when sidebarCollapsed is false.
 let sidebarWidth = 240;
 try{ const w = parseInt(localStorage.getItem('rb_sidebar_width'), 10); if(w>=170 && w<=340) sidebarWidth = w; }catch(e){}
+// Oct 12, 2026 sidebar round 5 -- live filter text for the inline search box pinned above the
+// section list (see sidebarSearchBox()/tab()). Deliberately transient (not persisted) -- same
+// convention as gatewaySearchQuery, a fresh search each visit rather than a sticky filter that
+// could leave someone staring at a "filtered" sidebar with no idea why modules are missing.
+let sidebarFilterQuery = '';
+// Curated accent palette a user can pick for their OWN sidebar instead of the fixed brand green --
+// kept distinct from SIDEBAR_ICON_HUES (the per-MODULE palette from round 4): this is a single
+// account-wide choice applied to the active-tab indicator, section accent dots, and the icon hover
+// tint (see the --sidebar-accent custom property, set inline on .tabstrip in render()).
+const SIDEBAR_ACCENT_PRESETS = ['#2CA01C','#2563EB','#7C3AED','#DB2777','#0D9488','#D97706','#DC2626','#4F46E5'];
+function sidebarAccentKey(){
+  return 'rb_sidebar_accent_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
+}
+function getSidebarAccent(){
+  try{
+    const v = localStorage.getItem(sidebarAccentKey());
+    return (v && /^#[0-9a-fA-F]{6}$/.test(v)) ? v : null; // null = default brand green, no override
+  }catch(e){ return null; }
+}
+function setSidebarAccent(hex){
+  try{
+    if(hex) localStorage.setItem(sidebarAccentKey(), hex);
+    else localStorage.removeItem(sidebarAccentKey());
+  }catch(e){}
+  render();
+}
+let sidebarPopoverOpen = false; // transient -- which popover is showing, reset on navigation
+// ---- Oct 12, 2026 sidebar round 5: drag-to-reorder & custom groups. The four static sections
+// (Vouchers & Entry / Masters / Reports & Compliance / Operations) stay the default, but the user
+// can now drag any module into a different section, reorder within one, or create their own named
+// groups -- persisted per signed-in uid to localStorage (same "device/account personalization,
+// never a new Firestore field" convention as Favorites/collapsed-sections/width). Nobody who never
+// touches this is affected: getSidebarLayout() returns null until the first drag or "+ New Group",
+// and ensureSidebarLayout()'s fallback is byte-for-byte the same grouping render() used to hardcode.
+function sidebarLayoutKey(){
+  return 'rb_sidebar_layout_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
+}
+const SIDEBAR_DEFAULT_GROUPS = [
+  {id:'vouchers',   label:'Vouchers & Entry',       moduleIds:['voucher','pos','daybook','calendar']},
+  {id:'masters',    label:'Masters',                moduleIds:['ledgers','coa','inventory']},
+  {id:'reports',    label:'Reports & Compliance',   moduleIds:['reports','gst','reconcile']},
+  {id:'operations', label:'Operations',             moduleIds:['assets','parties','orders','payroll']},
+];
+function getSidebarLayout(){
+  try{
+    const raw = localStorage.getItem(sidebarLayoutKey());
+    const parsed = raw ? JSON.parse(raw) : null;
+    if(parsed && Array.isArray(parsed.groups)) return parsed;
+  }catch(e){}
+  return null;
+}
+function saveSidebarLayout(layout){
+  try{ localStorage.setItem(sidebarLayoutKey(), JSON.stringify(layout)); }catch(e){}
+}
+// Always returns a usable layout -- either the user's saved customization, or a fresh copy of the
+// default grouping. Also heals a layout saved before a module existed in the app: anything in
+// SIDEBAR_MODULE_ORDER that isn't placed in any group yet gets appended to the first group, so a
+// future new module never silently disappears from an already-customized sidebar.
+function ensureSidebarLayout(){
+  let layout = getSidebarLayout();
+  if(!layout) layout = { groups: SIDEBAR_DEFAULT_GROUPS.map(g=>({id:g.id, label:g.label, moduleIds:g.moduleIds.slice(), builtin:true})) };
+  if(!layout.groups.length) layout.groups.push({id:'vouchers', label:'Vouchers & Entry', moduleIds:[], builtin:true});
+  const placed = new Set(layout.groups.flatMap(g=>g.moduleIds));
+  const orphans = SIDEBAR_MODULE_ORDER.filter(id=>!placed.has(id));
+  if(orphans.length) layout.groups[0].moduleIds.push(...orphans);
+  return layout;
+}
+function moveSidebarModule(moduleId, targetGroupId, beforeModuleId){
+  if(!moduleId || !targetGroupId) return;
+  const layout = ensureSidebarLayout();
+  for(const g of layout.groups) g.moduleIds = g.moduleIds.filter(id=>id!==moduleId);
+  const target = layout.groups.find(g=>g.id===targetGroupId);
+  if(!target) return;
+  const idx = beforeModuleId ? target.moduleIds.indexOf(beforeModuleId) : -1;
+  if(idx>-1) target.moduleIds.splice(idx,0,moduleId); else target.moduleIds.push(moduleId);
+  saveSidebarLayout(layout);
+  render();
+}
+function addSidebarGroup(label){
+  const clean = (label||'').trim();
+  if(!clean) return;
+  const layout = ensureSidebarLayout();
+  layout.groups.push({ id: uid('grp'), label: clean.slice(0,40), moduleIds: [], builtin:false });
+  saveSidebarLayout(layout);
+  sidebarAddGroupOpen = false;
+  sidebarAddGroupDraft = '';
+  render();
+}
+function removeSidebarGroup(groupId){
+  const layout = ensureSidebarLayout();
+  const idx = layout.groups.findIndex(g=>g.id===groupId);
+  if(idx<0 || layout.groups[idx].builtin) return; // the 4 default groups can't be removed, only reordered into
+  const ok = window.confirm(`Remove the "${layout.groups[idx].label}" group? Its modules will move back into Vouchers & Entry.`);
+  if(!ok) return;
+  const [removed] = layout.groups.splice(idx,1);
+  if(layout.groups.length) layout.groups[0].moduleIds.push(...removed.moduleIds);
+  saveSidebarLayout(layout);
+  render();
+}
+function resetSidebarLayout(){
+  try{ localStorage.removeItem(sidebarLayoutKey()); }catch(e){}
+  render();
+}
+let sidebarAddGroupOpen = false;   // transient -- the "+ New Group" inline form
+let sidebarAddGroupDraft = '';
+let sidebarDragModuleId = null;    // transient -- module id currently being dragged, see attachSidebarDragDrop()
 const EMAIL_DOMAIN = '@reckoningbooks.local'; // admin's fixed synthetic email only — regular accounts now use the real email they sign up with
 // Brand mark for the landing page (renderLanding()) — the actual generated logo icon,
 // downsized and inlined as base64 so the app stays a single self-contained HTML file.
@@ -5681,7 +5923,7 @@ let resetShowPassword = false;     // show/hide toggle state for this card's own
 let signupUsePasskey = false;
 let passkeyLoginBusy = false;
 let passkeyLoginError = '';
-let coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+let coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa', cloneFromId:'' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
 let coformStep = 1; // 1-5 -- which page of the multi-step Create Company wizard is showing (see companyCreateModal())
 // Gateway 2026 round 2: grid/list toggle + sort mode are per-browser display preferences (same
@@ -5746,6 +5988,149 @@ function sortCompaniesForGateway(list, mode){
     return 0;
   });
 }
+// ---- Oct 12, 2026 Gateway round: folders/tags, bulk actions, clone-from-template, setup checklist.
+// All four are purely additive on top of the Gateway screen above -- nothing here changes how an
+// existing company is opened, searched, sorted, pinned or renamed.
+
+// Folders/tags -- per-uid localStorage, same convention as companyPinned/companyOpenedAt above but
+// keyed per signed-in user (not just per-browser) since a shared browser/demo account shouldn't mix
+// one person's folders with another's. 'Archived' is a reserved, always-present folder (id
+// '__archived') rather than a real entry in the stored list, so it can't be renamed or deleted like
+// a user-created folder, and the bulk "Archive" action (see below) always has somewhere to send
+// companies regardless of whether the user has created any folders of their own yet.
+const ARCHIVED_FOLDER_ID = '__archived';
+function companyFoldersKey(){ return 'rb_company_folders_' + (currentUser && currentUser.id ? currentUser.id : 'anon'); }
+function companyFolderMapKey(){ return 'rb_company_folder_map_' + (currentUser && currentUser.id ? currentUser.id : 'anon'); }
+function getCompanyFolders(){
+  try{
+    const raw = localStorage.getItem(companyFoldersKey());
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  }catch(e){ return []; }
+}
+function saveCompanyFolders(folders){ try{ localStorage.setItem(companyFoldersKey(), JSON.stringify(folders)); }catch(e){} }
+function getCompanyFolderMap(){
+  try{
+    const raw = localStorage.getItem(companyFolderMapKey());
+    const parsed = raw ? JSON.parse(raw) : null;
+    return (parsed && typeof parsed==='object' && !Array.isArray(parsed)) ? parsed : {};
+  }catch(e){ return {}; }
+}
+function saveCompanyFolderMap(map){ try{ localStorage.setItem(companyFolderMapKey(), JSON.stringify(map)); }catch(e){} }
+function companyFolderOf(companyId){ return getCompanyFolderMap()[companyId] || null; }
+function addCompanyFolder(name){
+  const clean = (name||'').trim().slice(0,30);
+  if(!clean) return;
+  const folders = getCompanyFolders();
+  if(folders.some(f=>f.name.toLowerCase()===clean.toLowerCase())) { toast('A folder with that name already exists.'); return; }
+  folders.push({ id: uid('fld'), name: clean });
+  saveCompanyFolders(folders);
+  gatewayAddFolderOpen = false;
+  gatewayAddFolderDraft = '';
+  renderGateway();
+}
+function removeCompanyFolder(folderId){
+  if(folderId===ARCHIVED_FOLDER_ID) return; // reserved, never user-deletable
+  saveCompanyFolders(getCompanyFolders().filter(f=>f.id!==folderId));
+  const map = getCompanyFolderMap();
+  let changed = false;
+  for(const coId of Object.keys(map)){ if(map[coId]===folderId){ delete map[coId]; changed=true; } }
+  if(changed) saveCompanyFolderMap(map);
+  if(gatewayActiveFolder===folderId) gatewayActiveFolder = null;
+  renderGateway();
+}
+function setCompanyFolder(companyId, folderId){
+  const map = getCompanyFolderMap();
+  if(folderId) map[companyId] = folderId; else delete map[companyId];
+  saveCompanyFolderMap(map);
+  gatewayCardMenuOpenId = null;
+  renderGateway();
+}
+let gatewayActiveFolder = null; // transient filter-chip selection -- a folder id, ARCHIVED_FOLDER_ID, or null ("All")
+let gatewayAddFolderOpen = false;
+let gatewayAddFolderDraft = '';
+
+// Bulk actions (multi-select) -- transient, never persisted; cleared whenever bulk mode is toggled off.
+let gatewayBulkMode = false;
+let gatewaySelectedCoIds = [];
+function toggleGatewayBulkMode(){
+  gatewayBulkMode = !gatewayBulkMode;
+  gatewaySelectedCoIds = [];
+  renderGateway();
+}
+function toggleGatewaySelected(coId){
+  gatewaySelectedCoIds = gatewaySelectedCoIds.includes(coId) ? gatewaySelectedCoIds.filter(id=>id!==coId) : [...gatewaySelectedCoIds, coId];
+  renderGateway();
+}
+function exportCompanySummaryCSV(companyList){
+  const rows = companyList.map(c=>[
+    c.name||'', c.industry||'', c.gstin||'', (c.ledgers||DEFAULT_LEDGERS).length, (c.vouchers||[]).length,
+    companyOpenedAt[c.id] ? new Date(companyOpenedAt[c.id]).toISOString().slice(0,10) : '',
+  ]);
+  downloadCSV(['Company Name','Industry','GSTIN','Ledgers','Vouchers','Last Opened'], rows, `Company_Summary_${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+// Clone-from-template (Create Company wizard, step 1 -- see coStepBasicInfo()'s "Start From" select
+// and coform.cloneFromId). Copies ledger NAMES/GROUPS only -- opening balances always reset to zero,
+// and vouchers/parties/items are never copied -- so a brand-new company never silently inherits
+// another company's actual financial history. Cash/Bank/Capital/GST ledgers are matched BY NAME back
+// onto DEFAULT_LEDGERS' own fixed ids (l_cash/l_bank/l_cap/...), the same ids ensureCoreLedgers()
+// would otherwise seed on first entry -- this avoids ending up with both "Cash" (the template's
+// clone, a fresh uid) and a second auto-seeded "Cash" the first time the new company is opened.
+function cloneLedgersFromCompany(sourceCompany){
+  if(!sourceCompany || !Array.isArray(sourceCompany.ledgers) || !sourceCompany.ledgers.length){
+    return DEFAULT_LEDGERS.map(l=>({...l}));
+  }
+  const defaultByName = {};
+  DEFAULT_LEDGERS.forEach(dl=> defaultByName[dl.name.toLowerCase()] = dl);
+  const seenIds = new Set();
+  const cloned = [];
+  for(const l of sourceCompany.ledgers){
+    const matchDefault = defaultByName[(l.name||'').toLowerCase()];
+    const id = matchDefault ? matchDefault.id : uid('l');
+    if(seenIds.has(id)) continue;
+    seenIds.add(id);
+    cloned.push({ ...l, id, opening: 0 });
+  }
+  for(const dl of DEFAULT_LEDGERS){
+    if(!cloned.some(l=>l.id===dl.id)) cloned.push({...dl});
+  }
+  return cloned;
+}
+
+// Setup checklist -- shown on a company's card (and in a small modal) for the first
+// SETUP_CHECKLIST_WINDOW_DAYS after creation, as long as it isn't yet "complete" and hasn't been
+// dismissed. Every signal is read straight off the already-cached companies[] entry (see
+// loadCompanies()'s own comment on what that cache holds) -- no extra Firestore read, and nothing
+// here is computed for (or shown on) a company created before the createdAt field existed, since
+// there'd be no reliable "how new is this" signal for it.
+const SETUP_CHECKLIST_WINDOW_DAYS = 30;
+function companySetupChecklist(c){
+  const ledgers = c.ledgers || [];
+  const items = [
+    { key:'ledgers', label:'Add your own ledgers', done: ledgers.some(l=>!DEFAULT_LEDGERS.some(dl=>dl.id===l.id)) },
+    { key:'opening', label:'Set an opening balance', done: ledgers.some(l=>Math.abs(Number(l.opening)||0)>0) },
+    { key:'voucher', label:'Record your first voucher', done: (c.vouchers||[]).length>0 },
+    { key:'gstin', label:'Add your GSTIN', done: !!(c.gstin||'').trim() },
+    { key:'team', label:'Invite a team member', done: !!(c.teamMemberIds && c.teamMemberIds.length) },
+  ];
+  const doneCount = items.filter(i=>i.done).length;
+  return { items, doneCount, total: items.length, complete: doneCount===items.length };
+}
+function setupChecklistDismissedKey(companyId){ return 'rb_setup_checklist_dismissed_' + companyId; }
+function isSetupChecklistDismissed(companyId){ try{ return localStorage.getItem(setupChecklistDismissedKey(companyId))==='1'; }catch(e){ return false; } }
+function dismissSetupChecklist(companyId){
+  try{ localStorage.setItem(setupChecklistDismissedKey(companyId), '1'); }catch(e){}
+  setupChecklistModalCoId = null;
+  renderGateway();
+}
+function shouldShowSetupChecklist(c){
+  if(!c.createdAt || isSetupChecklistDismissed(c.id)) return false;
+  const ageMs = Date.now() - new Date(c.createdAt).getTime();
+  if(!(ageMs>=0) || ageMs > SETUP_CHECKLIST_WINDOW_DAYS*24*60*60*1000) return false;
+  return !companySetupChecklist(c).complete;
+}
+let setupChecklistModalCoId = null; // id of the company whose "Finish setting up" modal is open, or null
 // Friendly "how long ago" caption for a card's last-opened stamp -- deliberately coarse (minutes /
 // hours / days), matching the app's other relative-time captions rather than a raw timestamp.
 function relativeTimeAgo(iso){
@@ -13717,33 +14102,18 @@ function render(){
     </div>
     ` : ''}
     <div class="body-shell">
-      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}"${sidebarCollapsed?'':` style="width:${sidebarWidth}px"`}>
+      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}${getSidebarAccent()?`--sidebar-accent:${getSidebarAccent()};`:''}">
         <div class="navtab-indicator" id="navtabIndicator"></div>
         ${sidebarBrandHeader()}
+        ${sidebarSearchBox()}
         ${favoritesNavSection()}
         ${tab('dashboard','Dashboard','D')}
-        ${navSection('Vouchers & Entry', [
-          tab('voucher','Voucher','V'),
-          tab('pos','POS / Quick Sale','Q'),
-          tab('daybook','Day Book','B'),
-          tab('calendar','Calendar','C'),
-        ])}
-        ${navSection('Masters', [
-          tab('ledgers','Ledgers','L'),
-          tab('coa','Accounts','A'),
-          tab('inventory','Inventory Control','I'),
-        ])}
-        ${navSection('Reports & Compliance', [
-          tab('reports','Reports','R'),
-          tab('gst','GST','G'),
-          tab('reconcile','Reconcile','e'),
-        ])}
-        ${navSection('Operations', [
-          tab('assets','Assets','s'),
-          tab('parties','Parties','p'),
-          tab('orders','Orders','O'),
-          tab('payroll','Payroll Management','y'),
-        ])}
+        ${renderSidebarGroups()}
+        ${sidebarFilterHasNoMatches() ? `<div class="sidebar-filter-empty">No modules match "${escapeHtml(sidebarFilterQuery.trim())}"</div>` : ''}
+        <div class="sidebar-utility-row">
+          ${sidebarNotificationBell()}
+          ${sidebarAccentPicker()}
+        </div>
         ${sidebarCompanyCard()}
         <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" title="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}" aria-label="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}">
           <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>Collapse</span>
@@ -14344,8 +14714,12 @@ function sidebarTabBadge(id){
   if(id==='gst'){ return sidebarGstFilingDue() ? {type:'dot'} : null; }
   return null;
 }
-function tab(id,label,shortcutLetter){
+function tab(id,label,shortcutLetter,opts={}){
   if(isModuleHidden(id)) return ''; // RBAC: this member has no access to this module at all -- omit the tab entirely, not just lock it
+  // Oct 12, 2026 round 5: inline search box filtering -- while sidebarFilterQuery is non-empty, a
+  // module whose label doesn't match is simply not rendered at all (not just dimmed), so navSection()
+  // can tell an empty group apart from a group with real content and skip its header entirely.
+  if(sidebarFilterQuery.trim() && !label.toLowerCase().includes(sidebarFilterQuery.trim().toLowerCase())) return '';
   const idx = shortcutLetter ? label.toLowerCase().indexOf(shortcutLetter.toLowerCase()) : -1;
   const labelHtml = idx>=0
     ? `${escapeHtml(label.slice(0,idx))}<b>${escapeHtml(label[idx])}</b>${escapeHtml(label.slice(idx+1))}`
@@ -14374,23 +14748,50 @@ function tab(id,label,shortcutLetter){
   // row is being pointed at, via the data-flyout-label/-sub attributes set here.
   const flyoutBadgeText = !badge ? '' : badge.type==='dot' ? 'Needs attention' : `${badge.value} pending`;
   const flyoutSub = gated ? 'Paid-plan feature' : viewOnly ? 'View Only for your account' : flyoutBadgeText;
-  return `<div class="navtab-row" data-flyout-label="${escapeAttr(label)}${isFav?' ★':''}"${flyoutSub ? ` data-flyout-sub="${escapeAttr(flyoutSub)}"` : ''}>
+  // Oct 12, 2026 round 5: drag-to-reorder -- only the "real" entries rendered from renderSidebarGroups()
+  // pass opts.draggable=true (never Dashboard, never a Favorites-section duplicate, and never while
+  // the search filter is active, since the visible set no longer matches any group's real contents).
+  // See attachSidebarDragDrop()/moveSidebarModule() for the drop side.
+  const dragAttrs = opts.draggable ? ` draggable="true" data-drag-module="${id}"` : '';
+  return `<div class="navtab-row" data-flyout-label="${escapeAttr(label)}${isFav?' ★':''}"${flyoutSub ? ` data-flyout-sub="${escapeAttr(flyoutSub)}"` : ''}${dragAttrs}>
     <button class="navtab ${view===id?'active':''}" data-tab="${id}" title="${escapeAttr(titleBits.join(' — '))}"><span class="navtab-icon" style="--nav-hue:${SIDEBAR_ICON_HUES[id]||''}">${tabIcon(id)}</span><span class="navtab-label">${labelHtml}${gated?' 🔒':viewOnly?' 👁':''}</span>${badgeHtml}</button>
     ${!gated ? `<button class="navtab-pin-btn ${isFav?'pinned':''}" type="button" data-pin-tab="${id}" title="${isFav?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isFav?'Unpin '+escapeAttr(label)+' from Favorites':'Pin '+escapeAttr(label)+' to Favorites'}">${isFav?'★':'☆'}</button>` : ''}
   </div>`;
 }
 // Groups a run of tab() results under a small uppercase header in the sidebar (see .nav-section-label)
 // -- Vouchers & Entry / Masters / Reports & Compliance / Operations, the same Masters/Vouchers/Reports
-// vocabulary this app's users already know from Tally-style software. `items` is an array of tab()
-// results, each of which may already be '' (RBAC-hidden) -- the header itself only renders when at
-// least one item survived, so a role with an entire group hidden never sees a label floating over
-// nothing.
-function navSection(label, items){
+// vocabulary this app's users already know from Tally-style software, PLUS any custom groups the user
+// has created (see addSidebarGroup()). `items` is an array of tab() results, each of which may already
+// be '' (RBAC-hidden or filtered-out) -- the header itself only renders when at least one item
+// survived, so a role with an entire group hidden, or a search with no matches in this group, never
+// sees a label floating over nothing. `groupId` (new in round 5) is the STABLE id drag-and-drop and
+// the collapse-state key use -- falls back to a label-derived slug for any caller that doesn't pass
+// one, so this never breaks an existing call site.
+function navSection(label, items, groupId, isCustom){
   const html = items.filter(Boolean).join('');
-  if(!html) return '';
-  const slug = sectionSlug(label);
-  const collapsed = getCollapsedSections().includes(slug);
-  return `<button class="nav-section-label" type="button" data-section-toggle="${escapeAttr(slug)}" aria-expanded="${collapsed?'false':'true'}">${escapeHtml(label)}<svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="nav-section-group ${collapsed?'collapsed':''}">${html}</div>`;
+  // A builtin group with nothing visible in it (every module RBAC-hidden, or filtered out by the
+  // search box) still renders nothing at all -- same behavior as every prior round. A CUSTOM group
+  // is the one exception: it must keep rendering even with zero modules in it, or the instant you
+  // create one it would vanish from the sidebar with nowhere left to drag a module onto it. (It
+  // still disappears while actively filtering with no match, same as any other group, via the
+  // `filtering` check below -- only the "genuinely empty, not just filtered" case stays visible.)
+  if(!html && !(isCustom && !sidebarFilterQuery.trim())) return '';
+  const slug = groupId || sectionSlug(label);
+  const filtering = sidebarFilterQuery.trim().length>0;
+  const collapsed = !filtering && getCollapsedSections().includes(slug);
+  const headerBtn = `<button class="nav-section-label" type="button" data-section-toggle="${escapeAttr(slug)}" aria-expanded="${collapsed?'false':'true'}">${escapeHtml(label)}<svg class="nav-section-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  const bodyHtml = html || `<div class="nav-section-empty-hint">Drag a module here</div>`;
+  const groupDiv = `<div class="nav-section-group ${collapsed?'collapsed':''}" data-drop-group="${escapeAttr(slug)}">${bodyHtml}</div>`;
+  // Oct 12, 2026 round 5: a custom (non-builtin) group gets a small ✕ to delete it (see
+  // removeSidebarGroup()) -- builtin groups (Vouchers & Entry/Masters/Reports & Compliance/
+  // Operations) never show this, so the four defaults can't be accidentally removed, and their
+  // markup stays byte-for-byte what it was before this round (a bare header button immediately
+  // followed by its .nav-section-group sibling -- verify_sidebar_round3.js relies on exactly that
+  // adjacency via nextElementSibling). Only a custom group gets the extra wrapping row the delete
+  // button needs; nothing targets that row's structure from outside this round.
+  if(!isCustom) return headerBtn + groupDiv;
+  const deleteBtn = `<button type="button" class="nav-section-delete-btn" data-remove-group="${escapeAttr(slug)}" title="Remove group" aria-label="Remove ${escapeAttr(label)} group">✕</button>`;
+  return `<div class="nav-section-label-row">${headerBtn}${deleteBtn}</div>${groupDiv}`;
 }
 // Pinned Favorites -- a second, reordered view onto whichever modules the user has starred (see
 // getSidebarFavorites()/toggleSidebarFavorite()), pinned above every other section. Reuses tab()
@@ -14405,6 +14806,168 @@ function favoritesNavSection(){
     return meta ? tab(id, meta.label, meta.key) : '';
   }).filter(Boolean).join('');
   return html ? `<div class="nav-section-label">★ Favorites</div>${html}` : '';
+}
+// Renders every group from the user's sidebar layout (default or customized -- see
+// ensureSidebarLayout()), each tab draggable so it can be moved within or between groups, followed
+// by the "+ New Group" row. This is what render() calls in place of the four hardcoded navSection()
+// calls from earlier rounds -- ensureSidebarLayout()'s default content is identical to what used to
+// be hardcoded, so nobody who's never touched this feature sees any difference.
+function renderSidebarGroups(){
+  const layout = ensureSidebarLayout();
+  const groupsHtml = layout.groups.map(g=>{
+    const tabsHtml = g.moduleIds.map(id=>{
+      const meta = SIDEBAR_MODULE_LABELS[id];
+      return meta ? tab(id, meta.label, meta.key, {draggable:true}) : '';
+    });
+    return navSection(g.label, tabsHtml, g.id, !g.builtin);
+  }).join('');
+  return groupsHtml + sidebarAddGroupRow();
+}
+function sidebarAddGroupRow(){
+  if(sidebarAddGroupOpen){
+    return `<div class="sidebar-add-group-form">
+      <input type="text" id="sidebarAddGroupInput" placeholder="Group name…" value="${escapeAttr(sidebarAddGroupDraft)}" maxlength="40" autocomplete="off">
+      <button type="button" id="sidebarAddGroupConfirm" title="Create group" aria-label="Create group">✓</button>
+      <button type="button" id="sidebarAddGroupCancel" title="Cancel" aria-label="Cancel">✕</button>
+    </div>`;
+  }
+  return `<button type="button" class="sidebar-add-group-btn" id="sidebarAddGroupBtn">+ New Group</button>`;
+}
+// Live filter box pinned above the section list -- distinct from Ctrl+K (which opens a full
+// overlay and searches ledgers/parties/vouchers too): this stays right in the rail for quickly
+// narrowing down which MODULE you want without leaving the sidebar. See tab()'s own filtering and
+// navSection()'s "force open while filtering" logic for how a match actually surfaces.
+function sidebarSearchBox(){
+  return `<div class="sidebar-search-wrap">
+    <span class="sidebar-search-icon" aria-hidden="true">🔎</span>
+    <input type="text" id="sidebarSearchInput" placeholder="Search modules…" value="${escapeAttr(sidebarFilterQuery)}" autocomplete="off" aria-label="Search sidebar modules">
+    ${sidebarFilterQuery ? `<button type="button" class="sidebar-search-clear" id="sidebarSearchClear" title="Clear search" aria-label="Clear search">✕</button>` : ''}
+  </div>`;
+}
+// True when sidebarFilterQuery is set but matched nothing anywhere in the sidebar -- navSection()
+// already hides an individual empty group, but render() also needs to know when EVERY group came up
+// empty, to show one explanatory line instead of a sidebar that just silently goes blank.
+function sidebarFilterHasNoMatches(){
+  const q = sidebarFilterQuery.trim().toLowerCase();
+  if(!q) return false;
+  return !SIDEBAR_MODULE_ORDER.some(id=>!isModuleHidden(id) && SIDEBAR_MODULE_LABELS[id].label.toLowerCase().includes(q));
+}
+// One bell, one place to see everything that needs attention across the sidebar's live badges
+// (Orders/Reconcile/GST today -- sidebarTabBadge() already owns that list, so a future new badge
+// shows up here automatically with no separate wiring) instead of having to scan each icon for a
+// dot. Purely a read of existing badge data; nothing new is computed or stored.
+function sidebarNotificationItems(){
+  return SIDEBAR_MODULE_ORDER
+    .filter(id=>!isModuleHidden(id))
+    .map(id=>({ id, meta: SIDEBAR_MODULE_LABELS[id], badge: sidebarTabBadge(id) }))
+    .filter(x=>x.badge);
+}
+function sidebarNotificationBell(){
+  const items = sidebarNotificationItems();
+  const total = items.reduce((s,x)=> s + (x.badge.type==='count' ? x.badge.value : 1), 0);
+  return `<div class="sidebar-bell-wrap">
+    <button type="button" class="sidebar-bell-btn" id="sidebarBellBtn" title="Notifications" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='bell'}" aria-label="Notifications${total?`, ${total} need attention`:''}">
+      🔔${total>0?`<span class="sidebar-bell-count">${total>99?'99+':total}</span>`:''}
+    </button>
+    ${sidebarPopoverOpen==='bell' ? `
+    <div class="sidebar-bell-panel" role="menu">
+      <div class="sidebar-bell-panel-title">Notifications</div>
+      ${items.length ? items.map(x=>`
+        <button type="button" class="sidebar-bell-item" data-bell-goto="${x.id}" role="menuitem">
+          <span class="sidebar-bell-item-label">${escapeHtml(x.meta.label)}</span>
+          <span class="sidebar-bell-item-value">${x.badge.type==='dot' ? 'Needs attention' : `${x.badge.value} pending`}</span>
+        </button>`).join('') : `<div class="sidebar-bell-empty">✓ All caught up</div>`}
+    </div>` : ''}
+  </div>`;
+}
+// A small curated palette (SIDEBAR_ACCENT_PRESETS) the user can pick from instead of the fixed
+// brand green -- applied via the --sidebar-accent custom property set inline on .tabstrip in
+// render(), which only the indicator/section-dot/icon-hover CSS rules reference, so this never
+// touches the brand header, company avatar, or anything outside the sidebar itself.
+function sidebarAccentPicker(){
+  const current = getSidebarAccent();
+  return `<div class="sidebar-accent-wrap">
+    <button type="button" class="sidebar-accent-btn" id="sidebarAccentBtn" title="Sidebar accent color" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='accent'}" aria-label="Choose sidebar accent color">
+      <span class="sidebar-accent-swatch-preview" style="background:${current||'var(--accent1)'}"></span>🎨
+    </button>
+    ${sidebarPopoverOpen==='accent' ? `
+    <div class="sidebar-accent-panel" role="menu">
+      <div class="sidebar-accent-panel-title">Accent color</div>
+      <div class="sidebar-accent-swatches">
+        ${SIDEBAR_ACCENT_PRESETS.map(hex=>`<button type="button" class="sidebar-accent-swatch ${current===hex?'is-selected':(!current && hex==='#2CA01C')?'is-selected':''}" data-accent-swatch="${hex}" style="background:${hex}" title="${hex}" aria-label="Use ${hex}"></button>`).join('')}
+      </div>
+      ${current ? `<button type="button" class="sidebar-accent-reset" id="sidebarAccentReset">Reset to default</button>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+// Closes whichever sidebar popover (bell or accent) is open when a click lands outside both their
+// wraps -- bound ONCE at script load, same reasoning as attachSidebarResizeHandle()'s document-level
+// mousemove/mouseup: `document` itself is never recreated by render(), so binding this inside
+// attachHandlers() (which reruns on every render()) would stack a fresh listener each time and leak.
+// Re-queries the wrap elements fresh on every click rather than closing over stale references, since
+// whichever wrap IS open did get freshly rendered.
+document.addEventListener('click', (e)=>{
+  if(!sidebarPopoverOpen) return;
+  const bellWrap = document.querySelector('.sidebar-bell-wrap');
+  const accentWrap = document.querySelector('.sidebar-accent-wrap');
+  const insideBell = bellWrap && bellWrap.contains(e.target);
+  const insideAccent = accentWrap && accentWrap.contains(e.target);
+  if(!insideBell && !insideAccent){
+    sidebarPopoverOpen = false;
+    render();
+  }
+});
+// ---- Oct 12, 2026 round 5: drag-to-reorder between/within custom sidebar groups. Re-bound every
+// render() like the other per-row listeners (attachSidebarFlyouts(), etc.) since every row and group
+// container is a brand-new element each time. Two drop targets exist for the same drag: a specific
+// ROW (insert before that module) and the bare GROUP container (append to end of that group) -- the
+// row-level handler calls stopPropagation() so a drop that lands on a row never also bubbles up and
+// re-fires the group-level handler for the same drop.
+function attachSidebarDragDrop(){
+  const rows = document.querySelectorAll('.navtab-row[data-drag-module]');
+  const groups = document.querySelectorAll('.nav-section-group[data-drop-group]');
+  rows.forEach(row=>{
+    row.addEventListener('dragstart', (e)=>{
+      sidebarDragModuleId = row.dataset.dragModule;
+      row.classList.add('sidebar-dragging');
+      try{ e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sidebarDragModuleId); }catch(err){}
+    });
+    row.addEventListener('dragend', ()=>{
+      row.classList.remove('sidebar-dragging');
+      sidebarDragModuleId = null;
+      document.querySelectorAll('.sidebar-drag-over-row').forEach(el=>el.classList.remove('sidebar-drag-over-row'));
+      document.querySelectorAll('.sidebar-drag-over').forEach(el=>el.classList.remove('sidebar-drag-over'));
+    });
+    row.addEventListener('dragover', (e)=>{
+      if(!sidebarDragModuleId) return;
+      e.preventDefault();
+      row.classList.add('sidebar-drag-over-row');
+    });
+    row.addEventListener('dragleave', ()=>{ row.classList.remove('sidebar-drag-over-row'); });
+    row.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      row.classList.remove('sidebar-drag-over-row');
+      if(!sidebarDragModuleId || sidebarDragModuleId===row.dataset.dragModule) return;
+      const groupEl = row.closest('.nav-section-group[data-drop-group]');
+      if(!groupEl) return;
+      moveSidebarModule(sidebarDragModuleId, groupEl.dataset.dropGroup, row.dataset.dragModule);
+    });
+  });
+  groups.forEach(groupEl=>{
+    groupEl.addEventListener('dragover', (e)=>{
+      if(!sidebarDragModuleId) return;
+      e.preventDefault();
+      groupEl.classList.add('sidebar-drag-over');
+    });
+    groupEl.addEventListener('dragleave', ()=>{ groupEl.classList.remove('sidebar-drag-over'); });
+    groupEl.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      groupEl.classList.remove('sidebar-drag-over');
+      if(!sidebarDragModuleId) return;
+      moveSidebarModule(sidebarDragModuleId, groupEl.dataset.dropGroup, null);
+    });
+  });
 }
 // ---- Oct 10, 2026 "more attractive" sidebar pass: brand header, company mini-card, sliding
 // active-tab indicator. ----
@@ -18040,6 +18603,22 @@ function coStepBasicInfo(){
     ${INDUSTRY_TYPES.map(g=>`<optgroup label="${escapeAttr(g.group)}">${g.options.map(o=>`<option value="${escapeAttr(o)}" ${coform.industry===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</optgroup>`).join('')}
   </select>
   <p class="muted" style="font-size:11px;margin-top:6px;">Picking the closest match helps tailor reports later — you can change it anytime from Company settings. Don't see an exact fit? Use "Other / General Services" at the end of the list.</p>
+  ${(()=>{
+    // Oct 12, 2026 round: clone-from-template -- an optional shortcut that copies ledger NAMES/GROUPS
+    // from an existing company of yours (see cloneLedgersFromCompany()) so you don't have to rebuild
+    // the same Chart of Accounts from scratch for a second branch/outlet. Opening balances always
+    // reset to zero and nothing else (vouchers, parties, items) is copied, so this is deliberately
+    // only ever a starting-point shortcut, never a real duplicate of another company's books.
+    const templates = visibleCompanies().filter(c=>!isSharedDemoId(c.id));
+    if(!templates.length) return '';
+    return `
+    <label style="margin-top:10px;">Start From</label>
+    <select id="coCloneFrom">
+      <option value="">Blank company (just Cash, Bank, Capital)</option>
+      ${templates.map(c=>`<option value="${c.id}" ${coform.cloneFromId===c.id?'selected':''}>Copy ledgers from "${escapeAttr(c.name)}"</option>`).join('')}
+    </select>
+    <p class="muted" style="font-size:11px;margin-top:6px;">Only ledger names and groups are copied — opening balances start at ₹0 and nothing else (vouchers, parties, items) comes along.</p>`;
+  })()}
   ${isDemoUser ? `<p class="auth-error" style="margin-top:12px;">Demo accounts can't create a company — sign up for your own free account to add your own.</p>` : ''}
   `;
 }
@@ -18186,6 +18765,36 @@ function companyRenameModal(){
         <div class="row" style="gap:10px;margin-top:16px;">
           <button class="btn secondary" id="cancelRenameCoBtn" type="button" style="flex:1;">Cancel</button>
           <button class="btn ${renameCoBusy?'btn-busy':''}" id="saveRenameCoBtn" type="button" style="flex:1;" ${renameCoBusy?'disabled':''}>${renameCoBusy?'Saving…':'Save'}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+// Oct 12, 2026 round: Setup Checklist -- opened from a company card's progress strip (see
+// shouldShowSetupChecklist()/companySetupChecklist() and the card's data-setup-checklist-co button).
+// Mirrors companyRenameModal()'s own small-modal structure but reuses the generic
+// modalOverlayBg/modalClose ids, same convention as accountantDashModal()/consolidationModal() below.
+function setupChecklistModal(){
+  const c = companies.find(x=>x.id===setupChecklistModalCoId);
+  if(!c) return '';
+  const cl = companySetupChecklist(c);
+  return `
+  <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-card" style="width:420px;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>🚀 Finish setting up ${escapeHtml(c.name)}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+      <div style="padding:18px;">
+        <p class="muted" style="font-size:12px;margin:0 0 14px;">${cl.doneCount} of ${cl.total} steps done so far. Pick up wherever you like — nothing here is required.</p>
+        <div class="setup-checklist-list">
+          ${cl.items.map(i=>`
+          <div class="setup-checklist-item ${i.done?'is-done':''}">
+            <span class="setup-checklist-dot">${i.done?'✓':''}</span>
+            <span class="setup-checklist-label">${escapeHtml(i.label)}</span>
+          </div>`).join('')}
+        </div>
+        <div class="row" style="gap:10px;margin-top:18px;">
+          <button class="btn secondary" id="dismissSetupChecklistBtn" type="button" style="flex:1;">Don't show again</button>
+          <button class="btn" id="openSetupChecklistCoBtn" type="button" style="flex:1;">Open Company →</button>
         </div>
       </div>
     </div>
@@ -18418,14 +19027,38 @@ function renderGateway(){
       ${(()=>{
         const allMyCompanies = visibleCompanies();
         const q = gatewaySearchQuery.trim().toLowerCase();
-        const myCompanies = sortCompaniesForGateway(q ? allMyCompanies.filter(c=>(c.name||'').toLowerCase().includes(q)) : allMyCompanies, gatewaySortMode);
+        const folderFiltered = gatewayActiveFolder ? allMyCompanies.filter(c=>companyFolderOf(c.id)===gatewayActiveFolder) : allMyCompanies;
+        const myCompanies = sortCompaniesForGateway(q ? folderFiltered.filter(c=>(c.name||'').toLowerCase().includes(q)) : folderFiltered, gatewaySortMode);
         const SORT_LABELS = { recent:'Recent', name:'Name A–Z', ledgers:'Most Ledgers', vouchers:'Most Vouchers' };
+        // Oct 12, 2026 round: folders/tags -- "All" plus every user-created folder plus the reserved
+        // "Archived" folder, each a count-bearing filter chip above the grid (see gatewayActiveFolder).
+        // Only rendered once there's more than one company to organize, same threshold the
+        // search/sort/view controls already use just above.
+        const folders = getCompanyFolders();
+        const folderMap = getCompanyFolderMap();
+        const archivedCount = allMyCompanies.filter(c=>folderMap[c.id]===ARCHIVED_FOLDER_ID).length;
+        const folderChipsHtml = allMyCompanies.length > 1 ? `
+        <div class="gw-folder-chips">
+          <button type="button" class="gw-folder-chip ${!gatewayActiveFolder?'is-active':''}" data-folder-chip="">All <span class="gw-folder-chip-count">${allMyCompanies.length}</span></button>
+          ${folders.map(f=>{
+            const count = allMyCompanies.filter(c=>folderMap[c.id]===f.id).length;
+            return `<button type="button" class="gw-folder-chip ${gatewayActiveFolder===f.id?'is-active':''}" data-folder-chip="${f.id}">📁 ${escapeHtml(f.name)} <span class="gw-folder-chip-count">${count}</span>${count===0?`<span class="gw-folder-chip-del" data-folder-del="${f.id}" title="Delete empty folder">✕</span>`:''}</button>`;
+          }).join('')}
+          ${archivedCount>0 ? `<button type="button" class="gw-folder-chip ${gatewayActiveFolder===ARCHIVED_FOLDER_ID?'is-active':''}" data-folder-chip="${ARCHIVED_FOLDER_ID}">🗄 Archived <span class="gw-folder-chip-count">${archivedCount}</span></button>` : ''}
+          ${gatewayAddFolderOpen ? `
+          <span class="gw-folder-add-form">
+            <input type="text" id="gwAddFolderInput" placeholder="Folder name…" value="${escapeAttr(gatewayAddFolderDraft)}" maxlength="30" autocomplete="off">
+            <button type="button" id="gwAddFolderConfirm" title="Create folder">✓</button>
+            <button type="button" id="gwAddFolderCancel" title="Cancel">✕</button>
+          </span>` : `<button type="button" class="gw-folder-chip gw-folder-chip-add" id="gwAddFolderBtn">+ Folder</button>`}
+        </div>` : '';
         return `
       <div class="gw-section-row">
         <div class="gw-section-title">Your Companies</div>
         <div class="gw-toolbar">
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
+        ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary ${gatewayBulkMode?'is-active':''}" id="gwBulkModeBtn" type="button" title="Select multiple companies">${gatewayBulkMode?'✕ Cancel Select':'☑ Select'}</button>` : ''}
         ${allMyCompanies.length > 1 ? `
         <div class="gw-search-wrap">
           <span class="gw-search-icon">🔎</span>
@@ -18443,6 +19076,18 @@ function renderGateway(){
         </div>` : ''}
         </div>
       </div>
+      ${folderChipsHtml}
+      ${gatewayBulkMode ? `
+      <div class="gw-bulk-bar">
+        <span class="gw-bulk-count">${gatewaySelectedCoIds.length} selected</span>
+        <select id="gwBulkFolderSelect" ${gatewaySelectedCoIds.length?'':'disabled'}>
+          <option value="">Add to folder…</option>
+          ${folders.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}
+        </select>
+        <button type="button" class="btn secondary small" id="gwBulkArchiveBtn" ${gatewaySelectedCoIds.length?'':'disabled'}>🗄 Archive</button>
+        <button type="button" class="btn secondary small" id="gwBulkExportBtn" ${gatewaySelectedCoIds.length?'':'disabled'}>⬇ Export Summary CSV</button>
+        <button type="button" class="btn secondary small" id="gwBulkSelectAllBtn">Select All</button>
+      </div>` : ''}
       <div class="company-grid${gatewayViewMode==='list'?' is-list-view':''}">
         ${myCompanies.map((c,i)=>{
           const initials = (c.name||'?').trim().slice(0,2).toUpperCase();
@@ -18480,6 +19125,19 @@ function renderGateway(){
           // never offers a Delete action the Firestore rules (and deleteCompanyById()) would reject.
           const canQuickDelete = canQuickManage && canDeleteCompanyQuick(c);
           const menuOpen = gatewayCardMenuOpenId===c.id;
+          // Oct 12, 2026 round: folders -- a submenu-free list of "Move to <folder>" entries appended
+          // under a divider in the existing ⋮ menu (plus "Remove from folder" when already in one),
+          // rather than a nested flyout submenu, to keep this menu's existing simple click/stopPropagation
+          // pattern intact. "Archive" always appears even with zero user-created folders, since it's
+          // the one folder every account effectively already has.
+          const myFolderId = companyFolderOf(c.id);
+          const folderMenuItems = canQuickManage ? `
+                    <div class="company-card-menu-divider"></div>
+                    ${getCompanyFolders().filter(f=>f.id!==myFolderId).map(f=>`<button type="button" data-set-folder-co="${c.id}" data-set-folder-id="${f.id}" role="menuitem">📁 Move to "${escapeAttr(f.name)}"</button>`).join('')}
+                    ${myFolderId!==ARCHIVED_FOLDER_ID ? `<button type="button" data-set-folder-co="${c.id}" data-set-folder-id="${ARCHIVED_FOLDER_ID}" role="menuitem">🗄 Archive</button>` : ''}
+                    ${myFolderId ? `<button type="button" data-set-folder-co="${c.id}" data-set-folder-id="" role="menuitem">↩ Remove from ${myFolderId===ARCHIVED_FOLDER_ID?'Archived':'folder'}</button>` : ''}` : '';
+          const selected = gatewaySelectedCoIds.includes(c.id);
+          const bulkCheckboxHtml = gatewayBulkMode ? `<button type="button" class="company-card-bulk-check${selected?' is-checked':''}" data-bulk-select-co="${c.id}" role="checkbox" aria-checked="${selected}" aria-label="Select ${escapeAttr(c.name)}">${selected?'✓':''}</button>` : '';
           const actionsHtml = `
                 <button class="company-card-pin${pinned?' is-pinned':''}" data-pin-co="${c.id}" type="button" title="${pinned?'Unpin from top':'Pin to top'}" aria-label="${pinned?'Unpin':'Pin'} ${escapeAttr(c.name)}">${pinned?'★':'☆'}</button>
                 ${canQuickManage ? `
@@ -18489,18 +19147,31 @@ function renderGateway(){
                   <div class="company-card-menu" role="menu">
                     <button type="button" data-rename-co="${c.id}" role="menuitem">✏️ Rename</button>
                     ${canQuickDelete ? `<button type="button" data-delete-co="${c.id}" role="menuitem" class="is-danger">🗑️ Delete</button>` : ''}
+                    ${folderMenuItems}
                   </div>` : ''}
                 </div>` : ''}
                 <span class="company-card-arrow">→</span>`;
+          // Setup checklist strip -- see shouldShowSetupChecklist()/companySetupChecklist(). Opens a
+          // small modal rather than expanding inline, so it doesn't push the grid's card heights
+          // around for everyone else's cards every time one company's progress changes.
+          const checklist = shouldShowSetupChecklist(c) ? companySetupChecklist(c) : null;
+          const checklistHtml = checklist ? `
+            <button type="button" class="company-card-checklist" data-setup-checklist-co="${c.id}" title="Finish setting up this company">
+              <span class="company-card-checklist-bar"><span style="width:${Math.round(checklist.doneCount/checklist.total*100)}%"></span></span>
+              <span class="company-card-checklist-label">🚀 Setup ${checklist.doneCount}/${checklist.total}</span>
+            </button>` : '';
+          const folderBadge = myFolderId ? `<span class="pill" style="background:var(--surface-strong);color:var(--ink-soft);">${myFolderId===ARCHIVED_FOLDER_ID?'🗄 Archived':'📁 '+escapeHtml((getCompanyFolders().find(f=>f.id===myFolderId)||{}).name||'')}</span>` : '';
           if(gatewayViewMode==='list'){
-            return `<div class="company-card company-card-row${pinned?' is-pinned':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*30}ms;">
+            return `<div class="company-card company-card-row${pinned?' is-pinned':''}${selected?' is-bulk-selected':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*30}ms;">
+              ${bulkCheckboxHtml}
               <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
               <div class="company-card-body">
                 <div class="company-card-name">${escapeHtml(c.name)}</div>
                 <div class="company-card-recency">${recencyText}</div>
               </div>
-              ${badgesHtml ? `<div class="company-card-badges">${badgesHtml}</div>` : ''}
+              ${badgesHtml || folderBadge ? `<div class="company-card-badges">${badgesHtml}${folderBadge}</div>` : ''}
               ${healthHtml}
+              ${checklistHtml}
               <div class="company-card-stats">
                 <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
                 <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
@@ -18508,14 +19179,16 @@ function renderGateway(){
               <div class="company-card-top-right">${actionsHtml}</div>
             </div>`;
           }
-          return `<div class="company-card${pinned?' is-pinned':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*45}ms;">
+          return `<div class="company-card${pinned?' is-pinned':''}${selected?' is-bulk-selected':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*45}ms;">
+            ${bulkCheckboxHtml}
             <div class="company-card-top">
               <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
               <div class="company-card-top-right">${actionsHtml}</div>
             </div>
             <div class="company-card-name">${escapeHtml(c.name)}</div>
-            <div class="company-card-badges">${badgesHtml}</div>
+            <div class="company-card-badges">${badgesHtml}${folderBadge}</div>
             ${healthHtml}
+            ${checklistHtml}
             <div class="company-card-stats">
               <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
               <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
@@ -18600,6 +19273,7 @@ function renderGateway(){
     ${modal==='consolidation' ? consolidationModal() : ''}
     ${modal==='stepUpVerify' ? stepUpVerifyModal() : ''}
     ${modal==='trustedDevices' ? trustedDevicesModal() : ''}
+    ${modal==='setupChecklist' && setupChecklistModalCoId ? setupChecklistModal() : ''}
     ${diWidget()}
       </div>
     </div>
@@ -18609,11 +19283,106 @@ function renderGateway(){
   document.querySelectorAll('[data-select-co]').forEach(el=>{
     el.addEventListener('click', async (e)=>{
       const id = el.dataset.selectCo;
+      // Oct 12, 2026 round: while bulk-select mode is on, clicking a card toggles its checkbox
+      // instead of opening the company -- same "intercept before the normal click" pattern the pin
+      // button and ⋮ menu already use, just gated on gatewayBulkMode instead of a stopPropagation().
+      if(gatewayBulkMode){ toggleGatewaySelected(id); return; }
       const c = companies.find(x=>x.id===id);
       if(!c || !canAccessCompany(c)) return;
       await enterCompanyApp(c);
     });
   });
+  document.querySelectorAll('[data-bulk-select-co]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); toggleGatewaySelected(el.dataset.bulkSelectCo); });
+  });
+  document.getElementById('gwBulkModeBtn')?.addEventListener('click', toggleGatewayBulkMode);
+  document.getElementById('gwBulkSelectAllBtn')?.addEventListener('click', ()=>{
+    const ids = Array.from(document.querySelectorAll('[data-select-co]')).map(el=>el.dataset.selectCo);
+    gatewaySelectedCoIds = gatewaySelectedCoIds.length===ids.length ? [] : ids;
+    renderGateway();
+  });
+  document.getElementById('gwBulkFolderSelect')?.addEventListener('change', (e)=>{
+    const folderId = e.target.value;
+    if(!folderId || !gatewaySelectedCoIds.length) return;
+    const map = getCompanyFolderMap();
+    gatewaySelectedCoIds.forEach(id=> map[id] = folderId);
+    saveCompanyFolderMap(map);
+    toast(`Added ${gatewaySelectedCoIds.length} compan${gatewaySelectedCoIds.length===1?'y':'ies'} to the folder.`);
+    renderGateway();
+  });
+  document.getElementById('gwBulkArchiveBtn')?.addEventListener('click', ()=>{
+    if(!gatewaySelectedCoIds.length) return;
+    const map = getCompanyFolderMap();
+    gatewaySelectedCoIds.forEach(id=> map[id] = ARCHIVED_FOLDER_ID);
+    saveCompanyFolderMap(map);
+    toast(`Archived ${gatewaySelectedCoIds.length} compan${gatewaySelectedCoIds.length===1?'y':'ies'}.`);
+    gatewaySelectedCoIds = [];
+    renderGateway();
+  });
+  document.getElementById('gwBulkExportBtn')?.addEventListener('click', ()=>{
+    if(!gatewaySelectedCoIds.length) return;
+    exportCompanySummaryCSV(companies.filter(c=>gatewaySelectedCoIds.includes(c.id)));
+  });
+  // Folder filter chips + "+ Folder" inline create form -- same caret-preservation idiom the sidebar
+  // search box and gwCompanySearchInput both use for their own live-typed inputs.
+  document.querySelectorAll('[data-folder-chip]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-folder-del]')) return; // the ✕ inside a chip has its own handler below
+      gatewayActiveFolder = el.dataset.folderChip || null;
+      renderGateway();
+    });
+  });
+  document.querySelectorAll('[data-folder-del]').forEach(el=>{
+    el.addEventListener('click', (e)=>{ e.stopPropagation(); removeCompanyFolder(el.dataset.folderDel); });
+  });
+  document.getElementById('gwAddFolderBtn')?.addEventListener('click', ()=>{
+    gatewayAddFolderOpen = true;
+    renderGateway();
+    document.getElementById('gwAddFolderInput')?.focus();
+  });
+  document.getElementById('gwAddFolderCancel')?.addEventListener('click', ()=>{
+    gatewayAddFolderOpen = false;
+    gatewayAddFolderDraft = '';
+    renderGateway();
+  });
+  document.getElementById('gwAddFolderInput')?.addEventListener('input', e=>{ gatewayAddFolderDraft = e.target.value; });
+  document.getElementById('gwAddFolderInput')?.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') addCompanyFolder(e.target.value);
+    else if(e.key==='Escape'){ gatewayAddFolderOpen = false; gatewayAddFolderDraft = ''; renderGateway(); }
+  });
+  document.getElementById('gwAddFolderConfirm')?.addEventListener('click', ()=>{
+    addCompanyFolder(document.getElementById('gwAddFolderInput')?.value || gatewayAddFolderDraft);
+  });
+  document.querySelectorAll('[data-set-folder-co]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      setCompanyFolder(el.dataset.setFolderCo, el.dataset.setFolderId);
+    });
+  });
+  // Setup checklist -- the card's progress strip opens a small modal; stopPropagation so clicking it
+  // never also opens the company underneath, same convention as the pin/menu buttons.
+  document.querySelectorAll('[data-setup-checklist-co]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      setupChecklistModalCoId = el.dataset.setupChecklistCo;
+      modal = 'setupChecklist';
+      renderGateway();
+    });
+  });
+  if(modal==='setupChecklist' && setupChecklistModalCoId){
+    const closeSetupChecklist = ()=>{ modal = null; setupChecklistModalCoId = null; renderGateway(); };
+    document.getElementById('modalClose')?.addEventListener('click', closeSetupChecklist);
+    document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='modalOverlayBg') closeSetupChecklist();
+    });
+    document.getElementById('dismissSetupChecklistBtn')?.addEventListener('click', ()=> dismissSetupChecklist(setupChecklistModalCoId));
+    document.getElementById('openSetupChecklistCoBtn')?.addEventListener('click', async ()=>{
+      const c = companies.find(x=>x.id===setupChecklistModalCoId);
+      modal = null;
+      setupChecklistModalCoId = null;
+      if(c && canAccessCompany(c)) await enterCompanyApp(c);
+    });
+  }
   document.getElementById('gwResumeBtn')?.addEventListener('click', async ()=>{
     const id = document.getElementById('gwResumeBtn').dataset.resumeCo;
     const c = companies.find(x=>x.id===id);
@@ -18745,6 +19514,7 @@ function renderGateway(){
   document.getElementById('coName')?.addEventListener('input', e=> coform.name = e.target.value);
   document.getElementById('coMailingName')?.addEventListener('input', e=> coform.mailingName = e.target.value);
   document.getElementById('coIndustry')?.addEventListener('change', e=> coform.industry = e.target.value);
+  document.getElementById('coCloneFrom')?.addEventListener('change', e=> coform.cloneFromId = e.target.value);
   document.getElementById('coAddress')?.addEventListener('input', e=> coform.address = e.target.value);
   function bindCoStateField(){
     const el = document.getElementById('coState');
@@ -18851,7 +19621,18 @@ function renderGateway(){
       // just whoever happened to click "Create Company". See canAccessCompany()/loadCompanies() for
       // the read side of this sharing, and the Firestore rules for the actual enforcement.
       groupId: currentUser ? (currentUser.groupOwnerId || (currentUser.role==='support' ? currentUser.id : null)) : null,
+      // Oct 12, 2026 round: createdAt powers the new-company Setup Checklist (see
+      // shouldShowSetupChecklist()) -- the only way to know "how new is this company" reliably, since
+      // nothing else on the company doc carries a creation timestamp.
+      createdAt: new Date().toISOString(),
     };
+    // Clone-from-template: only set a `ledgers` field at all when a template was actually picked --
+    // leaving it unset for a blank company preserves the existing behaviour exactly (ensureCoreLedgers()
+    // seeds DEFAULT_LEDGERS the first time the company is opened, same as before this round).
+    if(coform.cloneFromId){
+      const templateCo = companies.find(c=>c.id===coform.cloneFromId);
+      company.ledgers = cloneLedgersFromCompany(templateCo);
+    }
     // Don't touch local state or open the company until the write is CONFIRMED to have landed in
     // Firestore — pushing optimistically and opening it regardless (the old behaviour) meant a
     // failed save was invisible at the moment it happened, and the "created" company would just be
@@ -18869,7 +19650,7 @@ function renderGateway(){
       return;
     }
     companies.push(company);
-    coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa' };
+    coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa', cloneFromId:'' };
     coformStep = 1;
     companyCreateModalOpen = false;
     await enterCompanyApp(company);
@@ -32370,6 +33151,72 @@ function attachHandlers(){
   });
   attachSidebarResizeHandle();
   attachSidebarFlyouts();
+  attachSidebarDragDrop();
+  // ---- Oct 12, 2026 round 5: inline search box (see sidebarSearchBox()) -- caret-preservation
+  // idiom copied verbatim from gwCompanySearchInput, since render() destroys/recreates this <input>
+  // on every keystroke.
+  document.getElementById('sidebarSearchInput')?.addEventListener('input', (e)=>{
+    sidebarFilterQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    render();
+    const el = document.getElementById('sidebarSearchInput');
+    if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+  });
+  document.getElementById('sidebarSearchClear')?.addEventListener('click', ()=>{
+    sidebarFilterQuery = '';
+    render();
+    document.getElementById('sidebarSearchInput')?.focus();
+  });
+  // ---- Oct 12, 2026 round 5: custom groups -- "+ New Group" row (see sidebarAddGroupRow()). ----
+  document.getElementById('sidebarAddGroupBtn')?.addEventListener('click', ()=>{
+    sidebarAddGroupOpen = true;
+    render();
+    document.getElementById('sidebarAddGroupInput')?.focus();
+  });
+  document.getElementById('sidebarAddGroupCancel')?.addEventListener('click', ()=>{
+    sidebarAddGroupOpen = false;
+    sidebarAddGroupDraft = '';
+    render();
+  });
+  document.getElementById('sidebarAddGroupInput')?.addEventListener('input', (e)=>{
+    sidebarAddGroupDraft = e.target.value;
+  });
+  document.getElementById('sidebarAddGroupInput')?.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') addSidebarGroup(e.target.value);
+    else if(e.key==='Escape'){ sidebarAddGroupOpen = false; sidebarAddGroupDraft = ''; render(); }
+  });
+  document.getElementById('sidebarAddGroupConfirm')?.addEventListener('click', ()=>{
+    addSidebarGroup(document.getElementById('sidebarAddGroupInput')?.value || sidebarAddGroupDraft);
+  });
+  document.querySelectorAll('[data-remove-group]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      removeSidebarGroup(btn.dataset.removeGroup);
+    });
+  });
+  // ---- Oct 12, 2026 round 5: notification bell + accent picker (see sidebarNotificationBell()/
+  // sidebarAccentPicker()) -- click-outside-to-close is handled once at script load, above. ----
+  document.getElementById('sidebarBellBtn')?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    sidebarPopoverOpen = sidebarPopoverOpen==='bell' ? false : 'bell';
+    render();
+  });
+  document.querySelectorAll('[data-bell-goto]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      sidebarPopoverOpen = false;
+      goToTab(btn.dataset.bellGoto); // no-ops (incl. its own render()) if already on that tab
+      render(); // closes the popover even on that no-op path
+    });
+  });
+  document.getElementById('sidebarAccentBtn')?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    sidebarPopoverOpen = sidebarPopoverOpen==='accent' ? false : 'accent';
+    render();
+  });
+  document.querySelectorAll('[data-accent-swatch]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ setSidebarAccent(btn.dataset.accentSwatch); });
+  });
+  document.getElementById('sidebarAccentReset')?.addEventListener('click', ()=>{ setSidebarAccent(null); });
   // Lands the sliding active-tab pill (see positionSidebarIndicator()) in its correct spot on every
   // single render -- goToTab() separately layers its own FLIP animation on top of this via
   // animateSidebarIndicatorFrom(), but every OTHER render() (closing a modal, toggling the collapse
