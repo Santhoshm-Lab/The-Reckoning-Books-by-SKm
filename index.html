@@ -477,10 +477,33 @@
   .statusbar{display:flex;justify-content:space-between;background:var(--surface);border-top:1px solid var(--border);padding:0;font-size:11px;color:var(--ink-faint);}
   .statusbar span{padding:7px 16px;}
 
-  .masthead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
-  .masthead h1{font-family:inherit;font-weight:800;font-size:20px;margin:0;letter-spacing:-.02em;color:var(--ink);}
-  .masthead .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
-  .datebadge{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:700;font-size:11.5px;color:var(--ink-soft);border:1px solid var(--border);background:var(--surface-strong);padding:5px 11px;border-radius:999px;}
+  .masthead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;position:relative;}
+  .masthead h1{font-family:inherit;font-weight:800;font-size:20px;margin:0;letter-spacing:-.02em;color:var(--ink);position:relative;}
+  .masthead .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;position:relative;}
+  .datebadge{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:700;font-size:11.5px;color:var(--ink-soft);border:1px solid var(--border);background:var(--surface-strong);padding:5px 11px;border-radius:999px;position:relative;}
+
+  /* Module-colored ambient header glow -- extends the Dashboard/Login/Gateway "advanced UI/UX"
+     round's animated ambient-glow language to every other screen's header, instead of leaving it
+     as something only those three surfaces have. Deliberately reuses each module's OWN existing
+     identity color (SIDEBAR_ICON_HUES, set inline as --module-hue by masthead() below) rather than
+     inventing a second palette -- so Ledgers' header glows the same green as its sidebar icon, GST's
+     glows the same purple, and so on, tying the sidebar's per-module color system into the main
+     content area instead of leaving it siloed in the nav. Scaled down from the full-bleed hero glow
+     used on the Login screen/Gateway welcome banner (this sits behind a slim inline header, not a
+     dedicated hero section) and kept strictly behind the header's own text via z-index, so it reads
+     as a quiet wash rather than competing with the title for attention. */
+  .masthead::before{
+    content:'';position:absolute;z-index:0;pointer-events:none;
+    inset:-18px -14px -10px -14px;border-radius:16px;
+    background:radial-gradient(ellipse 320px 130px at 16% 32%, color-mix(in srgb, var(--module-hue, var(--accent1)) 15%, transparent) 0%, transparent 72%),
+               radial-gradient(ellipse 260px 110px at 92% 70%, color-mix(in srgb, var(--module-hue, var(--accent2)) 9%, transparent) 0%, transparent 70%);
+  }
+  [data-theme="dark"] .masthead::before{
+    background:radial-gradient(ellipse 340px 140px at 16% 32%, color-mix(in srgb, var(--module-hue, var(--accent1)) 28%, transparent) 0%, transparent 72%),
+               radial-gradient(ellipse 280px 120px at 92% 70%, color-mix(in srgb, var(--module-hue, var(--accent2)) 17%, transparent) 0%, transparent 70%);
+  }
+  @keyframes mastheadGlowDrift{ 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(7px,-4px) scale(1.04);} }
+  @media (prefers-reduced-motion: no-preference){ .masthead::before{animation:mastheadGlowDrift 13s ease-in-out infinite;} }
 
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
   .stat{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px 17px;box-shadow:0 2px 10px rgba(20,30,25,0.06);overflow:hidden;transition:box-shadow .2s ease, transform .2s ease;}
@@ -630,6 +653,23 @@
   .num{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap;}
   .num.neg{color:var(--debit);}
   .num.pos{color:var(--credit);}
+
+  /* Financial-statement table refinement -- Trial Balance / Income Statement / Balance Sheet / Cash
+     Flow Reconciliation under Reports kept their original dense grid through every earlier visual
+     pass on this app, by deliberate choice: the stakes of a misread column or a wrong-looking total
+     are much higher on a real financial statement than on an ordinary data table. So this is additive
+     CSS only, hooking onto markup reportTrialBalance()/reportIncomeStatement()/reportBalanceSheet()/
+     reportCashFlow() (via reportRow()/prow()/brow()/reportLedgerRows()) already emit -- a bold +
+     border-top inline style these functions already apply to subtotal/total rows, and a bare
+     <th colspan> for a section header -- rather than changing one number, label, or row-building rule.
+     Opt-in via the .statement-table class, so every other table in the app is completely unaffected. */
+  .statement-table{font-size:13px;}
+  .statement-table th{background:transparent;border-bottom:1.5px solid var(--border-strong);padding:10px 14px;}
+  .statement-table td{padding:9px 14px;}
+  .statement-table tr:has(>th[colspan]) th{background:var(--surface-strong);color:var(--ink-soft);font-size:10.5px;letter-spacing:.08em;border-bottom:1px solid var(--border);padding:12px 14px 8px;}
+  .statement-table tr[style*="border-top:2px solid var(--ink)"] td{background:color-mix(in srgb, var(--accent1) 6%, var(--surface));font-size:13.5px;}
+  .statement-table tr[data-ledger-detail] td:first-child, .statement-table tr[data-is-detail] td:first-child{transition:color .12s ease;}
+  .statement-table tr[data-ledger-detail]:hover td:first-child, .statement-table tr[data-is-detail]:hover td:first-child{color:var(--accent1);}
   /* Responsive "card" layout for data-heavy tables on narrow (phone) viewports -- Day Book, the
      Ledger statement, Trial Balance and the GST Outward/Inward Supplies tables opt in via the
      .rb-card-table class on the <table> plus a data-label attribute on each <td> (rendered as a
@@ -2175,12 +2215,57 @@
      a fixed dark identity (not tied to the app's own light/dark toggle) so it reads as a
      distinct, higher-stakes control surface the moment it opens — same instinct as
      .admin-modal-head's fixed gradient, just carried through the whole shell instead of
-     just the header strip. Tab content itself (adminOverviewTab(), adminUsersTab(), etc.)
-     keeps rendering through the ordinary light .panel-body/.stat/table tokens, unchanged —
-     only the chrome around it (sidebar + topbar) gets the new treatment, which is what
-     lets this reuse every existing tab function verbatim. ================================== */
+     just the header strip.
+
+     October 2026 update: this dark identity now covers the TAB CONTENT too, not only the
+     sidebar + topbar chrome. Originally (see this app's own project history) the content
+     area was deliberately left on the ordinary light .panel-body/.stat/table tokens, so the
+     console read as a dark frame around an otherwise-normal screen -- revisited now that the
+     rest of the app has gotten visually bolder elsewhere, so the console no longer feels like
+     the one surface that got left behind. The whole thing is still built with ZERO changes to
+     any of the ~17 adminXxxTab() functions: every one of them was already composed purely from
+     .panel/.stat/table/.btn and the shared var(--surface)/var(--ink)/var(--border)/etc. tokens
+     (confirmed by a direct grep for hardcoded hex colors inside that whole function range —
+     none exist), so redefining those custom properties once, scoped to .modal-card.admin-console,
+     re-points every tab's content through this console's own bespoke dark palette automatically,
+     completely independent of whatever [data-theme] the rest of the app is in. This is the exact
+     "read existing tokens, change nothing else" trick the twenty-fifth follow-up's dashboard dark
+     mode already established -- applied here one level higher, to a whole modal instead of the
+     page. The palette itself is a deliberately distinct identity from the app's own dark mode
+     (not just dark-mode's values copied over) -- a deeper near-black/forest ground and a teal-
+     green accent, picking up the teal glow (#6FE6C4) and warm orange glow (rgba(242,153,74,...))
+     the sidebar/header already use, so the whole console reads as one consistent "control room"
+     rather than the app's normal dark theme wearing an admin badge. ================================== */
   .modal-overlay.admin-console-overlay{padding:0;align-items:stretch;justify-content:stretch;background:#05100A;}
-  .modal-card.admin-console{display:flex;width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;flex-direction:row;border:none;box-shadow:none;background:var(--surface);}
+  .modal-card.admin-console{
+    display:flex;width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;flex-direction:row;border:none;box-shadow:none;background:var(--surface);
+    --bg:#070F0A; --surface:#101D16; --surface-strong:#17291E; --field:#122017;
+    --border:#22362A; --border-strong:#32503D;
+    --ink:#EAF6EE; --ink-soft:#9FC4AE; --ink-faint:#6E8F7C;
+    --accent1:#1FAE78; --accent2:#157A54; --accent-grad:#1FAE78;
+    --credit:#3EE6A4; --credit-bg:rgba(62,230,164,0.16);
+    --debit:#FF8A80; --debit-bg:rgba(255,138,128,0.16);
+    --gold:#F2A44F;
+  }
+  /* Five dialogs render as SEPARATE top-level overlays stacked on top of the console rather than as
+     DOM descendants of .modal-card.admin-console (adminGroupTreeModal/adminUserDetailModal/
+     adminAddUserModal/groupUserDetailModal/groupAddUserModal are always admin-only; approvalsModal/
+     manageAccessModal/companyTeamModal are shared with the ordinary in-company menubar and only pick
+     this up when opened with opts.stacked from inside the console) -- so they don't inherit the
+     custom-property redefinition above through the DOM tree and would otherwise pop up in the app's
+     ordinary light/dark theme on top of this dark shell. The .admin-console-suboverlay marker class
+     those nine call sites add (only when relevant -- the three shared ones stay their normal selves
+     everywhere else) re-points the same tokens here so every dialog opened from inside either console
+     stays visually part of the same dark "command center," not a light popup breaking the illusion. */
+  .modal-overlay.admin-console-suboverlay{
+    --bg:#070F0A; --surface:#101D16; --surface-strong:#17291E; --field:#122017;
+    --border:#22362A; --border-strong:#32503D;
+    --ink:#EAF6EE; --ink-soft:#9FC4AE; --ink-faint:#6E8F7C;
+    --accent1:#1FAE78; --accent2:#157A54; --accent-grad:#1FAE78;
+    --credit:#3EE6A4; --credit-bg:rgba(62,230,164,0.16);
+    --debit:#FF8A80; --debit-bg:rgba(255,138,128,0.16);
+    --gold:#F2A44F;
+  }
 
   .admin-console-sidebar{width:256px;flex-shrink:0;display:flex;flex-direction:column;background:linear-gradient(165deg,#0F2116 0%,#0A170F 55%,#070F0A 100%);position:relative;overflow:hidden;isolation:isolate;}
   .admin-console-sidebar::before{content:'';position:absolute;top:-30%;left:-20%;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(62,230,196,0.10),transparent 70%);pointer-events:none;z-index:0;}
@@ -10029,7 +10114,7 @@ function approvalsModal(opts={}){
   const pending = state.pendingVouchers.slice().sort((a,b)=> a.date<b.date?1:-1);
   const s = currentCompany.approvalSettings || {enabled:false, threshold:0, types:[]};
   return `
-    <div class="modal-overlay" id="${overlayId}" role="dialog" aria-modal="true">
+    <div class="modal-overlay${opts.stacked?' admin-console-suboverlay':''}" id="${overlayId}" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:640px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div class="panel-head" style="padding:16px 20px;"><h2>Approvals${pending.length?` <span class="pill" style="font-size:10.5px;">${pending.length} pending</span>`:''}</h2><button class="btn secondary small" id="${closeId}" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
@@ -10079,7 +10164,7 @@ function manageAccessModal(opts={}){
   const perms = currentCompany.memberPermissions || {};
   const selected = manageAccessUserId ? members.find(m=>m.id===manageAccessUserId) : null;
   return `
-    <div class="modal-overlay" id="${overlayId}" role="dialog" aria-modal="true">
+    <div class="modal-overlay${opts.stacked?' admin-console-suboverlay':''}" id="${overlayId}" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:680px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div class="panel-head" style="padding:16px 20px;"><h2>Manage Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="${closeId}" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
@@ -10137,7 +10222,7 @@ function companyTeamModal(opts={}){
   const selectedId = (!inviting && companyTeamMemberId && team[companyTeamMemberId]) ? companyTeamMemberId : null;
   const selected = selectedId ? team[selectedId] : null;
   return `
-    <div class="modal-overlay" id="${overlayId}" role="dialog" aria-modal="true">
+    <div class="modal-overlay${opts.stacked?' admin-console-suboverlay':''}" id="${overlayId}" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:700px;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div class="panel-head" style="padding:16px 20px;"><h2>Team Access — ${escapeHtml(currentCompany.name)}</h2><button class="btn secondary small" id="${closeId}" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
@@ -22825,7 +22910,7 @@ function adminGroupTreeModal(){
       </div>
     </div>`;
   return `
-  <div class="modal-overlay" id="groupTreeOverlayBg" role="dialog" aria-modal="true">
+  <div class="modal-overlay admin-console-suboverlay" id="groupTreeOverlayBg" role="dialog" aria-modal="true">
     <div class="modal-card" style="width:600px;max-height:88vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
       <div class="panel-head"><h2>Group: ${escapeHtml(support.name)}</h2><button class="btn secondary small" id="groupTreeCloseBtn" type="button">✕</button></div>
       <div style="padding:16px 18px;overflow-y:auto;flex:1;min-height:0;">
@@ -23025,7 +23110,7 @@ function adminUserDetailModal(){
   if(!u) return '';
   const owned = companies.filter(c=>c.ownerId===u.id);
   return `
-    <div class="modal-overlay" id="userDetailOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay admin-console-suboverlay" id="userDetailOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:92vw;max-width:640px;max-height:86vh;display:flex;flex-direction:column;">
         <div class="panel-head"><h2>${escapeHtml(u.name)}</h2><button class="btn secondary small" id="userDetailClose" type="button">✕</button></div>
         <div style="overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;">
@@ -23081,7 +23166,7 @@ function adminUserDetailModal(){
 function adminAddUserModal(){
   const d = adminAddUserDraft;
   return `
-    <div class="modal-overlay" id="addUserOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay admin-console-suboverlay" id="addUserOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:94vw;max-width:640px;">
         <div class="panel-head" style="padding:20px 24px;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:14px;">
@@ -23419,7 +23504,7 @@ function groupUserDetailModal(){
   if(!u) return '';
   const owned = groupCompanies.filter(c=>c.ownerId===u.id);
   return `
-    <div class="modal-overlay" id="userDetailOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay admin-console-suboverlay" id="userDetailOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:92vw;max-width:640px;max-height:86vh;display:flex;flex-direction:column;">
         <div class="panel-head"><h2>${escapeHtml(u.name)}</h2><button class="btn secondary small" id="userDetailClose" type="button">✕</button></div>
         <div style="overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;">
@@ -23464,7 +23549,7 @@ function groupUserDetailModal(){
 function groupAddUserModal(){
   const d = groupAddUserDraft;
   return `
-    <div class="modal-overlay" id="addUserOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-overlay admin-console-suboverlay" id="addUserOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:94vw;max-width:640px;">
         <div class="panel-head" style="padding:20px 24px;align-items:flex-start;">
           <div style="display:flex;align-items:center;gap:14px;">
@@ -23629,7 +23714,11 @@ function masthead(title, sub, helpKey){
   const d = new Date();
   const fys = state.vouchers ? distinctFYsInVouchers() : [];
   const showFYBadge = fys.length > 1;
-  return `<div class="masthead">
+  // Same per-module identity color already used for this module's sidebar icon (SIDEBAR_ICON_HUES,
+  // keyed by the `view` tab id) -- carried into the header's own ambient glow (see .masthead::before)
+  // so the color system reads as one thing across the nav and the content area, not two.
+  const moduleHue = SIDEBAR_ICON_HUES[view] || '';
+  return `<div class="masthead" style="${moduleHue?`--module-hue:${moduleHue};`:''}">
     <div>
       <div style="display:flex;align-items:baseline;gap:8px;">
         <h1>${title}</h1>
@@ -29810,7 +29899,7 @@ function reportTrialBalance(){
   return `
     ${reportHeader('Trial Balance', 'exportTBBtn')}
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table class="rb-card-table">
+      <table class="rb-card-table statement-table">
         <tr><th>Ledger</th><th class="num">Debit</th><th class="num">Credit</th></tr>
         ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
         <tr style="font-weight:600;border-top:2px solid var(--ink);"><td class="ccard-title" data-label="Ledger">Total</td><td class="num ccard-amount" data-label="Debit">₹${fmt(tbDr)}</td><td class="num ccard-amount" data-label="Credit">₹${fmt(tbCr)}</td></tr>
@@ -29836,7 +29925,7 @@ function reportIncomeStatement(){
     ${reportHeader('Income Statement (Schedule III, Division I) — Statement of Profit and Loss', 'exportPLBtn')}
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">For the period ${fy.periodLabel}${hasPrev?` — compared to ${fy.prevPeriodLabel}`:''}</p>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table>
+      <table class="statement-table">
         <tr><th>Particulars</th><th class="num">Current Year</th>${hasPrev?'<th class="num">Previous Year</th>':''}</tr>
         ${pdrow('revenueFromOperations','I. Revenue from Operations', money(pl.revenueFromOperations), hasPrev?money(pp.revenueFromOperations):'')}
         ${pdrow('otherIncome','II. Other Income', money(pl.otherIncome), hasPrev?money(pp.otherIncome):'')}
@@ -29890,7 +29979,7 @@ function reportBalanceSheet(){
     <div class="panel">
       <div class="panel-head"><h2>I. Equity and Liabilities</h2></div>
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="statement-table">
           <tr><th>Particulars</th><th class="num">Current Year</th>${hasPrev?'<th class="num">Previous Year</th>':''}</tr>
           ${bhead("(1) Shareholders' Funds")}
           ${brow('&nbsp;&nbsp;(a) Share Capital', money(bs.shareCapitalTotal), hasPrev?money(pb.shareCapitalTotal):'')}
@@ -29925,7 +30014,7 @@ function reportBalanceSheet(){
     <div class="panel">
       <div class="panel-head"><h2>II. Assets</h2></div>
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="statement-table">
           <tr><th>Particulars</th><th class="num">Current Year</th>${hasPrev?'<th class="num">Previous Year</th>':''}</tr>
           ${bhead('Non-Current Assets')}
           ${brow('&nbsp;&nbsp;(a) Property, Plant and Equipment', money(bs.ppeTotal), hasPrev?money(pb.ppeTotal):'')}
@@ -30226,7 +30315,7 @@ function reportCashFlow(){
     <div class="panel">
       <div class="panel-head"><h2>Reconciliation</h2></div>
       <div class="panel-body" style="padding:0;">
-        <table>
+        <table class="statement-table">
           ${reportRow('Net Increase / (Decrease) in Cash', `₹${fmt(cf.netChange)}`, {bold:true})}
           ${reportRow('Cash and Cash Equivalents — Opening', `₹${fmt(cf.openingCash)}`)}
           ${reportRow('Cash and Cash Equivalents — Closing', `₹${fmt(cf.closingCash)}`, {bold:true})}
