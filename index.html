@@ -7239,7 +7239,7 @@ async function refreshAuditLog(){
   try{
     const logSnap = await db.collection('auditLog').get();
     auditLog = logSnap.docs.map(d=>d.data()).sort((a,b)=> (b.at||'').localeCompare(a.at||'')).slice(0,200);
-  }catch(err){ auditLog = []; }
+  }catch(err){ auditLog = []; toast('Could not load the audit log', {type:'error'}); }
 }
 // Landing-page "Stay Updated" newsletter signups — full Administrator only (see the newsletterSignups
 // rule: allow get/list/update/delete: if isAdmin()). The form itself only ever creates these; this is
@@ -7248,7 +7248,7 @@ async function refreshNewsletterSignups(){
   try{
     const snap = await db.collection('newsletterSignups').get();
     newsletterSignups = snap.docs.map(d=>d.data()).sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
-  }catch(err){ newsletterSignups = []; }
+  }catch(err){ newsletterSignups = []; toast('Could not load newsletter signups', {type:'error'}); }
 }
 // Search (actor/action/target/detail) + date-range filter for the Audit Log tab — client-side only,
 // over whatever refreshAuditLog() already cached (the last 200 events).
@@ -7273,7 +7273,7 @@ async function loadAdminPanelData(){
   try{
     const snap = await db.collection('users').get();
     users = snap.docs.map(d=>d.data());
-  }catch(err){ users = []; toast('Could not load accounts'); }
+  }catch(err){ users = []; toast('Could not load accounts', {type:'error'}); }
   try{
     const coSnap = await db.collection('companies').get();
     companies = coSnap.docs.map(d=>d.data());
@@ -7413,7 +7413,7 @@ async function loadGroupAdminData(){
   try{
     const snap = await db.collection('users').where('groupOwnerId','==',currentUser.id).get();
     groupMembers = snap.docs.map(d=>d.data());
-  }catch(err){ groupMembers = []; toast('Could not load your users'); }
+  }catch(err){ groupMembers = []; toast('Could not load your users', {type:'error'}); }
   const memberIds = groupMembers.map(u=>u.id);
   try{
     // groupId is the authoritative "belongs to this group" field (stamped at creation time on every
@@ -7422,11 +7422,11 @@ async function loadGroupAdminData(){
     // ownerId-in-memberIds query would miss since the Support user isn't a member of their own group.
     const snap = await db.collection('companies').where('groupId','==',currentUser.id).get();
     groupCompanies = snap.docs.map(d=>d.data());
-  }catch(err){ groupCompanies = []; }
+  }catch(err){ groupCompanies = []; toast('Could not load your group\'s companies', {type:'error'}); }
   try{
     groupTickets = (await fetchByIdsIn('supportTickets', 'userId', memberIds))
       .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-  }catch(err){ groupTickets = []; }
+  }catch(err){ groupTickets = []; toast('Could not load support tickets', {type:'error'}); }
   try{
     const actorSnap = await db.collection('auditLog').where('actorUid','==',currentUser.id).get();
     const asActor = actorSnap.docs.map(d=>({ id: d.id, ...d.data() }));
@@ -7434,7 +7434,7 @@ async function loadGroupAdminData(){
     const byId = new Map();
     [...asActor, ...asTarget].forEach(e=> byId.set(e.id, e));
     groupAuditLog = Array.from(byId.values()).sort((a,b)=>(b.at||'').localeCompare(a.at||'')).slice(0,200);
-  }catch(err){ groupAuditLog = []; }
+  }catch(err){ groupAuditLog = []; toast('Could not load the audit log', {type:'error'}); }
   groupNameDraft = currentUser.groupName || '';
 }
 // Search (name/username/email/mobile) for the Group Admin Users tab — mirrors adminFilteredSortedUsers()
@@ -19451,7 +19451,7 @@ function accountantDashModal(){
           </select>
         </div>
         ${!rows.length ? `
-        <div class="muted" style="padding:30px 18px;text-align:center;">No companies to show yet.</div>
+        <div style="padding:10px 18px 18px;">${emptyState({ icon:'🗂️', title:'No companies yet', text:'Companies you own or have Team Access to will show up here, with their overdue receivables, pending approvals and reconciliation status at a glance.' })}</div>
         ` : `
         <table>
           <tr><th>Company</th><th>Role</th><th class="num">Overdue</th><th class="num">Pending Approvals</th><th class="num">Unreconciled</th><th>Last Activity</th><th></th></tr>
@@ -27759,59 +27759,71 @@ function buildInvoiceHTML(opts){
   return `<!DOCTYPE html><html><head><title>Invoice — ${escapeHtml(partyName)}</title>
 <meta charset="UTF-8">
 <style>
-  :root{ --accent: ${accent}; }
-  body{font-family: Arial, Helvetica, sans-serif; color:#111; margin:0; padding:34px; font-size:13px;}
-  .draft-banner{background:#FFF4E0;color:#7a4f00;border:1px solid #F2A900;border-radius:6px;padding:8px 14px;font-size:11.5px;font-weight:700;text-align:center;margin-bottom:16px;}
-  .bill-header{margin-bottom:18px;}
-  .bill-header.tpl-classic{border-bottom:2px solid var(--accent);padding-bottom:14px;}
-  .bill-header.tpl-modern{background:var(--accent);margin:-34px -34px 18px;padding:28px 34px;}
-  .bill-header.tpl-minimal{border-bottom:1px solid #eee;padding-bottom:16px;}
-  .bill-header h1{margin:6px 0 0;font-size:20px;}
-  .bill-header .meta{text-align:right;font-size:12px;color:#333;}
+  :root{ --accent: ${accent}; --ink:#1B2420; --ink-soft:#5B6B62; --line:#E3E8E2; --tint:color-mix(in srgb, var(--accent) 6%, #fff); }
+  *{box-sizing:border-box;}
+  body{font-family:'Calibri','Segoe UI',Arial,Helvetica,sans-serif;color:var(--ink);margin:0;padding:40px;font-size:13px;background:#F4F6F4;}
+  .invoice-sheet{max-width:760px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:36px 38px;}
+  .draft-banner{background:#FFF4E0;color:#7a4f00;border:1px solid #F2A900;border-radius:6px;padding:8px 14px;font-size:11.5px;font-weight:700;text-align:center;margin-bottom:18px;}
+  .bill-header{margin-bottom:24px;}
+  .bill-header.tpl-classic{border-bottom:2.5px solid var(--accent);padding-bottom:16px;}
+  .bill-header.tpl-modern{background:var(--accent);margin:-36px -38px 24px;padding:30px 38px;border-radius:11px 11px 0 0;}
+  .bill-header.tpl-minimal{border-bottom:1px solid var(--line);padding-bottom:18px;}
+  .bill-header h1{margin:8px 0 0;font-size:21px;font-weight:700;letter-spacing:-.01em;}
+  .bill-header .meta{text-align:right;font-size:12px;color:var(--ink-soft);}
   .bill-header.tpl-modern .meta{color:rgba(255,255,255,.9);}
-  .bill-header .meta .invtitle{font-size:16px;font-weight:bold;color:var(--accent);margin-bottom:4px;}
+  .bill-header .meta .invtitle{font-size:17px;font-weight:800;color:var(--accent);margin-bottom:5px;letter-spacing:.01em;}
   .bill-header.tpl-modern .meta .invtitle{color:#fff;}
-  .bill-header.tpl-minimal .meta .invtitle{color:#111;font-weight:400;text-transform:uppercase;letter-spacing:.08em;font-size:12px;}
-  .parties{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px;font-size:12.5px;}
-  .parties h3{margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#555;}
-  table{width:100%;border-collapse:collapse;margin-bottom:18px;}
-  th{background:${template==='minimal'?'#fff':'#f0f0f0'};text-align:left;padding:8px;font-size:11px;text-transform:uppercase;border-bottom:2px solid ${template==='minimal'?'#111':'var(--accent)'};}
-  td{padding:8px;border-bottom:1px solid #ddd;font-size:12.5px;}
-  .totals-table{width:320px;margin-left:auto;}
-  .totals-table td{border:none;padding:4px 8px;}
-  .grand-total td{font-weight:bold;font-size:15px;border-top:2px solid var(--accent);padding-top:8px;color:${template==='minimal'?'var(--accent)':'#111'};}
-  .footer{margin-top:30px;font-size:10.5px;color:#777;border-top:1px solid #ddd;padding-top:10px;}
-  .footer-note{margin-top:14px;font-size:12px;color:#444;white-space:pre-line;}
-  .upi-pay-block{display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 12px;border:1px dashed var(--accent);border-radius:8px;width:fit-content;}
+  .bill-header.tpl-minimal .meta .invtitle{color:var(--ink);font-weight:600;text-transform:uppercase;letter-spacing:.1em;font-size:12px;}
+  .parties{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:22px;}
+  .party-block{flex:1 1 220px;background:var(--tint);border:1px solid color-mix(in srgb, var(--accent) 18%, var(--line));border-radius:8px;padding:12px 14px;font-size:12.5px;}
+  .party-block.align-right{text-align:right;}
+  .party-block h3{margin:0 0 5px;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+  thead th{background:${template==='minimal'?'#fff':'var(--tint)'};text-align:left;padding:9px 10px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ink);border-bottom:2px solid ${template==='minimal'?'var(--ink)':'var(--accent)'};}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:12.5px;}
+  tbody tr:nth-child(even) td{background:color-mix(in srgb, var(--accent) 3%, #fff);}
+  .totals-table{width:330px;margin-left:auto;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .totals-table td{border:none;padding:7px 14px;}
+  .totals-table tr+tr td{border-top:1px solid var(--line);}
+  .grand-total td{font-weight:800;font-size:16px;background:color-mix(in srgb, var(--accent) 13%, #fff);color:var(--ink);border-top:1.5px solid var(--accent) !important;padding-top:10px;padding-bottom:10px;}
+  .footer{margin-top:32px;font-size:10.5px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:12px;}
+  .footer-note{margin-top:14px;font-size:12px;color:var(--ink-soft);white-space:pre-line;}
+  .upi-pay-block{display:flex;align-items:center;gap:12px;margin-top:16px;padding:10px 12px;border:1px dashed var(--accent);border-radius:8px;width:fit-content;background:var(--tint);}
   .upi-pay-block .upi-qr svg{display:block;width:88px;height:88px;}
-  .invoice-bottom-blocks{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap;}
+  .invoice-bottom-blocks{display:flex;gap:20px;margin-top:18px;flex-wrap:wrap;}
   .invoice-bottom-block{flex:1 1 220px;min-width:200px;}
-  .invoice-bottom-block h4{margin:0 0 4px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:#888;}
-  .invoice-bottom-block-body{font-size:12px;color:#444;white-space:pre-line;}
-  @media print{ body{padding:0;} .bill-header.tpl-modern{margin-top:0;} .draft-banner{display:none;} }
+  .invoice-bottom-block h4{margin:0 0 4px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);}
+  .invoice-bottom-block-body{font-size:12px;color:var(--ink-soft);white-space:pre-line;}
+  @media print{
+    body{padding:0;background:#fff;}
+    .invoice-sheet{border:none;border-radius:0;max-width:none;margin:0;padding:0;}
+    .bill-header.tpl-modern{margin-top:0;border-radius:0;}
+    .draft-banner{display:none;}
+  }
 </style>
 </head><body>
+<div class="invoice-sheet">
   ${isDraft ? `<div class="draft-banner">PREVIEW — this voucher hasn't been saved yet. The invoice number is provisional and may change.</div>` : ''}
   ${headerHtml}
   <div class="parties">
-    <div>
+    <div class="party-block">
       <h3>Bill To</h3>
       <div style="font-size:14px;font-weight:bold;">${escapeHtml(partyName)}</div>
-      ${billingAddress?`<div style="font-size:12px;color:#555;margin-top:2px;white-space:pre-line;">${escapeHtml(billingAddress)}</div>`:''}
+      ${billingAddress?`<div style="font-size:12px;color:var(--ink-soft);margin-top:2px;white-space:pre-line;">${escapeHtml(billingAddress)}</div>`:''}
     </div>
-    ${(shippingAddress && shippingAddress.trim() && shippingAddress.trim()!==(billingAddress||'').trim()) ? `<div>
+    ${(shippingAddress && shippingAddress.trim() && shippingAddress.trim()!==(billingAddress||'').trim()) ? `<div class="party-block">
       <h3>Ship To</h3>
       <div style="font-size:14px;font-weight:bold;">${escapeHtml(partyName)}</div>
-      <div style="font-size:12px;color:#555;margin-top:2px;white-space:pre-line;">${escapeHtml(shippingAddress)}</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;white-space:pre-line;">${escapeHtml(shippingAddress)}</div>
     </div>` : ''}
-    <div style="text-align:right;">
+    <div class="party-block align-right">
       <h3>Supply Type</h3>
       <div>${!hasTax ? 'No GST on this voucher' : (supplyIntra?'Intrastate (CGST + SGST)':'Interstate (IGST)')}</div>
     </div>
   </div>
   <table>
-    <tr><th>#</th><th>Item</th><th>HSN/SAC</th><th>Unit</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Rate</th>${anyDisc?'<th style="text-align:right;">Disc</th>':''}<th style="text-align:right;">Amount</th></tr>
-    ${rows}
+    <thead><tr><th>#</th><th>Item</th><th>HSN/SAC</th><th>Unit</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Rate</th>${anyDisc?'<th style="text-align:right;">Disc</th>':''}<th style="text-align:right;">Amount</th></tr></thead>
+    <tbody>${rows}</tbody>
   </table>
   <table class="totals-table">
     ${discountTotal>0?`<tr><td>Subtotal (before discount)</td><td style="text-align:right;">₹${fmt(grossTotal)}</td></tr>
@@ -27821,10 +27833,11 @@ function buildInvoiceHTML(opts){
     <tr class="grand-total"><td>Grand Total</td><td style="text-align:right;">₹${fmt(total)}</td></tr>
   </table>
   ${upiBlock}
-  ${narration?`<div style="font-size:12px;color:#444;"><strong>Notes:</strong> ${escapeHtml(narration)}</div>`:''}
+  ${narration?`<div style="font-size:12px;color:var(--ink-soft);"><strong style="color:var(--ink);">Notes:</strong> ${escapeHtml(narration)}</div>`:''}
   ${termsBankBlock}
   ${footerNote?`<div class="footer-note">${escapeHtml(footerNote)}</div>`:''}
   <div class="footer">Generated by The Reckoning Books by SKm on ${printedAt}</div>
+</div>
 </body></html>`;
 }
 // Builds the draft/preview invoice HTML off the still-unsaved GST Calculator draft (vform.gst) —
@@ -33527,8 +33540,13 @@ function ageingCompositionBar(buckets, total){
   ];
   return `<span class="mini-bar-stack" title="0-30: ₹${fmt(buckets['0-30']||0)} · 31-60: ₹${fmt(buckets['31-60']||0)} · 61-90: ₹${fmt(buckets['61-90']||0)} · 90+: ₹${fmt(buckets['90+']||0)}">${segs.map(s=>s.v?`<span style="width:${(s.v/total*100).toFixed(1)}%;background:${s.c};"></span>`:'').join('')}</span>`;
 }
-function partyAgeingTable(rows, emptyMsg, catKey){
-  if(!rows.length) return `<div class="empty">${emptyMsg}</div>`;
+function partyAgeingTable(rows, emptyMsg, catKey, richEmpty){
+  // richEmpty -- an emptyState() config, used only for the true "nothing tagged yet" case (not the
+  // search-no-match or all-settled cases, which stay as the lighter inline .empty message) so this
+  // whole-section empty state matches the same icon+title+CTA pattern used everywhere else in the
+  // app for an equivalent-weight "module not set up yet" moment (Day Book, Reconcile, Fixed Assets,
+  // Payroll, GST, Stock Items, Foreign Currency, Ledgers' own "select a ledger" state).
+  if(!rows.length) return richEmpty ? emptyState(richEmpty) : `<div class="empty">${emptyMsg}</div>`;
   return `<table class="rb-card-table">
     <tr>${catKey?`<th style="width:30px;"><input type="checkbox" data-bulk-select-all="${escapeAttr(catKey)}" aria-label="Select all"></th>`:''}<th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
     ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
@@ -33577,10 +33595,10 @@ function viewParties(){
       {action:'untag', label:'Clear tag'},
     ])}
     <div class="section-title">Receivables (Customers) — Outstanding ₹${fmt(totalReceivable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.', 'party-customers')}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.', 'party-customers', customers.length ? null : { icon:'👥', title:'No customers yet', text:'Tag a ledger as a Customer from the Accounts tab to start tracking receivables, ageing and overdue invoices here.', ctaLabel:'Go to Accounts', ctaTab:'coa' })}</div></div>
 
     <div class="section-title">Payables (Suppliers) — Outstanding ₹${fmt(totalPayable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? (partiesSearchQuery.trim() ? 'No suppliers match your search.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.', 'party-suppliers')}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? (partiesSearchQuery.trim() ? 'No suppliers match your search.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.', 'party-suppliers', suppliers.length ? null : { icon:'🚚', title:'No suppliers yet', text:'Tag a ledger as a Supplier from the Accounts tab to start tracking payables, ageing and dues here.', ctaLabel:'Go to Accounts', ctaTab:'coa' })}</div></div>
     <p class="muted" style="font-size:11.5px;">Tag a ledger as a Customer or Supplier from the Accounts tab (click "Not a party" next to any ledger) to have it appear here. Click a row for its invoice-by-invoice breakdown. Payments are matched to the oldest outstanding invoice first (FIFO). Check rows here to bulk re-tag or clear a batch of parties at once.</p>
   `;
 }
