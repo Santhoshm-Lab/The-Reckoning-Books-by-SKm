@@ -321,22 +321,48 @@
   .sidebar-add-group-form button:hover{background:var(--surface);color:var(--ink);}
   #sidebarAddGroupConfirm{color:var(--credit);border-color:color-mix(in srgb, var(--credit) 40%, var(--border));}
 
-  /* Utility row -- bell + accent picker side by side, just above the company card. */
+  /* Utility row -- bell + density toggle side by side, just above the company card. (The accent-color
+     picker that used to sit here was removed per Santhosh's follow-up request the same day it shipped.) */
   .sidebar-utility-row{display:flex;align-items:center;gap:6px;margin-top:10px;}
   .tabstrip.collapsed .sidebar-utility-row{flex-direction:column;}
-  .sidebar-bell-wrap,.sidebar-accent-wrap{position:relative;flex:1;}
-  .sidebar-bell-btn,.sidebar-accent-btn{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
+  .sidebar-bell-wrap{position:relative;flex:1;}
+  .sidebar-bell-btn,.sidebar-density-btn{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
     gap:5px;padding:7px 0;border:1px solid var(--border);border-radius:9px;background:var(--surface-strong);
-    font-size:13px;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease;}
-  .sidebar-bell-btn:hover,.sidebar-accent-btn:hover{background:var(--surface);border-color:var(--border-strong);}
+    font-size:13px;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease;}
+  .sidebar-bell-btn:hover,.sidebar-density-btn:hover{background:var(--surface);border-color:var(--border-strong);}
+  .sidebar-density-btn{flex:1;color:var(--ink-soft);}
+  .sidebar-density-btn[aria-pressed="true"]{color:var(--accent1);border-color:color-mix(in srgb, var(--accent1) 45%, var(--border));}
+  /* Round 7 -- compact density: tighter row padding and group spacing so more modules fit without
+     scrolling, same navtab/section markup throughout, just less air around it. Never applied while
+     collapsed (that layout is already its own fixed-width icon rail). */
+  .tabstrip.compact .navtab{padding:4px 10px;}
+  .tabstrip.compact .nav-section-label{padding:9px 11px 3px;}
+  .tabstrip.compact .nav-section-group{gap:0;}
+  .tabstrip.compact .sidebar-company-card,.tabstrip.compact .sidebar-user-card{padding:5px 8px;margin-top:6px;}
+  .tabstrip.compact .sidebar-utility-row{margin-top:7px;}
+  .tabstrip.compact .sidebar-quicknew-wrap{margin:2px 0 7px;}
+
+  /* ---- Round 7: sync/save status indicator (see sidebarSyncStatusIndicator()/markSyncSaving()) ---- */
+  .sidebar-sync-status{display:flex;align-items:center;gap:6px;padding:4px 8px;margin-top:9px;
+    font-size:10px;font-weight:700;color:var(--ink-faint);transition:color .15s ease;}
+  .sidebar-sync-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--ink-faint);transition:background .15s ease;}
+  .sidebar-sync-status.saving{color:var(--ink-soft);}
+  .sidebar-sync-status.saving .sidebar-sync-dot{background:var(--gold,#F2A900);animation:sidebarSyncPulse 1s ease-in-out infinite;}
+  .sidebar-sync-status.saved .sidebar-sync-dot{background:var(--accent1);}
+  .sidebar-sync-status.error{color:#D23B3B;}
+  .sidebar-sync-status.error .sidebar-sync-dot{background:#D23B3B;}
+  @media (prefers-reduced-motion: reduce){ .sidebar-sync-status.saving .sidebar-sync-dot{animation:none;} }
+  @keyframes sidebarSyncPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+  .tabstrip.collapsed .sidebar-sync-status{justify-content:center;padding:4px 0;}
+  .tabstrip.collapsed .sidebar-sync-label{display:none;}
+  .tabstrip.compact .sidebar-sync-status{margin-top:6px;}
   .sidebar-bell-count{position:absolute;top:-4px;right:calc(50% - 20px);min-width:14px;height:14px;padding:0 3px;
     display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--gold,#F2A900);
     color:#fff;font-size:8.5px;font-weight:800;line-height:1;}
-  .sidebar-accent-swatch-preview{width:11px;height:11px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);}
-  .sidebar-bell-panel,.sidebar-accent-panel{position:absolute;bottom:calc(100% + 6px);left:0;z-index:150;
+  .sidebar-bell-panel{position:absolute;bottom:calc(100% + 6px);left:0;z-index:150;
     min-width:200px;padding:10px;border-radius:11px;background:var(--surface-strong);border:1px solid var(--border-strong);
     box-shadow:0 12px 28px -6px color-mix(in srgb, var(--ink) 30%, transparent);}
-  .sidebar-bell-panel-title,.sidebar-accent-panel-title{font-size:10px;font-weight:800;letter-spacing:.06em;
+  .sidebar-bell-panel-title{font-size:10px;font-weight:800;letter-spacing:.06em;
     text-transform:uppercase;color:var(--ink-faint);padding:0 2px 8px;}
   .sidebar-bell-item{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;
     padding:7px 8px;border:none;background:transparent;border-radius:7px;font-family:inherit;text-align:left;cursor:pointer;}
@@ -344,14 +370,87 @@
   .sidebar-bell-item-label{font-size:11.5px;font-weight:700;color:var(--ink);}
   .sidebar-bell-item-value{font-size:10px;font-weight:700;color:var(--gold,#F2A900);flex-shrink:0;}
   .sidebar-bell-empty{padding:10px 8px;font-size:11px;color:var(--ink-faint);text-align:center;}
-  .sidebar-accent-swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
-  .sidebar-accent-swatch{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);transition:transform .12s ease,border-color .12s ease;}
-  .sidebar-accent-swatch:hover{transform:scale(1.12);}
-  .sidebar-accent-swatch.is-selected{border-color:var(--ink);}
-  .sidebar-accent-reset{width:100%;margin-top:9px;padding:6px 0;border:1px solid var(--border);border-radius:7px;
-    background:transparent;color:var(--ink-faint);font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;}
-  .sidebar-accent-reset:hover{color:var(--ink);background:var(--surface);}
+
+  /* ---------------- Oct 12, 2026 sidebar round 6: Quick "+ New", company switcher ---------------- */
+  .sidebar-quicknew-wrap{position:relative;margin:2px 0 10px;}
+  .sidebar-quicknew-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;
+    padding:8px 0;border:1px solid transparent;border-radius:9px;cursor:pointer;font-family:inherit;
+    font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    box-shadow:0 3px 10px -3px color-mix(in srgb, var(--accent1) 55%, transparent);
+    transition:box-shadow .15s ease,transform .1s ease;}
+  .sidebar-quicknew-btn:hover{box-shadow:0 5px 14px -3px color-mix(in srgb, var(--accent1) 65%, transparent);}
+  .sidebar-quicknew-btn:active{transform:scale(0.98);}
+  .sidebar-quicknew-plus{font-size:15px;font-weight:900;line-height:1;}
+  .tabstrip.collapsed .sidebar-quicknew-wrap{display:none;}
+  .sidebar-quicknew-panel{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:150;
+    max-height:60vh;overflow-y:auto;padding:8px;border-radius:11px;background:var(--surface-strong);
+    border:1px solid var(--border-strong);box-shadow:0 12px 28px -6px color-mix(in srgb, var(--ink) 30%, transparent);}
+  .sidebar-quicknew-panel-title{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-faint);padding:0 4px 8px;}
+  .sidebar-quicknew-item{display:block;width:100%;padding:8px 9px;border:none;background:transparent;
+    border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink);text-align:left;cursor:pointer;}
+  .sidebar-quicknew-item:hover{background:var(--surface);color:var(--accent1);}
+
+  /* Company switcher -- the mini-card itself now opens this popover (see sidebarCompanyCard()/
+     switchSidebarCompany()) instead of jumping straight to the Gateway; "All Companies" at the
+     bottom still reaches switchToCompanyGateway(). Opens upward, same as the bell panel,
+     since the card sits near the bottom of the rail. */
+  .sidebar-company-wrap{position:relative;}
+  .sidebar-company-chevron{flex-shrink:0;color:var(--ink-faint);margin-left:2px;}
+  .tabstrip.collapsed .sidebar-company-chevron{display:none;}
+  .sidebar-company-panel{position:absolute;bottom:calc(100% + 6px);left:0;right:0;z-index:150;
+    max-height:50vh;overflow-y:auto;padding:8px;border-radius:11px;background:var(--surface-strong);
+    border:1px solid var(--border-strong);box-shadow:0 12px 28px -6px color-mix(in srgb, var(--ink) 30%, transparent);}
+  .tabstrip.collapsed .sidebar-company-panel{left:0;width:220px;}
+  .sidebar-company-panel-title{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-faint);padding:0 4px 8px;}
+  .sidebar-company-switch-item{display:flex;align-items:center;gap:8px;width:100%;padding:6px 7px;
+    border:none;background:transparent;border-radius:7px;font-family:inherit;text-align:left;cursor:pointer;}
+  .sidebar-company-switch-item:hover{background:var(--surface);}
+  .sidebar-company-switch-avatar{width:20px;height:20px;border-radius:6px;flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:9px;color:#fff;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));}
+  .sidebar-company-switch-name{font-size:11.5px;font-weight:700;color:var(--ink);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .sidebar-company-panel-empty{padding:10px 8px;font-size:11px;color:var(--ink-faint);text-align:center;}
+  .sidebar-company-panel-more{padding:6px 7px;font-size:10px;color:var(--ink-faint);}
+  .sidebar-company-panel-all{width:100%;margin-top:6px;padding:7px 0;border:1px solid var(--border);
+    border-radius:7px;background:transparent;color:var(--ink-soft);font-family:inherit;font-size:10.5px;
+    font-weight:700;cursor:pointer;text-align:center;}
+  .sidebar-company-panel-all:hover{color:var(--ink);background:var(--surface);border-color:var(--border-strong);}
+
+  /* ---- Round 7: user-profile menu, pinned under the company card -- same mini-card + upward
+     popover pattern as sidebarCompanyCard(), but a round avatar (vs. the company's rounded-square
+     one) so the two footer cards stay visually distinct at a glance. */
+  .sidebar-user-wrap{position:relative;}
+  .sidebar-user-card{display:flex;align-items:center;gap:9px;width:100%;margin-top:7px;padding:7px 8px;
+    border:1px solid var(--border);border-radius:10px;background:var(--surface-strong);cursor:pointer;
+    font-family:inherit;text-align:left;transition:background .15s ease,border-color .15s ease,transform .1s ease;}
+  .sidebar-user-card:hover{background:color-mix(in srgb, var(--accent1) 8%, var(--surface-strong));border-color:var(--border-strong);}
+  .sidebar-user-card:active{transform:scale(0.98);}
+  .sidebar-user-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:10.5px;letter-spacing:-.01em;color:#fff;background:linear-gradient(135deg,var(--gold),#C9701A);}
+  .sidebar-user-info{min-width:0;overflow:hidden;display:flex;flex-direction:column;flex:1;}
+  .sidebar-user-name{font-size:11.5px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sidebar-user-role{font-size:9.5px;font-weight:600;color:var(--ink-faint);}
+  .sidebar-user-chevron{flex-shrink:0;color:var(--ink-faint);margin-left:2px;}
+  .tabstrip.collapsed .sidebar-user-card{justify-content:center;padding:7px;}
+  .tabstrip.collapsed .sidebar-user-info,.tabstrip.collapsed .sidebar-user-chevron{display:none;}
+  .sidebar-user-panel{position:absolute;bottom:calc(100% + 6px);left:0;right:0;z-index:150;
+    padding:8px;border-radius:11px;background:var(--surface-strong);border:1px solid var(--border-strong);
+    box-shadow:0 12px 28px -6px color-mix(in srgb, var(--ink) 30%, transparent);}
+  .tabstrip.collapsed .sidebar-user-panel{left:0;width:220px;}
+  .sidebar-user-panel-head{display:flex;align-items:center;gap:9px;padding:4px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+  .sidebar-user-panel-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:12px;color:#fff;background:linear-gradient(135deg,var(--gold),#C9701A);}
+  .sidebar-user-panel-name{font-size:12.5px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
+  .sidebar-user-panel-role{font-size:10px;font-weight:600;color:var(--ink-faint);}
+  .sidebar-user-panel-item{display:block;width:100%;padding:7px 7px;border:none;background:transparent;
+    border-radius:7px;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--ink-soft);text-align:left;cursor:pointer;}
+  .sidebar-user-panel-item:hover{background:var(--surface);color:var(--ink);}
+  .sidebar-user-panel-divider{height:1px;background:var(--border);margin:5px 2px;}
+  .sidebar-user-panel-logout{color:#D23B3B;}
+  .sidebar-user-panel-logout:hover{background:rgba(210,59,59,0.1);color:#D23B3B;}
 
   /* ---------------- Modern pill tab bar (Admin Panel / Group Admin panel) ---------------- */
   .modern-tabbar{display:flex;gap:6px;padding:14px 20px 16px;flex-wrap:wrap;background:linear-gradient(180deg,rgba(44,160,28,0.05),transparent);border-bottom:1px solid var(--border);}
@@ -407,6 +506,17 @@
   .viz-pin-wrap .panel:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);}
   .report-card{transition:box-shadow .2s ease, transform .2s ease;}
   .report-card:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);border-color:var(--border-strong);}
+  /* Round 7: pin-to-Favorites star -- on the Reports landing card (top-right corner, same idiom as
+     .viz-pin-btn above) and inline in reportHeader()'s title (.inline variant). */
+  .report-pin-btn{position:absolute;top:10px;right:14px;z-index:2;width:26px;height:26px;border-radius:8px;
+    background:var(--surface);border:1px solid var(--border);font-size:13px;line-height:1;cursor:pointer;
+    opacity:.45;filter:grayscale(1);transition:opacity .15s,filter .15s,background .15s,border-color .15s,transform .12s;}
+  .report-card:hover .report-pin-btn,.report-pin-btn:focus-visible{opacity:1;filter:grayscale(.4);}
+  .report-pin-btn.pinned{opacity:1;filter:none;background:rgba(242,169,0,0.14);border-color:var(--gold,#F2A900);color:var(--gold,#F2A900);}
+  .report-pin-btn:hover{transform:scale(1.1);}
+  .report-pin-btn.inline{position:static;width:22px;height:22px;font-size:12px;opacity:.55;filter:grayscale(.6);flex-shrink:0;}
+  .report-pin-btn.inline:hover,.report-pin-btn.inline:focus-visible{opacity:1;filter:none;}
+  .report-pin-btn.inline.pinned{opacity:1;filter:none;}
   .reconciled-pop{animation:tickPop .3s cubic-bezier(.34,1.56,.64,1);}
   .viz-pin-btn{position:absolute;top:10px;right:14px;z-index:2;width:28px;height:28px;border-radius:8px;
     background:var(--surface);border:1px solid var(--border);font-size:13px;line-height:1;cursor:pointer;
@@ -516,7 +626,7 @@
   th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:800;padding:9px 12px;border-bottom:2px solid var(--border);background:var(--surface-strong);}
   td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--ink);}
   tr:last-child td{border-bottom:none;}
-  tr:hover td{background:#F5FAF5;}
+  tr:hover td{background:var(--surface-strong);}
   .num{font-family:inherit;font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap;}
   .num.neg{color:var(--debit);}
   .num.pos{color:var(--credit);}
@@ -840,6 +950,18 @@
   .gw-resume-dot{color:rgba(255,255,255,0.5);}
   .gw-resume-arrow{color:rgba(255,255,255,0.6);flex-shrink:0;margin-left:2px;transition:transform .15s ease;}
   .gw-resume-card:hover .gw-resume-arrow{transform:translateX(3px);color:#fff;}
+  /* ---- Round 7: cross-company recent activity feed, a thin footer strip across the bottom of the
+     gw-hero banner (see gatewayRecentActivityItems()) -- horizontally scrollable so it never forces
+     the hero taller on a long list or a narrow viewport. ---- */
+  .gw-activity-feed{position:relative;z-index:1;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.16);}
+  .gw-activity-feed-label{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.6);margin-bottom:7px;}
+  .gw-activity-feed-list{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+  .gw-activity-feed-item{display:flex;align-items:center;gap:6px;flex-shrink:0;padding:6px 11px;border-radius:999px;
+    background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);white-space:nowrap;}
+  .gw-activity-feed-icon{font-size:12px;line-height:1;}
+  .gw-activity-feed-text{font-size:11.5px;font-weight:600;color:rgba(255,255,255,0.92);}
+  .gw-activity-feed-text strong{font-weight:800;color:#fff;}
+  .gw-activity-feed-time{font-size:10px;font-weight:600;color:rgba(255,255,255,0.6);margin-left:2px;}
   .company-card-health{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap;}
   .company-card-health-streak{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--ink-faint);background:var(--surface-strong);border-radius:999px;padding:2px 8px;}
   .company-card-health-streak.is-lit{color:#B35B00;background:color-mix(in srgb, var(--gold, #F2A900) 18%, transparent);}
@@ -907,6 +1029,15 @@
   .company-card-pin.is-pinned{color:var(--gold);}
   .company-card.is-pinned{border-color:var(--gold);}
   .company-card-recency{margin-top:8px;font-size:10px;color:var(--ink-faint);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* ---- Round 7: Company Comparison view (companyComparisonModal()) -- separate from the
+     Consolidation Report's styling, since it's a plain side-by-side table, not a combined report. ---- */
+  .comparison-picker{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;}
+  .comparison-picker-item{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .comparison-picker-item.is-disabled{color:var(--ink-faint);cursor:not-allowed;}
+  .comparison-table th{white-space:nowrap;}
+  .comparison-best{background:color-mix(in srgb, var(--accent1) 10%, transparent);font-weight:700;}
+  .comparison-best-badge{color:var(--accent1);font-weight:800;}
 
   /* ---- Gateway 2026 round 2: grid/list toggle, sort control, quick-actions (⋮) menu and a
      Getting Started checklist. All purely additive on top of the card grid above -- the existing
@@ -1014,7 +1145,41 @@
   .gw-gs-step-sub{font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
 
   /* Login / welcome screen */
-  .login-shell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:calc(100vh - 50px);padding:40px 20px;}
+  .login-shell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;min-height:calc(100vh - 50px);padding:40px 20px;
+    position:relative;isolation:isolate;}
+  /* Oct 13, 2026 -- a soft, blended radial glow centered behind the login card, the same technique
+     modern AI-product homepages (Gemini's own "Where should we start?" screen among them) use to
+     give their primary input/CTA a sense of depth instead of sitting flat on the page background.
+     Scoped to ONLY the login screen's own .login-shell -- .rb-bg is shared with the Gateway screen's
+     company-card grid, which doesn't need (and would be visually noisier with) a dominant glow.
+     A plain ::before painted in normal document order, so it sits behind .login-split without
+     needing an explicit z-index on it.
+     Oct 13, 2026 round 2 (tweak): made bigger/bolder, blended in a cool teal accent alongside the
+     brand green/gold (three layered radial-gradients -- green stays dominant for brand consistency,
+     teal is the smallest/coolest accent, gold washes the outer edge), and given a slow ambient
+     drift+pulse via `transform` (not by animating the gradient itself, which would be far more
+     expensive to repaint every frame) -- guarded behind prefers-reduced-motion like every other
+     ambient animation in this app (see auroraDrift1/2). */
+  .login-shell::before{
+    content:'';position:absolute;inset:-90px -20px;pointer-events:none;
+    background:
+      radial-gradient(ellipse 540px 420px at 38% 36%, rgba(44,160,28,0.20) 0%, transparent 68%),
+      radial-gradient(ellipse 520px 400px at 64% 46%, rgba(45,150,200,0.12) 0%, transparent 66%),
+      radial-gradient(ellipse 980px 620px at 50% 40%, rgba(242,169,0,0.08) 0%, transparent 74%);
+  }
+  [data-theme="dark"] .login-shell::before{
+    background:
+      radial-gradient(ellipse 580px 460px at 38% 36%, rgba(51,181,33,0.42) 0%, transparent 66%),
+      radial-gradient(ellipse 560px 440px at 64% 46%, rgba(56,176,220,0.22) 0%, transparent 64%),
+      radial-gradient(ellipse 1040px 660px at 50% 40%, rgba(242,164,79,0.14) 0%, transparent 76%);
+  }
+  @keyframes loginGlowDrift{
+    0%,100%{transform:translate(0,0) scale(1);}
+    50%{transform:translate(12px,-9px) scale(1.055);}
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .login-shell::before{animation:loginGlowDrift 10s ease-in-out infinite;}
+  }
   .login-footer{text-align:center;font-size:11.5px;color:var(--ink-faint);letter-spacing:.02em;}
   .login-footer strong{color:var(--accent1);font-weight:800;}
   .login-footer em{font-style:italic;opacity:.85;}
@@ -1951,6 +2116,15 @@
   .gw-hero-aurora-1{width:220px;height:220px;top:-90px;right:8%;background:radial-gradient(circle,rgba(255,222,158,0.5),transparent 70%);animation:auroraDrift1 9s ease-in-out infinite;}
   .gw-hero-aurora-2{width:180px;height:180px;bottom:-100px;left:6%;background:radial-gradient(circle,rgba(255,255,255,0.16),transparent 70%);animation:auroraDrift2 11s ease-in-out infinite;}
   .gw-hero-inner{position:relative;z-index:1;}
+  /* ---- Centered ambient glow bloom, echoing the login page's glow treatment (same gold+cool-teal blend) ---- */
+  .gw-hero-center-glow{position:absolute;inset:-25% -8%;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 440px 320px at 50% 38%, rgba(255,222,158,0.30) 0%, transparent 70%),
+      radial-gradient(ellipse 400px 300px at 36% 58%, rgba(130,224,196,0.16) 0%, transparent 68%);
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .gw-hero-center-glow{animation:loginGlowDrift 12s ease-in-out infinite;}
+  }
   .gw-chip{transition:transform .18s ease,background .18s ease;}
   .gw-chip:hover{transform:translateY(-2px);background:rgba(255,255,255,0.19);}
 
@@ -4472,6 +4646,17 @@ document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
 // as darkMode just above it.
 let sidebarCollapsed = false;
 try{ sidebarCollapsed = localStorage.getItem('rb_sidebar_collapsed')==='1'; }catch(e){}
+// Round 7 -- compact/comfortable row density, same per-device localStorage pattern as
+// sidebarCollapsed right above it (a visual density preference, not something that belongs on the
+// Firestore user doc's tiny self-update allowlist). Default switched to 'compact' per Santhosh's
+// follow-up request the same day; the toggle still lets anyone switch back to 'comfortable'.
+let sidebarDensity = 'compact';
+try{ sidebarDensity = localStorage.getItem('rb_sidebar_density')==='comfortable' ? 'comfortable' : 'compact'; }catch(e){}
+function toggleSidebarDensity(){
+  sidebarDensity = sidebarDensity==='compact' ? 'comfortable' : 'compact';
+  try{ localStorage.setItem('rb_sidebar_density', sidebarDensity); }catch(e){}
+  render();
+}
 // Oct 10, 2026 sidebar round 3 -- persisted expanded-mode width (drag handle, see
 // attachSidebarResizeHandle()). Never applied while collapsed -- the fixed 60px rail width always
 // wins then, so this is only ever read/used when sidebarCollapsed is false.
@@ -4482,28 +4667,12 @@ try{ const w = parseInt(localStorage.getItem('rb_sidebar_width'), 10); if(w>=170
 // convention as gatewaySearchQuery, a fresh search each visit rather than a sticky filter that
 // could leave someone staring at a "filtered" sidebar with no idea why modules are missing.
 let sidebarFilterQuery = '';
-// Curated accent palette a user can pick for their OWN sidebar instead of the fixed brand green --
-// kept distinct from SIDEBAR_ICON_HUES (the per-MODULE palette from round 4): this is a single
-// account-wide choice applied to the active-tab indicator, section accent dots, and the icon hover
-// tint (see the --sidebar-accent custom property, set inline on .tabstrip in render()).
-const SIDEBAR_ACCENT_PRESETS = ['#2CA01C','#2563EB','#7C3AED','#DB2777','#0D9488','#D97706','#DC2626','#4F46E5'];
-function sidebarAccentKey(){
-  return 'rb_sidebar_accent_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
-}
-function getSidebarAccent(){
-  try{
-    const v = localStorage.getItem(sidebarAccentKey());
-    return (v && /^#[0-9a-fA-F]{6}$/.test(v)) ? v : null; // null = default brand green, no override
-  }catch(e){ return null; }
-}
-function setSidebarAccent(hex){
-  try{
-    if(hex) localStorage.setItem(sidebarAccentKey(), hex);
-    else localStorage.removeItem(sidebarAccentKey());
-  }catch(e){}
-  render();
-}
-let sidebarPopoverOpen = false; // transient -- which popover is showing, reset on navigation
+// transient -- which single sidebar popover is showing (at most one open at a time), reset on
+// navigation: false | 'bell' | 'company' (round 6 company switcher) | 'quicknew' (round 6 Quick
+// "+ New" voucher menu) | 'profile' (round 7 user-profile menu). (The 'accent' sidebar-accent-color
+// picker and the 'help' keyboard-shortcuts panel were both removed per Santhosh's follow-up request
+// the same day they shipped -- see the sidebar-navigation-upgrades doc's Round 7 note.)
+let sidebarPopoverOpen = false;
 // ---- Oct 12, 2026 sidebar round 5: drag-to-reorder & custom groups. The four static sections
 // (Vouchers & Entry / Masters / Reports & Compliance / Operations) stay the default, but the user
 // can now drag any module into a different section, reorder within one, or create their own named
@@ -4539,8 +4708,18 @@ function ensureSidebarLayout(){
   let layout = getSidebarLayout();
   if(!layout) layout = { groups: SIDEBAR_DEFAULT_GROUPS.map(g=>({id:g.id, label:g.label, moduleIds:g.moduleIds.slice(), builtin:true})) };
   if(!layout.groups.length) layout.groups.push({id:'vouchers', label:'Vouchers & Entry', moduleIds:[], builtin:true});
+  // Bug fix (found via a round-6 screenshot): 'dashboard' is always rendered as its own fixed row
+  // above every group (see render()'s separate tab('dashboard',...) call, which is never passed
+  // {draggable:true}) and was never meant to live inside a group -- but it's also a member of
+  // SIDEBAR_MODULE_LABELS/SIDEBAR_MODULE_ORDER (needed for Alt+1-9 and the search box), so the
+  // orphan-healing step below used to scoop it up as "not yet placed anywhere" and push a SECOND,
+  // draggable "Dashboard" row into Vouchers & Entry on every very first render -- and, for anyone who
+  // ever dragged a module/added/removed a group (anything calling saveSidebarLayout()), persisted
+  // that duplicate into their saved layout. Stripping it from every group unconditionally here (not
+  // just excluding it from future orphan-healing) self-heals an already-corrupted saved layout too.
+  layout.groups.forEach(g=>{ g.moduleIds = g.moduleIds.filter(id=>id!=='dashboard'); });
   const placed = new Set(layout.groups.flatMap(g=>g.moduleIds));
-  const orphans = SIDEBAR_MODULE_ORDER.filter(id=>!placed.has(id));
+  const orphans = SIDEBAR_MODULE_ORDER.filter(id=>id!=='dashboard' && !placed.has(id));
   if(orphans.length) layout.groups[0].moduleIds.push(...orphans);
   return layout;
 }
@@ -5950,6 +6129,16 @@ let consolidationSelectedIds = null; // null = not yet initialized | Set of comp
 let consolidationDateFrom = ''; // '' = no lower bound (cumulative since each company's inception)
 let consolidationDateTo = '';   // '' = no upper bound (through the latest entry)
 let consolidationShowEliminated = false; // toggles the audit list of excluded intercompany balances
+// Round 7: Company Comparison view (Gateway screen, modal==='comparison') -- deliberately separate
+// from the Consolidation Report above rather than reusing it: Consolidation COMBINES companies into
+// one set of totals (with intercompany elimination, a balance-sheet tie-out check, a configurable
+// period); Comparison puts 2-3 companies SIDE BY SIDE, unmodified, so you can see which one is
+// doing better -- a different question with a different shape of answer (columns per company, not
+// one combined row). Still reuses consolidatedFinancials() for the financial figures themselves
+// (tested, no reason to recompute that logic a second way) -- just renders its perCompany rows as
+// columns instead of combining them. Capped at 3 so the table stays readable; [] means "nothing
+// picked yet", not "everyone" (unlike consolidationSelectedIds's default-to-all).
+let comparisonSelectedIds = [];
 // Migration/Onboarding AI Assistant (in-company modal==='migrate') -- a Tally/trial-balance import
 // wizard, modeled on the existing "Import Accounting Data" wizard's step/state shape (importState
 // above) but for bulk-creating LEDGERS with a suggested Chart-of-Accounts mapping, not vouchers.
@@ -8270,10 +8459,49 @@ async function loadCompanies(){
    new company into local state and open it regardless of whether this save succeeded, so a failed
    write (a network blip, an expired session, anything) would silently vanish on the next login with
    no error ever shown at the time it happened. */
+// ---- Round 7: sidebar sync/save status indicator ("All changes saved" / "Saving…" / "Save
+// failed") -- every save*() helper below calls markSyncSaving()/markSyncSaved()/markSyncError()
+// around its own Firestore write. syncPendingCount (not a plain boolean) is what lets two saves
+// overlap -- e.g. `await saveLedgers(); await saveVouchers();` back to back -- without the
+// indicator flickering to "saved" between them; it only drops back once every in-flight save has
+// settled. Deliberately a targeted DOM patch (updateSyncStatusDom()), NOT a full render(): render()
+// fully replaces the sidebar's innerHTML, and calling it from inside a save that's often already
+// sandwiched between the caller's own state-mutation-then-render() would mean redundant extra
+// full-tree re-renders (and a flash) on every single save across the whole app. saveAutomationLog()/
+// saveVoucherAuditLog() deliberately do NOT call these -- they're a silent background audit trail,
+// not something the user is watching for, so they shouldn't move the indicator either.
+let syncStatus = 'saved'; // 'saving' | 'saved' | 'error'
+let syncPendingCount = 0;
+function syncStatusLabel(){
+  return syncStatus==='saving' ? 'Saving…' : syncStatus==='error' ? 'Save failed — will retry' : 'All changes saved';
+}
+function updateSyncStatusDom(){
+  const el = document.getElementById('sidebarSyncStatus');
+  if(!el) return;
+  el.className = 'sidebar-sync-status ' + syncStatus;
+  const label = el.querySelector('.sidebar-sync-label');
+  if(label) label.textContent = syncStatusLabel();
+}
+function markSyncSaving(){
+  syncPendingCount++;
+  syncStatus = 'saving';
+  updateSyncStatusDom();
+}
+function markSyncSaved(){
+  syncPendingCount = Math.max(0, syncPendingCount-1);
+  if(syncPendingCount===0) syncStatus = 'saved';
+  updateSyncStatusDom();
+}
+function markSyncError(){
+  syncPendingCount = Math.max(0, syncPendingCount-1);
+  syncStatus = 'error';
+  updateSyncStatusDom();
+}
 async function saveCompanyMeta(company){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; }
-  try{ await db.collection('companies').doc(company.id).set(company, {merge:true}); return true; }
-  catch(e){ console.error('saveCompanyMeta failed:', e); toast('Could not save company — ' + (e && (e.code || e.message) || 'unknown error')); return false; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(company.id).set(company, {merge:true}); markSyncSaved(); return true; }
+  catch(e){ console.error('saveCompanyMeta failed:', e); toast('Could not save company — ' + (e && (e.code || e.message) || 'unknown error')); markSyncError(); return false; }
 }
 /* Deletes a company and all of its stored books (ledgers, vouchers, items, stock adjustments —
    all embedded on the same Firestore document, so one delete removes everything). Shared by the
@@ -9338,6 +9566,10 @@ function showCompanyOpeningSkeleton(companyName){
 }
 async function enterCompanyApp(company, opts={}){
   currentCompany = company;
+  // Round 7 -- a fresh company gets a fresh save-status indicator; don't carry a stale "Saving…"/
+  // "Save failed" over from whatever company (or none) was open before.
+  syncStatus = 'saved';
+  syncPendingCount = 0;
   if(opts.adminViewOnly) adminViewOnlyCompanyId = company.id;
   else recordCompanyOpened(company.id); // Gateway's "recently opened" ordering -- a read-only admin peek doesn't count as genuine usage
   showCompanyOpeningSkeleton(company.name);
@@ -9396,38 +9628,45 @@ function ensureCoreLedgers(){
 }
 async function saveLedgers(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ ledgers: state.ledgers }, {merge:true}); }
-  catch(e){ toast('Could not save ledgers'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ ledgers: state.ledgers }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save ledgers'); markSyncError(); }
 }
 async function saveVouchers(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ vouchers: state.vouchers }, {merge:true}); }
-  catch(e){ toast('Could not save vouchers'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ vouchers: state.vouchers }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save vouchers'); markSyncError(); }
 }
 async function saveItems(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ items: state.items }, {merge:true}); }
-  catch(e){ toast('Could not save items'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ items: state.items }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save items'); markSyncError(); }
 }
 async function saveStockAdjustments(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ stockAdjustments: state.stockAdjustments }, {merge:true}); }
-  catch(e){ toast('Could not save stock adjustments'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ stockAdjustments: state.stockAdjustments }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save stock adjustments'); markSyncError(); }
 }
 async function saveWarehouses(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ warehouses: state.warehouses }, {merge:true}); }
-  catch(e){ toast('Could not save locations'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ warehouses: state.warehouses }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save locations'); markSyncError(); }
 }
 async function saveStockTransfers(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ stockTransfers: state.stockTransfers }, {merge:true}); }
-  catch(e){ toast('Could not save stock transfer'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ stockTransfers: state.stockTransfers }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save stock transfer'); markSyncError(); }
 }
 async function saveBankClears(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ bankClears: state.bankClears }, {merge:true}); }
-  catch(e){ toast('Could not save reconciliation status'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ bankClears: state.bankClears }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save reconciliation status'); markSyncError(); }
 }
 async function saveAutomationLog(){
   // Best-effort like the other save*() helpers, but deliberately silent on failure (no toast) -- this
@@ -9544,88 +9783,105 @@ async function rejectPendingVoucher(pvId){
 }
 async function saveReconciliations(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ reconciliations: state.reconciliations }, {merge:true}); }
-  catch(e){ toast('Could not save reconciliation history'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ reconciliations: state.reconciliations }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save reconciliation history'); markSyncError(); }
 }
 async function saveRecurringTemplates(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ recurringTemplates: state.recurringTemplates }, {merge:true}); }
-  catch(e){ toast('Could not save recurring templates'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ recurringTemplates: state.recurringTemplates }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save recurring templates'); markSyncError(); }
 }
 async function savePendingVouchers(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ pendingVouchers: state.pendingVouchers }, {merge:true}); }
-  catch(e){ toast('Could not save the pending approval'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ pendingVouchers: state.pendingVouchers }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save the pending approval'); markSyncError(); }
 }
 async function saveFixedAssets(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ fixedAssets: state.fixedAssets }, {merge:true}); }
-  catch(e){ toast('Could not save fixed asset register'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ fixedAssets: state.fixedAssets }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save fixed asset register'); markSyncError(); }
 }
 async function saveCostCenters(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ costCenters: state.costCenters }, {merge:true}); }
-  catch(e){ toast('Could not save cost centers'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ costCenters: state.costCenters }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save cost centers'); markSyncError(); }
 }
 async function saveCurrencies(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ currencies: state.currencies }, {merge:true}); }
-  catch(e){ toast('Could not save currencies'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ currencies: state.currencies }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save currencies'); markSyncError(); }
 }
 async function saveBudgets(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ budgets: state.budgets }, {merge:true}); }
-  catch(e){ toast('Could not save budgets'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ budgets: state.budgets }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save budgets'); markSyncError(); }
 }
 async function saveEmployees(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ employees: state.employees }, {merge:true}); }
-  catch(e){ toast('Could not save employees'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ employees: state.employees }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save employees'); markSyncError(); }
 }
 async function saveSalaryVouchers(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ salaryVouchers: state.salaryVouchers }, {merge:true}); }
-  catch(e){ toast('Could not save salary vouchers'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ salaryVouchers: state.salaryVouchers }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save salary vouchers'); markSyncError(); }
 }
 async function saveEmployeeLoans(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ employeeLoans: state.employeeLoans }, {merge:true}); }
-  catch(e){ toast('Could not save employee loans'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ employeeLoans: state.employeeLoans }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save employee loans'); markSyncError(); }
 }
 async function saveFnfSettlements(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ fnfSettlements: state.fnfSettlements }, {merge:true}); }
-  catch(e){ toast('Could not save settlements'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ fnfSettlements: state.fnfSettlements }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save settlements'); markSyncError(); }
 }
 async function saveQuotations(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ quotations: state.quotations }, {merge:true}); }
-  catch(e){ toast('Could not save quotations'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ quotations: state.quotations }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save quotations'); markSyncError(); }
 }
 async function saveSalesOrders(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ salesOrders: state.salesOrders }, {merge:true}); }
-  catch(e){ toast('Could not save sales orders'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ salesOrders: state.salesOrders }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save sales orders'); markSyncError(); }
 }
 async function savePurchaseOrders(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ purchaseOrders: state.purchaseOrders }, {merge:true}); }
-  catch(e){ toast('Could not save purchase orders'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ purchaseOrders: state.purchaseOrders }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save purchase orders'); markSyncError(); }
 }
 async function saveDeliveryChallans(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ deliveryChallans: state.deliveryChallans }, {merge:true}); }
-  catch(e){ toast('Could not save delivery challans'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ deliveryChallans: state.deliveryChallans }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save delivery challans'); markSyncError(); }
 }
 async function saveTaxDeductions(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ taxDeductions: state.taxDeductions }, {merge:true}); }
-  catch(e){ toast('Could not save TDS/TCS records'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ taxDeductions: state.taxDeductions }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save TDS/TCS records'); markSyncError(); }
 }
 async function saveDocVault(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-  try{ await db.collection('companies').doc(currentCompany.id).set({ docVaultSalt: state.docVaultSalt, docVaultVerifier: state.docVaultVerifier }, {merge:true}); }
-  catch(e){ toast('Could not save the document vault setup'); }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ docVaultSalt: state.docVaultSalt, docVaultVerifier: state.docVaultVerifier }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save the document vault setup'); markSyncError(); }
 }
 
 /* ---------------- Voucher Attachments (bill/receipt upload) ----------------
@@ -10691,6 +10947,68 @@ function companyLastActivityAt(company){
 }
 function companyPendingApprovalsCount(company){
   return (company.pendingVouchers||[]).length;
+}
+// Round 7 (Gateway): low-stock count, computed the same way reorderSuggestions()/stockSummaryForItem()
+// do for the currently-OPEN company's global `state` -- but reading straight off a lightweight
+// `company` object instead, the same company-scoped pattern as companyUnreconciledBankCount() above,
+// so the Gateway grid can show this for every visible company without an enterCompanyApp()/loadState()
+// per card. Re-derives each item's closing qty from its own opening qty + voucher movements +
+// adjustments rather than calling stockMovementForItem() (which reads global `state.vouchers`).
+function companyLowStockCount(company){
+  const items = company.items || [];
+  if(!items.length) return 0;
+  const vouchers = company.vouchers || [];
+  const adjustments = company.stockAdjustments || [];
+  let count = 0;
+  for(const item of items){
+    if(item.reorderLevel==null) continue;
+    let qty = item.openingQty || 0;
+    for(const v of vouchers){
+      if(!v.items) continue;
+      const dir = itemVoucherDirection(v.type);
+      if(dir===0) continue;
+      for(const it of v.items){
+        if(it.itemId===item.id && it.qty>0) qty += dir>0 ? it.qty : -it.qty;
+      }
+    }
+    for(const adj of adjustments){
+      if(adj.itemId===item.id) qty += adj.qty>=0 ? Math.abs(adj.qty) : -Math.abs(adj.qty);
+    }
+    if(qty<=item.reorderLevel) count++;
+  }
+  return count;
+}
+// Round 7 (Gateway): "GST filing due" reminder. This app has no e-filing integration and tracks no
+// per-return "filed" flag anywhere in its data model (checked -- there's genuinely nothing to read),
+// so this is deliberately an honest date-based REMINDER, not a real compliance/filing-status check:
+// any GST-registered company (has a gstin) is shown a countdown to the 20th of the month, the
+// standard GSTR-3B due date this app already documents elsewhere (see GST_RETURNS) for the regular
+// monthly scheme. The reminder only shows in the lead-up window (1st-20th) so it isn't a permanent
+// nag once that date has passed, since there's no "filed" flag to clear it properly.
+function companyGstFilingDue(company){
+  if(!company.gstin) return null;
+  const day = new Date().getDate();
+  if(day>20) return null;
+  return { daysLeft: 20-day };
+}
+// Round 7 (Gateway hero): cross-company recent activity feed -- merges every visible company's own
+// vouchers (the same data already loaded for the health badges/Comparison view above, so this needs
+// no extra fetch) into one timeline sorted newest-first, tagged with which company each entry
+// belongs to. Capped by the caller to a handful of lines -- this is a glance at "what's been
+// happening across my companies", not a full audit log (voucherAuditLog/Admin Panel Audit Log cover
+// that already).
+const GATEWAY_ACTIVITY_ICONS = { Sales:'🧾', Purchase:'📥', Payment:'💸', Receipt:'💰', Contra:'🔁', 'Credit Note':'↩️', 'Debit Note':'↪️', Journal:'📔' };
+function gatewayRecentActivityItems(myCompanies, limit){
+  const items = [];
+  for(const c of myCompanies){
+    for(const v of (c.vouchers||[])){
+      const stamp = v.createdAt || (v.date ? v.date+'T00:00:00' : '');
+      if(!stamp) continue;
+      items.push({ companyId:c.id, companyName:c.name, type:v.type, stamp, amount: voucherAmount(v) });
+    }
+  }
+  items.sort((a,b)=> b.stamp.localeCompare(a.stamp));
+  return items.slice(0, limit||5);
 }
 // One row per company this signed-in user can see (visibleCompanies()'s own set -- owner, reseller
 // group, or Company Team Access member), each carrying the handful of "needs attention" signals
@@ -14102,9 +14420,10 @@ function render(){
     </div>
     ` : ''}
     <div class="body-shell">
-      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}${getSidebarAccent()?`--sidebar-accent:${getSidebarAccent()};`:''}">
+      <div class="tabstrip ${sidebarCollapsed?'collapsed':''} ${sidebarDensity==='compact'?'compact':''}" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}">
         <div class="navtab-indicator" id="navtabIndicator"></div>
         ${sidebarBrandHeader()}
+        ${sidebarQuickNewMenu()}
         ${sidebarSearchBox()}
         ${favoritesNavSection()}
         ${tab('dashboard','Dashboard','D')}
@@ -14112,9 +14431,11 @@ function render(){
         ${sidebarFilterHasNoMatches() ? `<div class="sidebar-filter-empty">No modules match "${escapeHtml(sidebarFilterQuery.trim())}"</div>` : ''}
         <div class="sidebar-utility-row">
           ${sidebarNotificationBell()}
-          ${sidebarAccentPicker()}
+          ${sidebarDensityToggle()}
         </div>
+        ${sidebarSyncStatusIndicator()}
         ${sidebarCompanyCard()}
+        ${sidebarUserMenu()}
         <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" type="button" title="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}" aria-label="${sidebarCollapsed?'Expand sidebar':'Collapse sidebar'}">
           <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>Collapse</span>
         </button>
@@ -14591,6 +14912,41 @@ function toggleSidebarFavorite(id){
   try{ localStorage.setItem(sidebarFavoritesKey(), JSON.stringify(favs)); }catch(e){}
   render();
 }
+// Round 7: pin individual REPORTS (not whole modules) to the same sidebar Favorites section --
+// separate list from getSidebarFavorites() above since a report id (e.g. 'trialBalance') and a
+// module id (e.g. 'reports') are different namespaces; same per-signed-in-uid localStorage
+// reasoning as Favorites (not a users/{uid} Firestore field -- see that comment above).
+function sidebarPinnedReportsKey(){
+  return 'rb_sidebar_pinned_reports_' + (currentUser && currentUser.id ? currentUser.id : 'anon');
+}
+function getPinnedReports(){
+  try{
+    const raw = localStorage.getItem(sidebarPinnedReportsKey());
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter(id=>REPORT_CARDS.some(c=>c.id===id)) : [];
+  }catch(e){ return []; }
+}
+function togglePinnedReport(id){
+  const pins = getPinnedReports();
+  const idx = pins.indexOf(id);
+  if(idx>-1) pins.splice(idx,1); else pins.push(id);
+  try{ localStorage.setItem(sidebarPinnedReportsKey(), JSON.stringify(pins)); }catch(e){}
+  render();
+}
+// Navigates straight into a pinned report's detail page -- deliberately NOT goToTab('reports'),
+// since goToTab resets reportsSelected to null the moment view==='reports' (see goToTab()) and is
+// also a no-op when already sitting on the Reports tab, which would silently swallow the report
+// switch. Mirrors goToTab()'s own indicator-FLIP/lastTab/pushHistory bookkeeping so the sidebar's
+// active-tab pill and browser-back behavior stay correct from this entry point too.
+function openPinnedReport(id){
+  const prevIndicatorRect = captureSidebarIndicatorRect();
+  view = 'reports';
+  reportsSelected = id;
+  if(currentCompany){ try{ localStorage.setItem('rb_lastTab_'+currentCompany.id, 'reports'); }catch(e){} }
+  render();
+  animateSidebarIndicatorFrom(prevIndicatorRect);
+  pushHistory();
+}
 function toggleSidebarCollapsed(){
   sidebarCollapsed = !sidebarCollapsed;
   try{ localStorage.setItem('rb_sidebar_collapsed', sidebarCollapsed?'1':'0'); }catch(e){}
@@ -14798,13 +15154,28 @@ function navSection(label, items, groupId, isCustom){
 // verbatim for each favorite so the icon, badge, RBAC gating and active-state treatment can never
 // drift out of sync with that module's "real" entry further down the list. Renders nothing when
 // the user hasn't pinned anything yet, rather than showing an empty "Favorites" header.
+// Round 7: pinned individual reports (see getPinnedReports()/openPinnedReport()) now join pinned
+// MODULES in this same Favorites section -- same .navtab-row/.navtab-pin-btn markup as tab() so a
+// pinned report looks and behaves like any other favorite, just routed to openPinnedReport()
+// instead of goToTab() and marked "active" by reportsSelected rather than the view id alone.
 function favoritesNavSection(){
   const favs = getSidebarFavorites();
-  if(!favs.length) return '';
-  const html = favs.map(id=>{
+  const moduleHtml = favs.map(id=>{
     const meta = SIDEBAR_MODULE_LABELS[id];
     return meta ? tab(id, meta.label, meta.key) : '';
   }).filter(Boolean).join('');
+  const pinnedReportIds = getPinnedReports();
+  const reportHtml = pinnedReportIds.map(id=>{
+    const c = REPORT_CARDS.find(x=>x.id===id);
+    if(!c) return '';
+    if(sidebarFilterQuery.trim() && !c.title.toLowerCase().includes(sidebarFilterQuery.trim().toLowerCase())) return '';
+    const isActive = view==='reports' && reportsSelected===id;
+    return `<div class="navtab-row" data-flyout-label="${escapeAttr(c.title)} ★">
+      <button class="navtab ${isActive?'active':''}" data-open-pinned-report="${id}" title="${escapeAttr(c.title)}"><span class="navtab-icon">${c.icon}</span><span class="navtab-label">${escapeHtml(c.title)}</span></button>
+      <button class="navtab-pin-btn pinned" type="button" data-pin-report="${id}" title="Unpin from Favorites" aria-label="Unpin ${escapeAttr(c.title)} from Favorites">★</button>
+    </div>`;
+  }).filter(Boolean).join('');
+  const html = moduleHtml + reportHtml;
   return html ? `<div class="nav-section-label">★ Favorites</div>${html}` : '';
 }
 // Renders every group from the user's sidebar layout (default or customized -- see
@@ -14880,27 +15251,32 @@ function sidebarNotificationBell(){
     </div>` : ''}
   </div>`;
 }
-// A small curated palette (SIDEBAR_ACCENT_PRESETS) the user can pick from instead of the fixed
-// brand green -- applied via the --sidebar-accent custom property set inline on .tabstrip in
-// render(), which only the indicator/section-dot/icon-hover CSS rules reference, so this never
-// touches the brand header, company avatar, or anything outside the sidebar itself.
-function sidebarAccentPicker(){
-  const current = getSidebarAccent();
-  return `<div class="sidebar-accent-wrap">
-    <button type="button" class="sidebar-accent-btn" id="sidebarAccentBtn" title="Sidebar accent color" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='accent'}" aria-label="Choose sidebar accent color">
-      <span class="sidebar-accent-swatch-preview" style="background:${current||'var(--accent1)'}"></span>🎨
-    </button>
-    ${sidebarPopoverOpen==='accent' ? `
-    <div class="sidebar-accent-panel" role="menu">
-      <div class="sidebar-accent-panel-title">Accent color</div>
-      <div class="sidebar-accent-swatches">
-        ${SIDEBAR_ACCENT_PRESETS.map(hex=>`<button type="button" class="sidebar-accent-swatch ${current===hex?'is-selected':(!current && hex==='#2CA01C')?'is-selected':''}" data-accent-swatch="${hex}" style="background:${hex}" title="${hex}" aria-label="Use ${hex}"></button>`).join('')}
-      </div>
-      ${current ? `<button type="button" class="sidebar-accent-reset" id="sidebarAccentReset">Reset to default</button>` : ''}
-    </div>` : ''}
+// Round 7 -- compact/comfortable density toggle, a plain two-state icon button (no popover, unlike
+// its utility-row neighbor) -- joins the bell row, same flex:1 square-button treatment. (The sidebar
+// accent-color picker that used to sit between them, and the "?" help/keyboard-shortcuts panel that
+// used to follow, were both removed per Santhosh's follow-up request the same day they shipped.)
+function sidebarDensityToggle(){
+  const compact = sidebarDensity==='compact';
+  return `<button type="button" class="sidebar-density-btn" id="sidebarDensityBtn" title="${compact?'Switch to comfortable spacing':'Switch to compact spacing'}" aria-pressed="${compact}" aria-label="${compact?'Switch to comfortable spacing':'Switch to compact spacing'}">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      ${compact
+        ? '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>'
+        : '<line x1="3" y1="4" x2="21" y2="4"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="16" x2="21" y2="16"/><line x1="3" y1="22" x2="21" y2="22"/>'}
+    </svg>
+  </button>`;
+}
+// Round 7 -- renders the CURRENT syncStatus on every real render() (company switch, navigation,
+// etc.); live updates in between full renders go through updateSyncStatusDom() instead (see its
+// comment, next to markSyncSaving()/markSyncSaved()/markSyncError()), which patches this exact
+// element's class/text in place.
+function sidebarSyncStatusIndicator(){
+  if(!currentCompany) return '';
+  return `<div class="sidebar-sync-status ${syncStatus}" id="sidebarSyncStatus" role="status" aria-live="polite">
+    <span class="sidebar-sync-dot" aria-hidden="true"></span>
+    <span class="sidebar-sync-label">${escapeHtml(syncStatusLabel())}</span>
   </div>`;
 }
-// Closes whichever sidebar popover (bell or accent) is open when a click lands outside both their
+// Closes whichever sidebar popover (bell, etc.) is open when a click lands outside its
 // wraps -- bound ONCE at script load, same reasoning as attachSidebarResizeHandle()'s document-level
 // mousemove/mouseup: `document` itself is never recreated by render(), so binding this inside
 // attachHandlers() (which reruns on every render()) would stack a fresh listener each time and leak.
@@ -14909,10 +15285,16 @@ function sidebarAccentPicker(){
 document.addEventListener('click', (e)=>{
   if(!sidebarPopoverOpen) return;
   const bellWrap = document.querySelector('.sidebar-bell-wrap');
-  const accentWrap = document.querySelector('.sidebar-accent-wrap');
+  // Round 6 additions -- same wrap-and-contains convention as bell above.
+  const companyWrap = document.querySelector('.sidebar-company-wrap');
+  const quickNewWrap = document.querySelector('.sidebar-quicknew-wrap');
+  // Round 7 addition -- same wrap-and-contains convention as the others above.
+  const userWrap = document.querySelector('.sidebar-user-wrap');
   const insideBell = bellWrap && bellWrap.contains(e.target);
-  const insideAccent = accentWrap && accentWrap.contains(e.target);
-  if(!insideBell && !insideAccent){
+  const insideCompany = companyWrap && companyWrap.contains(e.target);
+  const insideQuickNew = quickNewWrap && quickNewWrap.contains(e.target);
+  const insideUser = userWrap && userWrap.contains(e.target);
+  if(!insideBell && !insideCompany && !insideQuickNew && !insideUser){
     sidebarPopoverOpen = false;
     render();
   }
@@ -14969,6 +15351,58 @@ function attachSidebarDragDrop(){
     });
   });
 }
+// ---- Oct 12, 2026 sidebar round 6: Quick "+ New" voucher menu, company switcher, and a Help &
+// shortcuts panel -- three things most comparable accounting software (QuickBooks' "+New" button,
+// Zoho Books'/Tally's company switcher, Tally's F1 help) already put right in their own navigation,
+// which this app's sidebar didn't have yet after 5 rounds of other upgrades. All three reuse
+// sidebarPopoverOpen (see its declaration above) rather than adding separate open/closed booleans,
+// and all three close the same way the bell/accent popovers already do -- see the click-outside
+// listener and attachHandlers() wiring below.
+//
+// Quick "+ New": reuses VOUCHER_TYPES and switchVoucherType() verbatim -- the exact same two
+// functions the command palette's own "New X Voucher" entries already run (see cmdkResults()) --
+// so a sidebar quick-create action never behaves differently from typing it into Ctrl+K or picking
+// it from the Voucher screen's own type tabs.
+function sidebarCanQuickNew(){
+  if(isModuleHidden('voucher')) return false;
+  if(memberModuleAccess('voucher')==='view') return false;
+  if(isReadOnlyMode()) return false;
+  return true;
+}
+function quickNewVoucher(type){
+  sidebarPopoverOpen = false;
+  modal = null; vform = null; view = 'voucher';
+  render(); // viewVoucher()'s lazy-init builds a fresh, blank vform (defaults to type 'Payment')
+  switchVoucherType(type); // ...then switch it to the requested type, same as cmdkResults()'s own run()
+  render();
+  pushHistory();
+}
+function sidebarQuickNewMenu(){
+  if(!sidebarCanQuickNew()) return '';
+  return `<div class="sidebar-quicknew-wrap">
+    <button type="button" class="sidebar-quicknew-btn" id="sidebarQuickNewBtn" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='quicknew'}" title="Create a new voucher">
+      <span class="sidebar-quicknew-plus" aria-hidden="true">+</span> New
+    </button>
+    ${sidebarPopoverOpen==='quicknew' ? `
+    <div class="sidebar-quicknew-panel" role="menu">
+      <div class="sidebar-quicknew-panel-title">New Voucher</div>
+      ${VOUCHER_TYPES.map(t=>`<button type="button" class="sidebar-quicknew-item" data-quicknew-type="${escapeAttr(t)}" role="menuitem">🧾 ${escapeHtml(t)}</button>`).join('')}
+    </div>` : ''}
+  </div>`;
+}
+// Company switcher: a dropdown on the existing company mini-card that jumps straight to another
+// company this account can already open (same canAccessCompany() gate the Gateway screen itself
+// uses), without leaving the in-company screen for the Gateway grid first -- the sidebarCompanyCard()
+// button used to go straight to switchToCompanyGateway() on click; that's now the panel's own
+// "All Companies" row instead, so the full Gateway (folders, bulk actions, etc.) is still one click
+// away, just no longer the ONLY way to switch.
+function switchSidebarCompany(id){
+  sidebarPopoverOpen = false;
+  if(!currentCompany || id===currentCompany.id){ render(); return; }
+  const target = companies.find(c=>c.id===id);
+  if(!target || !canAccessCompany(target)){ toast("You don't have access to that company"); render(); return; }
+  enterCompanyApp(target);
+}
 // ---- Oct 10, 2026 "more attractive" sidebar pass: brand header, company mini-card, sliding
 // active-tab indicator. ----
 function sidebarBrandHeader(){
@@ -14988,10 +15422,103 @@ function companyInitials(name){
 }
 function sidebarCompanyCard(){
   if(!currentCompany) return '';
-  return `<button class="sidebar-company-card" id="sidebarCompanyCardBtn" type="button" title="Switch company">
-    <span class="sidebar-company-avatar">${escapeHtml(companyInitials(currentCompany.name))}</span>
-    <span class="sidebar-company-info"><span class="sidebar-company-name">${escapeHtml(currentCompany.name)}</span><span class="sidebar-company-sub">Switch company</span></span>
-  </button>`;
+  // Round 6: the card itself now opens a quick-switcher popover instead of jumping straight to the
+  // Gateway -- see switchSidebarCompany()/the panel's own "All Companies" row for that old behavior,
+  // still one click away. `others` mirrors visibleCompanies() (the same list the Gateway grid itself
+  // shows) rather than the raw `companies` array, so a demo session still only ever sees/switches to
+  // the one shared demo company it's allowed into.
+  const others = visibleCompanies().filter(c=>c.id!==currentCompany.id && canAccessCompany(c));
+  return `<div class="sidebar-company-wrap">
+    <button class="sidebar-company-card" id="sidebarCompanyCardBtn" type="button" title="Switch company" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='company'}">
+      <span class="sidebar-company-avatar">${escapeHtml(companyInitials(currentCompany.name))}</span>
+      <span class="sidebar-company-info"><span class="sidebar-company-name">${escapeHtml(currentCompany.name)}</span><span class="sidebar-company-sub">${others.length?'Switch company':'Manage companies'}</span></span>
+      <svg class="sidebar-company-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    ${sidebarPopoverOpen==='company' ? `
+    <div class="sidebar-company-panel" role="menu">
+      ${others.length ? `
+      <div class="sidebar-company-panel-title">Switch to</div>
+      ${others.slice(0,8).map(c=>`<button type="button" class="sidebar-company-switch-item" data-switch-company="${escapeAttr(c.id)}" role="menuitem"><span class="sidebar-company-switch-avatar">${escapeHtml(companyInitials(c.name))}</span><span class="sidebar-company-switch-name">${escapeHtml(c.name)}</span></button>`).join('')}
+      ${others.length>8 ? `<div class="sidebar-company-panel-more">+${others.length-8} more — see All Companies</div>` : ''}
+      ` : `<div class="sidebar-company-panel-empty">No other companies yet</div>`}
+      <button type="button" class="sidebar-company-panel-all" id="sidebarCompanyAllBtn" role="menuitem">All Companies →</button>
+    </div>` : ''}
+  </div>`;
+}
+// ---- Round 7: user-profile menu, pinned under the company card -- avatar + name/role, with a
+// Settings/Log Out dropdown. "Settings" routes to whatever this user can actually configure (full
+// Admin Panel, Group Admin panel, or just this company's Invoice/Company Settings for a plain owner)
+// rather than a dead link, and is hidden entirely for a team member with none of those; "Log Out"
+// shares the exact same teardown as the Gateway's own Log Out link (see performFullLogout()). (A
+// "Help & Shortcuts" row used to sit between them, opening the sidebar's own keyboard-shortcuts
+// panel -- removed, along with that panel, per Santhosh's follow-up request the same day it shipped.)
+function sidebarUserSettingsDestination(){
+  if(!currentUser) return null;
+  if(currentUser.role==='admin') return 'adminPanel';
+  if(currentUser.role==='support') return 'groupAdmin';
+  if(isCompanyOwner()) return 'invoiceSettings';
+  return null;
+}
+function sidebarUserMenu(){
+  if(!currentUser) return '';
+  const roleLabel = currentUser.role==='admin' ? 'Administrator' : currentUser.role==='support' ? 'Support' : 'User';
+  const settingsDest = sidebarUserSettingsDestination();
+  return `<div class="sidebar-user-wrap">
+    <button class="sidebar-user-card" id="sidebarUserCardBtn" type="button" title="${escapeAttr(currentUser.name||'Account')}" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='profile'}">
+      <span class="sidebar-user-avatar">${escapeHtml(userInitials(currentUser.name))}</span>
+      <span class="sidebar-user-info"><span class="sidebar-user-name">${escapeHtml(currentUser.name||'Account')}</span><span class="sidebar-user-role">${escapeHtml(roleLabel)}</span></span>
+      <svg class="sidebar-user-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    ${sidebarPopoverOpen==='profile' ? `
+    <div class="sidebar-user-panel" role="menu">
+      <div class="sidebar-user-panel-head">
+        <span class="sidebar-user-panel-avatar">${escapeHtml(userInitials(currentUser.name))}</span>
+        <div><div class="sidebar-user-panel-name">${escapeHtml(currentUser.name||'—')}</div><div class="sidebar-user-panel-role">${escapeHtml(roleLabel)}</div></div>
+      </div>
+      ${settingsDest ? `<button type="button" class="sidebar-user-panel-item" id="sidebarUserSettingsBtn" role="menuitem">Settings</button>` : ''}
+      <div class="sidebar-user-panel-divider"></div>
+      <button type="button" class="sidebar-user-panel-item sidebar-user-panel-logout" id="sidebarUserLogoutBtn" role="menuitem">Log Out</button>
+    </div>` : ''}
+  </div>`;
+}
+// Shared by the Gateway "Log Out" link AND the sidebar user-profile menu's "Log Out" row (see
+// sidebarUserMenu()) -- previously inlined only in the #gwLogOutLink click handler; pulled out
+// here so both triggers land on the exact same full teardown rather than two copies drifting apart.
+async function performFullLogout(){
+  const wasDemo = isDemoUser;
+  stopForceLogoutPoll();
+  stopTicketUpdatePoll();
+  stopInterchangePoll();
+  try{ await fbAuth.signOut(); }catch(err){}
+  currentUser = null;
+  isDemoUser = false;
+  readOnlySnapshot = null;
+  companies = [];
+  users = [];
+  authMode = 'login';
+  authError = '';
+  authDraft = { name:'', username:'', mobile:'', email:'' };
+  pendingVerifyUser = null; pendingVerifyEmail = ''; verifyLinkAwaiting = false; verifyLinkCooldownUntil = 0;
+  verifyLinkNotice = ''; verifyLinkError = '';
+  announcement = { message:'', active:false }; announcementDismissed = false;
+  contactSupportOpen = false; contactSupportDraft = { subject:'', message:'' }; contactSupportNotice = '';
+  myTickets = []; myTicketUpdateIds = new Set(); helpTab = 'info';
+  diOpen = false; diTab = 'group'; diMessages = {}; diPendingAttachments = []; diBroadcastDraft = false; diInputDraft = '';
+  diAdminThreads = []; diActiveAdminThreadId = null; diUnreadBadge = false;
+  diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
+  diReplyTo = null; diFilesOpen = false; diReceipts = {}; diReceiptsSentFor = new Set();
+  currentCompany = null;
+  sidebarPopoverOpen = false;
+  syncStatus = 'saved';
+  syncPendingCount = 0;
+  if(wasDemo){
+    screen = 'landing';
+    renderLanding();
+  }else{
+    screen = 'login';
+    renderLogin();
+  }
+  pushHistory();
 }
 // Shared by the Company menubar item AND the new sidebar company card (see sidebarCompanyCard())
 // -- previously inlined only in the #menuCompany click handler; pulled out here so both triggers
@@ -18861,6 +19388,80 @@ function accountantDashModal(){
   </div>
   `;
 }
+// Builds one <tr> of the comparison table: a label cell plus one value cell per chosen company,
+// with the single best-performing company's cell marked (never on a tie, and never when there's
+// only one company's worth of nonzero data to compare). `lowerIsBetter` flips which extreme wins
+// (e.g. fewer overdue invoices is the win, higher net profit is the win).
+function comparisonMetricRow(label, chosen, valueFn, opts={}){
+  const vals = chosen.map(c=>valueFn(c));
+  const allSame = vals.every(v=>v===vals[0]);
+  const best = allSame ? null : (opts.lowerIsBetter ? Math.min(...vals) : Math.max(...vals));
+  return `<tr>
+    <th>${escapeHtml(label)}</th>
+    ${vals.map(v=>{
+      const isBest = best!==null && v===best;
+      // Default (no explicit format) rows are plain integer counts (Ledgers, Vouchers,
+      // Overdue Invoices, Low Stock Items, Pending Approvals) -- fmt() always forces
+      // decimalPlaces (currency-style, e.g. "4.00"), which is wrong for a count. Only
+      // rows that pass opts.format (the currency ones) should see decimals.
+      const display = opts.format ? opts.format(v) : String(v);
+      return `<td class="num ${isBest?'comparison-best':''}" data-label="${escapeAttr(label)}">${display}${isBest?' <span class="comparison-best-badge" title="Best of the companies shown">✓</span>':''}</td>`;
+    }).join('')}
+  </tr>`;
+}
+function companyComparisonModal(){
+  const allMyCompanies = visibleCompanies();
+  const chosen = allMyCompanies.filter(c=>comparisonSelectedIds.includes(c.id));
+  const finData = chosen.length ? consolidatedFinancials(chosen.map(c=>c.id), '', '') : null;
+  const finFor = (id) => finData.perCompany.find(r=>r.company.id===id);
+  return `
+  <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+    <div class="modal-card" style="width:${Math.min(920, 320+chosen.length*220)}px;max-width:95vw;padding:0;overflow:hidden;">
+      <div class="panel-head"><h2>⚖️ Compare Companies</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+      <div class="panel-body" style="max-height:80vh;overflow-y:auto;padding:0;">
+        <div style="padding:14px 18px 10px;">
+          <p class="muted" style="font-size:12px;margin:0 0 10px;">Pick 2 or 3 companies to put side by side — cumulative income/expenses/net profit, current assets/liabilities, and the same at-a-glance signals shown on each company's Gateway card.</p>
+          <div class="comparison-picker">
+            ${allMyCompanies.map(c=>{
+              const checked = comparisonSelectedIds.includes(c.id);
+              const disabled = !checked && comparisonSelectedIds.length>=3;
+              return `<label class="comparison-picker-item ${disabled?'is-disabled':''}"><input type="checkbox" data-comparison-co="${c.id}" ${checked?'checked':''} ${disabled?'disabled':''}>${escapeHtml(c.name)}</label>`;
+            }).join('') || `<span class="muted" style="font-size:12px;">No other companies to compare yet.</span>`}
+          </div>
+        </div>
+        ${chosen.length<2 ? `<div class="muted" style="padding:30px 18px;text-align:center;">Select at least 2 companies above to compare them.</div>` : `
+        <div style="padding:0 18px 18px;">
+          <div class="panel"><div class="panel-body" style="padding:0;">
+            <table class="rb-card-table comparison-table">
+              <tr><th>Company</th>${chosen.map(c=>`<th class="num">${escapeHtml(c.name)}</th>`).join('')}</tr>
+              ${comparisonMetricRow('Ledgers', chosen, c=>(c.ledgers||[]).length)}
+              ${comparisonMetricRow('Vouchers', chosen, c=>(c.vouchers||[]).length)}
+              ${comparisonMetricRow('Income (cumulative)', chosen, c=>finFor(c.id).income, {format:v=>'₹'+fmt(v)})}
+              ${comparisonMetricRow('Expenses (cumulative)', chosen, c=>finFor(c.id).expenses, {format:v=>'₹'+fmt(v), lowerIsBetter:true})}
+              ${comparisonMetricRow('Net Profit', chosen, c=>finFor(c.id).netProfit, {format:v=>(v>=0?'':'−')+'₹'+fmt(Math.abs(v))})}
+              ${comparisonMetricRow('Assets', chosen, c=>finFor(c.id).assets, {format:v=>'₹'+fmt(v)})}
+              ${comparisonMetricRow('Liabilities', chosen, c=>finFor(c.id).liabilities, {format:v=>'₹'+fmt(v), lowerIsBetter:true})}
+              ${comparisonMetricRow('Overdue Invoices', chosen, c=>companyOverdueInvoices(c).length, {lowerIsBetter:true})}
+              ${comparisonMetricRow('Low Stock Items', chosen, c=>companyLowStockCount(c), {lowerIsBetter:true})}
+              ${comparisonMetricRow('Pending Approvals', chosen, c=>companyPendingApprovalsCount(c), {lowerIsBetter:true})}
+              <tr><th>GST Filing</th>${chosen.map(c=>{
+                const due = companyGstFilingDue(c);
+                const text = !c.gstin ? 'Not registered' : due ? `Due in ${due.daysLeft}d` : 'Not due yet';
+                return `<td data-label="GST Filing">${escapeHtml(text)}</td>`;
+              }).join('')}</tr>
+              <tr><th>Last Activity</th>${chosen.map(c=>{
+                const ago = relativeTimeAgo(companyLastActivityAt(c));
+                return `<td data-label="Last Activity">${ago ? escapeHtml(ago) : '<span class="muted">No activity yet</span>'}</td>`;
+              }).join('')}</tr>
+            </table>
+          </div></div>
+        </div>
+        `}
+      </div>
+    </div>
+  </div>
+  `;
+}
 function consolidationModal(){
   const allMyCompanies = visibleCompanies();
   if(!consolidationSelectedIds) consolidationSelectedIds = new Set(allMyCompanies.map(c=>c.id));
@@ -18988,6 +19589,7 @@ function renderGateway(){
       const greeting = hour<12 ? 'Good morning' : hour<17 ? 'Good afternoon' : 'Good evening';
       return `
       <div class="gw-hero">
+        <div class="gw-hero-center-glow"></div>
         <div class="aurora-orb gw-hero-aurora-1"></div>
         <div class="aurora-orb gw-hero-aurora-2"></div>
         <div class="gw-hero-inner">
@@ -19020,6 +19622,27 @@ function renderGateway(){
             <div class="gw-chip"><div class="gw-chip-val" data-count="${totalVouchers}">0</div><div class="gw-chip-lbl">Vouchers</div></div>
           </div>
         </div>
+        ${(()=>{
+          // Round 7: cross-company recent activity feed -- only worth showing once there's more than
+          // one company to actually merge activity ACROSS (a single-company account already sees its
+          // own activity the moment it opens that company), and only once there's something to show.
+          if(myCompanies.length<2) return '';
+          const feedItems = gatewayRecentActivityItems(myCompanies, 5);
+          if(!feedItems.length) return '';
+          return `
+          <div class="gw-activity-feed">
+            <div class="gw-activity-feed-label">Recent Activity</div>
+            <div class="gw-activity-feed-list">
+              ${feedItems.map(it=>`
+                <div class="gw-activity-feed-item" title="${escapeAttr(it.type)} in ${escapeAttr(it.companyName)} — ₹${fmt(it.amount)}">
+                  <span class="gw-activity-feed-icon" aria-hidden="true">${GATEWAY_ACTIVITY_ICONS[it.type]||'📄'}</span>
+                  <span class="gw-activity-feed-text"><strong>${escapeHtml(it.type)}</strong> · ${escapeHtml(it.companyName)}</span>
+                  <span class="gw-activity-feed-time">${escapeHtml(relativeTimeAgo(it.stamp)||'')}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+        })()}
       </div>
       `;
     })() : ''}
@@ -19058,6 +19681,7 @@ function renderGateway(){
         <div class="gw-toolbar">
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
+        ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openComparisonBtn" type="button" title="Put 2 or 3 companies side by side to see how they stack up">⚖️ Compare</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary ${gatewayBulkMode?'is-active':''}" id="gwBulkModeBtn" type="button" title="Select multiple companies">${gatewayBulkMode?'✕ Cancel Select':'☑ Select'}</button>` : ''}
         ${allMyCompanies.length > 1 ? `
         <div class="gw-search-wrap">
@@ -19107,11 +19731,21 @@ function renderGateway(){
           // financialHealthStreak count (set only while a company is actually open, via the Dashboard's
           // own Financial Health card) shown as a flame when it's running.
           const streakCount = (c.financialHealthStreak && c.financialHealthStreak.count) || 0;
-          const healthFlags = [companyOverdueInvoices(c).length>0, companyUnreconciledBankCount(c)>0, companyPendingApprovalsCount(c)>0].filter(Boolean).length;
-          const healthHtml = (streakCount>0 || healthFlags>0) ? `
+          const overdueCount = companyOverdueInvoices(c).length;
+          const healthFlags = [overdueCount>0, companyUnreconciledBankCount(c)>0, companyPendingApprovalsCount(c)>0].filter(Boolean).length;
+          // Round 7: two more specific mini badges alongside the existing "N need attention" chip --
+          // GST filing due (companyGstFilingDue()) and low stock (companyLowStockCount()), shown as
+          // their own small pills (not folded into the generic chip) since they're the two signals
+          // the user specifically asked to see at a glance on the card, each actionable on its own.
+          const gstDue = companyGstFilingDue(c);
+          const lowStockCount = companyLowStockCount(c);
+          const healthHtml = (streakCount>0 || healthFlags>0 || gstDue || lowStockCount>0) ? `
             <div class="company-card-health">
               ${streakCount>0 ? `<span class="company-card-health-streak is-lit" title="${streakCount} day${streakCount===1?'':'s'} of all financial-health checks green">🔥 ${streakCount}-day streak</span>` : ''}
-              ${healthFlags>0 ? `<span class="company-card-health-flag" title="${healthFlags} area${healthFlags===1?'':'s'} flagged: ${[companyOverdueInvoices(c).length>0?'overdue invoices':'', companyUnreconciledBankCount(c)>0?'unreconciled bank entries':'', companyPendingApprovalsCount(c)>0?'pending approvals':''].filter(Boolean).join(', ')}">⚠ ${healthFlags} need${healthFlags===1?'s':''} attention</span>` : ''}
+              ${overdueCount>0 ? `<span class="company-card-health-flag" title="${overdueCount} overdue sales invoice${overdueCount===1?'':'s'}">🧾 ${overdueCount} overdue</span>` : ''}
+              ${lowStockCount>0 ? `<span class="company-card-health-flag" title="${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level">📦 ${lowStockCount} low stock</span>` : ''}
+              ${gstDue ? `<span class="company-card-health-flag" title="GSTR-3B is typically due by the 20th of the month -- a date-based reminder, not a confirmed filing status">🧮 GST due in ${gstDue.daysLeft}d</span>` : ''}
+              ${(companyUnreconciledBankCount(c)>0 || companyPendingApprovalsCount(c)>0) ? `<span class="company-card-health-flag" title="${[companyUnreconciledBankCount(c)>0?'unreconciled bank entries':'', companyPendingApprovalsCount(c)>0?'pending approvals':''].filter(Boolean).join(', ')}">⚠ needs attention</span>` : ''}
             </div>` : '';
           // Rename/Delete are Gateway-only shortcuts, so they deliberately stay out of reach for the
           // shared demo company (unless you're the full Administrator), for demo sessions entirely, and
@@ -19271,6 +19905,7 @@ function renderGateway(){
     ${companyRenameModalOpen ? companyRenameModal() : ''}
     ${modal==='accountantDash' ? accountantDashModal() : ''}
     ${modal==='consolidation' ? consolidationModal() : ''}
+    ${modal==='comparison' ? companyComparisonModal() : ''}
     ${modal==='stepUpVerify' ? stepUpVerifyModal() : ''}
     ${modal==='trustedDevices' ? trustedDevicesModal() : ''}
     ${modal==='setupChecklist' && setupChecklistModalCoId ? setupChecklistModal() : ''}
@@ -19746,6 +20381,32 @@ function renderGateway(){
     });
   }
 
+  document.getElementById('openComparisonBtn')?.addEventListener('click', ()=>{
+    // Re-default to the first 2 visible companies each time it's opened -- unlike Consolidation's
+    // "default to everyone", Comparison is meant to start small and deliberate (see comparisonSelectedIds).
+    comparisonSelectedIds = visibleCompanies().slice(0,2).map(c=>c.id);
+    modal = 'comparison';
+    renderGateway();
+  });
+  if(modal==='comparison'){
+    const closeComparison = ()=>{ modal = null; renderGateway(); };
+    document.getElementById('modalClose')?.addEventListener('click', closeComparison);
+    document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='modalOverlayBg') closeComparison();
+    });
+    document.querySelectorAll('[data-comparison-co]').forEach(el=>{
+      el.addEventListener('change', ()=>{
+        const id = el.dataset.comparisonCo;
+        if(el.checked){
+          if(comparisonSelectedIds.length<3) comparisonSelectedIds.push(id);
+        }else{
+          comparisonSelectedIds = comparisonSelectedIds.filter(x=>x!==id);
+        }
+        renderGateway();
+      });
+    });
+  }
+
   document.getElementById('dismissAnnouncementBtn')?.addEventListener('click', ()=>{
     announcementDismissed = true;
     renderGateway();
@@ -19866,36 +20527,7 @@ function renderGateway(){
     document.getElementById('gwLogOutLink')?.addEventListener('click', async (e)=>{
       e.stopPropagation();
       fileMenuOpen = false;
-      const wasDemo = isDemoUser;
-      stopForceLogoutPoll();
-      stopTicketUpdatePoll();
-      stopInterchangePoll();
-      try{ await fbAuth.signOut(); }catch(err){}
-      currentUser = null;
-      isDemoUser = false;
-      readOnlySnapshot = null;
-      companies = [];
-      users = [];
-      authMode = 'login';
-      authError = '';
-      authDraft = { name:'', username:'', mobile:'', email:'' };
-      pendingVerifyUser = null; pendingVerifyEmail = ''; verifyLinkAwaiting = false; verifyLinkCooldownUntil = 0;
-      verifyLinkNotice = ''; verifyLinkError = '';
-      announcement = { message:'', active:false }; announcementDismissed = false;
-      contactSupportOpen = false; contactSupportDraft = { subject:'', message:'' }; contactSupportNotice = '';
-      myTickets = []; myTicketUpdateIds = new Set(); helpTab = 'info';
-      diOpen = false; diTab = 'group'; diMessages = {}; diPendingAttachments = []; diBroadcastDraft = false; diInputDraft = '';
-      diAdminThreads = []; diActiveAdminThreadId = null; diUnreadBadge = false;
-      diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
-      diReplyTo = null; diFilesOpen = false; diReceipts = {}; diReceiptsSentFor = new Set();
-      if(wasDemo){
-        screen = 'landing';
-        renderLanding();
-      }else{
-        screen = 'login';
-        renderLogin();
-      }
-      pushHistory();
+      await performFullLogout();
     });
   }
   if(modal==='help' || modal==='adminPanel' || modal==='groupAdmin'){
@@ -28958,11 +29590,19 @@ function reportLedgerRows(ledgers, sign){
   return ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
 }
 function reportHeader(title, exportBtnId, exportLabel){
+  // Round 7: pin-to-Favorites star, keyed off reportsSelected (the id this detail page was opened
+  // with -- every reportHeader() call happens from inside a reportsSelected==='<id>' branch of
+  // viewReports()) so the exact same pin state shows here as on the reportsLanding() card.
+  const pinId = reportsSelected;
+  const isPinned = pinId && getPinnedReports().includes(pinId);
   return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <div>
         <button class="btn secondary small" id="reportsBackBtn" type="button" style="margin-bottom:10px;">← Back to Reports</button>
-        <h1 style="font-family:inherit;font-weight:800;font-size:19px;margin:0;letter-spacing:-.02em;color:var(--ink);">${title}</h1>
+        <h1 style="font-family:inherit;font-weight:800;font-size:19px;margin:0;letter-spacing:-.02em;color:var(--ink);display:flex;align-items:center;gap:8px;">
+          ${title}
+          ${pinId ? `<button type="button" class="report-pin-btn inline ${isPinned?'pinned':''}" data-pin-report="${pinId}" title="${isPinned?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isPinned?'Unpin from Favorites':'Pin to Favorites'}">${isPinned?'★':'☆'}</button>` : ''}
+        </h1>
       </div>
       ${exportBtnId ? `<button class="btn secondary small" id="${exportBtnId}" type="button">⬇ ${exportLabel||'Download (Excel)'}</button>` : ''}
     </div>
@@ -29113,22 +29753,26 @@ function viewReports(){
   if(reportsSelected==='stakeholderPresentation') return reportStakeholderPresentation();
   return reportsLanding();
 }
+// Round 7: pulled out of reportsLanding() (still its only renderer) so the sidebar's "pin individual
+// reports" feature (see getPinnedReports()/favoritesNavSection()) has one shared place to look up a
+// pinned report id's icon/title, instead of a second hardcoded copy of this list drifting out of sync.
+const REPORT_CARDS = [
+  {id:'trialBalance', icon:'⚖️', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.', group:'Core Financial Statements'},
+  {id:'incomeStatement', icon:'📈', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.', group:'Core Financial Statements'},
+  {id:'balanceSheet', icon:'🏛️', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
+  {id:'cashFlow', icon:'💧', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
+  {id:'ratios', icon:'📊', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
+  {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
+  {id:'stakeholderPresentation', icon:'🎤', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
+  {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
+  {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
+  {id:'forexRevaluation', icon:'💱', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
+  {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
+  {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', group:'Compliance & Data Quality'},
+];
 function reportsLanding(){
   const integrityCount = dataIntegrityChecks().length;
-  const cards = [
-    {id:'trialBalance', icon:'⚖️', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.', group:'Core Financial Statements'},
-    {id:'incomeStatement', icon:'📈', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.', group:'Core Financial Statements'},
-    {id:'balanceSheet', icon:'🏛️', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
-    {id:'cashFlow', icon:'💧', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
-    {id:'ratios', icon:'📊', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
-    {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
-    {id:'stakeholderPresentation', icon:'🎤', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
-    {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
-    {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
-    {id:'forexRevaluation', icon:'💱', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
-    {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
-    {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', badge: integrityCount>0 ? integrityCount : null, group:'Compliance & Data Quality'},
-  ];
+  const cards = REPORT_CARDS.map(c=> c.id==='dataIntegrity' ? {...c, badge: integrityCount>0 ? integrityCount : null} : c);
   const groups = ['Core Financial Statements','Analysis & Insights','Management Reports','Compliance & Data Quality'];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
@@ -29141,9 +29785,12 @@ function reportsLanding(){
       return `
       <div class="section-title">${g}</div>
       <div class="grid report-card-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-bottom:18px;">
-        ${inGroup.map(c=>`
+        ${inGroup.map(c=>{
+          const isPinned = getPinnedReports().includes(c.id);
+          return `
           <div class="panel report-card" data-open-report="${c.id}" style="cursor:pointer;margin-bottom:0;position:relative;">
-            ${c.badge ? `<span class="pill neg" style="position:absolute;top:14px;right:14px;">${c.badge} issue${c.badge===1?'':'s'}</span>` : ''}
+            <button type="button" class="report-pin-btn ${isPinned?'pinned':''}" data-pin-report="${c.id}" title="${isPinned?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isPinned?'Unpin '+escapeAttr(c.title)+' from Favorites':'Pin '+escapeAttr(c.title)+' to Favorites'}">${isPinned?'★':'☆'}</button>
+            ${c.badge ? `<span class="pill neg" style="position:absolute;top:14px;right:40px;">${c.badge} issue${c.badge===1?'':'s'}</span>` : ''}
             <div class="panel-body">
               <div style="font-size:26px;margin-bottom:8px;">${c.icon}</div>
               <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--ink);">${c.title}</div>
@@ -29151,7 +29798,7 @@ function reportsLanding(){
               <div class="linklike" style="margin-top:10px;font-size:12px;">View Report →</div>
             </div>
           </div>
-        `).join('')}
+        `;}).join('')}
       </div>`;
     }).join('')}
   `;
@@ -33142,7 +33789,34 @@ function attachHandlers(){
   document.querySelectorAll('[data-pin-tab]').forEach(b=>{
     b.addEventListener('click', ()=>{ toggleSidebarFavorite(b.dataset.pinTab); });
   });
-  document.getElementById('sidebarCompanyCardBtn')?.addEventListener('click', switchToCompanyGateway);
+  // Round 7: pin individual reports -- [data-pin-report] appears in three places (the Reports
+  // landing card grid, reportHeader()'s inline star, and the sidebar Favorites unpin star), all
+  // wired here in one pass rather than three. stopPropagation matters only for the landing-card
+  // copy (nested inside a [data-open-report] click target) but is harmless on the other two.
+  document.querySelectorAll('[data-pin-report]').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      togglePinnedReport(b.dataset.pinReport);
+    });
+  });
+  document.querySelectorAll('[data-open-pinned-report]').forEach(b=>{
+    b.addEventListener('click', ()=>{ openPinnedReport(b.dataset.openPinnedReport); });
+  });
+  // Round 6: the company card now opens the quick-switcher popover instead of jumping straight to
+  // the Gateway (see sidebarCompanyCard()) -- stopPropagation so this click doesn't also immediately
+  // satisfy the click-outside-to-close listener for the popover it just opened.
+  document.getElementById('sidebarCompanyCardBtn')?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    sidebarPopoverOpen = sidebarPopoverOpen==='company' ? false : 'company';
+    render();
+  });
+  document.querySelectorAll('[data-switch-company]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ switchSidebarCompany(btn.dataset.switchCompany); });
+  });
+  document.getElementById('sidebarCompanyAllBtn')?.addEventListener('click', ()=>{
+    sidebarPopoverOpen = false;
+    switchToCompanyGateway();
+  });
   // Oct 10, 2026 round 3: each static section header's fold/unfold toggle (see navSection()) and the
   // resize-handle's mousedown (document-level mousemove/mouseup are bound once at script top level,
   // not here -- see attachSidebarResizeHandle()'s own comment).
@@ -33194,8 +33868,9 @@ function attachHandlers(){
       removeSidebarGroup(btn.dataset.removeGroup);
     });
   });
-  // ---- Oct 12, 2026 round 5: notification bell + accent picker (see sidebarNotificationBell()/
-  // sidebarAccentPicker()) -- click-outside-to-close is handled once at script load, above. ----
+  // ---- Oct 12, 2026 round 5: notification bell (see sidebarNotificationBell()) -- click-outside-to-
+  // close is handled once at script load, above. (The accent-color picker that used to be wired here
+  // was removed per Santhosh's follow-up request the same day it shipped.) ----
   document.getElementById('sidebarBellBtn')?.addEventListener('click', (e)=>{
     e.stopPropagation();
     sidebarPopoverOpen = sidebarPopoverOpen==='bell' ? false : 'bell';
@@ -33208,15 +33883,61 @@ function attachHandlers(){
       render(); // closes the popover even on that no-op path
     });
   });
-  document.getElementById('sidebarAccentBtn')?.addEventListener('click', (e)=>{
+  // ---- Oct 12, 2026 round 6: Quick "+ New" voucher menu, company switcher (wired just above) --
+  // same popover convention as the bell wiring right above this. (The "?" Help & shortcuts panel that
+  // used to be wired here was removed per Santhosh's follow-up request the same day it shipped.)
+  document.getElementById('sidebarQuickNewBtn')?.addEventListener('click', (e)=>{
     e.stopPropagation();
-    sidebarPopoverOpen = sidebarPopoverOpen==='accent' ? false : 'accent';
+    sidebarPopoverOpen = sidebarPopoverOpen==='quicknew' ? false : 'quicknew';
     render();
   });
-  document.querySelectorAll('[data-accent-swatch]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{ setSidebarAccent(btn.dataset.accentSwatch); });
+  document.querySelectorAll('[data-quicknew-type]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ quickNewVoucher(btn.dataset.quicknewType); });
   });
-  document.getElementById('sidebarAccentReset')?.addEventListener('click', ()=>{ setSidebarAccent(null); });
+  document.getElementById('sidebarDensityBtn')?.addEventListener('click', ()=>{ toggleSidebarDensity(); });
+  // ---- Round 7: user-profile menu (see sidebarUserMenu()) -- same popover convention as the rest
+  // of this footer. "Settings" routes to whatever sidebarUserSettingsDestination() picked for this
+  // user's role; "Log Out" shares performFullLogout() with the Gateway's own Log Out link. (A "Help"
+  // row used to sit here too, re-opening the sidebar's own Help & shortcuts popover -- removed along
+  // with that popover per Santhosh's follow-up request the same day it shipped.)
+  document.getElementById('sidebarUserCardBtn')?.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    sidebarPopoverOpen = sidebarPopoverOpen==='profile' ? false : 'profile';
+    render();
+  });
+  document.getElementById('sidebarUserSettingsBtn')?.addEventListener('click', async ()=>{
+    sidebarPopoverOpen = false;
+    const dest = sidebarUserSettingsDestination();
+    if(dest==='adminPanel'){
+      await loadAdminPanelData();
+      adminTab = 'settings';
+      adminUserDetailId = null;
+      modal = 'adminPanel';
+      screen = 'gateway';
+      renderGateway();
+      pushHistory();
+    }else if(dest==='groupAdmin'){
+      await loadGroupAdminData();
+      groupAdminTab = 'settings';
+      groupUserDetailId = null;
+      groupAdminCompanyModalType = null;
+      modal = 'groupAdmin';
+      screen = 'gateway';
+      renderGateway();
+      pushHistory();
+    }else if(dest==='invoiceSettings'){
+      const s = currentCompany.invoiceSettings || {};
+      invoiceSettingsDraft = { template: s.template||'classic', accentColor: s.accentColor||'#2CA01C', footerNote: s.footerNote||'', terms: s.terms||'', bankDetails: s.bankDetails||'', logoDataUrl: s.logoDataUrl||'', numberPrefix: s.numberPrefix||'', upiVpa: s.upiVpa||'', upiPayeeName: s.upiPayeeName||'' };
+      modal = 'invoiceSettings';
+      render();
+    }else{
+      render();
+    }
+  });
+  document.getElementById('sidebarUserLogoutBtn')?.addEventListener('click', async ()=>{
+    sidebarPopoverOpen = false;
+    await performFullLogout();
+  });
   // Lands the sliding active-tab pill (see positionSidebarIndicator()) in its correct spot on every
   // single render -- goToTab() separately layers its own FLIP animation on top of this via
   // animateSidebarIndicatorFrom(), but every OTHER render() (closing a modal, toggling the collapse
