@@ -321,26 +321,24 @@
   .sidebar-add-group-form button:hover{background:var(--surface);color:var(--ink);}
   #sidebarAddGroupConfirm{color:var(--credit);border-color:color-mix(in srgb, var(--credit) 40%, var(--border));}
 
-  /* Utility row -- bell + density toggle side by side, just above the company card. (The accent-color
-     picker that used to sit here was removed per Santhosh's follow-up request the same day it shipped.) */
-  .sidebar-utility-row{display:flex;align-items:center;gap:6px;margin-top:10px;}
+  /* Utility row -- just the notification bell, just above the company card. (The accent-color picker
+     and the compact/comfortable density toggle that used to sit here were both removed per Santhosh's
+     follow-up requests; the sidebar now always uses the tighter compact spacing those rules describe.) */
+  .sidebar-utility-row{display:flex;align-items:center;gap:6px;margin-top:7px;}
   .tabstrip.collapsed .sidebar-utility-row{flex-direction:column;}
   .sidebar-bell-wrap{position:relative;flex:1;}
-  .sidebar-bell-btn,.sidebar-density-btn{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
+  .sidebar-bell-btn{position:relative;width:100%;display:flex;align-items:center;justify-content:center;
     gap:5px;padding:7px 0;border:1px solid var(--border);border-radius:9px;background:var(--surface-strong);
     font-size:13px;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease;}
-  .sidebar-bell-btn:hover,.sidebar-density-btn:hover{background:var(--surface);border-color:var(--border-strong);}
-  .sidebar-density-btn{flex:1;color:var(--ink-soft);}
-  .sidebar-density-btn[aria-pressed="true"]{color:var(--accent1);border-color:color-mix(in srgb, var(--accent1) 45%, var(--border));}
-  /* Round 7 -- compact density: tighter row padding and group spacing so more modules fit without
-     scrolling, same navtab/section markup throughout, just less air around it. Never applied while
-     collapsed (that layout is already its own fixed-width icon rail). */
-  .tabstrip.compact .navtab{padding:4px 10px;}
-  .tabstrip.compact .nav-section-label{padding:9px 11px 3px;}
-  .tabstrip.compact .nav-section-group{gap:0;}
-  .tabstrip.compact .sidebar-company-card,.tabstrip.compact .sidebar-user-card{padding:5px 8px;margin-top:6px;}
-  .tabstrip.compact .sidebar-utility-row{margin-top:7px;}
-  .tabstrip.compact .sidebar-quicknew-wrap{margin:2px 0 7px;}
+  .sidebar-bell-btn:hover{background:var(--surface);border-color:var(--border-strong);}
+  /* Tighter row padding and group spacing so more modules fit without scrolling, same navtab/section
+     markup throughout, just less air around it. Never applied while collapsed (that layout is already
+     its own fixed-width icon rail). */
+  .tabstrip:not(.collapsed) .navtab{padding:4px 10px;}
+  .tabstrip:not(.collapsed) .nav-section-label{padding:9px 11px 3px;}
+  .tabstrip:not(.collapsed) .nav-section-group{gap:0;}
+  .tabstrip:not(.collapsed) .sidebar-company-card,.tabstrip:not(.collapsed) .sidebar-user-card{padding:5px 8px;margin-top:6px;}
+  .tabstrip:not(.collapsed) .sidebar-quicknew-wrap{margin:2px 0 7px;}
 
   /* ---- Round 7: sync/save status indicator (see sidebarSyncStatusIndicator()/markSyncSaving()) ---- */
   .sidebar-sync-status{display:flex;align-items:center;gap:6px;padding:4px 8px;margin-top:9px;
@@ -355,7 +353,7 @@
   @keyframes sidebarSyncPulse{0%,100%{opacity:1;}50%{opacity:.25;}}
   .tabstrip.collapsed .sidebar-sync-status{justify-content:center;padding:4px 0;}
   .tabstrip.collapsed .sidebar-sync-label{display:none;}
-  .tabstrip.compact .sidebar-sync-status{margin-top:6px;}
+  .tabstrip:not(.collapsed) .sidebar-sync-status{margin-top:6px;}
   .sidebar-bell-count{position:absolute;top:-4px;right:calc(50% - 20px);min-width:14px;height:14px;padding:0 3px;
     display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--gold,#F2A900);
     color:#fff;font-size:8.5px;font-weight:800;line-height:1;}
@@ -4731,17 +4729,9 @@ document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
 // as darkMode just above it.
 let sidebarCollapsed = false;
 try{ sidebarCollapsed = localStorage.getItem('rb_sidebar_collapsed')==='1'; }catch(e){}
-// Round 7 -- compact/comfortable row density, same per-device localStorage pattern as
-// sidebarCollapsed right above it (a visual density preference, not something that belongs on the
-// Firestore user doc's tiny self-update allowlist). Default switched to 'compact' per Santhosh's
-// follow-up request the same day; the toggle still lets anyone switch back to 'comfortable'.
-let sidebarDensity = 'compact';
-try{ sidebarDensity = localStorage.getItem('rb_sidebar_density')==='comfortable' ? 'comfortable' : 'compact'; }catch(e){}
-function toggleSidebarDensity(){
-  sidebarDensity = sidebarDensity==='compact' ? 'comfortable' : 'compact';
-  try{ localStorage.setItem('rb_sidebar_density', sidebarDensity); }catch(e){}
-  render();
-}
+// Oct 13, 2026 -- the compact/comfortable density toggle (Round 7) was removed per Santhosh's
+// follow-up request; the sidebar now always renders at the tighter compact spacing (see the
+// `.tabstrip:not(.collapsed)` rules in the stylesheet), with no per-device choice to persist.
 // Oct 10, 2026 sidebar round 3 -- persisted expanded-mode width (drag handle, see
 // attachSidebarResizeHandle()). Never applied while collapsed -- the fixed 60px rail width always
 // wins then, so this is only ever read/used when sidebarCollapsed is false.
@@ -14505,7 +14495,7 @@ function render(){
     </div>
     ` : ''}
     <div class="body-shell">
-      <div class="tabstrip ${sidebarCollapsed?'collapsed':''} ${sidebarDensity==='compact'?'compact':''}" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}">
+      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}">
         <div class="navtab-indicator" id="navtabIndicator"></div>
         ${sidebarBrandHeader()}
         ${sidebarQuickNewMenu()}
@@ -14516,7 +14506,6 @@ function render(){
         ${sidebarFilterHasNoMatches() ? `<div class="sidebar-filter-empty">No modules match "${escapeHtml(sidebarFilterQuery.trim())}"</div>` : ''}
         <div class="sidebar-utility-row">
           ${sidebarNotificationBell()}
-          ${sidebarDensityToggle()}
         </div>
         ${sidebarSyncStatusIndicator()}
         ${sidebarCompanyCard()}
@@ -15336,20 +15325,9 @@ function sidebarNotificationBell(){
     </div>` : ''}
   </div>`;
 }
-// Round 7 -- compact/comfortable density toggle, a plain two-state icon button (no popover, unlike
-// its utility-row neighbor) -- joins the bell row, same flex:1 square-button treatment. (The sidebar
-// accent-color picker that used to sit between them, and the "?" help/keyboard-shortcuts panel that
-// used to follow, were both removed per Santhosh's follow-up request the same day they shipped.)
-function sidebarDensityToggle(){
-  const compact = sidebarDensity==='compact';
-  return `<button type="button" class="sidebar-density-btn" id="sidebarDensityBtn" title="${compact?'Switch to comfortable spacing':'Switch to compact spacing'}" aria-pressed="${compact}" aria-label="${compact?'Switch to comfortable spacing':'Switch to compact spacing'}">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-      ${compact
-        ? '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>'
-        : '<line x1="3" y1="4" x2="21" y2="4"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="16" x2="21" y2="16"/><line x1="3" y1="22" x2="21" y2="22"/>'}
-    </svg>
-  </button>`;
-}
+// Round 7's compact/comfortable density toggle (a plain two-state icon button that used to join the
+// bell in the utility row) was removed per Santhosh's Oct 13 follow-up request -- the sidebar now
+// always renders at the tighter compact spacing it used to switch into.
 // Round 7 -- renders the CURRENT syncStatus on every real render() (company switch, navigation,
 // etc.); live updates in between full renders go through updateSyncStatusDom() instead (see its
 // comment, next to markSyncSaving()/markSyncSaved()/markSyncError()), which patches this exact
@@ -34001,7 +33979,6 @@ function attachHandlers(){
   document.querySelectorAll('[data-quicknew-type]').forEach(btn=>{
     btn.addEventListener('click', ()=>{ quickNewVoucher(btn.dataset.quicknewType); });
   });
-  document.getElementById('sidebarDensityBtn')?.addEventListener('click', ()=>{ toggleSidebarDensity(); });
   // ---- Round 7: user-profile menu (see sidebarUserMenu()) -- same popover convention as the rest
   // of this footer. "Settings" routes to whatever sidebarUserSettingsDestination() picked for this
   // user's role; "Log Out" shares performFullLogout() with the Gateway's own Log Out link. (A "Help"
