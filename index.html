@@ -913,20 +913,49 @@
 
   .loading{padding:60px;text-align:center;color:var(--ink-soft);font-size:12px;}
 
-  /* Calendar */
+  /* Calendar -- Oct 13, 2026 advanced round: real due-date/recurring/GST-filing event dots (see
+     calendarEventsForMonth()), a month/agenda view toggle, and a direct month+year jump, on top of
+     the original voucher-browsing grid. */
   .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
   .calendar-grid .dow{font-size:10px;font-weight:700;text-align:center;padding:6px 0;color:var(--ink-faint);text-transform:uppercase;}
-  .calendar-day{position:relative;min-height:56px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;}
+  .calendar-grid .dow.weekend{color:var(--ink-soft);}
+  .calendar-day{position:relative;min-height:64px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;display:flex;flex-direction:column;}
   .calendar-day:hover{background:var(--surface-strong);border-color:var(--border-strong);transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
   .calendar-day.empty{background:transparent;border-color:transparent;cursor:default;}
-  .calendar-day.empty:hover{background:transparent;border-color:transparent;}
-  .calendar-day.today{border-color:var(--accent1);box-shadow:0 0 0 1px var(--accent1);}
+  .calendar-day.empty:hover{background:transparent;border-color:transparent;transform:none;box-shadow:none;}
+  .calendar-day.weekend{background:color-mix(in srgb, var(--ink) 2.5%, #fff);}
+  .calendar-day.today{border-color:var(--accent1);box-shadow:0 0 0 1.5px var(--accent1);}
+  .calendar-day.today .daynum{color:var(--accent1);}
+  .calendar-day.has-overdue{border-color:var(--debit);box-shadow:0 0 0 1.5px color-mix(in srgb, var(--debit) 55%, transparent);}
   .calendar-day.selected{background:var(--accent1);color:#fff;border-color:var(--accent1);}
-  .calendar-day .count{position:absolute;bottom:4px;right:4px;font-size:9px;background:var(--debit);color:#fff;padding:1px 5px;border-radius:999px;}
-  .calendar-day.selected .count{background:rgba(255,255,255,0.35);color:#fff;}
-  .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .calendar-day.selected.today .daynum{color:#fff;}
+  .calendar-day.selected.has-overdue{box-shadow:0 0 0 1.5px #fff;}
+  .calendar-day .daynum{font-weight:700;}
+  .calendar-day .count{position:absolute;bottom:5px;right:5px;font-size:9px;background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border-strong);padding:1px 5px;border-radius:999px;font-weight:700;}
+  .calendar-day.selected .count{background:rgba(255,255,255,0.3);color:#fff;border-color:transparent;}
+  .calendar-day .evt-dots{display:flex;gap:3px;margin-top:auto;padding-top:4px;}
+  .calendar-day .evt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.6);}
+  .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
   .calendar-nav .monthlabel{font-weight:800;font-size:13.5px;letter-spacing:-.01em;color:var(--ink);}
-  .calendar-nav .navbtns{display:flex;gap:6px;}
+  .calendar-nav .navbtns{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+  .calendar-jump{display:flex;gap:6px;}
+  .calendar-jump select{font-size:12px;font-weight:700;padding:6px 9px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer;font-family:inherit;}
+  .cal-view-toggle{display:flex;gap:2px;background:var(--surface-strong);border:1px solid var(--border);border-radius:9px;padding:3px;flex-shrink:0;}
+  .cal-view-toggle button{border:none;background:transparent;font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer;color:var(--ink-soft);font-family:inherit;}
+  .cal-view-toggle button.active{background:var(--accent1);color:#fff;}
+  .cal-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--ink-soft);}
+  .cal-legend-item{display:flex;align-items:center;gap:6px;}
+  .cal-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .cal-agenda-day{margin-bottom:18px;}
+  .cal-agenda-day:last-child{margin-bottom:2px;}
+  .cal-agenda-date{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:8px;cursor:pointer;}
+  .cal-agenda-date:hover{color:var(--accent1);}
+  .cal-agenda-row{display:flex;align-items:flex-start;gap:10px;padding:8px 6px;border-radius:8px;}
+  .cal-agenda-row:hover{background:var(--surface-strong);}
+  .cal-agenda-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+  .cal-agenda-row .title{font-weight:700;font-size:12.5px;}
+  .cal-agenda-row .detail{font-size:11px;color:var(--ink-soft);margin-top:1px;}
+  .cal-day-events{padding:12px 16px 4px;display:flex;flex-direction:column;gap:2px;}
 
   /* Gateway — company selection */
   .gateway-shell{display:flex;align-items:flex-start;justify-content:center;gap:20px;flex-wrap:wrap;min-height:65vh;padding:40px 20px;background:var(--bg);}
@@ -6098,6 +6127,11 @@ let pos = null; // null = POS tab not yet opened this session | {items,customerI
 let posHeld = [];
 let quickLedgerFocus = null; // remembers which ledger field to fill after creating a ledger from within the voucher form: {type:'entry', index} | {type:'single', which:'A'|'B'}
 let calState = { year: new Date().getFullYear(), month: new Date().getMonth(), selected: new Date().toISOString().slice(0,10) };
+// Oct 13, 2026 -- Calendar module advanced round: 'month' is the classic grid, 'agenda' is a
+// chronological list of this month's due dates/recurring entries/GST filing reminders (see
+// calendarEventsForMonth()). Per-tab-session only (not persisted) -- same lifetime as calState's
+// own year/month before this, which already resets to "now" on every fresh load of the app.
+let calViewMode = 'month';
 let companies = [];
 let currentCompany = null;
 let screen = 'loading'; // 'landing' | 'login' | 'gateway' | 'app'
@@ -28868,6 +28902,110 @@ function viewDaybook(){
   `;
 }
 
+// ---- Calendar advanced round (Oct 13, 2026): real due-date/reminder/filing events, not just a
+// voucher browser. Nothing new is invented or stored -- every event is derived from data the app
+// already tracks elsewhere (party Credit Period ageing, recurring voucher templates, the same
+// honest GST-filing reminder companyGstFilingDue() already shows on the Gateway dashboard), just
+// surfaced here where someone planning their month would actually look for it.
+function calEventColor(severity){
+  return ({overdue:'var(--debit)', dueSoon:'var(--gold)', upcoming:'var(--accent1)', pastInfo:'var(--ink-faint)'})[severity] || 'var(--ink-faint)';
+}
+function calEventIcon(type){
+  return ({invoiceDue:'💰', recurring:'🔁', gstFiling:'🧮'})[type] || '📌';
+}
+function calEventSeverityLabel(severity){
+  return ({overdue:'Overdue', dueSoon:'Due soon', upcoming:'Upcoming', pastInfo:'Reference'})[severity] || '';
+}
+function calendarEventsForMonth(year, month){
+  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const monthStart = `${monthPrefix}-01`;
+  const monthEnd = `${monthPrefix}-${String(daysInMonth).padStart(2,'0')}`;
+  const today = new Date().toISOString().slice(0,10);
+  const events = [];
+
+  // Invoice due dates -- every customer with a Credit Period set, every still-outstanding Sales
+  // invoice (partyOutstandingInvoices() already does the FIFO payment-matching ageing itself uses),
+  // due date = invoice date + that customer's credit days. Shown whether overdue, due soon, or
+  // still upcoming -- overdueInvoices() only ever returns the overdue subset, so this walks the
+  // same underlying data directly instead of reusing it.
+  for(const l of state.ledgers){
+    if(l.partyType!=='customer' || !l.creditDays) continue;
+    for(const inv of partyOutstandingInvoices(l.id)){
+      if(inv.type!=='Sales') continue;
+      const dueDate = addDays(inv.date, l.creditDays);
+      if(dueDate<monthStart || dueDate>monthEnd) continue;
+      const severity = dueDate<today ? 'overdue' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
+      events.push({
+        date: dueDate, type:'invoiceDue', severity,
+        title: `${l.name} — payment due`,
+        detail: `₹${fmt(inv.remaining)} outstanding, invoiced ${inv.date}`,
+      });
+    }
+  }
+
+  // Recurring voucher templates -- each active template's own next scheduled occurrence, if it
+  // falls in the displayed month. generateDueRecurringVouchers() is what actually posts these; this
+  // just surfaces the same nextDueDate it already reads, so the calendar never shows anything the
+  // app isn't already going to act on.
+  for(const t of state.recurringTemplates){
+    if(!t.active || !t.nextDueDate) continue;
+    if(t.nextDueDate<monthStart || t.nextDueDate>monthEnd) continue;
+    events.push({
+      date: t.nextDueDate, type:'recurring', severity: t.nextDueDate<today ? 'overdue' : 'upcoming',
+      title: `${t.name} (recurring)`,
+      detail: `${t.frequency} — auto-generates a ${t.type} voucher for ₹${fmt(t.amount)}`,
+    });
+  }
+
+  // GST filing reminder -- the exact same honest date-based reminder companyGstFilingDue() shows on
+  // the Gateway dashboard (this app has no e-filing integration and stores no per-return "filed"
+  // flag, so this is a reference reminder, not a confirmed compliance status), pinned to the 20th
+  // of every month a GST-registered company is open in, so filing week shows up right alongside
+  // everything else due that month instead of only on the Gateway.
+  if(currentCompany && currentCompany.gstin){
+    const dueDate = `${monthPrefix}-20`;
+    const severity = dueDate<today ? 'pastInfo' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
+    events.push({
+      date: dueDate, type:'gstFiling', severity,
+      title: 'GSTR-3B filing (reference reminder)',
+      detail: 'Standard monthly due date — not a confirmed filing status. Verify on the GST portal.',
+    });
+  }
+
+  return events.sort((a,b)=> a.date===b.date ? 0 : (a.date<b.date?-1:1));
+}
+function calendarEventRow(e){
+  const color = calEventColor(e.severity);
+  return `<div class="cal-agenda-row">
+    <div class="cal-agenda-icon" style="background:color-mix(in srgb, ${color} 16%, #fff);color:${color};">${calEventIcon(e.type)}</div>
+    <div style="flex:1;min-width:0;">
+      <div class="title">${escapeHtml(e.title)}</div>
+      <div class="detail">${escapeHtml(e.detail)}</div>
+    </div>
+    <span class="pill" style="background:color-mix(in srgb, ${color} 15%, #fff);color:${color};flex-shrink:0;">${calEventSeverityLabel(e.severity)}</span>
+  </div>`;
+}
+// Chronological cross-month list of everything calendarEventsForMonth() found -- the "advanced
+// calendar" view: a planner can scan this once for the whole month's dues/filings/recurring entries
+// instead of clicking through every day looking for one. Each date heading jumps back to Month view
+// on that day (see the [data-cal-agenda-jump] handler in attachHandlers()).
+function calendarAgendaView(events, monthLabel, year){
+  if(!events.length){
+    return emptyState({ icon:'🗓️', title:'Nothing due this month', text:`Payment due dates, recurring entries, and GST filing reminders for ${monthLabel} ${year} will show up here.` });
+  }
+  const byDate = {};
+  for(const e of events){ (byDate[e.date] = byDate[e.date] || []).push(e); }
+  const dates = Object.keys(byDate).sort();
+  return dates.map(d=>{
+    const dd = new Date(d+'T00:00:00');
+    const label = dd.toLocaleDateString('en-IN', {weekday:'short', day:'2-digit', month:'short'});
+    return `<div class="cal-agenda-day">
+      <div class="cal-agenda-date" data-cal-agenda-jump="${d}">${label}</div>
+      ${byDate[d].map(calendarEventRow).join('')}
+    </div>`;
+  }).join('');
+}
 function viewCalendar(){
   const {year, month} = calState;
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -28881,29 +29019,48 @@ function viewCalendar(){
     (vouchersByDate[v.date] = vouchersByDate[v.date] || []).push(v);
   }
 
+  const monthEvents = calendarEventsForMonth(year, month);
+  const eventsByDate = {};
+  for(const e of monthEvents){ (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e); }
+
   let cells = '';
   for(let i=0;i<startDow;i++) cells += `<div class="calendar-day empty"></div>`;
   for(let d=1; d<=daysInMonth; d++){
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(year, month, d).getDay();
     const count = (vouchersByDate[dateStr]||[]).length;
+    const dayEvents = eventsByDate[dateStr] || [];
     const cls = ['calendar-day'];
+    if(dow===0 || dow===6) cls.push('weekend');
     if(dateStr===todayStr) cls.push('today');
     if(dateStr===calState.selected) cls.push('selected');
-    cells += `<div class="${cls.join(' ')}" data-cal-day="${dateStr}">${d}${count?`<span class="count">${count}</span>`:''}</div>`;
+    if(dayEvents.some(e=>e.severity==='overdue')) cls.push('has-overdue');
+    const dots = dayEvents.slice(0,4).map(e=>`<span class="evt-dot" style="background:${calEventColor(e.severity)};" title="${escapeAttr(e.title)}"></span>`).join('');
+    const dayTitle = dayEvents.length ? escapeAttr(dayEvents.map(e=>e.title).join(' • ')) : '';
+    cells += `<div class="${cls.join(' ')}" data-cal-day="${dateStr}" title="${dayTitle}">
+      <span class="daynum">${d}</span>
+      ${count?`<span class="count">${count}</span>`:''}
+      ${dots?`<div class="evt-dots">${dots}</div>`:''}
+    </div>`;
   }
 
   const selectedVouchers = vouchersByDate[calState.selected] || [];
+  const selectedEvents = eventsByDate[calState.selected] || [];
   const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
   const monthVouchers = state.vouchers.filter(v=>v.date.startsWith(monthPrefix));
   const monthValue = monthVouchers.reduce((s,v)=>s+voucherAmount(v),0);
+  const overdueCount = monthEvents.filter(e=>e.severity==='overdue').length;
+
+  const curYear = new Date().getFullYear();
+  const years = Array.from(new Set([year, curYear-3, curYear-2, curYear-1, curYear, curYear+1, curYear+2, curYear+3])).sort((a,b)=>a-b);
 
   return `
-    ${masthead('Calendar','Browse vouchers by date')}
+    ${masthead('Calendar','Vouchers, due dates, recurring entries & GST filings — together')}
     <div class="bento-grid">
-      <div class="stat"><div class="label">Vouchers this Month</div><div class="val">${monthVouchers.length}</div></div>
-      <div class="stat"><div class="label">Total Value this Month</div><div class="val">₹${fmt(monthValue)}</div></div>
-      <div class="stat"><div class="label">Busiest Day</div><div class="val" style="font-size:16px;">${(()=>{ let best=null,bc=0; for(const d in vouchersByDate){ if(d.startsWith(monthPrefix) && vouchersByDate[d].length>bc){bc=vouchersByDate[d].length; best=d;} } return best ? best.slice(8)+' ('+bc+')' : '—'; })()}</div></div>
-      <div class="stat"><div class="label">Selected Day</div><div class="val" style="font-size:16px;">${selectedVouchers.length} entr${selectedVouchers.length===1?'y':'ies'}</div></div>
+      <div class="stat"><div class="label">Vouchers This Month</div><div class="val">${monthVouchers.length}</div></div>
+      <div class="stat"><div class="label">Total Value This Month</div><div class="val">₹${fmt(monthValue)}</div></div>
+      <div class="stat"><div class="label">Due &amp; Filings This Month</div><div class="val">${monthEvents.length}</div></div>
+      <div class="stat"><div class="label">Overdue</div><div class="val" style="${overdueCount?'color:var(--debit);':''}">${overdueCount}</div></div>
     </div>
     <div class="panel">
       <div class="panel-body">
@@ -28912,18 +29069,35 @@ function viewCalendar(){
             <button class="btn small secondary" id="calPrev" type="button">◀ Prev</button>
             <button class="btn small secondary" id="calToday" type="button">Today</button>
             <button class="btn small secondary" id="calNext" type="button">Next ▶</button>
+            <div class="calendar-jump">
+              <select id="calMonthSelect" aria-label="Jump to month">${monthNames.map((m,i)=>`<option value="${i}" ${i===month?'selected':''}>${m}</option>`).join('')}</select>
+              <select id="calYearSelect" aria-label="Jump to year">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}</option>`).join('')}</select>
+            </div>
           </div>
-          <div class="monthlabel">${monthNames[month]} ${year}</div>
+          <div class="cal-view-toggle">
+            <button type="button" data-cal-view="month" class="${calViewMode==='month'?'active':''}">📅 Month</button>
+            <button type="button" data-cal-view="agenda" class="${calViewMode==='agenda'?'active':''}">🗒️ Agenda${monthEvents.length?` (${monthEvents.length})`:''}</button>
+          </div>
         </div>
+        ${calViewMode==='month' ? `
         <div class="calendar-grid">
-          <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow">Sat</div>
+          <div class="dow">Sun</div><div class="dow">Mon</div><div class="dow">Tue</div><div class="dow">Wed</div><div class="dow">Thu</div><div class="dow">Fri</div><div class="dow weekend">Sat</div>
           ${cells}
         </div>
+        <div class="cal-legend">
+          <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--debit);"></span>Overdue</span>
+          <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gold);"></span>Due soon / filing window</span>
+          <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--accent1);"></span>Upcoming</span>
+          <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--ink-faint);"></span>Reference only</span>
+        </div>
+        ` : calendarAgendaView(monthEvents, monthNames[month], year)}
       </div>
     </div>
+    ${calViewMode==='month' ? `
     <div class="panel">
-      <div class="panel-head"><h2>Vouchers on ${calState.selected}</h2><span class="muted" style="font-size:12px;">${selectedVouchers.length} entr${selectedVouchers.length===1?'y':'ies'}</span></div>
+      <div class="panel-head"><h2>${calState.selected}</h2><span class="muted" style="font-size:12px;">${selectedVouchers.length} voucher${selectedVouchers.length===1?'':'s'}${selectedEvents.length?` · ${selectedEvents.length} due/filing event${selectedEvents.length===1?'':'s'}`:''}</span></div>
       <div class="panel-body" style="padding:0;">
+        ${selectedEvents.length ? `<div class="cal-day-events">${selectedEvents.map(calendarEventRow).join('')}</div>` : ''}
         ${selectedVouchers.length ? `<table>
           <tr><th>Type</th><th>Narration</th><th class="num">Amount</th><th>Action</th></tr>
           ${selectedVouchers.map(v=>`<tr>
@@ -28935,6 +29109,7 @@ function viewCalendar(){
         </table>` : `<div class="empty">No vouchers on this date. <a class="linklike" id="calNewVoucher">Add one →</a></div>`}
       </div>
     </div>
+    ` : ''}
   `;
 }
 
@@ -36107,6 +36282,28 @@ function attachHandlers(){
       calState.month = t.getMonth();
       calState.selected = t.toISOString().slice(0,10);
       render();
+    });
+    // Direct month/year jump (Oct 13, 2026 advanced round) -- same calState fields Prev/Next/Today
+    // already drive, just set straight from the dropdowns instead of stepping one month at a time.
+    document.getElementById('calMonthSelect')?.addEventListener('change', (e)=>{
+      calState.month = Number(e.target.value);
+      render();
+    });
+    document.getElementById('calYearSelect')?.addEventListener('change', (e)=>{
+      calState.year = Number(e.target.value);
+      render();
+    });
+    document.querySelectorAll('[data-cal-view]').forEach(el=>{
+      el.addEventListener('click', ()=>{ calViewMode = el.dataset.calView; render(); });
+    });
+    // Agenda view's date headings jump back to Month view already focused on that day, so the two
+    // views feel like one calendar rather than two disconnected screens.
+    document.querySelectorAll('[data-cal-agenda-jump]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        calState.selected = el.dataset.calAgendaJump;
+        calViewMode = 'month';
+        render();
+      });
     });
     document.querySelectorAll('[data-cal-day]').forEach(el=>{
       el.addEventListener('click', ()=>{ calState.selected = el.dataset.calDay; render(); });
