@@ -6068,6 +6068,7 @@ let state = {
   stockAdjustments: [],
   warehouses: [], // [{id, name, active}] -- stock "locations"; item lines on Sales/Purchase/Credit/Debit Note vouchers and stock adjustments can optionally tag a warehouseId, defaulting to the first one when unset
   stockTransfers: [], // [{id, date, itemId, qty, fromWarehouseId, toWarehouseId, remark}] -- moves quantity between warehouses; purely an inventory movement, never touches accounting ledgers
+  cycleCounts: [], // [{id, date, warehouseId, status:'open'|'posted', lines:[{itemId, expectedQty, countedQty}], postedAt}] -- a physical stock-take session; posting it creates a stockAdjustment per non-zero variance line, same as a manual adjustment would
   bankClears: [],       // [{ledgerId, voucherId, clearedDate}] — which bank-ledger voucher entries have been ticked off against a bank statement
   reconciliations: [],  // [{id, ledgerId, date, statementBalance, bookBalance, difference, ...}] — saved history of past bank reconciliations
   recurringTemplates: [], // [{id, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate, lastGeneratedDate, active}]
@@ -6852,6 +6853,7 @@ let stockDetailItemId = null;  // which item's stock movement modal to show
 let stockAdjustItemId = null;  // which item's adjust-stock modal to show
 let stockTransferDraft = null; // null = not transferring | {itemId, qty, fromWarehouseId, toWarehouseId, date, remark}
 let barcodeScanQuery = '';     // "scan or type a barcode" quick-lookup box on Inventory Control
+let cycleCountModalId = null;  // which state.cycleCounts[].id's count-sheet modal to show (round: Inventory Advanced Update)
 let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
 let reportsSelected = null; // null = Reports landing grid | 'trialBalance'|'incomeStatement'|'balanceSheet'|'ratios'|'cashFlow'
@@ -9614,6 +9616,7 @@ async function loadState(){
     state.stockAdjustments = Array.isArray(data.stockAdjustments) ? data.stockAdjustments : [];
     state.warehouses = Array.isArray(data.warehouses) && data.warehouses.length ? data.warehouses : DEFAULT_WAREHOUSES.slice();
     state.stockTransfers = Array.isArray(data.stockTransfers) ? data.stockTransfers : [];
+    state.cycleCounts = Array.isArray(data.cycleCounts) ? data.cycleCounts : [];
     state.bankClears = Array.isArray(data.bankClears) ? data.bankClears : [];
     state.reconciliations = Array.isArray(data.reconciliations) ? data.reconciliations : [];
     state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
@@ -9648,6 +9651,7 @@ async function loadState(){
     state.stockAdjustments = [];
     state.warehouses = DEFAULT_WAREHOUSES.slice();
     state.stockTransfers = [];
+    state.cycleCounts = [];
     state.bankClears = [];
     state.reconciliations = [];
     state.recurringTemplates = [];
@@ -9820,6 +9824,12 @@ async function saveStockTransfers(){
   markSyncSaving();
   try{ await db.collection('companies').doc(currentCompany.id).set({ stockTransfers: state.stockTransfers }, {merge:true}); markSyncSaved(); }
   catch(e){ toast('Could not save stock transfer'); markSyncError(); }
+}
+async function saveCycleCounts(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ cycleCounts: state.cycleCounts }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save the cycle count'); markSyncError(); }
 }
 async function saveBankClears(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -11288,6 +11298,7 @@ function buildCompanyBackup(){
     stockAdjustments: state.stockAdjustments,
     warehouses: state.warehouses,
     stockTransfers: state.stockTransfers,
+    cycleCounts: state.cycleCounts,
     bankClears: state.bankClears,
     reconciliations: state.reconciliations,
     recurringTemplates: state.recurringTemplates,
@@ -11502,6 +11513,7 @@ async function restoreCompanyBackup(data){
   state.stockAdjustments = Array.isArray(data.stockAdjustments) ? data.stockAdjustments : [];
   state.warehouses = Array.isArray(data.warehouses) && data.warehouses.length ? data.warehouses : DEFAULT_WAREHOUSES.slice();
   state.stockTransfers = Array.isArray(data.stockTransfers) ? data.stockTransfers : [];
+  state.cycleCounts = Array.isArray(data.cycleCounts) ? data.cycleCounts : [];
   state.bankClears = Array.isArray(data.bankClears) ? data.bankClears : [];
   state.reconciliations = Array.isArray(data.reconciliations) ? data.reconciliations : [];
   state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
@@ -11523,7 +11535,7 @@ async function restoreCompanyBackup(data){
   state.automationLog = Array.isArray(data.automationLog) ? data.automationLog : [];
   await Promise.all([
     saveLedgers(), saveVouchers(), saveItems(), saveStockAdjustments(),
-    saveWarehouses(), saveStockTransfers(),
+    saveWarehouses(), saveStockTransfers(), saveCycleCounts(),
     saveBankClears(), saveReconciliations(), saveRecurringTemplates(), saveFixedAssets(),
     saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
     saveQuotations(), saveSalesOrders(), savePurchaseOrders(), saveDeliveryChallans(),
@@ -12851,28 +12863,79 @@ function stockMovementForItem(itemId){
     if(dir===0) continue;
     for(const it of v.items){
       if(it.itemId===itemId && it.qty>0){
-        moves.push({date:v.date, type:v.type, narration:v.narration||v.type, qty:it.qty, dir, warehouseId: it.warehouseId||null, batch: it.batch||null, serial: it.serial||null});
+        // rate is only meaningful for an INWARD line (it's the cost basis a FIFO/WAvg layer is
+        // created at, see stockValuation() below) -- an outward line's rate is a selling price, not
+        // a cost, so it's left null here rather than fed into the costing engine.
+        moves.push({date:v.date, type:v.type, narration:v.narration||v.type, qty:it.qty, dir, rate: dir>0 ? (Number(it.rate)||0) : null, warehouseId: it.warehouseId||null, batch: it.batch||null, serial: it.serial||null});
       }
     }
   }
   for(const adj of state.stockAdjustments){
     if(adj.itemId===itemId){
-      moves.push({date:adj.date, type:'Adjustment', narration:adj.reason||'Stock adjustment', qty:Math.abs(adj.qty), dir: adj.qty>=0?1:-1, warehouseId: adj.warehouseId||null});
+      const dir = adj.qty>=0?1:-1;
+      // adj.rate (round: Inventory Advanced Update) is an optional cost basis typed on the Stock
+      // Adjustment modal for an inward (+) adjustment -- null for outward or for older adjustments
+      // saved before this field existed, which stockValuation() falls back to the item's own rate for.
+      moves.push({date:adj.date, type:'Adjustment', narration:adj.reason||'Stock adjustment', qty:Math.abs(adj.qty), dir, rate: (dir>0 && adj.rate!=null) ? Number(adj.rate) : null, warehouseId: adj.warehouseId||null});
     }
   }
   moves.sort((a,b)=> a.date.localeCompare(b.date));
   return moves;
 }
+// FIFO / Weighted-Average costing engine (round: Inventory Advanced Update, Oct 2026) -- replaces
+// the old "closing qty × one flat rate" valuation with a real cost-layer-based one, computed live
+// over the same movement list stockMovementForItem() already produces (this app never stores running
+// balances, so this stays consistent with every other derived figure here). Deliberately an
+// INFORMATIONAL read-model only: it does not touch voucher posting, ledger balances, or COGS in the
+// P&L, which stays ledger-bucket-based (see incomeStatementData()'s own comment) -- moving the P&L
+// itself to a perpetual-COGS model would be a separate, much bigger accounting-model decision.
+// method: 'wavg' (default) recomputes a running weighted-average cost after every inward layer and
+// depletes at that average on every outward move; 'fifo' keeps an explicit queue of open layers and
+// consumes the oldest one(s) first. An inward movement with no recorded rate (older data saved before
+// this round) falls back to the item's own rate/openingRate so valuation never breaks on old vouchers.
+function stockValuation(item){
+  const method = item.costingMethod==='fifo' ? 'fifo' : 'wavg';
+  const fallbackRate = item.rate!=null ? item.rate : (item.openingRate||0);
+  const openingQty = item.openingQty||0;
+  const openingRate = item.openingRate!=null ? item.openingRate : fallbackRate;
+  let qty = openingQty;
+  let value = openingQty*openingRate;
+  let inward = 0, outward = 0;
+  const layers = openingQty>0 ? [{ qty: openingQty, rate: openingRate }] : []; // FIFO queue, oldest first
+  for(const m of stockMovementForItem(item.id)){
+    if(m.dir>0){
+      const rate = m.rate!=null ? m.rate : fallbackRate;
+      inward += m.qty;
+      qty += m.qty;
+      value += m.qty*rate;
+      if(method==='fifo') layers.push({ qty:m.qty, rate });
+    } else {
+      outward += m.qty;
+      const issueQty = Math.max(0, Math.min(m.qty, qty)); // never consume cost below what's actually on hand
+      if(method==='fifo'){
+        let remaining = issueQty;
+        while(remaining>0.000001 && layers.length){
+          const layer = layers[0];
+          const take = Math.min(layer.qty, remaining);
+          value -= take*layer.rate;
+          layer.qty -= take;
+          remaining -= take;
+          if(layer.qty<=0.000001) layers.shift();
+        }
+      } else {
+        const avg = qty>0 ? value/qty : fallbackRate;
+        value -= issueQty*avg;
+      }
+      qty -= m.qty; // qty itself can still go negative on an oversold item, same as before this round --
+                     // only the VALUE is floored at zero, below, so an oversell can't show negative stock value
+    }
+  }
+  if(value<0) value = 0;
+  const avgCost = qty>0 ? value/qty : 0;
+  return { opening:openingQty, inward, outward, closing:r2(qty), value:r2(value), avgCost:r2(avgCost), method };
+}
 function stockSummaryForItem(item){
-  const moves = stockMovementForItem(item.id);
-  let qty = item.openingQty||0;
-  let inward=0, outward=0;
-  moves.forEach(m=>{
-    if(m.dir>0){ qty+=m.qty; inward+=m.qty; }
-    else { qty-=m.qty; outward+=m.qty; }
-  });
-  const rate = item.rate!=null ? item.rate : (item.openingRate||0);
-  return { opening:item.openingQty||0, inward, outward, closing:qty, value: qty*rate };
+  return stockValuation(item);
 }
 function stockSummaryAll(){
   return state.items.map(it=>({ item: it, summary: stockSummaryForItem(it) }));
@@ -12924,6 +12987,130 @@ function stockByLocationTable(){
       </table>
     </div></div>
     <p class="muted" style="font-size:11px;">Tag a "Location" on a Sales/Purchase/Credit/Debit Note item line (or a stock adjustment) to move it out of the default location. Use "Transfer Stock" below to rebalance quantity between locations without affecting your ledgers.</p>
+  `;
+}
+/* ---------------- Cycle Counting / Stock Take (round: Inventory Advanced Update, Oct 2026) ----------------
+   A physical count session for one location: freeze the "book" (expected) quantity for every item at
+   that location the moment the count starts, let the counter type what's actually on the shelf for
+   each line over however many sittings it takes, then post once -- which turns every line whose
+   counted qty differs from its expected qty into a normal stock adjustment (same table, same
+   valuation rules as a manual Adjust Stock entry). Uncounted lines are left untouched on posting, so
+   a partial count never silently zeroes out items nobody got to. This never touches ledgers directly
+   -- it is a structured way to generate the adjustments a stocktake would produce by hand. */
+function startCycleCount(warehouseId){
+  const wh = warehouseId || defaultWarehouseId();
+  const lines = state.items.map(it=>{
+    const row = stockByWarehouseForItem(it).find(r=>r.warehouse.id===wh);
+    return { itemId: it.id, expectedQty: row ? row.qty : 0, countedQty: null };
+  });
+  const cc = { id: uid('cc'), date: new Date().toISOString().slice(0,10), warehouseId: wh, status: 'open', lines, postedAt: null };
+  state.cycleCounts.push(cc);
+  return cc;
+}
+function postCycleCount(ccId){
+  const cc = state.cycleCounts.find(c=>c.id===ccId);
+  if(!cc || cc.status==='posted') return 0;
+  const today = new Date().toISOString().slice(0,10);
+  let adjustmentsCreated = 0;
+  for(const line of cc.lines){
+    if(line.countedQty==null || line.countedQty==='') continue; // never counted this round -- leave it alone, no variance assumed
+    const variance = r2(Number(line.countedQty) - Number(line.expectedQty));
+    if(Math.abs(variance)<0.0001) continue; // exact match -- nothing to adjust
+    const item = state.items.find(it=>it.id===line.itemId);
+    const adjEntry = {
+      id: uid('adj'),
+      itemId: line.itemId,
+      date: today,
+      qty: variance,
+      reason: `Cycle count variance (${cc.date})`,
+      warehouseId: cc.warehouseId,
+      createdAt: new Date().toISOString(),
+    };
+    // A count that finds MORE stock than the books show needs a cost basis for the new layer, same
+    // as any other inward adjustment -- use the item's current average cost rather than leave it blank.
+    if(variance>0 && item){
+      const val = stockValuation(item);
+      if(val.avgCost>0) adjEntry.rate = val.avgCost;
+    }
+    state.stockAdjustments.push(adjEntry);
+    adjustmentsCreated++;
+  }
+  cc.status = 'posted';
+  cc.postedAt = new Date().toISOString();
+  return adjustmentsCreated;
+}
+function cycleCountPanel(){
+  const counts = state.cycleCounts.slice().sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.id||'').localeCompare(a.id||''));
+  const openCount = counts.find(c=>c.status==='open');
+  const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
+  return `
+    <div class="section-title">Cycle Counting / Stock Take</div>
+    <div class="panel">
+      <div class="panel-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <p class="muted" style="font-size:12px;margin:0;max-width:480px;">Count what's actually on the shelf, compare it to the books, and post only the difference as a stock adjustment.</p>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${!openCount && activeWarehouses.length>1 ? `<select id="cycleCountWarehouse" style="max-width:190px;">${activeWarehouses.map(w=>`<option value="${w.id}" ${w.id===defaultWarehouseId()?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}</select>` : ''}
+          ${!openCount
+            ? `<button class="btn" id="startCycleCountBtn" type="button">📋 Start New Count</button>`
+            : `<button class="btn secondary" data-cycle-count-open="${openCount.id}" type="button">Continue Count (${openCount.lines.filter(l=>l.countedQty!=null && l.countedQty!=='').length}/${openCount.lines.length} counted)</button>`}
+        </div>
+      </div>
+    </div>
+    ${counts.length ? `
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Date</th><th>Location</th><th class="num">Items</th><th class="num">Variances</th><th>Status</th><th></th></tr>
+        ${counts.map(c=>{
+          const wh = state.warehouses.find(w=>w.id===c.warehouseId);
+          const varianceCount = c.lines.filter(l=>l.countedQty!=null && l.countedQty!=='' && Math.abs(r2(Number(l.countedQty)-Number(l.expectedQty)))>0.0001).length;
+          return `<tr>
+            <td data-label="Date">${c.date}</td>
+            <td data-label="Location">${wh?escapeHtml(wh.name):'—'}</td>
+            <td class="num" data-label="Items">${c.lines.length}</td>
+            <td class="num" data-label="Variances">${varianceCount||'—'}</td>
+            <td data-label="Status">${c.status==='posted'?'<span class="pill pos">Posted</span>':'<span class="pill neutral">Open</span>'}</td>
+            <td class="ccard-actions"><button class="btn small secondary" data-cycle-count-open="${c.id}" type="button">${c.status==='open'?'Continue':'View'}</button></td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div></div>` : ''}
+  `;
+}
+function cycleCountModal(){
+  const cc = state.cycleCounts.find(c=>c.id===cycleCountModalId);
+  if(!cc) return '';
+  const wh = state.warehouses.find(w=>w.id===cc.warehouseId);
+  const readOnly = cc.status==='posted';
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:600px;max-width:94vw;">
+        <div class="panel-head"><h2>${readOnly?'Cycle Count (Posted)':'Cycle Count'} — ${wh?escapeHtml(wh.name):'—'} — ${cc.date}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body" style="max-height:66vh;overflow-y:auto;">
+          <table class="rb-card-table">
+            <tr><th>Item</th><th class="num">Expected</th><th class="num">Counted</th><th class="num">Variance</th></tr>
+            ${cc.lines.map((l,i)=>{
+              const item = state.items.find(it=>it.id===l.itemId);
+              if(!item) return '';
+              const hasCount = l.countedQty!=null && l.countedQty!=='';
+              const variance = hasCount ? r2(Number(l.countedQty)-Number(l.expectedQty)) : null;
+              return `<tr>
+                <td class="ccard-title" data-label="Item">${escapeHtml(item.name)}<div class="muted" style="font-size:10px;">${item.unit||''}</div></td>
+                <td class="num" data-label="Expected">${fmt(l.expectedQty)}</td>
+                <td class="num" data-label="Counted">${readOnly ? (hasCount?fmt(l.countedQty):'—') : `<input type="number" step="0.01" data-cycle-count-line="${i}" value="${hasCount?l.countedQty:''}" style="width:90px;text-align:right;">`}</td>
+                <td class="num ${variance?(variance>0?'pos':'neg'):''}" data-label="Variance" data-cycle-count-variance="${i}" style="${variance?'font-weight:700;':''}">${variance!=null?(variance>0?'+':variance<0?'−':'')+fmt(variance):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </table>
+        </div>
+        ${!readOnly ? `
+        <div class="panel-body" style="border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <button class="btn secondary" id="closeCycleCountProgressBtn" type="button">Save &amp; Close (count later)</button>
+          <button class="btn" id="postCycleCountBtn" data-cycle-count-post="${cc.id}" type="button">Post Count &amp; Create Adjustments</button>
+        </div>
+        <p class="muted" style="font-size:11px;padding:0 20px 16px;">Posting creates one stock adjustment for every line whose counted quantity differs from the book quantity — lines you never got to are left untouched. Adjustments follow the same costing rules as a manual Adjust Stock entry and never post to your accounting ledgers.</p>
+        ` : ''}
+      </div>
+    </div>
   `;
 }
 function manageWarehousesPanel(){
@@ -13066,6 +13253,71 @@ function deadStockItems(days){
     const recentOut = stockMovementForItem(r.item.id).some(m=>m.dir<0 && m.date>=cutoffStr);
     return !recentOut;
   }).sort((a,b)=>b.summary.value-a.summary.value);
+}
+// ABC Analysis -- classic 80/20 inventory classification by trailing-12-month consumption VALUE
+// (outward/sale qty x current average cost, from the FIFO/WAvg costing engine above). Rows are
+// ranked by consumption value descending; a row's class is decided by the cumulative % of total
+// value reached BEFORE that row (so the single biggest item is always Class A, never misclassified
+// by its own share pushing the cumulative total past a boundary). A = roughly the first 70% of
+// value (the vital few -- count tightly, review often), B = the next ~20%, C = the long tail.
+// Purely a read-only classification report: it doesn't touch costing, reorder levels, or ledgers.
+function abcAnalysisData(days){
+  days = days || 365;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  const rows = state.items.map(it=>{
+    const val = stockValuation(it);
+    const outQty = r2(stockMovementForItem(it.id).filter(m=>m.dir<0 && m.date>=cutoffStr).reduce((s,m)=>s+m.qty,0));
+    const consumptionValue = r2(outQty * val.avgCost);
+    return { item: it, outQty, avgCost: val.avgCost, consumptionValue };
+  }).filter(r=>r.consumptionValue>0).sort((a,b)=>b.consumptionValue-a.consumptionValue);
+  const total = rows.reduce((s,r)=>s+r.consumptionValue,0);
+  let cum = 0;
+  for(const r of rows){
+    const prevCumPct = total>0 ? (cum/total*100) : 0;
+    cum += r.consumptionValue;
+    r.cumPct = total>0 ? r2(cum/total*100) : 0;
+    r.pctOfTotal = total>0 ? r2(r.consumptionValue/total*100) : 0;
+    r.cls = prevCumPct<70 ? 'A' : prevCumPct<90 ? 'B' : 'C';
+  }
+  return { rows, total: r2(total) };
+}
+function abcAnalysisPanel(){
+  const { rows, total } = abcAnalysisData();
+  if(!rows.length){
+    return `
+      <div class="section-title">ABC Analysis</div>
+      <p class="muted" style="font-size:11.5px;">No sale movement in the trailing 12 months yet — ABC analysis needs at least one item with outward (sale) movement to rank by consumption value.</p>
+    `;
+  }
+  const classCounts = { A:0, B:0, C:0 };
+  const classValues = { A:0, B:0, C:0 };
+  rows.forEach(r=>{ classCounts[r.cls]++; classValues[r.cls]+=r.consumptionValue; });
+  const pillCls = { A:'neg', B:'neutral', C:'pos' };
+  const badge = cls => `<span class="pill ${pillCls[cls]}" style="min-width:20px;text-align:center;">${cls}</span>`;
+  return `
+    <div class="section-title">ABC Analysis — Trailing 12-Month Consumption Value</div>
+    <div class="grid">
+      <div class="stat"><div class="label">Class A — Tight Control</div><div class="val">${classCounts.A} item${classCounts.A===1?'':'s'}</div><div class="muted" style="font-size:10.5px;">₹${fmt(classValues.A)} (${total>0?(classValues.A/total*100).toFixed(1):'0.0'}% of value)</div></div>
+      <div class="stat"><div class="label">Class B — Moderate Control</div><div class="val">${classCounts.B} item${classCounts.B===1?'':'s'}</div><div class="muted" style="font-size:10.5px;">₹${fmt(classValues.B)} (${total>0?(classValues.B/total*100).toFixed(1):'0.0'}% of value)</div></div>
+      <div class="stat"><div class="label">Class C — Loose Control</div><div class="val">${classCounts.C} item${classCounts.C===1?'':'s'}</div><div class="muted" style="font-size:10.5px;">₹${fmt(classValues.C)} (${total>0?(classValues.C/total*100).toFixed(1):'0.0'}% of value)</div></div>
+    </div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Item</th><th class="num">Qty Sold (12mo)</th><th class="num">Avg Cost</th><th class="num">Consumption Value</th><th class="num">% of Total</th><th class="num">Cumulative %</th><th>Class</th></tr>
+        ${rows.map(r=>`<tr>
+          <td class="ccard-title" data-label="Item">${escapeHtml(r.item.name)}<div class="muted" style="font-size:10.5px;">${r.item.unit||''}</div></td>
+          <td class="num" data-label="Qty Sold (12mo)">${fmt(r.outQty)}</td>
+          <td class="num" data-label="Avg Cost">₹${fmt(r.avgCost)}</td>
+          <td class="num ccard-amount" data-label="Consumption Value">₹${fmt(r.consumptionValue)}</td>
+          <td class="num muted" data-label="% of Total">${r.pctOfTotal.toFixed(1)}%</td>
+          <td class="num muted" data-label="Cumulative %">${r.cumPct.toFixed(1)}%</td>
+          <td data-label="Class">${badge(r.cls)}</td>
+        </tr>`).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">Classic 80/20 inventory classification: items are ranked by trailing 12-month consumption value (quantity sold × current average cost) and bucketed by cumulative share of total value — Class A is the vital few items making up roughly the first 70% of value (count tightly, review often), Class B the next ~20%, Class C the long tail of low-value items (loose control, infrequent counts are fine). Items with no sale in the last 12 months aren't ranked. A read-only classification report — it doesn't change reorder levels, costing, or anything posted to your ledgers.</p>
+  `;
 }
 // Inventory Turnover Ratio = COGS ÷ Average Inventory Value, the standard efficiency metric.
 // COGS comes from the same incomeStatementData() the Income Statement report itself uses (so this
@@ -14533,6 +14785,7 @@ function render(){
     state.stockAdjustments = JSON.parse(JSON.stringify(readOnlySnapshot.stockAdjustments));
     state.warehouses = JSON.parse(JSON.stringify(readOnlySnapshot.warehouses));
     state.stockTransfers = JSON.parse(JSON.stringify(readOnlySnapshot.stockTransfers));
+    state.cycleCounts = JSON.parse(JSON.stringify(readOnlySnapshot.cycleCounts));
     state.bankClears = JSON.parse(JSON.stringify(readOnlySnapshot.bankClears));
     state.reconciliations = JSON.parse(JSON.stringify(readOnlySnapshot.reconciliations));
     state.recurringTemplates = JSON.parse(JSON.stringify(readOnlySnapshot.recurringTemplates));
@@ -14616,6 +14869,7 @@ function render(){
     ${modal==='stockDetail' ? itemStockModal() : ''}
     ${modal==='stockAdjust' ? stockAdjustModal() : ''}
     ${modal==='stockTransfer' ? stockTransferModal() : ''}
+    ${modal==='cycleCount' ? cycleCountModal() : ''}
     ${modal==='employeeDocuments' ? employeeDocumentsModal() : ''}
     ${modal==='recentVouchers' ? recentVouchersModal() : ''}
     ${modal==='automationFeed' ? automationFeedModal() : ''}
@@ -16418,9 +16672,11 @@ function stockAdjustModal(){
         <div class="panel-body">
           <p class="muted" style="font-size:12.5px;">${item.name} — current stock: <strong style="color:var(--ink);">${fmt(summary.closing)} ${item.unit||''}</strong></p>
           <div class="field"><label>Adjustment Quantity (+ to add, − to remove)</label><input type="number" id="stockAdjQty" step="0.01" placeholder="e.g. -5 or 10"></div>
+          <div class="field"><label>Rate per unit (only used when adding stock)</label><input type="number" id="stockAdjRate" step="0.01" min="0" placeholder="Cost per unit, leave blank to use item's standard rate"></div>
           ${state.warehouses.filter(w=>w.active!==false).length>1 ? `<div class="field"><label>Location</label><select id="stockAdjWarehouse">${state.warehouses.filter(w=>w.active!==false).map(w=>`<option value="${w.id}" ${w.id===defaultWarehouseId()?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}</select></div>` : ''}
           <div class="field"><label>Reason</label><input type="text" id="stockAdjReason" placeholder="e.g. Physical count correction, damage"></div>
           <button class="btn" id="saveStockAdjBtn" type="button" style="width:100%;">Save Adjustment</button>
+          <p class="muted" style="font-size:11px;margin-top:8px;">The rate only affects FIFO/Weighted-Average cost tracking in Inventory — it never posts to your accounting ledgers.</p>
         </div>
       </div>
     </div>
@@ -28845,6 +29101,15 @@ function itemRow(it,i){
   const needsSerial = catalogItem && catalogItem.trackSerials;
   const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
   const showLocation = activeWarehouses.length>1;
+  // Multi-UOM (round: Inventory Advanced Update, Oct 2026) -- it.qty/it.rate are ALWAYS stored in
+  // the item's base unit, whatever unit the line is currently showing. uomMode is pure display
+  // state: when it's 'alt' we show qty divided by, and rate multiplied by, altUnitFactor (so
+  // "2 boxes @ Rs.1200/box" and "24 pcs @ Rs.100/pc" are the exact same stored line). Nothing
+  // downstream -- stock movement, costing, GST totals, the ledger postings -- ever sees an alt unit.
+  const hasAltUnit = !!(catalogItem && catalogItem.altUnit && catalogItem.altUnitFactor);
+  const uomMode = hasAltUnit && it.uomMode==='alt' ? 'alt' : 'base';
+  const displayQty = (uomMode==='alt' && it.qty!=='' && it.qty!=null) ? r2(Number(it.qty)/catalogItem.altUnitFactor) : it.qty;
+  const displayRate = (uomMode==='alt' && it.rate!=='' && it.rate!=null) ? r2(Number(it.rate)*catalogItem.altUnitFactor) : it.rate;
   return `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;" data-item-idx="${i}">
     <div>
       <select class="item-select" data-i="${i}">
@@ -28853,12 +29118,19 @@ function itemRow(it,i){
       </select>
       ${isCustom ? `<input type="text" class="item-name" data-i="${i}" placeholder="Item name" value="${escapeAttr(it.name)}" style="margin-top:6px;">` : ''}
     </div>
-    <input type="number" class="item-qty" data-i="${i}" placeholder="Qty" value="${it.qty||''}" min="0" step="0.01">
-    <input type="number" class="item-rate" data-i="${i}" placeholder="Rate" value="${it.rate||''}" min="0" step="0.01">
+    <input type="number" class="item-qty" data-i="${i}" placeholder="Qty" value="${displayQty||''}" min="0" step="0.01">
+    <input type="number" class="item-rate" data-i="${i}" placeholder="Rate" value="${displayRate||''}" min="0" step="0.01">
     <input type="number" class="item-disc" data-i="${i}" placeholder="0" value="${it.disc||''}" min="0" max="100" step="0.01" title="Discount % on this line">
     <input type="text" class="item-amount" value="₹${fmt(itemLineAmount(it))}" disabled>
     <button class="rm" data-item-rm="${i}" type="button" title="Remove item" aria-label="Remove item">✕</button>
-  </div>${needsBatch ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
+  </div>${hasAltUnit ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
+    <div></div>
+    <select class="item-uom-mode" data-i="${i}" style="grid-column:span 3;" title="Enter quantity and rate in the item's base unit or its alternate unit">
+      <option value="base" ${uomMode==='base'?'selected':''}>Enter in: ${escapeHtml(catalogItem.unit||'base unit')}</option>
+      <option value="alt" ${uomMode==='alt'?'selected':''}>Enter in: ${escapeHtml(catalogItem.altUnit)} (1 ${escapeHtml(catalogItem.altUnit)} = ${fmt(catalogItem.altUnitFactor)} ${escapeHtml(catalogItem.unit||'')})</option>
+    </select>
+    <div style="grid-column:span 2;"></div>
+  </div>` : ''}${needsBatch ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
     <div></div>
     <input type="text" class="item-batch" data-i="${i}" placeholder="Batch no." value="${escapeAttr(it.batch||'')}" style="grid-column:span 2;">
     <input type="date" class="item-expiry" data-i="${i}" placeholder="Expiry" value="${it.expiry||''}" style="grid-column:span 2;" title="Expiry date">
@@ -29716,6 +29988,19 @@ function stockItemForm(){
           </div>
         </div>
 
+        <div class="section-title" style="margin-top:18px;">Costing &amp; Alternate Unit</div>
+        <div class="row">
+          <div class="field" style="max-width:220px;"><label>Costing Method</label>
+            <select id="newItemCostingMethod">
+              <option value="wavg" ${(d.costingMethod||'wavg')==='wavg'?'selected':''}>Weighted Average</option>
+              <option value="fifo" ${d.costingMethod==='fifo'?'selected':''}>FIFO</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:180px;"><label>Alternate Unit (optional)</label><input type="text" id="newItemAltUnit" value="${escapeAttr(d.altUnit)}" placeholder="e.g. Box"></div>
+          <div class="field" style="max-width:180px;"><label>Units per Alternate</label><input type="number" id="newItemAltUnitFactor" step="0.01" min="0" value="${d.altUnitFactor!=null?d.altUnitFactor:''}" placeholder="e.g. 12"></div>
+        </div>
+        <p class="muted" style="font-size:11px;margin-top:-4px;">Costing Method controls how this item's stock value is computed on the Inventory screen (Weighted Average blends every purchase into one running cost; FIFO consumes the oldest purchase cost first) — it's a valuation choice only, and never changes what posts to your ledgers. Alternate Unit lets you enter a voucher line in a bulk unit (e.g. "Box") that auto-converts to the base Unit above (e.g. 1 Box = 12 PCS) — leave both blank if you only ever transact in the base unit.</p>
+
         <div class="section-title" style="margin-top:18px;">GST Details</div>
         <div class="row">
           <div class="field"><label>HSN / SAC Code</label><input type="text" id="newItemHSN" value="${escapeAttr(d.hsn)}" placeholder="e.g. 8471"></div>
@@ -29766,6 +30051,9 @@ function attachStockItemFormHandlers(){
     const trackBatches = !!document.getElementById('newItemTrackBatches')?.checked;
     const trackSerials = !!document.getElementById('newItemTrackSerials')?.checked;
     const warrantyRaw = document.getElementById('newItemWarrantyMonths')?.value;
+    const costingMethod = document.getElementById('newItemCostingMethod')?.value;
+    const altUnit = document.getElementById('newItemAltUnit')?.value.trim();
+    const altUnitFactorRaw = document.getElementById('newItemAltUnitFactor')?.value;
     if(!name){ toast('Enter an item name'); return; }
     const editingExisting = itemEditId ? state.items.find(i=>i.id===itemEditId) : null;
     const item = editingExisting || { id: uid('it') };
@@ -29780,6 +30068,9 @@ function attachStockItemFormHandlers(){
     if(trackBatches) item.trackBatches = true; else delete item.trackBatches;
     if(trackSerials) item.trackSerials = true; else delete item.trackSerials;
     if(warrantyRaw) item.warrantyMonths = Number(warrantyRaw); else delete item.warrantyMonths;
+    if(costingMethod==='fifo') item.costingMethod = 'fifo'; else delete item.costingMethod; // unset = Weighted Average, the default
+    if(altUnit && altUnitFactorRaw && Number(altUnitFactorRaw)>0){ item.altUnit = altUnit; item.altUnitFactor = Number(altUnitFactorRaw); }
+    else { delete item.altUnit; delete item.altUnitFactor; }
     if(!editingExisting) state.items.push(item);
     await saveItems();
     toast(editingExisting ? `"${name}" updated` : 'Stock item created — it will now show up in Sales/Purchase voucher item pickers');
@@ -30221,6 +30512,7 @@ function viewInventory(){
 
     ${manageWarehousesPanel()}
     ${stockByLocationTable()}
+    ${cycleCountPanel()}
 
     <div class="section-title">Add New Item</div>
     ${stockItemForm()}
@@ -30267,7 +30559,7 @@ function viewInventory(){
         <div class="panel">
           <div class="panel-body" style="padding:0;">
             <table class="rb-card-table">
-              <tr><th>Item</th><th class="num">Opening</th><th class="num">Inward</th><th class="num">Outward</th><th class="num">Closing</th><th class="num">Rate</th><th class="num">Value</th><th>Status</th><th></th></tr>
+              <tr><th>Item</th><th class="num">Opening</th><th class="num">Inward</th><th class="num">Outward</th><th class="num">Closing</th><th class="num">Rate</th><th class="num">Avg Cost</th><th class="num">Value</th><th>Status</th><th></th></tr>
               ${groupItems.map(({item,summary})=>{
                 const out = summary.closing<=0;
                 const low = !out && item.reorderLevel!=null && summary.closing<=item.reorderLevel;
@@ -30284,6 +30576,7 @@ function viewInventory(){
                   <td class="num" data-label="Outward">${summary.outward?fmt(summary.outward):'—'}</td>
                   <td class="num ccard-amount" data-label="Closing" style="font-weight:700;">${fmt(summary.closing)} ${item.unit||''}</td>
                   <td class="num" data-label="Rate">${item.rate!=null?'₹'+fmt(item.rate):'—'}</td>
+                  <td class="num" data-label="Avg Cost">${summary.closing>0?'₹'+fmt(summary.avgCost):'—'}<div class="muted" style="font-size:9.5px;">${summary.method==='fifo'?'FIFO':'Wtd Avg'}</div></td>
                   <td class="num" data-label="Value">₹${fmt(summary.value)}</td>
                   <td data-label="Status">${statusBadge}</td>
                   <td class="ccard-actions" style="white-space:nowrap;">
@@ -30304,9 +30597,10 @@ function viewInventory(){
     <p class="muted" style="font-size:11px;">Closing stock = Opening Quantity + Purchases + Sales Returns (Credit Notes) − Sales − Purchase Returns (Debit Notes) ± manual adjustments. Click an item name for its full movement history.</p>
 
     <details class="disclosure">
-      <summary>Advanced — Serial Register, Demand Forecast, Sales by Channel &amp; Inventory Analytics</summary>
+      <summary>Advanced — Serial Register, ABC Analysis, Demand Forecast, Sales by Channel &amp; Inventory Analytics</summary>
       <div class="disclosure-body">
     ${serialRegisterPanel()}
+    ${abcAnalysisPanel()}
     ${demandForecastPanel()}
     ${salesByChannelPanel()}
     ${inventoryAnalyticsPanel()}
@@ -36108,10 +36402,34 @@ function attachHandlers(){
       el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].name = e.target.value; });
     });
     document.querySelectorAll('.item-qty').forEach(el=>{
-      el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].qty = e.target.value; updateItemsTotals(); });
+      el.addEventListener('input', e=>{
+        const i = +e.target.dataset.i;
+        const row = vform.gst.items[i];
+        const catalogItem = row.itemId && row.itemId!=='__custom__' ? state.items.find(m=>m.id===row.itemId) : null;
+        const typed = e.target.value;
+        // Alt-unit mode: the field shows alt-unit qty, but we always persist it.qty in base units.
+        row.qty = (row.uomMode==='alt' && catalogItem && catalogItem.altUnitFactor && typed!=='')
+          ? r2(Number(typed)*catalogItem.altUnitFactor) : typed;
+        updateItemsTotals();
+      });
     });
     document.querySelectorAll('.item-rate').forEach(el=>{
-      el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].rate = e.target.value; updateItemsTotals(); });
+      el.addEventListener('input', e=>{
+        const i = +e.target.dataset.i;
+        const row = vform.gst.items[i];
+        const catalogItem = row.itemId && row.itemId!=='__custom__' ? state.items.find(m=>m.id===row.itemId) : null;
+        const typed = e.target.value;
+        // Alt-unit mode: the field shows a per-alt-unit rate, but it.rate is always the per-base-unit rate.
+        row.rate = (row.uomMode==='alt' && catalogItem && catalogItem.altUnitFactor && typed!=='')
+          ? r2(Number(typed)/catalogItem.altUnitFactor) : typed;
+        updateItemsTotals();
+      });
+    });
+    document.querySelectorAll('.item-uom-mode').forEach(el=>{
+      el.addEventListener('change', e=>{
+        vform.gst.items[+e.target.dataset.i].uomMode = e.target.value;
+        render(); // qty/rate need to redisplay converted into the newly chosen unit
+      });
     });
     document.querySelectorAll('.item-disc').forEach(el=>{
       el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].disc = e.target.value; updateItemsTotals(); });
@@ -37282,6 +37600,60 @@ function attachHandlers(){
         goToTab('voucher');
       });
     });
+    document.getElementById('startCycleCountBtn')?.addEventListener('click', ()=>{
+      const wh = document.getElementById('cycleCountWarehouse')?.value || defaultWarehouseId();
+      const cc = startCycleCount(wh);
+      saveCycleCounts();
+      cycleCountModalId = cc.id;
+      modal = 'cycleCount';
+      render();
+    });
+    document.querySelectorAll('[data-cycle-count-open]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        cycleCountModalId = el.dataset.cycleCountOpen;
+        modal = 'cycleCount';
+        render();
+      });
+    });
+  }
+  if(modal==='cycleCount'){
+    const cc = state.cycleCounts.find(c=>c.id===cycleCountModalId);
+    document.querySelectorAll('[data-cycle-count-line]').forEach(el=>{
+      el.addEventListener('input', e=>{
+        if(!cc) return;
+        const i = Number(el.dataset.cycleCountLine);
+        const line = cc.lines[i];
+        line.countedQty = e.target.value===''? null : e.target.value;
+        // Live-patch just the Variance cell rather than a full render() -- keeps focus/cursor in the
+        // input while typing, same reasoning as the item-qty/item-rate handlers on the voucher form.
+        const cell = document.querySelector(`[data-cycle-count-variance="${i}"]`);
+        if(cell){
+          const hasCount = line.countedQty!=null && line.countedQty!=='';
+          const variance = hasCount ? r2(Number(line.countedQty)-Number(line.expectedQty)) : null;
+          cell.textContent = variance!=null ? (variance>0?'+':variance<0?'−':'')+fmt(variance) : '—';
+          cell.classList.remove('pos','neg');
+          if(variance) cell.classList.add(variance>0?'pos':'neg');
+          cell.style.fontWeight = variance ? '700' : '400';
+        }
+      });
+    });
+    document.getElementById('closeCycleCountProgressBtn')?.addEventListener('click', async ()=>{
+      await saveCycleCounts();
+      toast('Count progress saved');
+      modal = null;
+      render();
+    });
+    document.getElementById('postCycleCountBtn')?.addEventListener('click', async ()=>{
+      if(!cc) return;
+      const uncounted = cc.lines.filter(l=>l.countedQty==null || l.countedQty==='').length;
+      if(uncounted>0 && !confirm(`${uncounted} item(s) weren't counted and will be left unchanged. Post the count anyway?`)) return;
+      const adjustmentsCreated = postCycleCount(cc.id);
+      await saveCycleCounts();
+      await saveStockAdjustments();
+      toast(adjustmentsCreated>0 ? `Count posted — ${adjustmentsCreated} adjustment(s) created` : 'Count posted — no variances found');
+      modal = null;
+      render();
+    });
   }
   if(modal==='stockTransfer'){
     document.getElementById('stockTransferItem')?.addEventListener('change', e=>{ stockTransferDraft.itemId = e.target.value; render(); });
@@ -37310,11 +37682,12 @@ function attachHandlers(){
   if(modal==='stockAdjust'){
     document.getElementById('saveStockAdjBtn')?.addEventListener('click', async ()=>{
       const qtyRaw = document.getElementById('stockAdjQty').value;
+      const rateRaw = document.getElementById('stockAdjRate')?.value;
       const reason = document.getElementById('stockAdjReason').value.trim();
       const qty = Number(qtyRaw);
       if(!qtyRaw || qty===0 || isNaN(qty)){ toast('Enter a non-zero adjustment quantity'); return; }
       const adjWarehouseId = document.getElementById('stockAdjWarehouse')?.value || defaultWarehouseId();
-      state.stockAdjustments.push({
+      const adjEntry = {
         id: uid('adj'),
         itemId: stockAdjustItemId,
         date: new Date().toISOString().slice(0,10),
@@ -37322,7 +37695,10 @@ function attachHandlers(){
         reason,
         warehouseId: adjWarehouseId,
         createdAt: new Date().toISOString(),
-      });
+      };
+      // Rate only matters for stock increases (it's the cost basis FIFO/WAvg will use) — never saved for decreases.
+      if(qty>0 && rateRaw && Number(rateRaw)>0) adjEntry.rate = Number(rateRaw);
+      state.stockAdjustments.push(adjEntry);
       await saveStockAdjustments();
       toast('Stock adjustment saved');
       modal = null;
