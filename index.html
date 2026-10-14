@@ -956,6 +956,45 @@
   .cal-agenda-row .title{font-weight:700;font-size:12.5px;}
   .cal-agenda-row .detail{font-size:11px;color:var(--ink-soft);margin-top:1px;}
   .cal-day-events{padding:12px 16px 4px;display:flex;flex-direction:column;gap:2px;}
+  .cal-agenda-row.clickable{cursor:pointer;}
+  .cal-agenda-row.clickable:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+  .cal-upnext{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;flex-wrap:wrap;}
+  .cal-upnext-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);flex-shrink:0;}
+  .cal-upnext-items{display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0;}
+  .cal-upnext-item{display:flex;align-items:center;gap:6px;background:var(--surface-strong);border:1px solid var(--border);border-radius:999px;padding:5px 11px 5px 9px;font-size:11.5px;}
+  .cal-upnext-item.clickable{cursor:pointer;}
+  .cal-upnext-item.clickable:hover{border-color:var(--border-strong);background:var(--bg);}
+  .cal-upnext-item.clickable:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+  .cal-upnext-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .cal-upnext-date{font-weight:800;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
+  .cal-upnext-title{font-weight:600;color:var(--ink);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cal-upnext-dismiss{border:none;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:11px;padding:2px 3px;border-radius:5px;line-height:1;flex-shrink:0;}
+  .cal-upnext-dismiss:hover{background:var(--border);color:var(--ink);}
+  /* Round 3 (Oct 14, 2026): per-event dismiss/snooze button + the row's own dimmed "dismissed" state --
+     shown on every calendarEventRow(), greyed out rather than hidden so "Show dismissed" reads clearly. */
+  .cal-dismiss-btn{border:none;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:12.5px;padding:3px 5px;border-radius:6px;line-height:1;flex-shrink:0;align-self:center;}
+  .cal-dismiss-btn:hover{background:var(--surface-strong);color:var(--ink);}
+  .cal-agenda-row.dismissed{opacity:.55;}
+  .cal-agenda-row.dismissed .title{text-decoration:line-through;text-decoration-color:var(--ink-faint);}
+  /* Compact Week view (round 3) -- 7 day-cards in a row, each reusing [data-cal-day] so the existing
+     day-selection click handler just works; event titles render inline (space allows it, unlike the
+     dot-only Month grid) since a week has far fewer events competing for the same cell. */
+  .cal-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+  .cal-week-day{position:relative;min-height:120px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:all .12s;}
+  .cal-week-day:hover{border-color:var(--border-strong);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
+  .cal-week-day.weekend{background:color-mix(in srgb, var(--ink) 2.5%, #fff);}
+  .cal-week-day.today{border-color:var(--accent1);box-shadow:0 0 0 1.5px var(--accent1);}
+  .cal-week-day.has-overdue{border-color:var(--debit);box-shadow:0 0 0 1.5px color-mix(in srgb, var(--debit) 55%, transparent);}
+  .cal-week-day.selected{background:var(--accent1);border-color:var(--accent1);}
+  .cal-week-day.selected .dow,.cal-week-day.selected .daynum{color:#fff;}
+  .cal-week-day-head{display:flex;justify-content:space-between;align-items:baseline;font-variant-numeric:tabular-nums;}
+  .cal-week-day-head .dow{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+  .cal-week-day-head .daynum{font-size:14px;font-weight:800;}
+  .cal-week-day-events{display:flex;flex-direction:column;gap:3px;overflow:hidden;}
+  .cal-week-evt{font-size:10.5px;font-weight:700;padding:3px 6px;border-radius:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  @media (max-width:860px){
+    .cal-week-grid{grid-template-columns:repeat(1,1fr);}
+  }
 
   /* Gateway — company selection */
   .gateway-shell{display:flex;align-items:flex-start;justify-content:center;gap:20px;flex-wrap:wrap;min-height:65vh;padding:40px 20px;background:var(--bg);}
@@ -2356,6 +2395,11 @@
   @media print{
     body.pdf-invoice-active > *:not(#pdfInvoiceRoot){ display:none !important; }
     body.pdf-invoice-active #pdfInvoiceRoot{ display:block !important; position:fixed; inset:0; margin:0; padding:0; z-index:99999; background:#fff; }
+  }
+  #calPrintRoot{ display:none; }
+  @media print{
+    body.cal-print-active > *:not(#calPrintRoot){ display:none !important; }
+    body.cal-print-active #calPrintRoot{ display:block !important; position:fixed; inset:0; margin:0; padding:28px; z-index:99999; background:#fff; }
   }
 </style>
 </head>
@@ -6132,6 +6176,12 @@ let calState = { year: new Date().getFullYear(), month: new Date().getMonth(), s
 // calendarEventsForMonth()). Per-tab-session only (not persisted) -- same lifetime as calState's
 // own year/month before this, which already resets to "now" on every fresh load of the app.
 let calViewMode = 'month';
+// Round 3 (Oct 14, 2026 afternoon): 'week' joins 'month'/'agenda' as a third calViewMode. Filter
+// chips (Agenda view only) and the dismiss/snooze toggle are also session-only, same lifetime as
+// calViewMode itself -- only the dismissed-event KEYS themselves persist (in localStorage, per
+// device, see calDismissedSet()), not these two session toggles.
+let calAgendaHiddenTypes = new Set(); // event .type values currently hidden from the Agenda list
+let calShowDismissed = false; // when true, Month/Agenda/Week also render dismissed events (greyed, with a Restore action) instead of hiding them
 let companies = [];
 let currentCompany = null;
 let screen = 'loading'; // 'landing' | 'login' | 'gateway' | 'app'
@@ -15176,6 +15226,7 @@ function sidebarTabBadge(id){
   if(id==='orders'){ const n = sidebarOrdersPendingCount(); return n>0 ? {type:'count', value:n} : null; }
   if(id==='reconcile'){ const n = sidebarReconcileUnclearedCount(); return n>0 ? {type:'count', value:n} : null; }
   if(id==='gst'){ return sidebarGstFilingDue() ? {type:'dot'} : null; }
+  if(id==='calendar'){ const n = calendarAttentionEvents().length; return n>0 ? {type:'count', value:n} : null; }
   return null;
 }
 function tab(id,label,shortcutLetter,opts={}){
@@ -15794,6 +15845,28 @@ document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape'){ e.preventDefault(); presentModeOpen = false; render(); return; }
   if(e.key==='ArrowRight' || e.key==='ArrowDown'){ e.preventDefault(); presentModeIdx = presentModeIdx+1; render(); return; }
   if(e.key==='ArrowLeft' || e.key==='ArrowUp'){ e.preventDefault(); presentModeIdx = Math.max(0, presentModeIdx-1); render(); return; }
+});
+// Keyboard navigation of the Calendar's Month grid (round 3) -- Left/Right move the selected day
+// by 1, Up/Down by 7 (a week), rolling across month boundaries by syncing calState.year/month to
+// whatever month the newly-selected date lands in. Scoped to the Month view only -- Week view's
+// day cards and Agenda's list don't need arrow-key paging the same way -- with the same
+// no-modal/no-modifier/no-field guard as the other global shortcuts above.
+document.addEventListener('keydown', (e)=>{
+  if(view!=='calendar' || calViewMode!=='month' || modal) return;
+  if(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+  const t = e.target;
+  const tag = t && t.tagName;
+  if(tag==='INPUT' || tag==='SELECT' || tag==='TEXTAREA' || (t && t.isContentEditable)) return;
+  const deltas = { ArrowLeft:-1, ArrowRight:1, ArrowUp:-7, ArrowDown:7 };
+  const delta = deltas[e.key];
+  if(delta==null) return;
+  e.preventDefault();
+  const d = new Date((calState.selected || new Date().toISOString().slice(0,10))+'T00:00:00');
+  d.setDate(d.getDate()+delta);
+  calState.selected = d.toISOString().slice(0,10);
+  calState.year = d.getFullYear();
+  calState.month = d.getMonth();
+  render();
 });
 function viewDropdown(){
   const tabs = [
@@ -28911,85 +28984,309 @@ function calEventColor(severity){
   return ({overdue:'var(--debit)', dueSoon:'var(--gold)', upcoming:'var(--accent1)', pastInfo:'var(--ink-faint)'})[severity] || 'var(--ink-faint)';
 }
 function calEventIcon(type){
-  return ({invoiceDue:'💰', recurring:'🔁', gstFiling:'🧮'})[type] || '📌';
+  return ({invoiceDue:'💰', billDue:'🧾', recurring:'🔁', gstFiling:'🧮', tds:'🏛️', prepaid:'🗓', closeChecklist:'✅'})[type] || '📌';
+}
+// Human label for each event type -- used by the Agenda filter chips (round 3) and nowhere else, so
+// adding a new event type only means adding one line here, not updating multiple places.
+function calEventTypeLabel(type){
+  return ({invoiceDue:'Receivables', billDue:'Payables', recurring:'Recurring', gstFiling:'GST', tds:'TDS/TCS', prepaid:'Prepaid', closeChecklist:'Month-End Close'})[type] || type;
 }
 function calEventSeverityLabel(severity){
   return ({overdue:'Overdue', dueSoon:'Due soon', upcoming:'Upcoming', pastInfo:'Reference'})[severity] || '';
 }
-function calendarEventsForMonth(year, month){
-  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const monthStart = `${monthPrefix}-01`;
-  const monthEnd = `${monthPrefix}-${String(daysInMonth).padStart(2,'0')}`;
+// Statutory TDS/TCS payment due date for tax deducted/collected during a given calendar month
+// (year, month0 0-based) -- the Income-tax Act's conventional due date is the 7th of the FOLLOWING
+// month, except for March, whose due date is extended to 30 April. This is deliberately NOT the
+// GSTR-7 "TDS Return" date used elsewhere in this app for GST-TDS (a different, unrelated filing) --
+// conflating the two would state an incorrect statutory date.
+function tdsDueDateForDeductionMonth(year, month0){
+  if(month0===2) return `${year}-04-30`; // deductions made in March
+  const nd = new Date(year, month0+1, 7);
+  return `${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-07`;
+}
+// ---- Shared event data, UNBOUNDED by month: every still-outstanding receivable/payable due date,
+// every active recurring template's next occurrence, and every month's TDS/TCS payment due date --
+// all genuinely data-driven (an invoice stops appearing the moment it's settled, a template stops
+// the moment it's deactivated), so this never grows into "every month forever" the way a pure
+// calendar placeholder would. calendarEventsForMonth() filters this by date range for the Month/
+// Agenda views; calendarAttentionEvents() filters it by severity for the sidebar bell and the
+// "Up Next" strip, which both care about *right now* regardless of which month is being browsed.
+function calendarAllDataEvents(){
   const today = new Date().toISOString().slice(0,10);
   const events = [];
 
-  // Invoice due dates -- every customer with a Credit Period set, every still-outstanding Sales
+  // Receivable due dates -- every customer with a Credit Period set, every still-outstanding Sales
   // invoice (partyOutstandingInvoices() already does the FIFO payment-matching ageing itself uses),
-  // due date = invoice date + that customer's credit days. Shown whether overdue, due soon, or
-  // still upcoming -- overdueInvoices() only ever returns the overdue subset, so this walks the
-  // same underlying data directly instead of reusing it.
+  // due date = invoice date + that customer's credit days. overdueInvoices() only ever returns the
+  // overdue subset, so this walks the same underlying data directly instead of reusing it.
   for(const l of state.ledgers){
     if(l.partyType!=='customer' || !l.creditDays) continue;
     for(const inv of partyOutstandingInvoices(l.id)){
       if(inv.type!=='Sales') continue;
       const dueDate = addDays(inv.date, l.creditDays);
-      if(dueDate<monthStart || dueDate>monthEnd) continue;
       const severity = dueDate<today ? 'overdue' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
       events.push({
-        date: dueDate, type:'invoiceDue', severity,
+        date: dueDate, type:'invoiceDue', severity, ledgerId: l.id, amount: inv.remaining, invDate: inv.date, partyName: l.name,
         title: `${l.name} — payment due`,
         detail: `₹${fmt(inv.remaining)} outstanding, invoiced ${inv.date}`,
       });
     }
   }
 
-  // Recurring voucher templates -- each active template's own next scheduled occurrence, if it
-  // falls in the displayed month. generateDueRecurringVouchers() is what actually posts these; this
-  // just surfaces the same nextDueDate it already reads, so the calendar never shows anything the
-  // app isn't already going to act on.
+  // Payable due dates -- the mirror image for suppliers: every still-outstanding Purchase bill from
+  // a supplier with a Credit Period set, due date = bill date + that supplier's credit days.
+  for(const l of state.ledgers){
+    if(l.partyType!=='supplier' || !l.creditDays) continue;
+    for(const inv of partyOutstandingInvoices(l.id)){
+      if(inv.type!=='Purchase') continue;
+      const dueDate = addDays(inv.date, l.creditDays);
+      const severity = dueDate<today ? 'overdue' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
+      events.push({
+        date: dueDate, type:'billDue', severity, ledgerId: l.id, amount: inv.remaining, invDate: inv.date, partyName: l.name,
+        title: `${l.name} — bill due`,
+        detail: `₹${fmt(inv.remaining)} payable, billed ${inv.date}`,
+      });
+    }
+  }
+
+  // Recurring voucher templates -- each active template's own next scheduled occurrence.
+  // generateDueRecurringVouchers() is what actually posts these; this just surfaces the same
+  // nextDueDate it already reads, so the calendar never shows anything the app isn't already going
+  // to act on.
   for(const t of state.recurringTemplates){
     if(!t.active || !t.nextDueDate) continue;
-    if(t.nextDueDate<monthStart || t.nextDueDate>monthEnd) continue;
     events.push({
-      date: t.nextDueDate, type:'recurring', severity: t.nextDueDate<today ? 'overdue' : 'upcoming',
+      date: t.nextDueDate, type:'recurring', severity: t.nextDueDate<today ? 'overdue' : (t.nextDueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming'),
       title: `${t.name} (recurring)`,
       detail: `${t.frequency} — auto-generates a ${t.type} voucher for ₹${fmt(t.amount)}`,
     });
   }
 
-  // GST filing reminder -- the exact same honest date-based reminder companyGstFilingDue() shows on
-  // the Gateway dashboard (this app has no e-filing integration and stores no per-return "filed"
-  // flag, so this is a reference reminder, not a confirmed compliance status), pinned to the 20th
-  // of every month a GST-registered company is open in, so filing week shows up right alongside
-  // everything else due that month instead of only on the Gateway.
-  if(currentCompany && currentCompany.gstin){
-    const dueDate = `${monthPrefix}-20`;
+  // TDS/TCS statutory payment due dates -- a reference reminder only, matching reportTdsTcs()'s own
+  // disclaimer: this app has no challan/payment-status tracking, so this is NOT a confirmed
+  // paid/unpaid state, just the statutory date for tax actually deducted/collected (per
+  // state.taxDeductions) in a given month. Grouped by month so one month with both TDS and TCS
+  // shows as two distinct events rather than one blended figure.
+  const tdsByMonth = {};
+  for(const r of state.taxDeductions){
+    if(!r.date || !r.kind) continue;
+    const mp = r.date.slice(0,7);
+    (tdsByMonth[mp] = tdsByMonth[mp] || {TDS:0, TCS:0});
+    tdsByMonth[mp][r.kind] = r2((tdsByMonth[mp][r.kind]||0) + (Number(r.taxAmount)||0));
+  }
+  for(const mp in tdsByMonth){
+    const [y,m] = mp.split('-').map(Number);
+    const dueDate = tdsDueDateForDeductionMonth(y, m-1);
     const severity = dueDate<today ? 'pastInfo' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
+    for(const kind of ['TDS','TCS']){
+      const amt = tdsByMonth[mp][kind];
+      if(!amt) continue;
+      events.push({
+        date: dueDate, type:'tds', severity,
+        title: `${kind} payment due — for ${mp}`,
+        detail: `₹${fmt(amt)} ${kind==='TDS'?'withheld':'collected'} in ${mp}. Pay to the government by the statutory due date, then record that payment as its own voucher — this is a reference reminder, not a confirmed payment status.`,
+      });
+    }
+  }
+
+  // Prepaid-expense amortization due dates -- duePrepaidAmortizations() (round 2's "Prepaid
+  // Amortization" button on Day Book, and the Month-End Close Checklist item below, both already
+  // read this same function) only ever returns months that are already due, grouped to the 1st of
+  // that month for a stable, deterministic date.
+  for(const d of duePrepaidAmortizations()){
+    const dueDate = `${d.monthKey}-01`;
+    const severity = dueDate<today ? 'overdue' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
     events.push({
-      date: dueDate, type:'gstFiling', severity,
-      title: 'GSTR-3B filing (reference reminder)',
-      detail: 'Standard monthly due date — not a confirmed filing status. Verify on the GST portal.',
+      date: dueDate, type:'prepaid', severity, voucherId: d.voucherId,
+      title: `Prepaid amortization due — ${d.narration||'voucher'}`,
+      detail: `₹${fmt(d.amount)} to recognize for ${d.monthKey}.`,
     });
   }
 
+  return events;
+}
+// GST filing placeholder for a given month prefix ('YYYY-MM') -- factored out of
+// calendarEventsForMonth()/calendarAttentionEvents() (round 3) so calendarEventsForRange() (which
+// now backs Month, Agenda, AND the new Week view) can generate it too, without three copies of the
+// same object drifting out of sync.
+function calGstPlaceholderEvent(monthPrefix){
+  if(!(currentCompany && currentCompany.gstin)) return null;
+  const today = new Date().toISOString().slice(0,10);
+  const dueDate = `${monthPrefix}-20`;
+  const severity = dueDate<today ? 'pastInfo' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
+  return {
+    date: dueDate, type:'gstFiling', severity,
+    title: 'GSTR-3B filing (reference reminder)',
+    detail: 'Standard monthly due date — not a confirmed filing status. Verify on the GST portal.',
+  };
+}
+// Month-End Close Checklist placeholder -- unlike every other event type, this one's underlying
+// state (monthEndCloseChecklistItems()) is computed LIVE from today's books, not parameterized by
+// an arbitrary month, so it only ever represents the real current month (pinned to that month's
+// last day) -- the caller decides whether that date actually falls inside whatever range it asked
+// for. Severity reflects whether anything on the checklist is still open, not a fixed due-date rule.
+function calCloseChecklistPlaceholderEvent(){
+  const today = new Date().toISOString().slice(0,10);
+  const items = monthEndCloseChecklistItems();
+  const openCount = items.filter(i=>i.status==='pending').length;
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10);
+  const daysLeft = Math.round((new Date(lastDay+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
+  const severity = openCount===0 ? 'pastInfo' : (daysLeft<=5 ? 'dueSoon' : 'upcoming');
+  return {
+    date: lastDay, type:'closeChecklist', severity,
+    title: openCount ? `Month-End Close Checklist — ${openCount} item${openCount===1?'':'s'} open` : 'Month-End Close Checklist — all clear',
+    detail: openCount
+      ? 'Depreciation, accruals, GST review, bank reconciliation, and prepaid amortization — open items waiting before you close the month.'
+      : 'Everything on the Month-End Close Checklist is clear as of today.',
+  };
+}
+// Shared date-range event query backing Month view, Agenda view, and the new Week view (round 3) --
+// calendarAllDataEvents() filtered to [startDate, endDate] plus the GST and Month-End Close
+// placeholders for whichever month(s) the range touches, whenever their own date actually falls
+// inside that range. Does NOT filter dismissed events -- see filterCalDismissed(), applied by each
+// caller so the "Show dismissed" toggle can differ per view if it ever needs to.
+function calendarEventsForRange(startDate, endDate){
+  const events = calendarAllDataEvents().filter(e=> e.date>=startDate && e.date<=endDate);
+  const monthPrefixes = new Set([startDate.slice(0,7), endDate.slice(0,7)]);
+  for(const mp of monthPrefixes){
+    const g = calGstPlaceholderEvent(mp);
+    if(g && g.date>=startDate && g.date<=endDate) events.push(g);
+  }
+  const cc = calCloseChecklistPlaceholderEvent();
+  if(cc.date>=startDate && cc.date<=endDate) events.push(cc);
   return events.sort((a,b)=> a.date===b.date ? 0 : (a.date<b.date?-1:1));
+}
+// Per-device dismiss/snooze (round 3) -- localStorage only, never synced, same "device-level UI
+// preference" reasoning the sidebar Favorites feature already established for this app (see
+// sidebarFavoritesKey()'s own comment). Keyed by company so switching companies doesn't bleed one
+// company's dismissals into another's calendar.
+function calDismissedKey(){
+  return 'rb_cal_dismissed_' + ((currentCompany && currentCompany.id) || 'anon');
+}
+function calDismissedSet(){
+  try{
+    const raw = localStorage.getItem(calDismissedKey());
+    return new Set(raw ? JSON.parse(raw) : []);
+  }catch(e){ return new Set(); }
+}
+// A stable identity for one event OCCURRENCE (not the event type in general) -- date is part of the
+// key specifically so a recurring monthly reminder (GST, TDS, the close checklist) only stays
+// dismissed for that one occurrence; next month's instance has a different date and so a different
+// key, and shows up fresh.
+function calEventKey(e){
+  return `${e.type}|${e.date}|${e.ledgerId||e.voucherId||''}|${e.title}`;
+}
+function isCalEventDismissed(e){
+  return calDismissedSet().has(calEventKey(e));
+}
+function toggleCalEventDismiss(key){
+  const set = calDismissedSet();
+  if(set.has(key)) set.delete(key); else set.add(key);
+  try{ localStorage.setItem(calDismissedKey(), JSON.stringify(Array.from(set))); }catch(e){}
+  render();
+}
+// showDismissed=true keeps dismissed events in the list (for Month/Agenda/Week's own "Show
+// dismissed" toggle); the sidebar bell and Up Next strip always call this with the default false --
+// a dismissed item never counts as "needs attention" there, even while the toggle is on elsewhere.
+function filterCalDismissed(events, showDismissed){
+  if(showDismissed) return events;
+  return events.filter(e=>!isCalEventDismissed(e));
+}
+function calendarEventsForMonth(year, month){
+  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const monthStart = `${monthPrefix}-01`;
+  const monthEnd = `${monthPrefix}-${String(daysInMonth).padStart(2,'0')}`;
+  return filterCalDismissed(calendarEventsForRange(monthStart, monthEnd), calShowDismissed);
+}
+// Cross-month "right now" view of the same data, used by the sidebar bell (sidebarTabBadge('calendar'))
+// and the "Up Next" strip -- neither cares which month is currently being browsed, only what's
+// overdue or due soon. Includes the GST and Month-End Close placeholders only when THEY themselves
+// read as overdue/due-soon, so it stays a short, genuinely actionable list rather than a dump of
+// every future placeholder date. Always hard-filters dismissed events (showDismissed=false) --
+// Month/Agenda/Week's own "Show dismissed" toggle never affects the bell or Up Next.
+function calendarAttentionEvents(){
+  const events = calendarAllDataEvents().filter(e=> e.severity==='overdue' || e.severity==='dueSoon');
+  if(currentCompany && currentCompany.gstin){
+    const now = new Date();
+    for(const offset of [0,1]){
+      const d = new Date(now.getFullYear(), now.getMonth()+offset, 1);
+      const mp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const g = calGstPlaceholderEvent(mp);
+      if(g && (g.severity==='overdue' || g.severity==='dueSoon')) events.push(g);
+    }
+  }
+  const cc = calCloseChecklistPlaceholderEvent();
+  if(cc.severity==='overdue' || cc.severity==='dueSoon') events.push(cc);
+  return filterCalDismissed(events.sort((a,b)=> a.date===b.date ? 0 : (a.date<b.date?-1:1)), false);
+}
+// Navigation target for a calendar event row -- see the [data-cal-event-nav] handler in
+// attachHandlers() for what each target actually does. Returns '' for an event with nowhere to go
+// (shouldn't happen today, but keeps calendarEventRow() safe if a future event type forgets one).
+function calEventNavTarget(e){
+  if((e.type==='invoiceDue' || e.type==='billDue') && e.ledgerId) return 'ledger:'+e.ledgerId;
+  if(e.type==='recurring') return 'recurring';
+  if(e.type==='gstFiling') return 'gst';
+  if(e.type==='tds') return 'tds';
+  if(e.type==='prepaid') return 'prepaid';
+  if(e.type==='closeChecklist') return 'closeChecklist';
+  return '';
+}
+// The "Record Payment"/"Record Receipt" quick action (round 3) -- only the two due-date types that
+// actually have a party ledger and an outstanding amount get one. Returns the voucher type to
+// create and the button label; calendarEventRow() wires the rest via data-cal-event-pay-* attributes
+// (see the shared delegate in attachHandlers()), never by constructing the voucher itself here, so
+// this function stays pure/testable.
+function calEventPayAction(e){
+  if(e.type==='invoiceDue' && e.ledgerId) return { voucherType:'Receipt', label:'💳 Record Receipt' };
+  if(e.type==='billDue' && e.ledgerId) return { voucherType:'Payment', label:'💳 Record Payment' };
+  return null;
 }
 function calendarEventRow(e){
   const color = calEventColor(e.severity);
-  return `<div class="cal-agenda-row">
+  const dismissed = isCalEventDismissed(e);
+  const nav = calEventNavTarget(e);
+  const pay = dismissed ? null : calEventPayAction(e);
+  const dismissKey = calEventKey(e);
+  return `<div class="cal-agenda-row${(nav&&!dismissed)?' clickable':''}${dismissed?' dismissed':''}"${(nav&&!dismissed)?` data-cal-event-nav="${escapeAttr(nav)}" role="button" tabindex="0"`:''}>
     <div class="cal-agenda-icon" style="background:color-mix(in srgb, ${color} 16%, #fff);color:${color};">${calEventIcon(e.type)}</div>
     <div style="flex:1;min-width:0;">
       <div class="title">${escapeHtml(e.title)}</div>
       <div class="detail">${escapeHtml(e.detail)}</div>
+      ${pay ? `<button type="button" class="btn small secondary" style="margin-top:6px;font-size:11px;padding:4px 10px;" data-cal-event-pay-type="${escapeAttr(pay.voucherType)}" data-cal-event-pay-ledger="${escapeAttr(e.ledgerId)}" data-cal-event-pay-amount="${Number(e.amount)||0}" data-cal-event-pay-party="${escapeAttr(e.partyName||'')}" data-cal-event-pay-date="${escapeAttr(e.invDate||e.date)}">${pay.label}</button>` : ''}
     </div>
-    <span class="pill" style="background:color-mix(in srgb, ${color} 15%, #fff);color:${color};flex-shrink:0;">${calEventSeverityLabel(e.severity)}</span>
+    <span class="pill" style="background:color-mix(in srgb, ${color} 15%, #fff);color:${color};flex-shrink:0;">${dismissed?'Dismissed':calEventSeverityLabel(e.severity)}</span>
+    <button type="button" class="cal-dismiss-btn" data-cal-event-dismiss="${escapeAttr(dismissKey)}" title="${dismissed?'Restore this reminder':'Dismiss this reminder'}" aria-label="${dismissed?'Restore':'Dismiss'} — ${escapeAttr(e.title)}">${dismissed?'↺':'✕'}</button>
   </div>`;
+}
+// Navigates the app to wherever a calendar event row points -- shared by the Month-view day panel,
+// the Agenda view, the Week view, and the "Up Next" strip (see attachHandlers()'s
+// [data-cal-event-nav] delegate).
+function goToCalEventTarget(nav){
+  if(!nav) return;
+  if(nav.startsWith('ledger:')){
+    window._selectedLedger = nav.slice('ledger:'.length);
+    goToTab('ledgers');
+    return;
+  }
+  if(nav==='recurring'){ recurringDraft = null; modal = 'recurring'; render(); return; }
+  if(nav==='gst'){ goToTab('gst'); return; }
+  if(nav==='tds'){ openPinnedReport('tdsTcs'); return; }
+  if(nav==='prepaid'){ modal = 'prepaidDue'; render(); return; }
+  if(nav==='closeChecklist'){ modal = 'closeChecklist'; render(); return; }
+}
+// Every distinct event .type present across ALL of this month's events (not just the currently
+// filtered subset) -- what the Agenda filter chips are built from, so a chip never disappears just
+// because its own type happens to be hidden right now.
+function calAgendaEventTypes(allMonthEvents){
+  return Array.from(new Set(allMonthEvents.map(e=>e.type)));
 }
 // Chronological cross-month list of everything calendarEventsForMonth() found -- the "advanced
 // calendar" view: a planner can scan this once for the whole month's dues/filings/recurring entries
 // instead of clicking through every day looking for one. Each date heading jumps back to Month view
-// on that day (see the [data-cal-agenda-jump] handler in attachHandlers()).
+// on that day (see the [data-cal-agenda-jump] handler in attachHandlers()). `events` here is already
+// filtered by the Agenda type chips (calAgendaHiddenTypes) -- see viewCalendar().
 function calendarAgendaView(events, monthLabel, year){
   if(!events.length){
     return emptyState({ icon:'🗓️', title:'Nothing due this month', text:`Payment due dates, recurring entries, and GST filing reminders for ${monthLabel} ${year} will show up here.` });
@@ -29006,6 +29303,168 @@ function calendarAgendaView(events, monthLabel, year){
     </div>`;
   }).join('');
 }
+// Filter-chip row for the Agenda view (round 3) -- same visual convention as the Day Book's own
+// type filter-chips (moduleToolbar/.filter-chips), toggling calAgendaHiddenTypes. Built from every
+// type present in the FULL month (not the already-filtered list), with a live count per type.
+function calendarAgendaFilterChips(allMonthEvents){
+  const types = calAgendaEventTypes(allMonthEvents);
+  if(types.length<2) return ''; // nothing meaningful to filter with only one (or zero) event type present
+  const countFor = t => allMonthEvents.filter(e=>e.type===t).length;
+  return `<div class="filter-chips" style="margin-bottom:12px;">
+    <button type="button" class="filter-chip ${calAgendaHiddenTypes.size===0?'active':''}" data-cal-type-chip="__all__">All (${allMonthEvents.length})</button>
+    ${types.map(t=>`<button type="button" class="filter-chip ${calAgendaHiddenTypes.has(t)?'':'active'}" data-cal-type-chip="${escapeAttr(t)}">${calEventIcon(t)} ${calEventTypeLabel(t)} (${countFor(t)})</button>`).join('')}
+  </div>`;
+}
+// A small cross-month summary -- "what needs attention right now" -- shown above the calendar grid
+// in Month, Agenda, AND Week view, since today's Agenda/Week views only ever cover whichever
+// month/week is currently being browsed. Reuses the exact same event objects/severities/nav targets
+// as the rest of the calendar, just scoped by calendarAttentionEvents() instead of calState.
+function calUpNextStrip(){
+  const items = calendarAttentionEvents().slice(0,6);
+  if(!items.length){
+    return `<div class="cal-upnext empty"><span class="cal-upnext-label">Up Next</span><span class="muted" style="font-size:12px;">✓ Nothing overdue or due within 3 days, across any month.</span></div>`;
+  }
+  return `<div class="cal-upnext">
+    <span class="cal-upnext-label">Up Next</span>
+    <div class="cal-upnext-items">
+      ${items.map(e=>{
+        const color = calEventColor(e.severity);
+        const nav = calEventNavTarget(e);
+        const dd = new Date(e.date+'T00:00:00');
+        const dateLabel = dd.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+        return `<div class="cal-upnext-item${nav?' clickable':''}"${nav?` data-cal-event-nav="${escapeAttr(nav)}" role="button" tabindex="0"`:''} title="${escapeAttr(e.title+' — '+e.detail)}">
+          <span class="cal-upnext-dot" style="background:${color};"></span>
+          <span class="cal-upnext-date">${dateLabel}</span>
+          <span class="cal-upnext-title">${escapeHtml(e.title)}</span>
+          <button type="button" class="cal-upnext-dismiss" data-cal-event-dismiss="${escapeAttr(calEventKey(e))}" title="Dismiss this reminder" aria-label="Dismiss — ${escapeAttr(e.title)}">✕</button>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+// Escapes a value for use inside an .ics TEXT field per RFC 5545 (backslash, semicolon, comma, and
+// newline all need escaping; nothing else does).
+function icsEscape(s){
+  return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+}
+// Exports a month's calendar events as a portable .ics file (all-day VEVENTs, one per event) so
+// they can be imported into Google Calendar/Outlook/etc. -- the "compliance calendar" item from the
+// Oct 14, 2026 round. Client-side only, same Blob + <a download> pattern as downloadCSV()/
+// downloadJSON() elsewhere in this file.
+function downloadCalendarICS(events, monthLabel, year){
+  if(!events.length){ toast('Nothing to export for this month.'); return; }
+  const dtstamp = new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//The Reckoning Books//Calendar Export//EN','CALSCALE:GREGORIAN'];
+  events.forEach((e,i)=>{
+    const dateCompact = e.date.replace(/-/g,'');
+    const nextDayCompact = addDays(e.date,1).replace(/-/g,'');
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:rb-cal-${dateCompact}-${i}-${(currentCompany&&currentCompany.id)||'co'}@reckoning-books`);
+    lines.push(`DTSTAMP:${dtstamp}`);
+    lines.push(`DTSTART;VALUE=DATE:${dateCompact}`);
+    lines.push(`DTEND;VALUE=DATE:${nextDayCompact}`);
+    lines.push(`SUMMARY:${icsEscape(e.title)}`);
+    lines.push(`DESCRIPTION:${icsEscape(e.detail)}`);
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeMonth = `${monthLabel}_${year}`.replace(/[^a-z0-9]+/gi,'_');
+  a.href = url;
+  a.download = `Reckoning_Books_Compliance_Calendar_${safeMonth}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+// Builds a clean, print-only "compliance calendar" fragment for a month's events -- grouped by
+// date, same honest severity labels as the on-screen agenda, no app chrome. Mounted into the
+// hidden #calPrintRoot host and printed via the same body.cal-print-active / @media print pattern
+// downloadInvoicePDF() already established for invoices, just with its own root/class so the two
+// never collide.
+function buildCalendarPrintHTML(events, monthLabel, year){
+  const companyName = (currentCompany && currentCompany.name) || 'Company';
+  const generatedOn = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+  const byDate = {};
+  for(const e of events){ (byDate[e.date] = byDate[e.date] || []).push(e); }
+  const dates = Object.keys(byDate).sort();
+  const rows = dates.map(d=>{
+    const dd = new Date(d+'T00:00:00');
+    const label = dd.toLocaleDateString('en-IN', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+    return `<div style="margin-bottom:14px;">
+      <div style="font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:6px;">${escapeHtml(label)}</div>
+      ${byDate[d].map(e=>`<div style="padding:4px 0;font-size:12.5px;"><b>${escapeHtml(e.title)}</b> — ${escapeHtml(e.detail)} <i style="color:#666;">(${calEventSeverityLabel(e.severity)})</i></div>`).join('')}
+    </div>`;
+  }).join('');
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:0 auto;color:#111;">
+    <h1 style="font-size:18px;margin:0 0 2px;">${escapeHtml(companyName)}</h1>
+    <div style="font-size:13px;color:#555;margin-bottom:4px;">Compliance Calendar — ${escapeHtml(monthLabel)} ${year}</div>
+    <div style="font-size:10.5px;color:#888;margin-bottom:16px;">Generated ${generatedOn} from The Reckoning Books — reference reminders only, not confirmed filing/payment status.</div>
+    ${rows || `<div style="font-size:13px;color:#777;">Nothing due this month.</div>`}
+  </div>`;
+}
+function printCalendarAgenda(events, monthLabel, year){
+  try{
+    const html = buildCalendarPrintHTML(events, monthLabel, year);
+    let root = document.getElementById('calPrintRoot');
+    if(!root){ root = document.createElement('div'); root.id = 'calPrintRoot'; document.body.appendChild(root); }
+    root.innerHTML = html;
+    document.body.classList.add('cal-print-active');
+    let done = false;
+    const cleanup = ()=>{
+      if(done) return; done = true;
+      document.body.classList.remove('cal-print-active');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      window.print();
+      setTimeout(cleanup, 2000);
+    }));
+  }catch(e){
+    toast('Could not prepare the print view.');
+  }
+}
+// Returns {start, end} (YYYY-MM-DD, inclusive) for the Sun–Sat week containing dateStr -- the
+// compact Week view's date range (round 3), and also what calPrev/calNext shift by when
+// calViewMode==='week' (see attachHandlers()).
+function calWeekRange(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const dow = d.getDay();
+  const start = new Date(d); start.setDate(d.getDate()-dow);
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10) };
+}
+// Compact Week view (round 3) -- 7 day-cards spanning weekStart..weekEnd, each showing its due
+// dates/filings inline rather than as dots (a week has room for titles, unlike the Month grid).
+// Reuses data-cal-day so the Month view's own day-selection click handler (attachHandlers()) just
+// selects the week's day too, driving the shared day-detail panel below the calendar.
+function calendarWeekView(weekStart, weekEnd, weekEvents, todayStr){
+  const eventsByDate = {};
+  for(const e of weekEvents){ (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e); }
+  const dowNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const start = new Date(weekStart+'T00:00:00');
+  let html = '<div class="cal-week-grid">';
+  for(let i=0;i<7;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const dateStr = d.toISOString().slice(0,10);
+    const dayEvents = eventsByDate[dateStr] || [];
+    const cls = ['cal-week-day'];
+    if(i===0 || i===6) cls.push('weekend');
+    if(dateStr===todayStr) cls.push('today');
+    if(dateStr===calState.selected) cls.push('selected');
+    if(dayEvents.some(e=>e.severity==='overdue')) cls.push('has-overdue');
+    const evts = dayEvents.slice(0,5).map(e=>`<div class="cal-week-evt" style="background:color-mix(in srgb, ${calEventColor(e.severity)} 16%, #fff);color:${calEventColor(e.severity)};" title="${escapeAttr(e.title+' — '+e.detail)}">${calEventIcon(e.type)} ${escapeHtml(e.title)}</div>`).join('');
+    html += `<div class="${cls.join(' ')}" data-cal-day="${dateStr}">
+      <div class="cal-week-day-head"><span class="dow">${dowNames[i]}</span><span class="daynum">${d.getDate()}</span></div>
+      <div class="cal-week-day-events">${evts}${dayEvents.length>5?`<div class="cal-week-evt" style="background:transparent;color:var(--ink-faint);">+${dayEvents.length-5} more</div>`:''}</div>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
 function viewCalendar(){
   const {year, month} = calState;
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -29013,6 +29472,9 @@ function viewCalendar(){
   const startDow = first.getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
   const todayStr = new Date().toISOString().slice(0,10);
+  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+  const monthStart = `${monthPrefix}-01`;
+  const monthEnd = `${monthPrefix}-${String(daysInMonth).padStart(2,'0')}`;
 
   const vouchersByDate = {};
   for(const v of state.vouchers){
@@ -29022,6 +29484,11 @@ function viewCalendar(){
   const monthEvents = calendarEventsForMonth(year, month);
   const eventsByDate = {};
   for(const e of monthEvents){ (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e); }
+
+  // Compact Week view (round 3) -- its own date range anchored on calState.selected (a week can
+  // straddle two months, so this deliberately doesn't reuse the month-scoped monthEvents above).
+  const weekRange = calWeekRange(calState.selected || todayStr);
+  const weekEvents = calViewMode==='week' ? filterCalDismissed(calendarEventsForRange(weekRange.start, weekRange.end), calShowDismissed) : [];
 
   let cells = '';
   for(let i=0;i<startDow;i++) cells += `<div class="calendar-day empty"></div>`;
@@ -29044,12 +29511,16 @@ function viewCalendar(){
     </div>`;
   }
 
+  // Agenda view's own type filter chips (round 3) -- scoped to Agenda only; Month/Week dots stay
+  // unaffected by which types are hidden there.
+  const agendaEvents = monthEvents.filter(e=>!calAgendaHiddenTypes.has(e.type));
+
   const selectedVouchers = vouchersByDate[calState.selected] || [];
-  const selectedEvents = eventsByDate[calState.selected] || [];
-  const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+  const selectedEvents = calViewMode==='week' ? weekEvents.filter(e=>e.date===calState.selected) : (eventsByDate[calState.selected] || []);
   const monthVouchers = state.vouchers.filter(v=>v.date.startsWith(monthPrefix));
   const monthValue = monthVouchers.reduce((s,v)=>s+voucherAmount(v),0);
   const overdueCount = monthEvents.filter(e=>e.severity==='overdue').length;
+  const dismissedCount = calendarEventsForRange(monthStart, monthEnd).filter(isCalEventDismissed).length;
 
   const curYear = new Date().getFullYear();
   const years = Array.from(new Set([year, curYear-3, curYear-2, curYear-1, curYear, curYear+1, curYear+2, curYear+3])).sort((a,b)=>a-b);
@@ -29062,6 +29533,7 @@ function viewCalendar(){
       <div class="stat"><div class="label">Due &amp; Filings This Month</div><div class="val">${monthEvents.length}</div></div>
       <div class="stat"><div class="label">Overdue</div><div class="val" style="${overdueCount?'color:var(--debit);':''}">${overdueCount}</div></div>
     </div>
+    ${calUpNextStrip()}
     <div class="panel">
       <div class="panel-body">
         <div class="calendar-nav">
@@ -29069,14 +29541,20 @@ function viewCalendar(){
             <button class="btn small secondary" id="calPrev" type="button">◀ Prev</button>
             <button class="btn small secondary" id="calToday" type="button">Today</button>
             <button class="btn small secondary" id="calNext" type="button">Next ▶</button>
-            <div class="calendar-jump">
+            ${calViewMode==='week' ? `<span class="muted" style="font-size:12.5px;font-weight:700;">${new Date(weekRange.start+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short'})} – ${new Date(weekRange.end+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>` : `<div class="calendar-jump">
               <select id="calMonthSelect" aria-label="Jump to month">${monthNames.map((m,i)=>`<option value="${i}" ${i===month?'selected':''}>${m}</option>`).join('')}</select>
               <select id="calYearSelect" aria-label="Jump to year">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}</option>`).join('')}</select>
-            </div>
+            </div>`}
           </div>
-          <div class="cal-view-toggle">
-            <button type="button" data-cal-view="month" class="${calViewMode==='month'?'active':''}">📅 Month</button>
-            <button type="button" data-cal-view="agenda" class="${calViewMode==='agenda'?'active':''}">🗒️ Agenda${monthEvents.length?` (${monthEvents.length})`:''}</button>
+          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="cal-view-toggle">
+              <button type="button" data-cal-view="month" class="${calViewMode==='month'?'active':''}">📅 Month</button>
+              <button type="button" data-cal-view="week" class="${calViewMode==='week'?'active':''}">🗓️ Week</button>
+              <button type="button" data-cal-view="agenda" class="${calViewMode==='agenda'?'active':''}">🗒️ Agenda${monthEvents.length?` (${monthEvents.length})`:''}</button>
+            </div>
+            <button class="btn secondary small ${calShowDismissed?'active':''}" id="calToggleDismissed" type="button" title="Dismissed reminders are hidden by default here -- toggle to review or restore them">${calShowDismissed?'🙈 Hide Dismissed':'👁 Show Dismissed'}${dismissedCount?` (${dismissedCount})`:''}</button>
+            <button class="btn secondary small" id="calExportIcs" type="button" title="Download this month's due dates as a .ics file to import into Google Calendar/Outlook">⬇ Export .ics</button>
+            <button class="btn secondary small" id="calPrintAgenda" type="button" title="Print a compliance calendar for this month">🖨 Print</button>
           </div>
         </div>
         ${calViewMode==='month' ? `
@@ -29090,10 +29568,11 @@ function viewCalendar(){
           <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--accent1);"></span>Upcoming</span>
           <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--ink-faint);"></span>Reference only</span>
         </div>
-        ` : calendarAgendaView(monthEvents, monthNames[month], year)}
+        ` : calViewMode==='week' ? calendarWeekView(weekRange.start, weekRange.end, weekEvents, todayStr)
+        : `${calendarAgendaFilterChips(monthEvents)}${calendarAgendaView(agendaEvents, monthNames[month], year)}`}
       </div>
     </div>
-    ${calViewMode==='month' ? `
+    ${(calViewMode==='month' || calViewMode==='week') ? `
     <div class="panel">
       <div class="panel-head"><h2>${calState.selected}</h2><span class="muted" style="font-size:12px;">${selectedVouchers.length} voucher${selectedVouchers.length===1?'':'s'}${selectedEvents.length?` · ${selectedEvents.length} due/filing event${selectedEvents.length===1?'':'s'}`:''}</span></div>
       <div class="panel-body" style="padding:0;">
@@ -36266,14 +36745,31 @@ function attachHandlers(){
   }
 
   if(view==='calendar'){
+    // Prev/Next step by 7 days (not by month) while the compact Week view (round 3) is active --
+    // same calState.selected the Week view itself is anchored on, keeping year/month in sync so
+    // the day-detail panel and any later Month/Agenda switch land on the right month too.
     document.getElementById('calPrev')?.addEventListener('click', ()=>{
-      calState.month--;
-      if(calState.month<0){ calState.month=11; calState.year--; }
+      if(calViewMode==='week'){
+        const d = new Date((calState.selected || new Date().toISOString().slice(0,10))+'T00:00:00');
+        d.setDate(d.getDate()-7);
+        calState.selected = d.toISOString().slice(0,10);
+        calState.year = d.getFullYear(); calState.month = d.getMonth();
+      } else {
+        calState.month--;
+        if(calState.month<0){ calState.month=11; calState.year--; }
+      }
       render();
     });
     document.getElementById('calNext')?.addEventListener('click', ()=>{
-      calState.month++;
-      if(calState.month>11){ calState.month=0; calState.year++; }
+      if(calViewMode==='week'){
+        const d = new Date((calState.selected || new Date().toISOString().slice(0,10))+'T00:00:00');
+        d.setDate(d.getDate()+7);
+        calState.selected = d.toISOString().slice(0,10);
+        calState.year = d.getFullYear(); calState.month = d.getMonth();
+      } else {
+        calState.month++;
+        if(calState.month>11){ calState.month=0; calState.year++; }
+      }
       render();
     });
     document.getElementById('calToday')?.addEventListener('click', ()=>{
@@ -36312,6 +36808,73 @@ function attachHandlers(){
       vform = { type:'Payment', date: calState.selected, narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
       view = 'voucher';
       render();
+    });
+    // Clickable event rows (Oct 14, 2026 round) -- every event (day panel, Agenda view, and the
+    // Up Next strip all use the same calendarEventRow()/calEventNavTarget() pair) carries a
+    // data-cal-event-nav target; one delegate handles all three surfaces identically.
+    document.querySelectorAll('[data-cal-event-nav]').forEach(el=>{
+      el.addEventListener('click', ()=> goToCalEventTarget(el.dataset.calEventNav));
+      el.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter' || e.key===' '){ e.preventDefault(); goToCalEventTarget(el.dataset.calEventNav); }
+      });
+    });
+    // Quick "Record Receipt"/"Record Payment" (round 3) -- pre-fills the voucher form from the
+    // event's own data-cal-event-pay-* attributes (see calEventPayAction()/calendarEventRow()) and
+    // jumps straight to the voucher screen. stopPropagation so this doesn't also fire the row's own
+    // [data-cal-event-nav] click (the button sits inside a clickable row).
+    document.querySelectorAll('[data-cal-event-pay-type]').forEach(el=>{
+      el.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const voucherType = el.dataset.calEventPayType; // 'Receipt' | 'Payment'
+        const ledgerId = el.dataset.calEventPayLedger;
+        const amount = Number(el.dataset.calEventPayAmount)||0;
+        const partyName = el.dataset.calEventPayParty || '';
+        const invDate = el.dataset.calEventPayDate || '';
+        const today = new Date().toISOString().slice(0,10);
+        const gst = {party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]};
+        if(voucherType==='Receipt'){
+          vform = { type:'Receipt', date: today,
+            narration: `Receipt from ${partyName}${invDate?` against invoice dated ${invDate}`:''}`,
+            entries:[{ledgerId:'', dr:amount, cr:0, side:'dr'}, {ledgerId, dr:0, cr:amount, side:'cr'}], gst };
+        } else {
+          vform = { type:'Payment', date: today,
+            narration: `Payment to ${partyName}${invDate?` against bill dated ${invDate}`:''}`,
+            entries:[{ledgerId, dr:amount, cr:0, side:'dr'}, {ledgerId:'', dr:0, cr:amount, side:'cr'}], gst };
+        }
+        view = 'voucher';
+        render();
+      });
+    });
+    // Dismiss/restore (round 3) -- same stopPropagation reasoning as the pay-action button above;
+    // toggleCalEventDismiss() already calls render() itself.
+    document.querySelectorAll('[data-cal-event-dismiss]').forEach(el=>{
+      el.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        toggleCalEventDismiss(el.dataset.calEventDismiss);
+      });
+    });
+    // Agenda view's type filter chips (round 3) -- "__all__" clears every hidden type, otherwise
+    // toggle membership in calAgendaHiddenTypes (see calendarAgendaFilterChips()).
+    document.querySelectorAll('[data-cal-type-chip]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const t = el.dataset.calTypeChip;
+        if(t==='__all__') calAgendaHiddenTypes.clear();
+        else if(calAgendaHiddenTypes.has(t)) calAgendaHiddenTypes.delete(t);
+        else calAgendaHiddenTypes.add(t);
+        render();
+      });
+    });
+    document.getElementById('calToggleDismissed')?.addEventListener('click', ()=>{
+      calShowDismissed = !calShowDismissed;
+      render();
+    });
+    document.getElementById('calExportIcs')?.addEventListener('click', ()=>{
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      downloadCalendarICS(calendarEventsForMonth(calState.year, calState.month), monthNames[calState.month], calState.year);
+    });
+    document.getElementById('calPrintAgenda')?.addEventListener('click', ()=>{
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      printCalendarAgenda(calendarEventsForMonth(calState.year, calState.month), monthNames[calState.month], calState.year);
     });
   }
 
