@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Reckoning Books">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Manrope:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#F4F7F5;
@@ -24,15 +24,25 @@
     --border-strong:#C7D2CB;
     --ink:#1B2420;
     --ink-soft:#5C6B62;
-    --ink-faint:#8B978F;
-    --accent1:#2CA01C;
+    /* Accessibility (2026-10-14 WCAG audit): --ink-faint, --accent1/--credit, --debit, and the new
+       --gold-ink were all darkened from their original values, which measured 2.2-3.4:1 against this
+       --surface — a clear AA fail for the small/normal-size text they're used as (.muted captions,
+       .num.pos/.neg table cells, pill/badge text, a.linklike). Each new value is the minimum darkening
+       (same hue, lower HSL lightness) needed to clear 4.5:1 against #FFFFFF -- not an arbitrary
+       re-theme. --gold itself (decorative gradients/borders, never body text) is untouched; --gold-ink
+       is a parallel token used only where gold text appears. Dark mode's own tokens already passed
+       (surfaces are dark enough that the original light-on-dark pairings clear 4.5:1+), so only
+       --ink-faint needed the equivalent lightening there -- see the dark root block below. */
+    --ink-faint:#6D7971;
+    --accent1:#268818;
     --accent2:#1E7A12;
-    --accent-grad:#2CA01C;
-    --credit:#2CA01C;
+    --accent-grad:#268818;
+    --credit:#268818;
     --credit-bg:rgba(44,160,28,0.11);
-    --debit:#D64545;
+    --debit:#D54141;
     --debit-bg:rgba(214,69,69,0.10);
     --gold:#F2994A;
+    --gold-ink:#B85E0D;
     --radius:14px;
     --radius-sm:10px;
     --radius-btn:9px;
@@ -69,7 +79,15 @@
      sole job of separating the rail from the main content -- the border stays, just softer, with
      the shadow doing the actual depth work. `position:relative` is new too -- it's what lets the
      sliding active-tab indicator (`.navtab-indicator` below) position itself against the rail. */
+  /* Sidebar gets its own typeface (Manrope) instead of the main content's Inter -- a rounder,
+     more geometric letterform that reads as "navigation" at a glance vs. "data" in the main pane.
+     Everything inside the rail (.navtab, inputs, the company card, etc.) already declares
+     font-family:inherit, or sets none at all, so this one declaration cascades to the whole sidebar
+     without touching any other element's own rule. The detached collapsed-sidebar flyout tooltip
+     (#sidebarFlyout, a DOM sibling of .tabstrip rather than a child) gets the same font explicitly
+     where it's defined below, since it can't inherit it through the cascade. */
   .tabstrip{position:relative;display:flex;flex-direction:column;gap:2px;padding:16px 11px;
+    font-family:'Manrope',sans-serif;
     background:linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent1) 3%, var(--surface)) 100%);
     border-right:1px solid color-mix(in srgb, var(--border) 70%, transparent);
     box-shadow:2px 0 16px -6px color-mix(in srgb, var(--ink) 16%, transparent);
@@ -248,7 +266,8 @@
   #sidebarFlyout{position:fixed;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;
     min-width:150px;max-width:220px;padding:8px 11px;border-radius:10px;background:var(--surface-strong);
     border:1px solid var(--border-strong);box-shadow:0 10px 26px -6px color-mix(in srgb, var(--ink) 30%, transparent);
-    opacity:0;pointer-events:none;transition:opacity .12s ease;z-index:200;}
+    opacity:0;pointer-events:none;transition:opacity .12s ease;z-index:200;
+    font-family:'Manrope',sans-serif;}
   #sidebarFlyout.visible{opacity:1;}
   .navtab-flyout-label{font-size:12px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .navtab-flyout-sub{font-size:10.5px;font-weight:600;color:var(--ink-faint);white-space:nowrap;}
@@ -694,7 +713,29 @@
     .rb-card-table td.ccard-actions{padding-top:10px;margin-top:6px;border-top:1px dashed var(--border);}
     .rb-card-table td.ccard-actions::before{content:none;}
     .rb-card-table td.ccard-actions .btn{margin:3px 6px 0 0;}
+
+    /* ---- Mobile-native: swipe-to-reveal actions on a card row (Day Book, Stock Items, and every
+       other .rb-card-table whose rows carry a .ccard-actions cell -- see attachCardSwipeGestures()).
+       A swipe left slides a small action strip IN as an overlay anchored to the row's right edge
+       (the iOS Mail / Gmail pattern) rather than physically moving the row's own content, which
+       would need each row restructured with an extra wrapper -- this way the existing <tr>/<td>
+       markup every screen already renders is completely untouched. The strip's buttons are CLONES
+       of whichever buttons already live in that row's own .ccard-actions cell (never reinvented
+       labels/handlers), so tapping one does exactly what tapping the real button would. A row with
+       no .ccard-actions buttons at all (Parties' and Ledgers' own lists are tap-to-open-detail, not
+       per-row actions) is simply never made swipeable -- this is additive, not a replacement. */
+    .rb-card-table tr{position:relative;touch-action:pan-y;}
+    .swipe-reveal{position:absolute;top:0;right:0;bottom:0;display:flex;align-items:stretch;
+      transform:translateX(100%);transition:transform .18s ease;z-index:5;
+      border-radius:0 var(--radius-sm) var(--radius-sm) 0;overflow:hidden;
+      box-shadow:-8px 0 14px -6px rgba(0,0,0,0.18);}
+    .rb-card-table tr.swiped .swipe-reveal{transform:translateX(0);}
+    .swipe-reveal button{border:none;color:#fff;font-size:11px;font-weight:800;padding:0 16px;
+      display:flex;align-items:center;gap:5px;cursor:pointer;}
+    .swipe-reveal button.swipe-primary{background:var(--accent1);}
+    .swipe-reveal button.swipe-danger{background:var(--debit);}
   }
+  @media (prefers-reduced-motion: reduce){ .swipe-reveal{transition:none;} }
   .pill{display:inline-block;padding:4px 11px;border-radius:999px;font-size:10.5px;font-family:inherit;font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:.02em;}
   .pill.neg{background:var(--debit-bg);color:var(--debit);}
   .pill.pos{background:var(--credit-bg);color:var(--credit);}
@@ -709,7 +750,7 @@
   .match-badge{display:inline-block;margin-left:7px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.01em;background:color-mix(in srgb, var(--accent1) 14%, transparent);color:var(--accent1);cursor:help;vertical-align:middle;}
   /* Variant for a long-outstanding (>RECON_STALE_DAYS) Reconcile row -- see explainReconciliationDifference() --
      amber instead of the accent green so it reads as "worth a look", not "confirmed" like an auto-match badge. */
-  .match-badge.stale-badge{background:color-mix(in srgb, var(--gold) 16%, transparent);color:var(--gold);}
+  .match-badge.stale-badge{background:color-mix(in srgb, var(--gold) 16%, transparent);color:var(--gold-ink);}
 
   /* ---- Module UI/UX pass (twenty-fourth+ follow-up): shared components reused across
      Ledgers/COA, Day Book, Reports, GST, Inventory, Parties, Fixed Assets and Reconcile.
@@ -721,7 +762,7 @@
   .vtype-badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:10.5px;font-weight:800;letter-spacing:.01em;white-space:nowrap;}
   .vtype-badge.vt-in{background:var(--credit-bg);color:var(--credit);}
   .vtype-badge.vt-out{background:var(--debit-bg);color:var(--debit);}
-  .vtype-badge.vt-adj{background:color-mix(in srgb, var(--gold) 16%, transparent);color:var(--gold);}
+  .vtype-badge.vt-adj{background:color-mix(in srgb, var(--gold) 16%, transparent);color:var(--gold-ink);}
   .vtype-badge.vt-neutral{background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border-strong);}
 
   /* Toolbar row shared by every module's list screen: an icon-prefixed search box plus,
@@ -1132,7 +1173,7 @@
     opacity:0;transition:opacity .15s ease, color .15s ease, transform .15s ease;padding:2px;}
   .company-card:hover .company-card-pin, .company-card:focus-within .company-card-pin, .company-card-pin.is-pinned{opacity:1;}
   .company-card-pin:hover{transform:scale(1.15);}
-  .company-card-pin.is-pinned{color:var(--gold);}
+  .company-card-pin.is-pinned{color:var(--gold-ink);}
   .company-card.is-pinned{border-color:var(--gold);}
   .company-card-recency{margin-top:8px;font-size:10px;color:var(--ink-faint);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -1387,7 +1428,7 @@
   .pw-strength[data-level="1"] .pw-strength-bar span:nth-child(1){background:var(--debit);}
   .pw-strength[data-level="1"] .pw-strength-label{color:var(--debit);}
   .pw-strength[data-level="2"] .pw-strength-bar span:nth-child(-n+2){background:var(--gold);}
-  .pw-strength[data-level="2"] .pw-strength-label{color:var(--gold);}
+  .pw-strength[data-level="2"] .pw-strength-label{color:var(--gold-ink);}
   .pw-strength[data-level="3"] .pw-strength-bar span:nth-child(-n+3){background:#2E9BD6;}
   .pw-strength[data-level="3"] .pw-strength-label{color:#2E9BD6;}
   .pw-strength[data-level="4"] .pw-strength-bar span{background:var(--credit);}
@@ -1444,6 +1485,29 @@
   .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:400px;max-width:100%;box-shadow:0 30px 70px rgba(13,20,15,0.35);overflow:hidden;}
   .modal-card .panel-head{padding:14px 18px;}
   .modal-card .panel-body{padding:18px;}
+  /* ---- Mobile-native: every one of this app's ~45 dialogs shares this one .modal-overlay/.modal-card
+     pair (the admin console's own full-viewport layout wins on its own higher-specificity selector,
+     so it's untouched here), so anchoring it to the bottom edge at phone widths -- instead of a small
+     centered box, the desktop treatment -- upgrades every dialog in the app at once with no changes
+     to any individual modal's own render function. A small grab-handle bar is purely a visual
+     affordance (this app's existing tap-outside/✕/Escape close paths are untouched and still the way
+     to dismiss it -- a true swipe-to-dismiss gesture was left out so it can never fight scrolling a
+     tall modal's own content). */
+  @media (max-width:760px){
+    .modal-overlay{align-items:flex-end;padding:0;}
+    .modal-card:not(.admin-console){
+      width:100%;max-width:100%;border-radius:18px 18px 0 0;max-height:88vh;overflow-y:auto;
+      animation:sheetSlideUp .22s cubic-bezier(.22,1,.36,1);
+    }
+    .modal-card:not(.admin-console)::before{
+      content:'';display:block;width:36px;height:4px;border-radius:999px;
+      background:var(--border-strong);margin:10px auto 2px;
+    }
+    @keyframes sheetSlideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  }
+  @media (max-width:760px) and (prefers-reduced-motion: reduce){
+    .modal-card:not(.admin-console){animation:none;}
+  }
 
   /* Ctrl+K / Cmd+K command palette — a search-first overlay, so it sits near the top of the screen
      (Spotlight/Linear-style) rather than vertically centered like the other small dialogs above. */
@@ -1987,7 +2051,7 @@
     --border-strong:#3B4C43;
     --ink:#EAF2EC;
     --ink-soft:#9FB2A6;
-    --ink-faint:#6C8177;
+    --ink-faint:#768D82;
     --accent1:#33B521;
     --accent2:#2CA01C;
     --accent-grad:#33B521;
@@ -1996,6 +2060,7 @@
     --debit:#FF7A7A;
     --debit-bg:rgba(255,122,122,0.16);
     --gold:#F2A44F;
+    --gold-ink:#F2A44F;
   }
   [data-theme="dark"] body{background:var(--bg);}
   [data-theme="dark"] .modal-overlay{background:rgba(0,0,0,0.66);}
@@ -2061,7 +2126,7 @@
   .dash-alert:active{transform:scale(.998);}
   .dash-alert-text{flex:1;min-width:200px;}
   .dash-alert-danger{background:var(--debit-bg);border-color:var(--debit);color:var(--debit);}
-  .dash-alert-warn{background:color-mix(in srgb, var(--gold) 16%, transparent);border-color:var(--gold);color:var(--gold);}
+  .dash-alert-warn{background:color-mix(in srgb, var(--gold) 16%, transparent);border-color:var(--gold);color:var(--gold-ink);}
   .dash-alert .btn.secondary{background:var(--surface);flex-shrink:0;}
   /* Consolidated "Insights & AI" panel -- align-items:start keeps each card sized to its own
      content instead of every card in a row stretching to match its tallest neighbor. */
@@ -2100,6 +2165,23 @@
   .skip-link{position:fixed;top:-60px;left:10px;z-index:1000;background:var(--ink);color:#fff;padding:10px 16px;
     border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;transition:top .15s ease;}
   .skip-link:focus{top:10px;}
+
+  /* ---- Mobile-native: pull-to-refresh indicator -- see the touch handlers near refreshCurrentSession().
+     Only ever shown at phone widths (the gesture itself is also gated to touch input), hidden above
+     that breakpoint even if JS briefly touched its transform. */
+  .pull-refresh-indicator{position:fixed;top:0;left:50%;width:34px;height:34px;margin-left:-17px;z-index:60;
+    display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--surface);
+    box-shadow:0 4px 14px color-mix(in srgb, var(--ink) 18%, transparent);color:var(--accent1);font-size:16px;
+    transform:translateY(-120%);transition:transform .15s ease;pointer-events:none;}
+  .pull-refresh-indicator.dragging{transition:none;}
+  .pull-refresh-indicator.spinning{animation:reckoningSpin 0.8s linear infinite;}
+  @media (prefers-reduced-motion: reduce){ .pull-refresh-indicator.spinning{animation:none;} }
+  @media (min-width:761px){ .pull-refresh-indicator{display:none;} }
+  /* Visually hides content while keeping it in the accessibility tree -- the standard clip-based
+     technique (display:none/visibility:hidden would also hide it from screen readers, defeating
+     the point) -- used for #srAnnouncer, the screen-reader-only view-change live region. */
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
   /* ---- First-run guided tour: a spotlight rect (via an oversized box-shadow, so it darkens
      everything else without needing an SVG mask) plus a small tooltip card pointing at it. ---- */
@@ -2153,6 +2235,19 @@
   .landing-fact-chip-2{bottom:8%;left:-2%;animation:floatChip 6.5s ease-in-out infinite .8s;}
   @keyframes floatChip{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
   @media (max-width:900px){ .landing-fact-chip{display:none;} }
+  /* Accessibility: this file already gates most ambient/looping animations behind
+     prefers-reduced-motion in several places (the masthead glow, sidebar sync pulse, toast,
+     skeleton shimmer, cmdk voice pulse) -- a 2026-10-14 audit found a handful of continuous
+     decorative loops that had been missed. One rule handles them all, since none needs anything
+     fancier than "stop looping": the floating fact chips, every aurora-orb glow (Gateway hero,
+     Admin/Group-Admin header -- !important is needed here because several aurora-orb instances set
+     their animation via an inline style attribute, which otherwise beats a plain stylesheet rule),
+     the login logo's pulsing shadow, and the onboarding tour's pulsing spotlight ring. */
+  @media (prefers-reduced-motion: reduce){
+    .landing-fact-chip-1, .landing-fact-chip-2, .aurora-orb, .login-logo, .tour-highlight::after, .landing-badge{
+      animation:none !important;
+    }
+  }
 
   /* ---- Scroll-reveal: sections fade/rise into place as they enter the viewport; JS toggles
      .in-view via IntersectionObserver (wireScrollReveal()), with an immediate-class fallback
@@ -2311,7 +2406,7 @@
     --accent1:#1FAE78; --accent2:#157A54; --accent-grad:#1FAE78;
     --credit:#3EE6A4; --credit-bg:rgba(62,230,164,0.16);
     --debit:#FF8A80; --debit-bg:rgba(255,138,128,0.16);
-    --gold:#F2A44F;
+    --gold:#F2A44F; --gold-ink:#F2A44F;
   }
   /* Five dialogs render as SEPARATE top-level overlays stacked on top of the console rather than as
      DOM descendants of .modal-card.admin-console (adminGroupTreeModal/adminUserDetailModal/
@@ -2330,7 +2425,7 @@
     --accent1:#1FAE78; --accent2:#157A54; --accent-grad:#1FAE78;
     --credit:#3EE6A4; --credit-bg:rgba(62,230,164,0.16);
     --debit:#FF8A80; --debit-bg:rgba(255,138,128,0.16);
-    --gold:#F2A44F;
+    --gold:#F2A44F; --gold-ink:#F2A44F;
   }
 
   .admin-console-sidebar{width:256px;flex-shrink:0;display:flex;flex-direction:column;background:linear-gradient(165deg,#0F2116 0%,#0A170F 55%,#070F0A 100%);position:relative;overflow:hidden;isolation:isolate;}
@@ -2408,7 +2503,18 @@
   <div class="loading">Opening the books…</div>
 </div>
 <div id="tourHost"></div>
-<div class="toast-host" id="toastHost"></div>
+<!-- Mobile-native: pull-to-refresh indicator (see the touch handlers near refreshCurrentSession()'s
+     own call sites). Fixed at the very top, normally translated fully out of view; a downward pull
+     while already at the top of the page, on the Gateway or Dashboard screen, reveals it and -- past
+     a decisive distance -- calls the exact same refreshCurrentSession() the menubar's own ⟳ Refresh
+     button already uses, so pulling to refresh can never behave differently from tapping Refresh. -->
+<div id="pullRefreshIndicator" class="pull-refresh-indicator" aria-hidden="true">⟳</div>
+<div class="toast-host" id="toastHost" role="status" aria-live="polite" aria-atomic="false"></div>
+<!-- Accessibility: a visually-hidden live region announcing screen/view changes for screen-reader
+     users -- this is a single-page app with no real page loads, so without this a navigation (e.g.
+     clicking a sidebar tab) is otherwise silent to anyone not looking at the screen. Updated from
+     announceViewChange(), called once per render() when the visible screen/view actually changed. -->
+<div id="srAnnouncer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -15452,6 +15558,140 @@ document.addEventListener('mouseup', ()=>{
   try{ localStorage.setItem('rb_sidebar_width', String(sidebarWidth)); }catch(e){}
   positionSidebarIndicator();
 });
+
+/* ---- Mobile-native: swipe-to-reveal actions on .rb-card-table rows (Day Book, Stock Items, and
+   every other mobile card-row list that carries a .ccard-actions cell -- see the CSS comment just
+   above .swipe-reveal for which lists this does and doesn't apply to, and why). Delegated touch
+   listeners bound ONCE at script load, same reasoning as the resize-handle mousemove/mouseup pair
+   above: `document` is never recreated by render(), so binding here (rather than per-render inside
+   attachHandlers()) means every freshly-rendered row is swipeable with no re-binding step, and
+   nothing can accumulate duplicate listeners across renders. Only the one-time injection of each
+   row's own .swipe-reveal overlay element happens per render (buildSwipeReveal(), called lazily on
+   first touch of that row rather than for every row up front, since most rows on a long list are
+   never touched in a given session). */
+let swipeGesture = null; // {row, startX, startY, dx, horizontal}
+function closeSwipedRow(except){
+  document.querySelectorAll('.rb-card-table tr.swiped').forEach(tr=>{
+    if(tr!==except) tr.classList.remove('swiped');
+  });
+}
+// Builds (once per row) a .swipe-reveal overlay containing up to two CLONED buttons from that row's
+// own .ccard-actions cell -- never reinvented labels or handlers. A clone's click just re-dispatches
+// a real click on the original button, so it exercises exactly the same code path (and the same
+// confirm()/toast()/save() behavior) a tap on the original would. At most one destructive-looking
+// button (class "danger", an inline style referencing --debit, or text matching Delete/Remove/Void)
+// plus at most one other button are shown, so the strip never grows wider than the row itself.
+function buildSwipeReveal(row){
+  if(row.querySelector('.swipe-reveal')) return row.querySelector('.swipe-reveal');
+  const actionsCell = row.querySelector('td.ccard-actions');
+  if(!actionsCell) return null;
+  const buttons = Array.from(actionsCell.querySelectorAll('button'));
+  if(!buttons.length) return null;
+  const isDanger = b => /\bdanger\b/.test(b.className) || /--debit/.test(b.getAttribute('style')||'') || /\b(delete|remove|void)\b/i.test(b.textContent||'');
+  const danger = buttons.find(isDanger);
+  const primary = buttons.find(b=>b!==danger);
+  const picks = [primary, danger].filter(Boolean);
+  if(!picks.length) return null;
+  const reveal = document.createElement('div');
+  reveal.className = 'swipe-reveal';
+  picks.forEach(src=>{
+    const clone = document.createElement('button');
+    clone.type = 'button';
+    clone.className = isDanger(src) ? 'swipe-danger' : 'swipe-primary';
+    clone.textContent = (src.textContent||'').trim();
+    clone.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      row.classList.remove('swiped');
+      src.click();
+    });
+    reveal.appendChild(clone);
+  });
+  row.appendChild(reveal);
+  return reveal;
+}
+document.addEventListener('touchstart', (e)=>{
+  if(window.innerWidth > 760) return;
+  const row = e.target.closest('.rb-card-table tr');
+  if(!row || row.closest('thead') || !row.parentElement || row.rowIndex===0) return;
+  if(e.target.closest('.swipe-reveal') || e.target.closest('input,select,textarea,button')) return;
+  if(!buildSwipeReveal(row)) return; // no actions to reveal on this row -- leave touch alone entirely
+  closeSwipedRow(row.classList.contains('swiped') ? row : null);
+  const t = e.touches[0];
+  swipeGesture = { row, startX:t.clientX, startY:t.clientY, dx:0, horizontal:null };
+}, {passive:true});
+document.addEventListener('touchmove', (e)=>{
+  if(!swipeGesture) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipeGesture.startX, dy = t.clientY - swipeGesture.startY;
+  if(swipeGesture.horizontal===null && (Math.abs(dx)>6 || Math.abs(dy)>6)){
+    swipeGesture.horizontal = Math.abs(dx) > Math.abs(dy);
+  }
+  if(swipeGesture.horizontal) swipeGesture.dx = dx;
+}, {passive:true});
+document.addEventListener('touchend', ()=>{
+  if(!swipeGesture) return;
+  const { row, dx, horizontal } = swipeGesture;
+  if(horizontal && dx < -40) row.classList.add('swiped');
+  else if(horizontal && dx > 20) row.classList.remove('swiped');
+  swipeGesture = null;
+});
+// Tapping anywhere else (including the main content area after scrolling) closes whichever row is
+// currently showing its swipe actions -- standard list behavior, and prevents a stale revealed strip
+// lingering after the person has moved on to something else.
+document.addEventListener('touchstart', (e)=>{
+  if(e.target.closest('.rb-card-table tr.swiped')) return;
+  closeSwipedRow(null);
+}, {passive:true});
+
+/* ---- Mobile-native: pull-to-refresh on the Gateway and Dashboard screens -- the two screens
+   someone reopening the app after a while actually lands on. Gated to window.scrollY===0 (nothing
+   to "pull past" otherwise -- this app's pages scroll the whole document, not an inner container,
+   per the existing layout) and to those two screens specifically, so it never fires while, say,
+   scrolled through a long Reports table. Reuses refreshCurrentSession() verbatim -- the exact
+   function the menubar's own ⟳ Refresh button calls -- so a pull can never behave differently from
+   tapping Refresh, and Gateway/company data refreshes exactly the way that function already handles. */
+let pullRefresh = null; // {startY, dy}
+const PULL_REFRESH_THRESHOLD = 68;
+function pullRefreshEligible(){
+  if(window.scrollY > 0) return false;
+  if(screen==='gateway') return true;
+  if(screen==='app' && view==='dashboard' && !modal) return true;
+  return false;
+}
+document.addEventListener('touchstart', (e)=>{
+  if(!pullRefreshEligible()) return;
+  pullRefresh = { startY: e.touches[0].clientY, dy: 0 };
+}, {passive:true});
+document.addEventListener('touchmove', (e)=>{
+  if(!pullRefresh) return;
+  if(!pullRefreshEligible()){ pullRefresh = null; return; }
+  const dy = e.touches[0].clientY - pullRefresh.startY;
+  if(dy <= 0){ pullRefresh.dy = 0; return; }
+  pullRefresh.dy = dy;
+  const el = document.getElementById('pullRefreshIndicator');
+  if(!el) return;
+  el.classList.add('dragging');
+  const pull = Math.min(dy * 0.45, 90); // damped, same "rubber-band" feel as the native gesture
+  el.style.transform = `translateY(${pull - 34}px)`;
+}, {passive:true});
+document.addEventListener('touchend', ()=>{
+  if(!pullRefresh) return;
+  const el = document.getElementById('pullRefreshIndicator');
+  const didPull = pullRefresh.dy > PULL_REFRESH_THRESHOLD;
+  pullRefresh = null;
+  if(!el) return;
+  el.classList.remove('dragging');
+  if(didPull){
+    el.classList.add('spinning');
+    el.style.transform = 'translateY(24px)';
+    refreshCurrentSession().finally(()=>{
+      el.classList.remove('spinning');
+      el.style.transform = '';
+    });
+  } else {
+    el.style.transform = '';
+  }
+});
 // ---- Live status badges: a quiet, glanceable "does this need me" signal right on the sidebar tab
 // itself, reusing the same computations their own screens already do rather than inventing new
 // ones -- Orders gets a count of still-open sales/purchase documents (viewOrders()'s own "Open"
@@ -15989,6 +16229,18 @@ function animateSidebarIndicatorFrom(prevRect){
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
    inside a text field/dropdown, and no modal is covering the tabs. */
 const TAB_SHORTCUTS = { d:'dashboard', v:'voucher', b:'daybook', c:'calendar', l:'ledgers', a:'coa', i:'inventory', r:'reports', g:'gst', e:'reconcile', s:'assets', p:'parties', o:'orders', y:'payroll', q:'pos' };
+// Accessibility: announces the new screen name into #srAnnouncer (a visually-hidden aria-live
+// region) whenever navigation actually changes what's on screen -- this app never does a real page
+// load, so without this a screen-reader user gets no feedback at all that a navigation happened.
+// A tiny delay avoids the announcement landing in the same tick as the DOM replacement in render(),
+// which some screen readers miss; clearing the text first (rather than just resetting it) forces a
+// re-announcement even if the same label is read twice in a row (e.g. Dashboard -> away -> Dashboard).
+function announceViewChange(label){
+  const el = document.getElementById('srAnnouncer');
+  if(!el || !label) return;
+  el.textContent = '';
+  setTimeout(()=>{ el.textContent = label; }, 80);
+}
 function goToTab(id){
   if(!id || view===id) return;
   if(isTabGated(id)){
@@ -16008,6 +16260,7 @@ function goToTab(id){
   render();
   animateSidebarIndicatorFrom(prevIndicatorRect);
   pushHistory();
+  announceViewChange((SIDEBAR_MODULE_LABELS[id] && SIDEBAR_MODULE_LABELS[id].label) || id);
 }
 document.addEventListener('keydown', (e)=>{
   if(screen!=='app' || modal) return;
@@ -25187,7 +25440,30 @@ function incomeStatementVisualCard(){
 // categorical order — the first five entries of the existing PIE_COLORS palette (see
 // ledgerTypeBreakdown's pie chart above) — reused here so every chart on the Dashboard, old and
 // new, draws from one consistent set of category colors.
-const VIZ_COLORS = ['#2CA01C','#4F8EF7','#F2994A','#A78BFA','#D64545'];
+// Data-viz consistency pass (2026-10-14): every chart in the app already drew from this one fixed,
+// ordered categorical palette (confirmed by grepping every literal chart color in the file -- none
+// diverge), which is exactly the right discipline. What it was missing is a dark-mode variant: the
+// same five hex values were used unconditionally in both themes, and running them through the
+// dataviz skill's validator (OKLCH lightness-band check) shows slots 3 and 4 (amber, violet) land
+// outside the safe band for a dark surface -- too close to white, reading as washed-out/glary rather
+// than a deliberate mid-tone mark. VIZ_COLORS_DARK re-steps just those two slots to validated
+// darker equivalents (same hue, lower lightness); slots 1/2/5 (green/blue/red) already passed in
+// both modes and are untouched. Re-validated with:
+//   node validate_palette.js "#2CA01C,#4F8EF7,#F2994A,#A78BFA,#D64545" --mode light   -> all pass
+//   node validate_palette.js "#2CA01C,#4F8EF7,#C97A38,#8265D6,#D64545" --mode dark    -> all pass
+// A Proxy keeps every existing `VIZ_COLORS[i]` call site (there are ~50, across every chart/report
+// function in this file) working completely unchanged -- it resolves to the light or dark array
+// based on the live `darkMode` flag at access time, so toggling the theme re-colors every chart on
+// the very next render with zero per-call-site edits.
+const VIZ_COLORS_LIGHT = ['#2CA01C','#4F8EF7','#F2994A','#A78BFA','#D64545'];
+const VIZ_COLORS_DARK  = ['#2CA01C','#4F8EF7','#C97A38','#8265D6','#D64545'];
+const VIZ_COLORS = new Proxy(VIZ_COLORS_LIGHT, {
+  get(target, prop, receiver){
+    const arr = (typeof darkMode!=='undefined' && darkMode) ? VIZ_COLORS_DARK : VIZ_COLORS_LIGHT;
+    const val = Reflect.get(arr, prop, arr);
+    return typeof val==='function' ? val.bind(arr) : val;
+  }
+});
 
 function fmtShort(n){
   const v = Math.abs(n)||0;
@@ -30617,12 +30893,16 @@ function reportRow(label, val, opts={}){
 function reportLedgerRows(ledgers, sign){
   return ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
 }
-function reportHeader(title, exportBtnId, exportLabel){
+function reportHeader(title, exportBtnId, exportLabel, printBtnId){
   // Round 7: pin-to-Favorites star, keyed off reportsSelected (the id this detail page was opened
   // with -- every reportHeader() call happens from inside a reportsSelected==='<id>' branch of
   // viewReports()) so the exact same pin state shows here as on the reportsLanding() card.
   const pinId = reportsSelected;
   const isPinned = pinId && getPinnedReports().includes(pinId);
+  // Round 8 (task 292): an optional fourth `printBtnId` arg adds a "Print / PDF" button alongside
+  // the existing Excel export button -- passed only by the four formal statements (Trial Balance,
+  // Income Statement, Balance Sheet, Cash Flow), which previously had no print/PDF output at all.
+  // Every other reportHeader() caller (Ratios, Cost Center P&L, etc.) omits it and is unaffected.
   return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
       <div>
@@ -30632,7 +30912,10 @@ function reportHeader(title, exportBtnId, exportLabel){
           ${pinId ? `<button type="button" class="report-pin-btn inline ${isPinned?'pinned':''}" data-pin-report="${pinId}" title="${isPinned?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isPinned?'Unpin from Favorites':'Pin to Favorites'}">${isPinned?'★':'☆'}</button>` : ''}
         </h1>
       </div>
-      ${exportBtnId ? `<button class="btn secondary small" id="${exportBtnId}" type="button">⬇ ${exportLabel||'Download (Excel)'}</button>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${printBtnId ? `<button class="btn secondary small" id="${printBtnId}" type="button">🖨 Print / PDF</button>` : ''}
+        ${exportBtnId ? `<button class="btn secondary small" id="${exportBtnId}" type="button">⬇ ${exportLabel||'Download (Excel)'}</button>` : ''}
+      </div>
     </div>
   `;
 }
@@ -30836,14 +31119,16 @@ function reportTrialBalance(){
   const tbDr = tb.reduce((s,r)=>s + (r.b>0?r.b:0),0);
   const tbCr = tb.reduce((s,r)=>s + (r.b<0?-r.b:0),0);
   return `
-    ${reportHeader('Trial Balance', 'exportTBBtn')}
+    ${reportHeader('Trial Balance', 'exportTBBtn', null, 'printTBBtn')}
+    <div id="trialBalanceStatementBody">
     <div class="panel"><div class="panel-body" style="padding:0;">
       <table class="rb-card-table statement-table">
-        <tr><th>Ledger</th><th class="num">Debit</th><th class="num">Credit</th></tr>
+        <tr><th scope="col">Ledger</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th></tr>
         ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
         <tr style="font-weight:600;border-top:2px solid var(--ink);"><td class="ccard-title" data-label="Ledger">Total</td><td class="num ccard-amount" data-label="Debit">₹${fmt(tbDr)}</td><td class="num ccard-amount" data-label="Credit">₹${fmt(tbCr)}</td></tr>
       </table>
     </div></div>
+    </div>
   `;
 }
 function reportIncomeStatement(){
@@ -30861,11 +31146,12 @@ function reportIncomeStatement(){
     return `<tr data-is-detail="${id}" style="cursor:pointer;"><td>${label}</td><td class="num">${cur}</td>${prevCell}</tr>`;
   };
   return `
-    ${reportHeader('Income Statement (Schedule III, Division I) — Statement of Profit and Loss', 'exportPLBtn')}
+    ${reportHeader('Income Statement (Schedule III, Division I) — Statement of Profit and Loss', 'exportPLBtn', null, 'printPLBtn')}
+    <div id="incomeStatementStatementBody">
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">For the period ${fy.periodLabel}${hasPrev?` — compared to ${fy.prevPeriodLabel}`:''}</p>
     <div class="panel"><div class="panel-body" style="padding:0;">
       <table class="statement-table">
-        <tr><th>Particulars</th><th class="num">Current Year</th>${hasPrev?'<th class="num">Previous Year</th>':''}</tr>
+        <tr><th scope="col">Particulars</th><th scope="col" class="num">Current Year</th>${hasPrev?'<th scope="col" class="num">Previous Year</th>':''}</tr>
         ${pdrow('revenueFromOperations','I. Revenue from Operations', money(pl.revenueFromOperations), hasPrev?money(pp.revenueFromOperations):'')}
         ${pdrow('otherIncome','II. Other Income', money(pl.otherIncome), hasPrev?money(pp.otherIncome):'')}
         ${prow('III. Total Income (I + II)', money(pl.totalIncome), hasPrev?money(pp.totalIncome):'', {bold:true})}
@@ -30884,6 +31170,7 @@ function reportIncomeStatement(){
         ${prow('IX. Profit for the Period', money(pl.profitForPeriod), hasPrev?money(pp.profitForPeriod):'', {bold:true, cls: pl.profitForPeriod>=0?'pos':'neg'})}
       </table>
     </div></div>
+    </div>
     <p class="muted" style="font-size:11px;">Presented per Schedule III (Division I) to the Companies Act, 2013, as amended in 2021.${hasPrev?' Figures are for the current financial year to date, with the immediately preceding financial year shown alongside for comparison, as Schedule III requires.':" This is the company's first financial year on the books, so there is no prior year yet to compare against."} Click any line above to see the individual ledger accounts behind it (all-time, not just this year). Employee Benefits Expense / Depreciation &amp; Amortisation / Finance Costs are detected from ledger names; everything else in the Direct/Indirect Expenses groups falls under Other Expenses. Income tax is not tracked separately from GST in this system (see the GST tab), so Current Tax and Deferred Tax show as nil. Earnings Per Share is not shown, as share count and face value are not tracked.</p>
   `;
 }
@@ -30907,19 +31194,20 @@ function reportBalanceSheet(){
     return `<tr ${style}><td>${label}</td><td class="num">${cur}</td>${prevCell}</tr>`;
   };
   const bzero = label => brow(label, '₹0.00', hasPrev?'₹0.00':'');
-  const bhead = label => `<tr><th colspan="${cols}">${label}</th></tr>`;
+  const bhead = label => `<tr><th colspan="${cols}" scope="colgroup">${label}</th></tr>`;
   const blrows = (ledgers, sign) => hasPrev
     ? (ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td><td></td></tr>`).join('') || `<tr><td colspan="3" class="empty">None</td></tr>`)
     : reportLedgerRows(ledgers, sign);
 
   return `
-    ${reportHeader('Balance Sheet (Schedule III, Division I)', 'exportBSBtn')}
+    ${reportHeader('Balance Sheet (Schedule III, Division I)', 'exportBSBtn', null, 'printBSBtn')}
+    <div id="balanceSheetStatementBody">
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">As at ${fy.asOfLabel}${hasPrev?` — compared to ${fy.prevAsOfLabel}`:''}</p>
     <div class="panel">
       <div class="panel-head"><h2>I. Equity and Liabilities</h2></div>
       <div class="panel-body" style="padding:0;">
         <table class="statement-table">
-          <tr><th>Particulars</th><th class="num">Current Year</th>${hasPrev?'<th class="num">Previous Year</th>':''}</tr>
+          <tr><th scope="col">Particulars</th><th scope="col" class="num">Current Year</th>${hasPrev?'<th scope="col" class="num">Previous Year</th>':''}</tr>
           ${bhead("(1) Shareholders' Funds")}
           ${brow('&nbsp;&nbsp;(a) Share Capital', money(bs.shareCapitalTotal), hasPrev?money(pb.shareCapitalTotal):'')}
           ${blrows(bs.shareCapitalLedgers, -1)}
@@ -30954,7 +31242,7 @@ function reportBalanceSheet(){
       <div class="panel-head"><h2>II. Assets</h2></div>
       <div class="panel-body" style="padding:0;">
         <table class="statement-table">
-          <tr><th>Particulars</th><th class="num">Current Year</th>${hasPrev?'<th class="num">Previous Year</th>':''}</tr>
+          <tr><th scope="col">Particulars</th><th scope="col" class="num">Current Year</th>${hasPrev?'<th scope="col" class="num">Previous Year</th>':''}</tr>
           ${bhead('Non-Current Assets')}
           ${brow('&nbsp;&nbsp;(a) Property, Plant and Equipment', money(bs.ppeTotal), hasPrev?money(pb.ppeTotal):'')}
           ${blrows(bs.ppe, 1)}
@@ -30985,6 +31273,7 @@ function reportBalanceSheet(){
       </div>
     </div>
     <p class="muted" style="font-size:11.5px;">Total Assets ${Math.abs(bs.totalAssets-bs.totalEquityAndLiab)<0.01?'matches':'does NOT match'} Total Equity and Liabilities (₹${fmt(bs.totalAssets)} vs ₹${fmt(bs.totalEquityAndLiab)}). A mismatch usually means an opening balance or entry was recorded on the wrong side.</p>
+    </div>
     <p class="muted" style="font-size:11px;">Presented per Schedule III (Division I) to the Companies Act, 2013, as amended in 2021 — including the Trade Payables MSME/Others split.${hasPrev?' The Previous Year column is as at the end of the preceding financial year, as Schedule III requires.':" This is the company's first financial year on the books, so there is no prior year yet to compare against."} Mark a Current Liabilities ledger as an MSME supplier from the Chart of Accounts to route it into (A) instead of (B). Ledgers under Investments, Provisions, Loans &amp; Advances, and Suspense Account now feed their own lines above; this system doesn't track loan tenure or deferred tax separately, so all borrowings are shown under Long-term and lines like Deferred Tax and Short-term Borrowings stay at ₹0.00 (a head this system doesn't track, not a confirmed nil balance) — review before filing. Note-level disclosures (ageing schedules, share reconciliation, promoter shareholding, Additional Regulatory Information) are not included.</p>
 
     <div class="section-title" style="margin-top:20px;">Financing Mix</div>
@@ -31245,7 +31534,8 @@ function reportCashFlow(){
   const cashMatches = Math.abs(cf.closingCash - cf.actualCash) < 0.01;
   const monthly = cashFlowMonthlySeries(12);
   return `
-    ${reportHeader('Cash Flow Statement (Direct Method)', 'exportCFBtn')}
+    ${reportHeader('Cash Flow Statement (Direct Method)', 'exportCFBtn', null, 'printCFBtn')}
+    <div id="cashFlowStatementBody">
     <div class="row" style="align-items:stretch;">
       <div style="flex:1;">${cashFlowBucketSummaryPanel('Operating Activities', 'operating', cf)}</div>
       <div style="flex:1;">${cashFlowBucketSummaryPanel('Investing Activities', 'investing', cf)}</div>
@@ -31262,6 +31552,7 @@ function reportCashFlow(){
       </div>
     </div>
     <p class="muted" style="font-size:11.5px;">${cashMatches ? '✓ Closing cash matches actual Cash + Bank ledger balances.' : `⚠ Closing cash (₹${fmt(cf.closingCash)}) does not match actual Cash + Bank balances (₹${fmt(cf.actualCash)}) — check for unusual voucher entries.`} Contra vouchers between Cash and Bank are excluded since they don't change the combined cash position. Classification: Fixed Asset lines → Investing; Capital/Loan lines → Financing; everything else → Operating.</p>
+    </div>
 
     <h2 style="font-family:inherit;font-weight:800;font-size:15px;margin:22px 0 12px;letter-spacing:-.01em;color:var(--ink);">Cash Flow Visuals</h2>
     <div class="panel viz-panel">
@@ -31276,6 +31567,117 @@ function reportCashFlow(){
       ${cashFlowOperatingTrendCard(monthly)}
     </div>
   `;
+}
+
+/* ---------------- Round 8 (task 292): Print / PDF for the four formal statements ----------------
+   Trial Balance, Income Statement, Balance Sheet and Cash Flow previously had no print/PDF output at
+   all -- only "Download (Excel)". The Financial Performance Report solved this exact problem already
+   (see FIN_PERF_EXPORT_CSS / buildFinPerfExportDom / finPerfExportDocumentHtml /
+   exportFinancialPerformanceToPdf above): clone the live DOM node, rasterize any inline <svg> to
+   <img> (an isolated print-iframe document has no access to this app's CSS filters/fonts that SVG
+   text might rely on, and reusing svgToPngDataUrl keeps the two export paths visually consistent),
+   strip interactive buttons, wrap the result in a standalone HTML document with its own letterhead,
+   and hand it to printHTMLDocument(). This block generalises that exact pattern (rather than
+   duplicating it four times) via printStatementReport(containerId, title, subtitle) -- each of the
+   four report functions above wraps just its formal statement content (not the surrounding
+   disclaimer text, interpretation notes or chart visuals, which are app-only context) in a
+   <div id="...StatementBody"> for this to find and clone. */
+const STATEMENT_PRINT_CSS = `
+  /* Same WCAG-fixed light-theme export tokens as FIN_PERF_EXPORT_CSS/PRESO_EXPORT_CSS above, so every
+     document this app exports (Financial Performance, Stakeholder Presentation, and now these four
+     statements) stays visually consistent -- see the Round 8 accessibility-audit comment near :root
+     at the top of this file for why these exact hex values were chosen. */
+  :root{
+    --surface-strong:#EEF3EF;
+    --border:#E1E7E3;
+    --ink:#1B2420;
+    --ink-soft:#5C6B62;
+    --ink-faint:#6D7971;
+    --credit:#268818;
+    --debit:#D54141;
+  }
+  @page{ size:A4; margin:16mm 14mm; }
+  body{font-family:'Calibri','Segoe UI',Arial,sans-serif;color:var(--ink);margin:0;padding:22px 6px;}
+  .stmt-letterhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2.5px solid var(--ink);padding-bottom:12px;margin-bottom:18px;}
+  .stmt-company{font-size:13px;font-weight:700;color:var(--ink);}
+  .stmt-company-meta{font-size:10.5px;color:var(--ink-soft);margin-top:2px;}
+  .stmt-meta-right{text-align:right;}
+  .stmt-meta-right h1{font-size:19px;margin:0 0 3px;letter-spacing:-.01em;}
+  .stmt-subtitle{font-size:11px;color:var(--ink-soft);margin-top:1px;}
+  .panel{border:1px solid #C7D2CB;border-radius:6px;margin-bottom:14px;page-break-inside:avoid;}
+  .panel-head{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface-strong);display:flex;justify-content:space-between;align-items:center;}
+  .panel-head h2{font-size:13px;margin:0;}
+  .panel-body{padding:12px 14px;}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;}
+  th{background:var(--surface-strong);font-weight:700;}
+  td.num, th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .pos{color:var(--credit);} .neg{color:var(--debit);}
+  .muted{color:var(--ink-soft);font-size:11px;}
+  .empty{color:var(--ink-faint);font-style:italic;padding:10px 0;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-weight:700;font-size:11px;background:var(--surface-strong);}
+  .viz-kpi{border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:4px;}
+  .viz-kpi-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:4px;}
+  .viz-kpi-val{font-size:15px;font-weight:800;}
+  .row{display:flex;gap:14px;}
+  button{display:none;} /* belt-and-suspenders -- printStatementReport() already removes these from the clone */
+  .stmt-footer{margin-top:16px;border-top:1px solid var(--border);padding-top:8px;font-size:9.5px;color:var(--ink-faint);display:flex;justify-content:space-between;}
+  @media print{ .panel{page-break-inside:avoid;} .row{display:flex;} }
+`;
+function statementPrintDocumentHtml(title, subtitle, bodyHtml){
+  const co = currentCompany || {};
+  const generatedAt = new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${STATEMENT_PRINT_CSS}</style></head><body>
+    <div class="stmt-letterhead">
+      <div>
+        <div class="stmt-company">${escapeHtml(co.name||'')}</div>
+        ${co.address ? `<div class="stmt-company-meta">${escapeHtml(co.address)}${co.state?', '+escapeHtml(co.state):''}${co.pincode?' - '+escapeHtml(co.pincode):''}</div>` : ''}
+        ${co.gstin ? `<div class="stmt-company-meta">GSTIN: ${escapeHtml(co.gstin)}</div>` : ''}
+      </div>
+      <div class="stmt-meta-right">
+        <h1>${escapeHtml(title)}</h1>
+        ${subtitle ? `<div class="stmt-subtitle">${escapeHtml(subtitle)}</div>` : ''}
+      </div>
+    </div>
+    ${bodyHtml}
+    <div class="stmt-footer"><span>Generated by Reckoning Books · ${generatedAt}</span><span>${escapeHtml(co.name||'')}</span></div>
+  </body></html>`;
+}
+async function printStatementReport(containerId, title, subtitle){
+  const src = document.getElementById(containerId);
+  if(!src){ toast('Could not prepare the statement for printing.'); return; }
+  const clone = src.cloneNode(true);
+  // Rasterize any inline <svg> the same way exportFinancialPerformanceToPdf() does -- none of the
+  // four statements currently embed a chart inside their StatementBody wrapper, but this keeps the
+  // helper correct if one ever does, without needing a second code path.
+  const liveSvgs = Array.from(src.querySelectorAll('svg'));
+  const cloneSvgs = Array.from(clone.querySelectorAll('svg'));
+  for(let i=0;i<liveSvgs.length;i++){
+    try{
+      const dataUrl = await svgToPngDataUrl(liveSvgs[i]);
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      cloneSvgs[i].replaceWith(img);
+    }catch(e){ /* leave the live svg markup in the clone as a fallback if rasterizing ever fails */ }
+  }
+  clone.querySelectorAll('button').forEach(el=>el.remove());
+  printHTMLDocument(statementPrintDocumentHtml(title, subtitle, clone.innerHTML));
+}
+function printTrialBalanceReport(){
+  const asOf = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  printStatementReport('trialBalanceStatementBody', 'Trial Balance', `As at ${asOf}`);
+}
+function printIncomeStatementReport(){
+  const fy = currentAndPriorFYData(activeFY);
+  printStatementReport('incomeStatementStatementBody', 'Income Statement (Schedule III, Division I) — Statement of Profit and Loss', `For the period ${fy.periodLabel}`);
+}
+function printBalanceSheetReport(){
+  const fy = currentAndPriorFYData(activeFY);
+  printStatementReport('balanceSheetStatementBody', 'Balance Sheet (Schedule III, Division I)', `As at ${fy.asOfLabel}`);
+}
+function printCashFlowReport(){
+  const asOf = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  printStatementReport('cashFlowStatementBody', 'Cash Flow Statement (Direct Method)', `Life-to-date, as at ${asOf}`);
 }
 
 // Income/expense per cost center, for the active FY (or all-time if no FY is selected) -- reads
@@ -32140,9 +32542,9 @@ const FIN_PERF_EXPORT_CSS = `
     --border:#E1E7E3;
     --ink:#1B2420;
     --ink-soft:#5C6B62;
-    --ink-faint:#8B978F;
-    --credit:#2CA01C;
-    --debit:#D64545;
+    --ink-faint:#6D7971;
+    --credit:#268818;
+    --debit:#D54141;
     --radius-sm:10px;
   }
   body{font-family:'Calibri','Segoe UI',Arial,sans-serif;color:#1B2420;margin:24px;}
@@ -32152,7 +32554,7 @@ const FIN_PERF_EXPORT_CSS = `
   .panel{border:1px solid #C7D2CB;border-radius:6px;margin-bottom:14px;}
   .panel-head{padding:10px 14px;border-bottom:1px solid #E1E7E3;background:#EEF3EF;}
   .panel-body{padding:12px 14px;}
-  .viz-sub{font-size:10px;color:#8B978F;font-weight:600;float:right;}
+  .viz-sub{font-size:10px;color:#6D7971;font-weight:600;float:right;}
   table{width:100%;border-collapse:collapse;font-size:11.5px;}
   th,td{padding:6px 8px;border-bottom:1px solid #E1E7E3;text-align:left;}
   th{background:#EEF3EF;font-weight:700;}
@@ -32782,14 +33184,14 @@ async function stitchSvgsToPngDataUrl(svgEls, opts){
   return canvas.toDataURL('image/png');
 }
 const PRESO_EXPORT_CSS = `
-  :root{ --surface-strong:#EEF3EF; --border:#E1E7E3; --ink:#1B2420; --ink-soft:#5C6B62; --ink-faint:#8B978F; --credit:#2CA01C; --debit:#D64545; }
+  :root{ --surface-strong:#EEF3EF; --border:#E1E7E3; --ink:#1B2420; --ink-soft:#5C6B62; --ink-faint:#6D7971; --credit:#268818; --debit:#D54141; }
   body{font-family:'Calibri','Segoe UI',Arial,sans-serif;color:#1B2420;margin:0;}
   .preso-page{padding:50px 60px;page-break-after:always;min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;}
   .preso-page:last-child{page-break-after:auto;}
   .panel{border:none;background:transparent;margin-bottom:0;}
   .panel-head{background:transparent;border-bottom:2px solid #E1E7E3;padding:0 0 10px;margin-bottom:12px;}
   .panel-head h2{display:none;}
-  .viz-sub{font-size:10.5px;color:#8B978F;font-weight:600;}
+  .viz-sub{font-size:10.5px;color:#6D7971;font-weight:600;}
   .panel-body{padding:0;}
   .muted{color:#5C6B62;}
   img{max-width:100%;}
@@ -37858,6 +38260,10 @@ function attachHandlers(){
     document.getElementById('exportBSBtn')?.addEventListener('click', exportBalanceSheetToExcel);
     document.getElementById('exportRatiosBtn')?.addEventListener('click', exportRatiosToExcel);
     document.getElementById('exportCFBtn')?.addEventListener('click', exportCashFlowToExcel);
+    document.getElementById('printTBBtn')?.addEventListener('click', printTrialBalanceReport);
+    document.getElementById('printPLBtn')?.addEventListener('click', printIncomeStatementReport);
+    document.getElementById('printBSBtn')?.addEventListener('click', printBalanceSheetReport);
+    document.getElementById('printCFBtn')?.addEventListener('click', printCashFlowReport);
     document.getElementById('exportCostCenterBtn')?.addEventListener('click', exportCostCenterToExcel);
     document.getElementById('exportBudgetBtn')?.addEventListener('click', exportBudgetVsActualToExcel);
     document.getElementById('budgetFYSelect')?.addEventListener('change', e=>{ budgetReportFY = e.target.value; render(); });
