@@ -13,7 +13,19 @@
 <meta name="apple-mobile-web-app-title" content="Reckoning Books">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Manrope:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- Oct 15, 2026 -- sidebar icons moved from hand-picked Lucide SVG paths to Google's Material Symbols
+     Outlined variable font (the current/successor icon system to the old static Material Icons, used
+     across Android/Material Design 3, Google Workspace and most Google web apps). One glyph per module
+     is now plain text run through this font rather than an SVG path -- see tabIcon() below -- and the
+     font's own FILL axis (0 = outline, 1 = solid) is what switches the active tab's icon from outline
+     to solid, instead of maintaining a second hand-drawn "solid" icon set per module.
+     display=block (not swap, unlike the Inter/Manrope link above) -- an icon font briefly showing its
+     literal ligature text ("dashboard", "receipt_long"...) during the swap window reads as a bug, so
+     this intentionally renders nothing for the icon glyphs until the font is ready rather than flashing
+     the raw words. -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
 <style>
   :root{
     --bg:#F4F7F5;
@@ -140,7 +152,12 @@
      a faint currentColor-tinted chip behind just that letter reads as a keyboard-hint affordance,
      rather than the plain underline (which, mid-word, looked more like a stray typo than a hint). */
   .navtab b{font-weight:900;background:color-mix(in srgb, currentColor 15%, transparent);border-radius:3px;padding:0 1px;}
-  .tab-icon{width:15.5px;height:15.5px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  .tab-icon{width:20px;height:20px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  /* Oct 14, 2026 round 2 -- bumped from the original 15.5px to keep pace with .navtab-icon's chip
+     (26px -> 34px, two edits back in this same round), so the new Lucide-based icons fill the bigger
+     chip properly instead of floating small inside it. .modern-tab/.cmdk-item-icon/
+     .admin-console-navbtn below all set their own explicit width/height on `.tab-icon` and so stay
+     exactly as they were -- this base size only reaches the main sidebar nav, which doesn't scope it. */
   /* Oct 10, 2026 redesign -- replaced the per-module rainbow-hue chip (a different saturated color
      per icon, via --nav-hue/NAV_ICON_HUES) with ONE consistent "soft glass" material family across
      every module: a muted neutral-green chip with a soft top-left highlight and a bottom inset
@@ -157,7 +174,28 @@
      --ink-soft for any icon with no hue (e.g. admin/command-palette icons sharing .tab-icon, which
      don't set --nav-hue and so are unaffected). Hover/active below are intentionally left overriding
      color back to one shared tone each, matching exactly what the approved mockup showed. */
-  .navtab-icon{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;flex-shrink:0;
+  /* Oct 15, 2026 -- sidebar nav + command palette icons (tabIcon(), the only two callers) moved off
+     this hand-picked Lucide SVG-per-module approach onto Google's Material Symbols Outlined variable
+     font instead -- see the <link> in <head>. .tab-icon/.admin-console-navbtn above are UNCHANGED and
+     still SVG (adminTabIcon(), a separate function for the admin console sidebar, was never part of
+     this request). A font glyph already honors `color` exactly like a stroke path did, so --nav-hue/
+     SIDEBAR_ICON_HUES below needed no changes at all; what the font buys over the old two-SVG-sets-per-
+     icon approach (tried briefly as a mockup direction) is the FILL axis -- 0 for the quiet outline at
+     rest, 1 for a solid glyph on the active tab -- which is one shared rule instead of a second hand-
+     drawn "solid" path per module (see .navtab.active .tab-msym below). */
+  .tab-msym{
+    font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;
+    font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;
+    display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;flex-shrink:0;
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;font-feature-settings:'liga';
+    font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;
+    transition:font-variation-settings .18s ease;
+  }
+  /* The one FILL-axis flip mentioned above -- active tab's icon goes solid, everything else about it
+     (size, weight, color via .navtab-icon's `color`) stays exactly as it already was. */
+  .navtab.active .tab-msym{font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24;}
+  .navtab-icon{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;flex-shrink:0;
     background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, var(--surface-strong)), color-mix(in srgb, var(--accent1) 4%, var(--surface-strong)));
     color:var(--nav-hue, var(--ink-soft));
     box-shadow:inset 0 1px 0 rgba(255,255,255,.4), inset 0 -2px 3px -2px rgba(0,0,0,.08);
@@ -1528,6 +1566,10 @@
   .cmdk-item.active,.cmdk-item:hover{background:var(--surface-strong);}
   .cmdk-item-icon{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink-soft);}
   .cmdk-item-icon .tab-icon{width:15px;height:15px;color:var(--accent1);}
+  /* Oct 15, 2026 -- command palette results for sidebar tabs now render tabIcon()'s Material Symbols
+     span rather than an SVG, so it needs its own size override here (the rule above still applies to
+     any other result type that happens to render an actual .tab-icon SVG). */
+  .cmdk-item-icon .tab-msym{font-size:16px;color:var(--accent1);}
   .cmdk-item-text{display:flex;flex-direction:column;min-width:0;flex:1;}
   .cmdk-item-title{font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cmdk-item-sub{font-size:11px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -15338,35 +15380,37 @@ function render(){
   }
 }
 function tabIcon(id){
-  // Oct 10, 2026 redesign — replaced the Sept 30 "flat filled, rainbow-chip" icon set after feedback
-  // that the per-module rainbow (14 saturated pastel hues) read as consumer/toy-like rather than
-  // professional. Research into how actual top fintech/accounting products (Stripe, Mercury, Ramp,
-  // QuickBooks, Xero) treat sidebar icons turned up one consistent pattern: thin, consistent-weight
-  // LINE icons, monochrome at rest, with color reserved for the single active tab only -- never a
-  // different hue per item. This redraws every icon from scratch as one cohesive line-icon family
-  // (same ~1.9px stroke weight, same level of detail throughout) instead of recoloring the old bold
-  // filled shapes. It relies on the shared `.tab-icon` class (stroke:currentColor; fill:none -- see
-  // its rule near the top of the stylesheet) with NO per-icon override, so adminTabIcon() and
-  // cmdIcon() (which already use that same shared class/style) are completely unaffected -- this
-  // brings tabIcon() back in line with them rather than diverging from them.
+  // Oct 15, 2026 round 3 -- moved off the Oct 14 round 2 hand-picked Lucide SVG set onto Google's
+  // Material Symbols Outlined variable font (fonts.google.com/icons -- the current/successor icon
+  // system to the old static "Material Icons", used across Android/Material Design 3, Google
+  // Workspace and most Google web apps; see the <link> in <head>). Each entry below is just the
+  // icon's ligature name -- the font renders the matching glyph for that exact text run, the same
+  // trick Google's own apps use. `translate="no"` keeps a browser's page-translate feature from ever
+  // mangling that ligature text into something the font no longer recognizes.
+  // This earns back the thing the Oct 14 two-SVG-set mockup (outline + a separately hand-drawn solid
+  // version for the active tab) was built to approximate: Material Symbols' own FILL axis does that
+  // in one shared CSS rule (.navtab.active .tab-msym, by .tab-msym above) rather than a second path
+  // per module, and --nav-hue/SIDEBAR_ICON_HUES below needed no changes at all -- a font glyph already
+  // honors `color` exactly like a stroke path did.
   const icons = {
-    dashboard: '<rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/>',
-    voucher: '<path d="M6.2 2.5h7.6l4.2 4.2V21a1 1 0 0 1-1 1H6.2a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/><path d="M13.8 2.5v4.2h4.2"/><line x1="8.3" y1="12.2" x2="15.7" y2="12.2"/><line x1="8.3" y1="15.6" x2="15.7" y2="15.6"/><line x1="8.3" y1="19" x2="12.5" y2="19"/>',
-    pos: '<path d="M6.3 8.2h11.4l-1.1 11.3a1.6 1.6 0 0 1-1.6 1.5H9a1.6 1.6 0 0 1-1.6-1.5L6.3 8.2z"/><path d="M9.2 8.2V6.4a2.8 2.8 0 0 1 5.6 0v1.8"/>',
-    daybook: '<path d="M3 5.3c2.3-1.1 4.9-1.4 7.3-.8a.9.9 0 0 1 .7.9v12.9a.9.9 0 0 1-1.2.85c-2.2-.6-4.5-.4-6.5.5a.4.4 0 0 1-.3-.4V5.3z"/><path d="M21 5.3c-2.3-1.1-4.9-1.4-7.3-.8a.9.9 0 0 0-.7.9v12.9a.9.9 0 0 0 1.2.85c2.2-.6 4.5-.4 6.5.5a.4.4 0 0 0 .3-.4V5.3z"/>',
-    calendar: '<rect x="3.2" y="5" width="17.6" height="15.5" rx="2.2"/><line x1="3.2" y1="9.8" x2="20.8" y2="9.8"/><line x1="7.6" y1="2.5" x2="7.6" y2="6.5"/><line x1="16.4" y1="2.5" x2="16.4" y2="6.5"/>',
-    ledgers: '<line x1="8.4" y1="6" x2="21" y2="6"/><line x1="8.4" y1="12" x2="21" y2="12"/><line x1="8.4" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/>',
-    coa: '<path d="M3.3 6.2a1.6 1.6 0 0 1 1.6-1.6h4l1.8 1.8h8.4a1.6 1.6 0 0 1 1.6 1.6v8.4a1.6 1.6 0 0 1-1.6 1.6H4.9a1.6 1.6 0 0 1-1.6-1.6V6.2z"/>',
-    inventory: '<path d="M12 2.8 3.4 7.4v9.2L12 21.2l8.6-4.6V7.4L12 2.8z"/><path d="M3.4 7.4 12 12l8.6-4.6"/><line x1="12" y1="12" x2="12" y2="21.2"/>',
-    reports: '<line x1="5" y1="21" x2="5" y2="10.5" stroke-width="2.1"/><line x1="12" y1="21" x2="12" y2="4" stroke-width="2.1"/><line x1="19" y1="21" x2="19" y2="14.5" stroke-width="2.1"/>',
-    gst: '<circle cx="7.3" cy="7.3" r="2.6"/><circle cx="16.7" cy="16.7" r="2.6"/><line x1="6.3" y1="18" x2="17.7" y2="6"/>',
-    reconcile: '<circle cx="12" cy="12" r="9.2"/><path d="M7.8 12.4l2.8 2.8 5.6-6.2"/>',
-    assets: '<rect x="5.2" y="3.2" width="13.6" height="17.6"/><line x1="9" y1="7.2" x2="9" y2="9"/><line x1="15" y1="7.2" x2="15" y2="9"/><line x1="9" y1="11.2" x2="9" y2="13"/><line x1="15" y1="11.2" x2="15" y2="13"/><line x1="9" y1="15.2" x2="9" y2="17"/><line x1="15" y1="15.2" x2="15" y2="17"/><line x1="10" y1="20.8" x2="10" y2="18.2"/><line x1="14" y1="20.8" x2="14" y2="18.2"/>',
-    parties: '<circle cx="9" cy="8" r="3.2"/><path d="M3.2 20c0-3.6 2.6-6.5 5.8-6.5s5.8 2.9 5.8 6.5"/><circle cx="17.2" cy="9" r="2.3"/><path d="M14.8 13.9c.6-.2 1.2-.3 1.9-.3 2.8 0 5.1 2.5 5.1 5.4"/>',
-    orders: '<rect x="5.2" y="4" width="13.6" height="17" rx="2"/><rect x="9" y="2.3" width="6" height="3.4" rx="1.2"/><path d="M8.7 13 11 15.3 15.3 9.8"/>',
-    payroll: '<rect x="3" y="6.2" width="18" height="13" rx="2"/><path d="M3 10.2h18"/><circle cx="16.4" cy="14" r="1.15" fill="currentColor" stroke="none"/>',
+    dashboard: 'dashboard',      // bento grid of tiles -- "overview".
+    voucher:   'receipt_long',   // itemized receipt slip.
+    pos:       'point_of_sale',  // cash register.
+    daybook:   'history_edu',    // a page being written on -- today's running entries.
+    calendar:  'calendar_month',
+    ledgers:   'menu_book',      // an open book.
+    coa:       'account_balance',// the classic bank/institution glyph for Chart of Accounts.
+    inventory: 'inventory_2',    // a stocked box.
+    reports:   'bar_chart',
+    gst:       'percent',        // the literal tax-rate symbol, kept from every earlier icon set --
+                                  // it was already the most direct glyph available for a tax module.
+    reconcile: 'sync',           // the two-arrow refresh/sync cycle.
+    assets:    'domain',         // a multi-window building -- fixed-asset property.
+    parties:   'groups',
+    orders:    'list_alt',
+    payroll:   'payments',       // banknote with a coin.
   };
-  return `<svg class="tab-icon" viewBox="0 0 24 24">${icons[id]||''}</svg>`;
+  return `<span class="tab-msym" translate="no">${icons[id]||''}</span>`;
 }
 // ---------------- Oct 10, 2026 sidebar upgrade: Pinned Favorites, live status badges, keyboard
 // quick-jump -- all three share this one id->label/shortcut lookup (the same label/letter pairs
