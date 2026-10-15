@@ -995,24 +995,46 @@
   /* Calendar -- Oct 13, 2026 advanced round: real due-date/recurring/GST-filing event dots (see
      calendarEventsForMonth()), a month/agenda view toggle, and a direct month+year jump, on top of
      the original voucher-browsing grid. */
-  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-  .calendar-grid .dow{font-size:10px;font-weight:700;text-align:center;padding:6px 0;color:var(--ink-faint);text-transform:uppercase;}
-  .calendar-grid .dow.weekend{color:var(--ink-soft);}
-  .calendar-day{position:relative;min-height:64px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;display:flex;flex-direction:column;}
+  /* Oct 15, 2026 "doesn't look good" pass -- three specific complaints, all in this block + the
+     parallel Week-view block below:
+     1) Empty days read as broken-looking blank boxes -- `.past` now mutes a day that's already gone
+        by (nothing left to do there) so a quiet cell reads as "nothing happened" rather than
+        "something's missing"; a future empty day stays at full strength since it just hasn't
+        happened yet. `.daynum` is now always a small fixed-size circle (set once below) instead of
+        bare text, so every cell has one consistent visual anchor whether or not it holds an event.
+     2) The old `.selected{background:var(--accent1)}` painted the ENTIRE cell a flat, saturated
+        green -- the one jarring flat-fill moment in an app that otherwise uses soft gradient washes
+        everywhere else (the sidebar chip, the active nav pill, the stat-tile accent). Selection is
+        now the same soft gradient wash already used for the sidebar's at-rest icon chip, and the
+        strong "this one" signal moves onto just the daynum circle (gradient-filled, white number) --
+        the Google/Apple Calendar convention of circling the number rather than painting the day.
+     3) `.has-overdue`'s box-shadow ring is softened to match -- it's now a secondary cue (the dots
+        already carry the red-for-overdue signal) rather than competing with the selection treatment
+        for the same visual register. */
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;}
+  .calendar-grid .dow{min-width:0;font-size:10px;font-weight:700;text-align:center;padding:6px 0;color:var(--ink-faint);text-transform:uppercase;overflow:hidden;}
+  .calendar-grid .dow.weekend{color:var(--accent2);background:color-mix(in srgb, var(--accent1) 7%, transparent);border-radius:6px;}
+  .calendar-day{position:relative;min-width:0;min-height:64px;background:#fff;border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;display:flex;flex-direction:column;overflow:hidden;}
   .calendar-day:hover{background:var(--surface-strong);border-color:var(--border-strong);transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
   .calendar-day.empty{background:transparent;border-color:transparent;cursor:default;}
   .calendar-day.empty:hover{background:transparent;border-color:transparent;transform:none;box-shadow:none;}
-  .calendar-day.weekend{background:color-mix(in srgb, var(--ink) 2.5%, #fff);}
-  .calendar-day.today{border-color:var(--accent1);box-shadow:0 0 0 1.5px var(--accent1);}
-  .calendar-day.today .daynum{color:var(--accent1);}
-  .calendar-day.has-overdue{border-color:var(--debit);box-shadow:0 0 0 1.5px color-mix(in srgb, var(--debit) 55%, transparent);}
-  .calendar-day.selected{background:var(--accent1);color:#fff;border-color:var(--accent1);}
-  .calendar-day.selected.today .daynum{color:#fff;}
-  .calendar-day.selected.has-overdue{box-shadow:0 0 0 1.5px #fff;}
-  .calendar-day .daynum{font-weight:700;}
+  .calendar-day.weekend{background:color-mix(in srgb, var(--accent1) 3%, #fff);}
+  /* `opacity` on the whole white "paper" card looked fine in light mode but turned past days into a
+     dull grey smudge against the dark page in dark mode (the opacity lets the dark background show
+     through the white card). Swapping to --surface-strong for the background + --ink-faint for the
+     number instead keeps both the card and the number on real tokens, so this reads correctly in
+     either theme rather than being a light-mode-only effect. */
+  .calendar-day.past:not(.has-overdue):not(.selected){background:var(--surface-strong);}
+  .calendar-day.past:not(.has-overdue):not(.selected) .daynum{color:var(--ink-faint);}
+  .calendar-day.has-overdue{border-color:color-mix(in srgb, var(--debit) 45%, transparent);box-shadow:0 0 0 1px color-mix(in srgb, var(--debit) 35%, transparent);}
+  .calendar-day.selected{opacity:1;background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, #fff), color-mix(in srgb, var(--accent1) 4%, #fff));border-color:color-mix(in srgb, var(--accent1) 30%, transparent);box-shadow:0 2px 8px -3px color-mix(in srgb, var(--accent1) 40%, transparent);}
+  .calendar-day.selected.has-overdue{border-color:color-mix(in srgb, var(--debit) 55%, transparent);}
+  .calendar-day .daynum{font-weight:700;width:21px;height:21px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:background .15s ease,color .15s ease,box-shadow .15s ease;}
+  .calendar-day.today .daynum{color:var(--accent1);box-shadow:inset 0 0 0 1.5px var(--accent1);}
+  .calendar-day.selected .daynum{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 2px 5px -1px color-mix(in srgb, var(--accent1) 55%, transparent);}
   .calendar-day .count{position:absolute;bottom:5px;right:5px;font-size:9px;background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border-strong);padding:1px 5px;border-radius:999px;font-weight:700;}
-  .calendar-day.selected .count{background:rgba(255,255,255,0.3);color:#fff;border-color:transparent;}
-  .calendar-day .evt-dots{display:flex;gap:3px;margin-top:auto;padding-top:4px;}
+  .calendar-day.selected .count{background:color-mix(in srgb, var(--accent1) 14%, #fff);color:var(--accent2);border-color:transparent;}
+  .calendar-day .evt-dots{display:flex;gap:3px;margin-top:auto;padding-top:4px;flex-wrap:wrap;}
   .calendar-day .evt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.6);}
   .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
   .calendar-nav .monthlabel{font-weight:800;font-size:13.5px;letter-spacing:-.01em;color:var(--ink);}
@@ -1022,6 +1044,19 @@
   .cal-view-toggle{display:flex;gap:2px;background:var(--surface-strong);border:1px solid var(--border);border-radius:9px;padding:3px;flex-shrink:0;}
   .cal-view-toggle button{border:none;background:transparent;font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer;color:var(--ink-soft);font-family:inherit;}
   .cal-view-toggle button.active{background:var(--accent1);color:#fff;}
+  .cal-view-toggle button .tab-msym{font-size:14px;vertical-align:-3px;margin-right:2px;}
+  /* Oct 15, 2026 -- the toolbar had grown to 8 buttons in one undifferentiated row (Prev/Today/Next,
+     the jump dropdowns, Month/Week/Agenda, Show Dismissed, Export, Print). Navigation (left) and view
+     switching stay full-weight; Show Dismissed/Export/Print are secondary, once-in-a-while actions,
+     so this scoped cluster (wraps just those three in viewCalendar()) sets them apart with a left
+     divider and a lighter, borderless-until-hover button treatment instead of matching weight to
+     Prev/Today/Next -- the eye is no longer asked to treat all 8 as equally important. */
+  .cal-toolbar-utility{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-left:12px;margin-left:4px;border-left:1px solid var(--border);}
+  .cal-toolbar-utility .btn.secondary{background:transparent;border-color:transparent;color:var(--ink-faint);}
+  .cal-toolbar-utility .btn.secondary:hover{background:var(--surface-strong);border-color:var(--border);color:var(--ink);}
+  .cal-toolbar-utility .btn.secondary.active{background:color-mix(in srgb, var(--accent1) 10%, var(--surface-strong));border-color:color-mix(in srgb, var(--accent1) 25%, transparent);color:var(--accent2);}
+  .cal-toolbar-utility .tab-msym{font-size:14px;vertical-align:-3px;margin-right:3px;}
+  @media (max-width:860px){ .cal-toolbar-utility{border-left:none;padding-left:0;margin-left:0;width:100%;} }
   .cal-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:var(--ink-soft);}
   .cal-legend-item{display:flex;align-items:center;gap:6px;}
   .cal-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
@@ -1037,17 +1072,24 @@
   .cal-day-events{padding:12px 16px 4px;display:flex;flex-direction:column;gap:2px;}
   .cal-agenda-row.clickable{cursor:pointer;}
   .cal-agenda-row.clickable:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
-  .cal-upnext{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;flex-wrap:wrap;}
-  .cal-upnext-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);flex-shrink:0;}
-  .cal-upnext-items{display:flex;gap:8px;flex-wrap:wrap;flex:1;min-width:0;}
-  .cal-upnext-item{display:flex;align-items:center;gap:6px;background:var(--surface-strong);border:1px solid var(--border);border-radius:999px;padding:5px 11px 5px 9px;font-size:11.5px;}
+  /* Oct 15, 2026 -- redesigned from a row of pills that wrapped onto several lines and truncated
+     their own titles ("01 Aug Prepaid amortization due — Annual In...") into a single-row, horizontally
+     scrolling strip of small cards. A card has room for the title to wrap onto a second line instead
+     of being cut off, and the dismiss × is hover-only (was always visible before) so the strip reads
+     as a clean set of upcoming items rather than a row of close buttons. */
+  .cal-upnext{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;}
+  .cal-upnext-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
+  .cal-upnext-items{display:flex;gap:10px;overflow-x:auto;padding-bottom:2px;}
+  .cal-upnext-item{position:relative;display:flex;flex-direction:column;gap:3px;background:var(--surface-strong);border:1px solid var(--border);border-left:3px solid var(--item-accent, var(--border));border-radius:9px;padding:8px 24px 8px 11px;font-size:11.5px;min-width:172px;max-width:210px;flex-shrink:0;}
   .cal-upnext-item.clickable{cursor:pointer;}
-  .cal-upnext-item.clickable:hover{border-color:var(--border-strong);background:var(--bg);}
+  .cal-upnext-item.clickable:hover{border-color:var(--border-strong);border-left-color:var(--item-accent, var(--border-strong));background:var(--bg);}
   .cal-upnext-item.clickable:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
-  .cal-upnext-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-  .cal-upnext-date{font-weight:800;color:var(--ink-faint);font-variant-numeric:tabular-nums;}
-  .cal-upnext-title{font-weight:600;color:var(--ink);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .cal-upnext-dismiss{border:none;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:11px;padding:2px 3px;border-radius:5px;line-height:1;flex-shrink:0;}
+  .cal-upnext-top{display:flex;align-items:center;gap:6px;}
+  .cal-upnext-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .cal-upnext-date{font-weight:800;color:var(--ink-faint);font-variant-numeric:tabular-nums;font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
+  .cal-upnext-title{font-weight:700;color:var(--ink);line-height:1.3;}
+  .cal-upnext-dismiss{position:absolute;top:5px;right:5px;border:none;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:10px;padding:3px;border-radius:5px;line-height:1;flex-shrink:0;opacity:0;transition:opacity .12s ease,background .12s ease;}
+  .cal-upnext-item:hover .cal-upnext-dismiss,.cal-upnext-dismiss:focus-visible{opacity:1;}
   .cal-upnext-dismiss:hover{background:var(--border);color:var(--ink);}
   /* Round 3 (Oct 14, 2026): per-event dismiss/snooze button + the row's own dimmed "dismissed" state --
      shown on every calendarEventRow(), greyed out rather than hidden so "Show dismissed" reads clearly. */
@@ -1058,19 +1100,28 @@
   /* Compact Week view (round 3) -- 7 day-cards in a row, each reusing [data-cal-day] so the existing
      day-selection click handler just works; event titles render inline (space allows it, unlike the
      dot-only Month grid) since a week has far fewer events competing for the same cell. */
-  .cal-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
-  .cal-week-day{position:relative;min-height:120px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:all .12s;}
+  .cal-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;}
+  .cal-week-day{position:relative;min-width:0;min-height:120px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:all .12s;overflow:hidden;}
   .cal-week-day:hover{border-color:var(--border-strong);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
-  .cal-week-day.weekend{background:color-mix(in srgb, var(--ink) 2.5%, #fff);}
-  .cal-week-day.today{border-color:var(--accent1);box-shadow:0 0 0 1.5px var(--accent1);}
-  .cal-week-day.has-overdue{border-color:var(--debit);box-shadow:0 0 0 1.5px color-mix(in srgb, var(--debit) 55%, transparent);}
-  .cal-week-day.selected{background:var(--accent1);border-color:var(--accent1);}
-  .cal-week-day.selected .dow,.cal-week-day.selected .daynum{color:#fff;}
+  .cal-week-day.weekend{background:color-mix(in srgb, var(--accent1) 3%, #fff);}
+  .cal-week-day.past:not(.has-overdue):not(.selected){background:var(--surface-strong);}
+  .cal-week-day.past:not(.has-overdue):not(.selected) .dow,
+  .cal-week-day.past:not(.has-overdue):not(.selected) .daynum{color:var(--ink-faint);}
+  .cal-week-day.has-overdue{border-color:color-mix(in srgb, var(--debit) 45%, transparent);box-shadow:0 0 0 1px color-mix(in srgb, var(--debit) 35%, transparent);}
+  .cal-week-day.selected{opacity:1;background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, #fff), color-mix(in srgb, var(--accent1) 4%, #fff));border-color:color-mix(in srgb, var(--accent1) 30%, transparent);box-shadow:0 2px 8px -3px color-mix(in srgb, var(--accent1) 40%, transparent);}
+  .cal-week-day.selected .dow{color:var(--accent2);}
   .cal-week-day-head{display:flex;justify-content:space-between;align-items:baseline;font-variant-numeric:tabular-nums;}
   .cal-week-day-head .dow{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
-  .cal-week-day-head .daynum{font-size:14px;font-weight:800;}
-  .cal-week-day-events{display:flex;flex-direction:column;gap:3px;overflow:hidden;}
+  .cal-week-day-head .daynum{font-size:13px;font-weight:800;width:23px;height:23px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:background .15s ease,color .15s ease,box-shadow .15s ease;}
+  .cal-week-day.today .daynum{color:var(--accent1);box-shadow:inset 0 0 0 1.5px var(--accent1);}
+  .cal-week-day.selected .daynum{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 2px 5px -1px color-mix(in srgb, var(--accent1) 55%, transparent);}
+  .cal-week-day-events{display:flex;flex-direction:column;gap:3px;overflow:hidden;flex:1;}
   .cal-week-evt{font-size:10.5px;font-weight:700;padding:3px 6px;border-radius:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* A week with nothing due used to just be a bare card with a date in the corner -- the single
+     biggest "looks broken" offender once the Month grid's small cells were fixed, since a Week card
+     has far more empty real estate for that blankness to read as a bug in. A quiet, centered line
+     fills that space on purpose instead. */
+  .cal-week-day-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10.5px;color:var(--ink-faint);font-weight:600;}
   @media (max-width:860px){
     .cal-week-grid{grid-template-columns:repeat(1,1fr);}
   }
@@ -29924,9 +29975,11 @@ function calUpNextStrip(){
         const nav = calEventNavTarget(e);
         const dd = new Date(e.date+'T00:00:00');
         const dateLabel = dd.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
-        return `<div class="cal-upnext-item${nav?' clickable':''}"${nav?` data-cal-event-nav="${escapeAttr(nav)}" role="button" tabindex="0"`:''} title="${escapeAttr(e.title+' — '+e.detail)}">
-          <span class="cal-upnext-dot" style="background:${color};"></span>
-          <span class="cal-upnext-date">${dateLabel}</span>
+        return `<div class="cal-upnext-item${nav?' clickable':''}"${nav?` data-cal-event-nav="${escapeAttr(nav)}" role="button" tabindex="0"`:''} style="--item-accent:${color};" title="${escapeAttr(e.title+' — '+e.detail)}">
+          <div class="cal-upnext-top">
+            <span class="cal-upnext-dot" style="background:${color};"></span>
+            <span class="cal-upnext-date">${dateLabel}</span>
+          </div>
           <span class="cal-upnext-title">${escapeHtml(e.title)}</span>
           <button type="button" class="cal-upnext-dismiss" data-cal-event-dismiss="${escapeAttr(calEventKey(e))}" title="Dismiss this reminder" aria-label="Dismiss — ${escapeAttr(e.title)}">✕</button>
         </div>`;
@@ -30046,12 +30099,16 @@ function calendarWeekView(weekStart, weekEnd, weekEvents, todayStr){
     const cls = ['cal-week-day'];
     if(i===0 || i===6) cls.push('weekend');
     if(dateStr===todayStr) cls.push('today');
+    if(dateStr<todayStr) cls.push('past');
     if(dateStr===calState.selected) cls.push('selected');
     if(dayEvents.some(e=>e.severity==='overdue')) cls.push('has-overdue');
     const evts = dayEvents.slice(0,5).map(e=>`<div class="cal-week-evt" style="background:color-mix(in srgb, ${calEventColor(e.severity)} 16%, #fff);color:${calEventColor(e.severity)};" title="${escapeAttr(e.title+' — '+e.detail)}">${calEventIcon(e.type)} ${escapeHtml(e.title)}</div>`).join('');
+    const eventsBody = dayEvents.length
+      ? `${evts}${dayEvents.length>5?`<div class="cal-week-evt" style="background:transparent;color:var(--ink-faint);">+${dayEvents.length-5} more</div>`:''}`
+      : `<div class="cal-week-day-empty">Nothing due</div>`;
     html += `<div class="${cls.join(' ')}" data-cal-day="${dateStr}">
       <div class="cal-week-day-head"><span class="dow">${dowNames[i]}</span><span class="daynum">${d.getDate()}</span></div>
-      <div class="cal-week-day-events">${evts}${dayEvents.length>5?`<div class="cal-week-evt" style="background:transparent;color:var(--ink-faint);">+${dayEvents.length-5} more</div>`:''}</div>
+      <div class="cal-week-day-events">${eventsBody}</div>
     </div>`;
   }
   html += '</div>';
@@ -30092,6 +30149,7 @@ function viewCalendar(){
     const cls = ['calendar-day'];
     if(dow===0 || dow===6) cls.push('weekend');
     if(dateStr===todayStr) cls.push('today');
+    if(dateStr<todayStr) cls.push('past');
     if(dateStr===calState.selected) cls.push('selected');
     if(dayEvents.some(e=>e.severity==='overdue')) cls.push('has-overdue');
     const dots = dayEvents.slice(0,4).map(e=>`<span class="evt-dot" style="background:${calEventColor(e.severity)};" title="${escapeAttr(e.title)}"></span>`).join('');
@@ -30130,9 +30188,9 @@ function viewCalendar(){
       <div class="panel-body">
         <div class="calendar-nav">
           <div class="navbtns">
-            <button class="btn small secondary" id="calPrev" type="button">◀ Prev</button>
-            <button class="btn small secondary" id="calToday" type="button">Today</button>
-            <button class="btn small secondary" id="calNext" type="button">Next ▶</button>
+            <button class="btn small secondary" id="calPrev" type="button"><span class="tab-msym" style="font-size:14px;vertical-align:-3px;">chevron_left</span>Prev</button>
+            <button class="btn small secondary" id="calToday" type="button"><span class="tab-msym" style="font-size:14px;vertical-align:-3px;margin-right:3px;">today</span>Today</button>
+            <button class="btn small secondary" id="calNext" type="button">Next<span class="tab-msym" style="font-size:14px;vertical-align:-3px;">chevron_right</span></button>
             ${calViewMode==='week' ? `<span class="muted" style="font-size:12.5px;font-weight:700;">${new Date(weekRange.start+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short'})} – ${new Date(weekRange.end+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>` : `<div class="calendar-jump">
               <select id="calMonthSelect" aria-label="Jump to month">${monthNames.map((m,i)=>`<option value="${i}" ${i===month?'selected':''}>${m}</option>`).join('')}</select>
               <select id="calYearSelect" aria-label="Jump to year">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}</option>`).join('')}</select>
@@ -30140,13 +30198,15 @@ function viewCalendar(){
           </div>
           <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
             <div class="cal-view-toggle">
-              <button type="button" data-cal-view="month" class="${calViewMode==='month'?'active':''}">📅 Month</button>
-              <button type="button" data-cal-view="week" class="${calViewMode==='week'?'active':''}">🗓️ Week</button>
-              <button type="button" data-cal-view="agenda" class="${calViewMode==='agenda'?'active':''}">🗒️ Agenda${monthEvents.length?` (${monthEvents.length})`:''}</button>
+              <button type="button" data-cal-view="month" class="${calViewMode==='month'?'active':''}"><span class="tab-msym">calendar_month</span>Month</button>
+              <button type="button" data-cal-view="week" class="${calViewMode==='week'?'active':''}"><span class="tab-msym">view_week</span>Week</button>
+              <button type="button" data-cal-view="agenda" class="${calViewMode==='agenda'?'active':''}"><span class="tab-msym">view_agenda</span>Agenda${monthEvents.length?` (${monthEvents.length})`:''}</button>
             </div>
-            <button class="btn secondary small ${calShowDismissed?'active':''}" id="calToggleDismissed" type="button" title="Dismissed reminders are hidden by default here -- toggle to review or restore them">${calShowDismissed?'🙈 Hide Dismissed':'👁 Show Dismissed'}${dismissedCount?` (${dismissedCount})`:''}</button>
-            <button class="btn secondary small" id="calExportIcs" type="button" title="Download this month's due dates as a .ics file to import into Google Calendar/Outlook">⬇ Export .ics</button>
-            <button class="btn secondary small" id="calPrintAgenda" type="button" title="Print a compliance calendar for this month">🖨 Print</button>
+            <div class="cal-toolbar-utility">
+              <button class="btn secondary small ${calShowDismissed?'active':''}" id="calToggleDismissed" type="button" title="Dismissed reminders are hidden by default here -- toggle to review or restore them"><span class="tab-msym">${calShowDismissed?'visibility_off':'visibility'}</span>${calShowDismissed?'Hide':'Show'} Dismissed${dismissedCount?` (${dismissedCount})`:''}</button>
+              <button class="btn secondary small" id="calExportIcs" type="button" title="Download this month's due dates as a .ics file to import into Google Calendar/Outlook"><span class="tab-msym">download</span>Export .ics</button>
+              <button class="btn secondary small" id="calPrintAgenda" type="button" title="Print a compliance calendar for this month"><span class="tab-msym">print</span>Print</button>
+            </div>
           </div>
         </div>
         ${calViewMode==='month' ? `
