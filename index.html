@@ -584,6 +584,11 @@
   .viz-pin-wrap .panel:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);}
   .report-card{transition:box-shadow .2s ease, transform .2s ease;}
   .report-card:hover{box-shadow:0 10px 26px rgba(20,30,25,0.12);transform:translateY(-2px);border-color:var(--border-strong);}
+  /* Oct 15, 2026 -- report-card icons converted from plain emoji to Material Symbols (matching the
+     sidebar's own icon round) so the Reports module's own visual language stops being the one place
+     in the app still on the old emoji-icon convention. */
+  .report-card-icon{margin-bottom:8px;}
+  .report-card-icon .tab-msym{font-size:26px;color:var(--accent1);}
   /* Round 7: pin-to-Favorites star -- on the Reports landing card (top-right corner, same idiom as
      .viz-pin-btn above) and inline in reportHeader()'s title (.inline variant). */
   .report-pin-btn{position:absolute;top:10px;right:14px;z-index:2;width:26px;height:26px;border-radius:8px;
@@ -15546,6 +15551,21 @@ function togglePinnedReport(id){
   try{ localStorage.setItem(sidebarPinnedReportsKey(), JSON.stringify(pins)); }catch(e){}
   render();
 }
+// Oct 15, 2026 -- the Consolidated Financials card (REPORT_CARDS) isn't a real in-module report
+// screen the way the other 13 are: it deep-links to the existing cross-company Consolidation
+// Report, which only ever renders on the Gateway screen (consolidationModal(), gated on
+// modal==='consolidation' inside renderGateway() -- see the comment on the REPORT_CARDS entry
+// itself). Both places a report card can be opened from -- the Reports landing grid and a pinned
+// Favorites entry in the sidebar -- check this first so that special case can't drift out of sync
+// between the two entry points. Returns true if it handled the click (caller should do nothing
+// further), false for every ordinary report id (caller proceeds exactly as before this existed).
+function openReportCard(id){
+  if(id!=='consolidated') return false;
+  consolidationSelectedIds = null; // re-default to "every visible company", same as the Gateway's own button
+  modal = 'consolidation';
+  switchToCompanyGateway(); // exits the current company; modal stays set through the exit, so renderGateway() opens it immediately
+  return true;
+}
 // Navigates straight into a pinned report's detail page -- deliberately NOT goToTab('reports'),
 // since goToTab resets reportsSelected to null the moment view==='reports' (see goToTab()) and is
 // also a no-op when already sitting on the Reports tab, which would silently swallow the report
@@ -15919,7 +15939,7 @@ function favoritesNavSection(){
     if(sidebarFilterQuery.trim() && !c.title.toLowerCase().includes(sidebarFilterQuery.trim().toLowerCase())) return '';
     const isActive = view==='reports' && reportsSelected===id;
     return `<div class="navtab-row" data-flyout-label="${escapeAttr(c.title)} ★">
-      <button class="navtab ${isActive?'active':''}" data-open-pinned-report="${id}" title="${escapeAttr(c.title)}"><span class="navtab-icon">${c.icon}</span><span class="navtab-label">${escapeHtml(c.title)}</span></button>
+      <button class="navtab ${isActive?'active':''}" data-open-pinned-report="${id}" title="${escapeAttr(c.title)}"><span class="navtab-icon"><span class="tab-msym" translate="no">${c.icon}</span></span><span class="navtab-label">${escapeHtml(c.title)}</span></button>
       <button class="navtab-pin-btn pinned" type="button" data-pin-report="${id}" title="Unpin from Favorites" aria-label="Unpin ${escapeAttr(c.title)} from Favorites">★</button>
     </div>`;
   }).filter(Boolean).join('');
@@ -31172,23 +31192,33 @@ function viewReports(){
 // reports" feature (see getPinnedReports()/favoritesNavSection()) has one shared place to look up a
 // pinned report id's icon/title, instead of a second hardcoded copy of this list drifting out of sync.
 const REPORT_CARDS = [
-  {id:'trialBalance', icon:'⚖️', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.', group:'Core Financial Statements'},
-  {id:'incomeStatement', icon:'📈', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.', group:'Core Financial Statements'},
-  {id:'balanceSheet', icon:'🏛️', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
-  {id:'cashFlow', icon:'💧', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
-  {id:'ratios', icon:'📊', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
-  {id:'financialPerformance', icon:'🧭', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
-  {id:'stakeholderPresentation', icon:'🎤', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
-  {id:'costCenterPL', icon:'🏷️', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
-  {id:'budgetVsActual', icon:'🎯', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
-  {id:'forexRevaluation', icon:'💱', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
-  {id:'tdsTcs', icon:'🧾', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
-  {id:'dataIntegrity', icon:'🔍', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', group:'Compliance & Data Quality'},
+  {id:'trialBalance', icon:'balance', title:'Trial Balance', desc:'Every ledger\'s closing debit or credit balance, side by side.', group:'Core Financial Statements'},
+  {id:'incomeStatement', icon:'trending_up', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.', group:'Core Financial Statements'},
+  {id:'balanceSheet', icon:'account_balance', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
+  {id:'cashFlow', icon:'water_drop', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
+  {id:'ratios', icon:'bar_chart', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
+  {id:'financialPerformance', icon:'explore', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
+  {id:'stakeholderPresentation', icon:'co_present', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
+  {id:'costCenterPL', icon:'sell', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
+  {id:'budgetVsActual', icon:'track_changes', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
+  {id:'forexRevaluation', icon:'currency_exchange', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
+  // Oct 15, 2026 -- the Consolidation Report already existed (consolidatedFinancials()/consolidationModal(),
+  // combining P&L and Balance Sheet across a chosen group of companies with intercompany balances
+  // eliminated) but only ever lived on the Gateway screen, opened via a button beside the company list --
+  // genuinely undiscoverable from inside a company's own Reports tab, which is exactly where someone
+  // thinking "I need a report across my companies" would look first. This card doesn't duplicate that
+  // report; it deep-links to the real one (see data-open-report handler below), leaving the current
+  // company and opening it on the Gateway exactly as the original button does. Its own group ("Multi-
+  // Company") keeps that "this leaves this company" distinction visible rather than burying it inside
+  // Management Reports as if it were scoped like everything else here.
+  {id:'consolidated', icon:'workspaces', title:'Consolidated Financials', desc:'Combine P&L and Balance Sheet across every company you can access, with intercompany balances eliminated. Opens across all your companies, not just this one.', group:'Multi-Company'},
+  {id:'tdsTcs', icon:'receipt_long', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
+  {id:'dataIntegrity', icon:'fact_check', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', group:'Compliance & Data Quality'},
 ];
 function reportsLanding(){
   const integrityCount = dataIntegrityChecks().length;
   const cards = REPORT_CARDS.map(c=> c.id==='dataIntegrity' ? {...c, badge: integrityCount>0 ? integrityCount : null} : c);
-  const groups = ['Core Financial Statements','Analysis & Insights','Management Reports','Compliance & Data Quality'];
+  const groups = ['Core Financial Statements','Analysis & Insights','Management Reports','Multi-Company','Compliance & Data Quality'];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
@@ -31207,10 +31237,10 @@ function reportsLanding(){
             <button type="button" class="report-pin-btn ${isPinned?'pinned':''}" data-pin-report="${c.id}" title="${isPinned?'Unpin from Favorites':'Pin to Favorites'}" aria-label="${isPinned?'Unpin '+escapeAttr(c.title)+' from Favorites':'Pin '+escapeAttr(c.title)+' to Favorites'}">${isPinned?'★':'☆'}</button>
             ${c.badge ? `<span class="pill neg" style="position:absolute;top:14px;right:40px;">${c.badge} issue${c.badge===1?'':'s'}</span>` : ''}
             <div class="panel-body">
-              <div style="font-size:26px;margin-bottom:8px;">${c.icon}</div>
+              <div class="report-card-icon"><span class="tab-msym" translate="no">${c.icon}</span></div>
               <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--ink);">${c.title}</div>
               <div class="muted" style="font-size:11.5px;line-height:1.5;">${c.desc}</div>
-              <div class="linklike" style="margin-top:10px;font-size:12px;">View Report →</div>
+              <div class="linklike" style="margin-top:10px;font-size:12px;">${c.id==='consolidated'?'Open across companies →':'View Report →'}</div>
             </div>
           </div>
         `;}).join('')}
@@ -35339,7 +35369,10 @@ function attachHandlers(){
     });
   });
   document.querySelectorAll('[data-open-pinned-report]').forEach(b=>{
-    b.addEventListener('click', ()=>{ openPinnedReport(b.dataset.openPinnedReport); });
+    b.addEventListener('click', ()=>{
+      if(openReportCard(b.dataset.openPinnedReport)) return;
+      openPinnedReport(b.dataset.openPinnedReport);
+    });
   });
   // Round 6: the company card now opens the quick-switcher popover instead of jumping straight to
   // the Gateway (see sidebarCompanyCard()) -- stopPropagation so this click doesn't also immediately
@@ -38404,6 +38437,7 @@ function attachHandlers(){
     });
     document.querySelectorAll('[data-open-report]').forEach(el=>{
       el.addEventListener('click', ()=>{
+        if(openReportCard(el.dataset.openReport)) return;
         reportsSelected = el.dataset.openReport;
         render();
       });
