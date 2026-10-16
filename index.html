@@ -2662,6 +2662,11 @@
     body.cal-print-active > *:not(#calPrintRoot){ display:none !important; }
     body.cal-print-active #calPrintRoot{ display:block !important; position:fixed; inset:0; margin:0; padding:28px; z-index:99999; background:#fff; }
   }
+  #labelPrintRoot{ display:none; }
+  @media print{
+    body.label-print-active > *:not(#labelPrintRoot){ display:none !important; }
+    body.label-print-active #labelPrintRoot{ display:block !important; position:fixed; inset:0; margin:0; padding:10mm; z-index:99999; background:#fff; }
+  }
 </style>
 </head>
 <body>
@@ -6359,6 +6364,8 @@ let state = {
   warehouses: [], // [{id, name, active}] -- stock "locations"; item lines on Sales/Purchase/Credit/Debit Note vouchers and stock adjustments can optionally tag a warehouseId, defaulting to the first one when unset
   stockTransfers: [], // [{id, date, itemId, qty, fromWarehouseId, toWarehouseId, remark}] -- moves quantity between warehouses; purely an inventory movement, never touches accounting ledgers
   cycleCounts: [], // [{id, date, warehouseId, status:'open'|'posted', lines:[{itemId, expectedQty, countedQty}], postedAt}] -- a physical stock-take session; posting it creates a stockAdjustment per non-zero variance line, same as a manual adjustment would
+  landedCostAllocations: [], // [{id, date, purchaseVoucherId, charges:[{label,amount}], totalCharge, basis:'value'|'qty', allocations:[{itemId,perUnit,allocatedAmount}], paymentVoucherId}] -- see landedCostPerUnitFor()
+  customerPriceOverrides: [], // [{id, ledgerId, itemId, rate}] -- a customer-specific selling rate for one item, see priceForItem()
   bankClears: [],       // [{ledgerId, voucherId, clearedDate}] — which bank-ledger voucher entries have been ticked off against a bank statement
   reconciliations: [],  // [{id, ledgerId, date, statementBalance, bookBalance, difference, ...}] — saved history of past bank reconciliations
   recurringTemplates: [], // [{id, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate, lastGeneratedDate, active}]
@@ -7144,6 +7151,8 @@ let stockAdjustItemId = null;  // which item's adjust-stock modal to show
 let stockTransferDraft = null; // null = not transferring | {itemId, qty, fromWarehouseId, toWarehouseId, date, remark}
 let barcodeScanQuery = '';     // "scan or type a barcode" quick-lookup box on Inventory Control
 let cycleCountModalId = null;  // which state.cycleCounts[].id's count-sheet modal to show (round: Inventory Advanced Update)
+let landedCostDraft = null;    // null = not allocating | {purchaseVoucherId, charges:[{label,amount}], basis, paidFromLedgerId, date} (round: Inventory Advanced Update Phase 2)
+let barcodeLabelDraft = null;  // null = not printing labels | {itemId, count} (round: Inventory Advanced Update Phase 2)
 let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
 let reportsSelected = null; // null = Reports landing grid | 'trialBalance'|'incomeStatement'|'balanceSheet'|'ratios'|'cashFlow'
@@ -9907,6 +9916,8 @@ async function loadState(){
     state.warehouses = Array.isArray(data.warehouses) && data.warehouses.length ? data.warehouses : DEFAULT_WAREHOUSES.slice();
     state.stockTransfers = Array.isArray(data.stockTransfers) ? data.stockTransfers : [];
     state.cycleCounts = Array.isArray(data.cycleCounts) ? data.cycleCounts : [];
+    state.landedCostAllocations = Array.isArray(data.landedCostAllocations) ? data.landedCostAllocations : [];
+    state.customerPriceOverrides = Array.isArray(data.customerPriceOverrides) ? data.customerPriceOverrides : [];
     state.bankClears = Array.isArray(data.bankClears) ? data.bankClears : [];
     state.reconciliations = Array.isArray(data.reconciliations) ? data.reconciliations : [];
     state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
@@ -9942,6 +9953,8 @@ async function loadState(){
     state.warehouses = DEFAULT_WAREHOUSES.slice();
     state.stockTransfers = [];
     state.cycleCounts = [];
+    state.landedCostAllocations = [];
+    state.customerPriceOverrides = [];
     state.bankClears = [];
     state.reconciliations = [];
     state.recurringTemplates = [];
@@ -10120,6 +10133,18 @@ async function saveCycleCounts(){
   markSyncSaving();
   try{ await db.collection('companies').doc(currentCompany.id).set({ cycleCounts: state.cycleCounts }, {merge:true}); markSyncSaved(); }
   catch(e){ toast('Could not save the cycle count'); markSyncError(); }
+}
+async function saveLandedCostAllocations(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ landedCostAllocations: state.landedCostAllocations }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save the landed cost allocation'); markSyncError(); }
+}
+async function saveCustomerPriceOverrides(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ customerPriceOverrides: state.customerPriceOverrides }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save the customer price'); markSyncError(); }
 }
 async function saveBankClears(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -11589,6 +11614,8 @@ function buildCompanyBackup(){
     warehouses: state.warehouses,
     stockTransfers: state.stockTransfers,
     cycleCounts: state.cycleCounts,
+    landedCostAllocations: state.landedCostAllocations,
+    customerPriceOverrides: state.customerPriceOverrides,
     bankClears: state.bankClears,
     reconciliations: state.reconciliations,
     recurringTemplates: state.recurringTemplates,
@@ -11804,6 +11831,8 @@ async function restoreCompanyBackup(data){
   state.warehouses = Array.isArray(data.warehouses) && data.warehouses.length ? data.warehouses : DEFAULT_WAREHOUSES.slice();
   state.stockTransfers = Array.isArray(data.stockTransfers) ? data.stockTransfers : [];
   state.cycleCounts = Array.isArray(data.cycleCounts) ? data.cycleCounts : [];
+  state.landedCostAllocations = Array.isArray(data.landedCostAllocations) ? data.landedCostAllocations : [];
+  state.customerPriceOverrides = Array.isArray(data.customerPriceOverrides) ? data.customerPriceOverrides : [];
   state.bankClears = Array.isArray(data.bankClears) ? data.bankClears : [];
   state.reconciliations = Array.isArray(data.reconciliations) ? data.reconciliations : [];
   state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
@@ -11826,6 +11855,7 @@ async function restoreCompanyBackup(data){
   await Promise.all([
     saveLedgers(), saveVouchers(), saveItems(), saveStockAdjustments(),
     saveWarehouses(), saveStockTransfers(), saveCycleCounts(),
+    saveLandedCostAllocations(), saveCustomerPriceOverrides(),
     saveBankClears(), saveReconciliations(), saveRecurringTemplates(), saveFixedAssets(),
     saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
     saveQuotations(), saveSalesOrders(), savePurchaseOrders(), saveDeliveryChallans(),
@@ -13183,8 +13213,13 @@ function stockMovementForItem(itemId){
       if(it.itemId===itemId && it.qty>0){
         // rate is only meaningful for an INWARD line (it's the cost basis a FIFO/WAvg layer is
         // created at, see stockValuation() below) -- an outward line's rate is a selling price, not
-        // a cost, so it's left null here rather than fed into the costing engine.
-        moves.push({date:v.date, type:v.type, narration:v.narration||v.type, qty:it.qty, dir, rate: dir>0 ? (Number(it.rate)||0) : null, warehouseId: it.warehouseId||null, batch: it.batch||null, serial: it.serial||null});
+        // a cost, so it's left null here rather than fed into the costing engine. On an inward
+        // (Purchase) line, any Landed Cost Allocation posted against this specific voucher (see
+        // landedCostPerUnitFor()) is folded straight into the layer's cost basis, exactly the way a
+        // real ERP capitalizes freight/customs/insurance into inventory value rather than expensing
+        // it separately -- so FIFO/Weighted-Average valuation reflects the true landed cost, not just
+        // the supplier's invoice price.
+        moves.push({date:v.date, type:v.type, narration:v.narration||v.type, qty:it.qty, dir, rate: dir>0 ? ((Number(it.rate)||0) + landedCostPerUnitFor(v.id, itemId)) : null, warehouseId: it.warehouseId||null, bin: it.bin||null, batch: it.batch||null, serial: it.serial||null});
       }
     }
   }
@@ -13199,6 +13234,78 @@ function stockMovementForItem(itemId){
   }
   moves.sort((a,b)=> a.date.localeCompare(b.date));
   return moves;
+}
+/* ---------------- Landed Cost Allocation (round: Inventory Advanced Update Phase 2, Oct 2026) ----------------
+   Freight, customs duty, insurance, and other charges incurred to get a Purchase's goods into stock
+   aren't part of the supplier's invoice price, but they ARE part of what that stock actually cost --
+   a real ERP capitalizes them into inventory value rather than leaving them as a separate, unrelated
+   expense line. allocateLandedCost() spreads a set of charges across one Purchase voucher's item
+   lines (by line value or by quantity) and records the result in state.landedCostAllocations;
+   landedCostPerUnitFor() is what stockMovementForItem() above reads back to fold that per-unit
+   addition into the FIFO/Weighted-Average cost basis. Deliberately keyed to a specific purchase
+   voucher id + item id (not the item alone) so re-allocating a second round of charges against the
+   same purchase later just adds another entry -- both get summed. */
+function landedCostPerUnitFor(voucherId, itemId){
+  let total = 0;
+  for(const lc of state.landedCostAllocations){
+    if(lc.purchaseVoucherId!==voucherId) continue;
+    const line = (lc.allocations||[]).find(a=>a.itemId===itemId);
+    if(line) total += Number(line.perUnit)||0;
+  }
+  return total;
+}
+// Find-or-create the ledger landed-cost charges post to -- same pattern as ensureTaxLedger()/
+// ensureWalkInCustomerLedger() elsewhere in this file. Grouped as a Direct Expense (same bucket as
+// "Freight & Cartage Outward" in the default ledger set) since landed costs are direct costs of
+// bringing purchased goods into stock, not a general overhead.
+function ensureLandedCostLedger(){
+  let l = state.ledgers.find(x=>x.name==='Freight & Landed Costs (Inward)' && bucketOf(x)==='dexp');
+  if(!l){ l = {id:uid('l'), name:'Freight & Landed Costs (Inward)', group:'dexp', opening:0}; state.ledgers.push(l); saveLedgers(); }
+  return l.id;
+}
+// Computes the per-item allocation for a set of charges against a Purchase voucher's item lines --
+// pure math, no state mutation, so the modal can preview the split live before it's saved.
+// basis 'value' spreads charges proportional to each line's qty*rate (the normal, more accurate
+// default -- a cheap bulky item shouldn't absorb the same per-unit freight as an expensive compact
+// one); basis 'qty' spreads them evenly per unit regardless of value (closer to how a flat per-box
+// freight bill actually works). Lines with zero qty/value are skipped so they never divide by zero.
+function computeLandedCostAllocation(items, totalCharge, basis){
+  const lines = (items||[]).filter(it=>it.itemId && it.itemId!=='__custom__' && (Number(it.qty)||0)>0);
+  const base = lines.map(it=>({ itemId: it.itemId, qty: Number(it.qty)||0, value: (Number(it.qty)||0)*(Number(it.rate)||0) }));
+  const baseTotal = basis==='qty' ? base.reduce((s,b)=>s+b.qty,0) : base.reduce((s,b)=>s+b.value,0);
+  if(!baseTotal) return [];
+  return base.map(b=>{
+    const share = (basis==='qty' ? b.qty : b.value) / baseTotal;
+    const allocatedAmount = r2(totalCharge*share);
+    return { itemId: b.itemId, qty: b.qty, allocatedAmount, perUnit: b.qty ? r2(allocatedAmount/b.qty) : 0 };
+  });
+}
+// Posts a landed-cost allocation against an already-saved Purchase voucher: records the allocation
+// (what stockMovementForItem()/landedCostPerUnitFor() read back for costing) and, unless the caller
+// says the charges were already accounted for elsewhere, posts a normal Payment voucher for the real
+// cash outflow (Dr the landed-cost ledger, Cr whichever Cash/Bank ledger paid it) -- an ordinary
+// voucher through the same state.vouchers array as anything entered by hand, so it shows up in Day
+// Book, the P&L, and everywhere else exactly like any other Payment.
+async function saveLandedCostAllocation({ purchaseVoucherId, charges, basis, paidFromLedgerId, date }){
+  const v = state.vouchers.find(x=>x.id===purchaseVoucherId);
+  if(!v) return null;
+  const totalCharge = charges.reduce((s,c)=>s+(Number(c.amount)||0),0);
+  const allocations = computeLandedCostAllocation(v.items||[], totalCharge, basis);
+  const lc = {
+    id: uid('lc'), date: date || new Date().toISOString().slice(0,10), purchaseVoucherId,
+    charges: charges.map(c=>({label:c.label||'Charge', amount:Number(c.amount)||0})),
+    totalCharge: r2(totalCharge), basis, allocations, paymentVoucherId: null, createdAt: new Date().toISOString(),
+  };
+  if(paidFromLedgerId){
+    const landedLedgerId = ensureLandedCostLedger();
+    const pv = { id: uid('v'), date: lc.date, type:'Payment', narration:`Landed cost on ${v.narration||'Purchase'} (${charges.map(c=>c.label).filter(Boolean).join(', ')||'freight/customs'})`,
+      entries:[{ledgerId:landedLedgerId, dr:r2(totalCharge), cr:0},{ledgerId:paidFromLedgerId, dr:0, cr:r2(totalCharge)}], createdAt: new Date().toISOString() };
+    state.vouchers.push(pv);
+    lc.paymentVoucherId = pv.id;
+  }
+  state.landedCostAllocations.push(lc);
+  await Promise.all([saveLandedCostAllocations(), paidFromLedgerId ? saveVouchers() : Promise.resolve()]);
+  return lc;
 }
 // FIFO / Weighted-Average costing engine (round: Inventory Advanced Update, Oct 2026) -- replaces
 // the old "closing qty × one flat rate" valuation with a real cost-layer-based one, computed live
@@ -13278,9 +13385,22 @@ function stockByWarehouseForItem(item){
   for(const t of state.stockTransfers){
     if(t.itemId!==item.id) continue;
     byWh[t.fromWarehouseId] = (byWh[t.fromWarehouseId]||0) - (Number(t.qty)||0);
-    byWh[t.toWarehouseId] = (byWh[t.toWarehouseId]||0) + (Number(t.qty)||0);
+    // An in-transit transfer (round: Inventory Advanced Update Phase 2) has left the source but not
+    // yet arrived at the destination -- see pendingInTransitForItem() just below for where that qty
+    // is surfaced instead. A 'received' transfer -- or any transfer saved before this status field
+    // existed, which is treated the same way -- behaves exactly as before: it lands at the
+    // destination immediately.
+    if(t.status!=='in-transit') byWh[t.toWarehouseId] = (byWh[t.toWarehouseId]||0) + (Number(t.qty)||0);
   }
   return state.warehouses.filter(w=>w.active!==false).map(w=>({ warehouse:w, qty: r2(byWh[w.id]||0) }));
+}
+// Total quantity of one item currently dispatched but not yet received at its destination --
+// deliberately kept OUT of stockByWarehouseForItem()'s per-location split (it isn't sitting at
+// either location right now) and shown instead via pendingTransfersPanel()'s own table, the same
+// way a full ERP tracks "stock in transit" as its own status rather than folding it into a
+// warehouse's on-hand balance.
+function pendingInTransitForItem(itemId){
+  return r2(state.stockTransfers.filter(t=>t.itemId===itemId && t.status==='in-transit').reduce((s,t)=>s+(Number(t.qty)||0),0));
 }
 // A unified, all-items × all-locations table -- the "combine stock data from different locations
 // into a single view" requirement. Only rendered once a second location actually exists, so a
@@ -13289,22 +13409,55 @@ function stockByLocationTable(){
   const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
   if(activeWarehouses.length<2 || !state.items.length) return '';
   const rows = state.items.map(item=>({ item, byWh: stockByWarehouseForItem(item) }));
+  const anyInTransit = state.stockTransfers.some(t=>t.status==='in-transit');
   return `
     <div class="section-title">Stock by Location</div>
     <div class="panel"><div class="panel-body" style="padding:0;">
       <table class="rb-card-table">
-        <tr><th>Item</th>${activeWarehouses.map(w=>`<th class="num">${escapeHtml(w.name)}</th>`).join('')}<th class="num">Total</th></tr>
+        <tr><th>Item</th>${activeWarehouses.map(w=>`<th class="num">${escapeHtml(w.name)}</th>`).join('')}${anyInTransit?`<th class="num">In Transit 🚚</th>`:''}<th class="num">Total</th></tr>
         ${rows.map(({item,byWh})=>{
           const total = byWh.reduce((s,r)=>s+r.qty,0);
+          const inTransit = pendingInTransitForItem(item.id);
           return `<tr>
             <td class="ccard-title" data-label="Item">${escapeHtml(item.name)}<div class="muted" style="font-size:10.5px;">${item.unit||''}</div></td>
             ${byWh.map((r,i)=>`<td class="num" data-label="${escapeAttr(activeWarehouses[i].name)}">${fmt(r.qty)}</td>`).join('')}
-            <td class="num ccard-amount" data-label="Total" style="font-weight:700;">${fmt(total)} ${item.unit||''}</td>
+            ${anyInTransit?`<td class="num" data-label="In Transit">${inTransit>0?fmt(inTransit):'—'}</td>`:''}
+            <td class="num ccard-amount" data-label="Total" style="font-weight:700;">${fmt(total+inTransit)} ${item.unit||''}</td>
           </tr>`;
         }).join('')}
       </table>
     </div></div>
-    <p class="muted" style="font-size:11px;">Tag a "Location" on a Sales/Purchase/Credit/Debit Note item line (or a stock adjustment) to move it out of the default location. Use "Transfer Stock" below to rebalance quantity between locations without affecting your ledgers.</p>
+    <p class="muted" style="font-size:11px;">Tag a "Location" on a Sales/Purchase/Credit/Debit Note item line (or a stock adjustment) to move it out of the default location. Use "Transfer Stock" below to rebalance quantity between locations without affecting your ledgers.${anyInTransit?' "In Transit" is stock dispatched but not yet received at its destination -- it counts in Total but not at either location until marked Received.':''}</p>
+  `;
+}
+// Lists every Stock Transfer currently marked In-Transit (dispatched, not yet received at its
+// destination -- see the "Send as In-Transit" option on Transfer Stock) with a one-click way to
+// mark each one received once it actually arrives. Only rendered when there's something pending,
+// same "don't show an empty extra panel" rule as stockByLocationTable()'s single-warehouse case.
+function pendingTransfersPanel(){
+  const pending = state.stockTransfers.filter(t=>t.status==='in-transit');
+  if(!pending.length) return '';
+  return `
+    <div class="section-title">Stock In Transit <span class="pill" style="margin-left:6px;">${pending.length} pending</span></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Item</th><th>From</th><th>To</th><th class="num">Qty</th><th>Dispatched</th><th></th></tr>
+        ${pending.map(t=>{
+          const item = state.items.find(i=>i.id===t.itemId);
+          const from = state.warehouses.find(w=>w.id===t.fromWarehouseId);
+          const to = state.warehouses.find(w=>w.id===t.toWarehouseId);
+          return `<tr>
+            <td class="ccard-title" data-label="Item">${escapeHtml(item?item.name:'—')}</td>
+            <td data-label="From">${escapeHtml(from?from.name:'—')}</td>
+            <td data-label="To">${escapeHtml(to?to.name:'—')}</td>
+            <td class="num" data-label="Qty">${fmt(t.qty)} ${item?(item.unit||''):''}</td>
+            <td data-label="Dispatched">${t.date}</td>
+            <td class="ccard-actions"><button class="btn small" data-receive-transfer="${t.id}" type="button">✓ Mark Received</button></td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div></div>
+    <p class="muted" style="font-size:11px;">Dispatched stock that's left its source location but doesn't count at the destination (or in Stock by Location) until marked received here — the same "goods in transit" status a full ERP tracks separately from on-hand stock.</p>
   `;
 }
 /* ---------------- Cycle Counting / Stock Take (round: Inventory Advanced Update, Oct 2026) ----------------
@@ -13436,9 +13589,10 @@ function manageWarehousesPanel(){
     <div class="section-title">Locations / Warehouses</div>
     <div class="panel"><div class="panel-body">
       <table class="rb-card-table" style="margin-bottom:12px;">
-        <tr><th>Name</th><th>Status</th><th></th></tr>
+        <tr><th>Name</th><th>Bin Locations</th><th>Status</th><th></th></tr>
         ${state.warehouses.map(w=>`<tr>
           <td class="ccard-title" data-label="Name">${escapeHtml(w.name)}</td>
+          <td data-label="Bin Locations"><input type="text" class="wh-bins-input" data-wh="${w.id}" value="${escapeAttr((w.bins||[]).join(', '))}" placeholder="e.g. A1-01, A1-02, B2-05" style="font-size:11.5px;min-width:170px;"></td>
           <td data-label="Status">${w.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill">Inactive</span>`}</td>
           <td class="ccard-actions"><button class="btn small secondary" data-toggle-warehouse="${w.id}" type="button">${w.active!==false?'Deactivate':'Reactivate'}</button></td>
         </tr>`).join('')}
@@ -13447,7 +13601,7 @@ function manageWarehousesPanel(){
         <div class="field"><label>Add Location</label><input type="text" id="newWarehouseName" placeholder="e.g. Bengaluru Warehouse"></div>
         <div style="display:flex;align-items:flex-end;"><button class="btn" id="addWarehouseBtn" type="button">Add Location</button></div>
       </div>
-      <p class="muted" style="font-size:11px;margin-top:8px;">Add a second location to unlock the "Location" field on voucher item lines, the Stock by Location table, and stock transfers between locations.</p>
+      <p class="muted" style="font-size:11px;margin-top:8px;">Add a second location to unlock the "Location" field on voucher item lines, the Stock by Location table, and stock transfers between locations. Type comma-separated bin/rack codes against a location (e.g. "A1-01, A1-02") to offer sub-location bin tagging on its item lines too — click away from the field to save.</p>
     </div></div>
   `;
 }
@@ -13599,6 +13753,37 @@ function abcAnalysisData(days){
     r.cls = prevCumPct<70 ? 'A' : prevCumPct<90 ? 'B' : 'C';
   }
   return { rows, total: r2(total) };
+}
+// Customer Price Lists management panel (round: Inventory Advanced Update Phase 2, Oct 2026) --
+// give one specific customer a special rate on one specific item; priceForItem() picks it up
+// automatically (ahead of any quantity tier) the moment that customer and item are both selected
+// on a Sales/Credit Note line. Quantity-tiered pricing itself lives on the item master instead (see
+// stockItemForm()'s "Quantity Price Tiers" field) since it's a property of the item, not a per-
+// customer record -- this panel is only for the customer-specific override.
+function customerPriceListPanel(){
+  const customers = state.ledgers.filter(l=>l.partyType==='customer');
+  if(!customers.length || !state.items.length) return '';
+  const overrides = state.customerPriceOverrides||[];
+  return `
+    <div class="section-title">Customer Price Lists</div>
+    <div class="panel"><div class="panel-body">
+      <p class="muted" style="font-size:11.5px;margin-top:0;">Give a specific customer a special rate on a specific item — it overrides both the item's Standard Selling Rate and any quantity tier the moment that customer and item are both picked on a Sales/Credit Note line.</p>
+      <div class="row" style="align-items:flex-end;">
+        <div class="field"><label>Customer</label><select id="priceOverrideLedger">${customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Item</label><select id="priceOverrideItem">${state.items.map(it=>`<option value="${it.id}">${escapeHtml(it.name)}</option>`).join('')}</select></div>
+        <div class="field" style="max-width:150px;"><label>Special Rate</label><input type="number" id="priceOverrideRate" step="0.01" min="0" placeholder="0.00"></div>
+      </div>
+      <button class="btn secondary" id="addPriceOverrideBtn" type="button">+ Add / Update</button>
+      ${overrides.length ? `<table class="rb-card-table" style="margin-top:12px;">
+        <tr><th>Customer</th><th>Item</th><th class="num">Special Rate</th><th></th></tr>
+        ${overrides.map(o=>{
+          const l = ledgerOf(o.ledgerId); const it = state.items.find(i=>i.id===o.itemId);
+          if(!l || !it) return '';
+          return `<tr><td class="ccard-title" data-label="Customer">${escapeHtml(l.name)}</td><td data-label="Item">${escapeHtml(it.name)}</td><td class="num" data-label="Special Rate">₹${fmt(o.rate)}</td><td class="ccard-actions"><button class="btn small secondary" data-remove-price-override="${o.id}" type="button">Remove</button></td></tr>`;
+        }).join('')}
+      </table>` : `<p class="muted" style="font-size:11.5px;margin-top:10px;">No customer-specific prices set yet.</p>`}
+    </div></div>
+  `;
 }
 function abcAnalysisPanel(){
   const { rows, total } = abcAnalysisData();
@@ -15187,6 +15372,8 @@ function render(){
     ${modal==='stockDetail' ? itemStockModal() : ''}
     ${modal==='stockAdjust' ? stockAdjustModal() : ''}
     ${modal==='stockTransfer' ? stockTransferModal() : ''}
+    ${modal==='landedCost' ? landedCostModal() : ''}
+    ${modal==='barcodeLabel' ? barcodeLabelModal() : ''}
     ${modal==='cycleCount' ? cycleCountModal() : ''}
     ${modal==='employeeDocuments' ? employeeDocumentsModal() : ''}
     ${modal==='recentVouchers' ? recentVouchersModal() : ''}
@@ -17192,9 +17379,94 @@ function stockTransferModal(){
             <div class="field" style="max-width:170px;"><label>Date</label><input type="date" id="stockTransferDate" value="${d.date}"></div>
           </div>
           <div class="field"><label>Remark (optional)</label><input type="text" id="stockTransferRemark" placeholder="e.g. Rebalancing ahead of festival demand" value="${escapeAttr(d.remark||'')}"></div>
-          <button class="btn" id="saveStockTransferBtn" type="button" style="width:100%;" ${d.fromWarehouseId===d.toWarehouseId?'disabled':''}>Transfer</button>
+          <div class="field" style="margin-bottom:12px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="stockTransferInTransit" style="width:auto;" ${d.inTransit?'checked':''}>Send as In-Transit (received separately at the destination)</label>
+            <p class="muted" style="font-size:11px;margin:4px 0 0;">Leave unchecked for an instant transfer (today's behaviour). Checked, the quantity leaves the source location right away but only lands at the destination once someone marks it "Received" there — useful for inter-city/warehouse transfers that take real time in transit.</p>
+          </div>
+          <button class="btn" id="saveStockTransferBtn" type="button" style="width:100%;" ${d.fromWarehouseId===d.toWarehouseId?'disabled':''}>${d.inTransit?'Dispatch':'Transfer'}</button>
           ${d.fromWarehouseId===d.toWarehouseId ? `<p class="muted" style="font-size:11px;margin-top:6px;">Pick two different locations.</p>` : ''}
           <p class="muted" style="font-size:11px;margin-top:8px;">A transfer only moves quantity between locations — it never posts to your accounting ledgers.</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Landed Cost Allocation modal (round: Inventory Advanced Update Phase 2, Oct 2026) -- opened from
+// Day Book's "🚚 Landed Cost" button on a saved Purchase voucher. Four standard charge buckets
+// (Freight/Customs/Insurance/Other) rather than a fully dynamic row list -- covers the normal case
+// without needing add/remove-row JS plumbing; "Other" is there for anything that doesn't fit the
+// first three. See saveLandedCostAllocation()/computeLandedCostAllocation() for the math and posting.
+function landedCostModal(){
+  if(!landedCostDraft) return '';
+  const d = landedCostDraft;
+  const v = state.vouchers.find(x=>x.id===d.purchaseVoucherId);
+  if(!v) return '';
+  const items = (v.items||[]).filter(it=>it.itemId && it.itemId!=='__custom__');
+  const cashBankLedgers = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank');
+  const totalCharge = ['freight','customs','insurance','other'].reduce((s,k)=>s+(Number(d.charges[k])||0),0);
+  const preview = (items.length && totalCharge>0) ? computeLandedCostAllocation(items, totalCharge, d.basis) : [];
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:540px;">
+        <div class="panel-head"><h2>Allocate Landed Cost</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-top:0;">Purchase dated ${v.date} — ${escapeHtml(v.narration||'Purchase')} · ${items.length} catalog item line${items.length===1?'':'s'}.</p>
+          ${!items.length ? `<p class="empty">This voucher has no catalog item lines to allocate across — landed cost needs items picked from your Item Master, not custom lines.</p>` : `
+          <div class="section-title" style="margin-top:0;">Charges</div>
+          <div class="row">
+            <div class="field"><label>Freight</label><input type="number" id="lcFreight" min="0" step="0.01" value="${d.charges.freight||''}" placeholder="0.00"></div>
+            <div class="field"><label>Customs / Duty</label><input type="number" id="lcCustoms" min="0" step="0.01" value="${d.charges.customs||''}" placeholder="0.00"></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Insurance</label><input type="number" id="lcInsurance" min="0" step="0.01" value="${d.charges.insurance||''}" placeholder="0.00"></div>
+            <div class="field"><label>Other</label><input type="number" id="lcOther" min="0" step="0.01" value="${d.charges.other||''}" placeholder="0.00"></div>
+          </div>
+          <div class="field"><label>Allocate By</label>
+            <select id="lcBasis">
+              <option value="value" ${d.basis==='value'?'selected':''}>Line Value (qty × rate) — more accurate</option>
+              <option value="qty" ${d.basis==='qty'?'selected':''}>Quantity — spread evenly per unit</option>
+            </select>
+          </div>
+          <div class="field"><label>Paid From (optional)</label>
+            <select id="lcPaidFrom">
+              <option value="">— Already paid elsewhere / don't post a payment —</option>
+              ${cashBankLedgers.map(l=>`<option value="${l.id}" ${d.paidFromLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+            </select>
+          </div>
+          <p class="muted" style="font-size:12.5px;">Total charge: <strong style="color:var(--ink);">₹${fmt(totalCharge)}</strong>${d.paidFromLedgerId?' — will post as a Payment voucher Dr "Freight & Landed Costs (Inward)".':''}</p>
+          ${preview.length ? `<table class="rb-card-table" style="margin-bottom:10px;">
+            <tr><th>Item</th><th class="num">Qty</th><th class="num">Allocated</th><th class="num">+ Per Unit</th></tr>
+            ${preview.map(p=>{ const it=state.items.find(x=>x.id===p.itemId); return `<tr><td>${escapeHtml(it?it.name:'—')}</td><td class="num">${fmt(p.qty)}</td><td class="num">₹${fmt(p.allocatedAmount)}</td><td class="num">+₹${fmt(p.perUnit)}/unit</td></tr>`; }).join('')}
+          </table>` : ''}
+          <button class="btn" id="saveLandedCostBtn" type="button" style="width:100%;" ${totalCharge>0?'':'disabled'}>Allocate${d.paidFromLedgerId?' &amp; Post Payment':''}</button>
+          <p class="muted" style="font-size:11px;margin-top:8px;">Spreads these charges across the purchase's item lines and folds them into each item's FIFO/Weighted-Average cost basis — it never changes this Purchase voucher's own Dr/Cr amounts.</p>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Barcode label print modal (round: Inventory Advanced Update Phase 2, Oct 2026) -- opened from the
+// "🏷️ Label" button on an Inventory Control item row. Generates a barcode for the item on the spot
+// if it doesn't have one yet (saved only once Print is actually clicked, never just for previewing).
+function barcodeLabelModal(){
+  if(!barcodeLabelDraft) return '';
+  const d = barcodeLabelDraft;
+  const item = state.items.find(i=>i.id===d.itemId);
+  if(!item) return '';
+  const barcode = item.barcode || d.previewBarcode || (d.previewBarcode = generateItemBarcode());
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:400px;">
+        <div class="panel-head"><h2>Print Barcode Labels</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p style="font-weight:600;margin:0 0 4px;">${escapeHtml(item.name)}</p>
+          ${!item.barcode ? `<p class="muted" style="font-size:11.5px;">No barcode set yet — "${escapeHtml(barcode)}" will be generated and saved to this item when you print.</p>` : ''}
+          <div style="display:flex;justify-content:center;padding:14px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);margin:8px 0;">
+            ${code128SVG(barcode, {moduleWidth:2, height:50}) || '<p class="muted">Could not render this barcode.</p>'}
+          </div>
+          <p class="muted" style="text-align:center;font-size:11px;font-family:monospace;margin-top:-6px;">${escapeHtml(barcode)}</p>
+          <div class="field"><label>Number of Labels</label><input type="number" id="barcodeLabelCount" min="1" step="1" value="${d.count||1}"></div>
+          <button class="btn" id="printBarcodeLabelsBtn" type="button" style="width:100%;">🖨 Print Labels</button>
         </div>
       </div>
     </div>
@@ -29677,6 +29949,29 @@ async function completePOSSale(){
   if(shouldPrint) printInvoiceForVoucher(saleVoucher.id);
 }
 
+/* ---------------- Tiered / Customer Price Lists (round: Inventory Advanced Update Phase 2, Oct 2026) ----------------
+   Used only on the selling side -- a Sales/Credit Note item row via itemRow()'s .item-select/.item-qty/
+   gstParty handlers below -- never Purchase/Debit Note, where the rate is whatever the supplier
+   actually billed, not something this app should be suggesting. Resolution order: 1) a customer-
+   specific override for this exact item (state.customerPriceOverrides, see customerPriceListPanel())
+   2) the highest quantity-break tier on the item itself whose minQty <= qty (item.priceTiers, set on
+   the Item Master form) 3) the item's own Standard Selling Rate -- the existing, unchanged fallback.
+   Returns null only when the item has no rate at all, so a caller can tell "nothing to suggest" apart
+   from "the suggested rate happens to be zero". */
+function priceForItem(itemId, ledgerId, qty){
+  const item = state.items.find(i=>i.id===itemId);
+  if(!item) return null;
+  if(ledgerId){
+    const override = state.customerPriceOverrides.find(o=>o.ledgerId===ledgerId && o.itemId===itemId);
+    if(override) return override.rate;
+  }
+  const q = Number(qty)||0;
+  if(Array.isArray(item.priceTiers) && item.priceTiers.length){
+    const applicable = item.priceTiers.filter(t=>q >= (Number(t.minQty)||0)).sort((a,b)=>b.minQty-a.minQty)[0];
+    if(applicable) return applicable.rate;
+  }
+  return item.rate!=null ? item.rate : null;
+}
 function itemRow(it,i){
   const isCustom = !it.itemId || it.itemId==='__custom__';
   const catalogItem = !isCustom ? state.items.find(m=>m.id===it.itemId) : null;
@@ -29684,6 +29979,14 @@ function itemRow(it,i){
   const needsSerial = catalogItem && catalogItem.trackSerials;
   const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
   const showLocation = activeWarehouses.length>1;
+  // Bin Locations (round: Inventory Advanced Update Phase 2, Oct 2026) -- a free-text sub-location
+  // tag within whichever warehouse this line is already pointed at (see manageWarehousesPanel()'s
+  // "Bin Locations" column), offered as a datalist of that warehouse's own defined bins so typing
+  // stays consistent without forcing a strict foreign key. Only shown once the selected warehouse
+  // actually has bins defined -- a warehouse nobody's bothered to lay out into bins just doesn't
+  // show the field, same "don't show an empty extra control" rule as showLocation itself.
+  const selectedWh = showLocation ? activeWarehouses.find(w=>w.id===(it.warehouseId||defaultWarehouseId())) : null;
+  const selectedWhBins = (selectedWh && Array.isArray(selectedWh.bins)) ? selectedWh.bins : [];
   // Multi-UOM (round: Inventory Advanced Update, Oct 2026) -- it.qty/it.rate are ALWAYS stored in
   // the item's base unit, whatever unit the line is currently showing. uomMode is pure display
   // state: when it's 'alt' we show qty divided by, and rate multiplied by, altUnitFactor (so
@@ -29724,9 +30027,10 @@ function itemRow(it,i){
     <div></div>
   </div>` : ''}${showLocation ? `<div class="entry-row" style="grid-template-columns:2fr 0.8fr 1fr 0.7fr 1fr auto;align-items:start;margin-top:-4px;">
     <div></div>
-    <select class="item-warehouse" data-i="${i}" style="grid-column:span 4;" title="Location">
+    <select class="item-warehouse" data-i="${i}" style="grid-column:span ${selectedWhBins.length?2:4};" title="Location">
       ${activeWarehouses.map(w=>`<option value="${w.id}" ${(it.warehouseId||defaultWarehouseId())===w.id?'selected':''}>${escapeHtml(w.name)}</option>`).join('')}
     </select>
+    ${selectedWhBins.length ? `<input type="text" class="item-bin" data-i="${i}" list="binList-${i}" placeholder="Bin (optional)" value="${escapeAttr(it.bin||'')}" style="grid-column:span 2;" title="Bin / rack location within ${escapeAttr(selectedWh.name)}"><datalist id="binList-${i}">${selectedWhBins.map(b=>`<option value="${escapeAttr(b)}">`).join('')}</datalist>` : `<div style="grid-column:span 2;"></div>`}
     <div></div>
   </div>` : ''}`;
 }
@@ -29822,7 +30126,7 @@ function viewDaybook(){
               return e.dr ? `${name} Dr` : `${name} Cr`;
             }).join(', ')}</td>
             <td class="num ccard-amount" data-label="Amount">₹${fmt(voucherAmount(v))}</td>
-            <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}${voucherHistoryFor(v.id).length?` <button class="btn small secondary" data-voucher-history="${v.id}" type="button" title="${voucherHistoryFor(v.id).length} edit${voucherHistoryFor(v.id).length===1?'':'s'} recorded">🕘 History</button>`:''}</td>
+            <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''}${v.type==='Purchase' && v.items && v.items.length?` <button class="btn small secondary" data-landed-cost="${v.id}" type="button" title="Allocate freight/customs/insurance across this purchase's items, folded into their FIFO/Weighted-Average cost">🚚 Landed Cost</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}${voucherHistoryFor(v.id).length?` <button class="btn small secondary" data-voucher-history="${v.id}" type="button" title="${voucherHistoryFor(v.id).length} edit${voucherHistoryFor(v.id).length===1?'':'s'} recorded">🕘 History</button>`:''}</td>
           </tr>`).join('')}
         </table>` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
       </div>
@@ -30284,6 +30588,111 @@ function printCalendarAgenda(events, monthLabel, year){
     toast('Could not prepare the print view.');
   }
 }
+/* ---------------- Barcode Label Generation & Printing (round: Inventory Advanced Update Phase 2, Oct 2026) ----------------
+   Code 128 (Subset B) barcode generator, written by hand against the published Code 128 symbol
+   table -- this app deliberately carries zero external API/library dependencies beyond Google Fonts
+   and the one CDN-hosted PptxGenJS, so a barcode library was never an option. CODE128B_WIDTHS[v] is
+   the module-width pattern (6 digits, alternating bar/space run-lengths, always starting on a bar)
+   for symbol value v; Subset B covers ASCII 32 (space) through 126 (~) as value = charCode-32, which
+   is everything a barcode/SKU field here will realistically contain. */
+const CODE128B_WIDTHS = [
+  '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213',
+  '221312','231212','112232','122132','122231','113222','123122','123221','223211','221132',
+  '221231','213212','223112','312131','311222','321122','321221','312212','322112','322211',
+  '212123','212321','232121','111323','131123','131321','112313','132113','132311','211313',
+  '231113','231311','112133','112331','132131','113123','113321','133121','313121','211331',
+  '231131','213113','213311','213131','311123','311321','331121','312113','312311','332111',
+  '314111','221411','431111','111224','111422','121124','121421','141122','141221','112214',
+  '112412','122114','122411','142112','142211','241211','221114','413111','241112','134111',
+  '111242','121142','121241','114212','124112','124211','411212','421112','421211','212141',
+  '214121','412121','111143','111341','131141','114113','114311','411113','411311','113141',
+  '114131','311141','411131','211412','211214','211232','233111',
+];
+// Builds the full module-width string for `text`: START B + one symbol per character + a mod-103
+// checksum symbol + STOP, each widths-string concatenated, plus the STOP symbol's own trailing
+// termination bar (width 2). Returns null if nothing in `text` falls in Subset B's encodable range.
+function code128BWidths(text){
+  const chars = String(text).split('').filter(c=>{ const code=c.charCodeAt(0); return code>=32 && code<=126; });
+  if(!chars.length) return null;
+  const values = chars.map(c=>c.charCodeAt(0)-32);
+  const START_B = 104, STOP = 106;
+  let checksum = START_B;
+  values.forEach((v,i)=> checksum += v*(i+1));
+  checksum %= 103;
+  const symbols = [START_B, ...values, checksum, STOP];
+  return symbols.map(s=>CODE128B_WIDTHS[s]).join('') + '2';
+}
+// Renders `text` as a scannable Code128 <svg> -- each width digit becomes a bar/space `moduleWidth`
+// px wide; bars (black) fall on every even index since a Code128 symbol stream always starts on a
+// bar and alternates from there. Returns '' when the text has nothing Subset B can encode.
+function code128SVG(text, opts){
+  opts = opts || {};
+  const moduleWidth = opts.moduleWidth || 2;
+  const height = opts.height || 50;
+  const widths = code128BWidths(text);
+  if(!widths) return '';
+  let x = 0, bars = '';
+  for(let i=0;i<widths.length;i++){
+    const w = Number(widths[i]) * moduleWidth;
+    if(i%2===0) bars += `<rect x="${x}" y="0" width="${w}" height="${height}" fill="#000"/>`;
+    x += w;
+  }
+  return `<svg viewBox="0 0 ${x} ${height}" width="${x}" height="${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Barcode ${escapeAttr(text)}">${bars}</svg>`;
+}
+// A fresh, Code128-safe (digits + hyphen, always inside Subset B) SKU-style code for an item that
+// doesn't have a barcode yet -- checked against every existing item's barcode so two items can never
+// collide, the same find-a-free-value pattern uid() uses for record ids elsewhere in this file.
+function generateItemBarcode(){
+  let code;
+  do{ code = 'SKU' + String(Math.floor(100000 + Math.random()*900000)); }
+  while(state.items.some(it=>it.barcode===code));
+  return code;
+}
+// Builds the print-only label sheet fragment for `count` copies of one item's barcode -- mounted
+// into the hidden #labelPrintRoot host and printed via the same body.*-print-active / @media print
+// pattern downloadInvoicePDF()/printCalendarAgenda() already established, just with its own root/
+// class so none of the three ever collide.
+function buildBarcodeLabelSheetHTML(item, barcode, count){
+  const svg = code128SVG(barcode, {moduleWidth:2, height:42});
+  const label = `<div style="width:63mm;height:38mm;box-sizing:border-box;padding:4mm;border:1px dashed #999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2mm;page-break-inside:avoid;font-family:Arial,Helvetica,sans-serif;">
+    <div style="font-size:10.5px;font-weight:700;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(item.name)}</div>
+    ${svg}
+    <div style="font-size:9.5px;font-family:monospace;letter-spacing:0.5px;">${escapeHtml(barcode)}</div>
+    ${item.rate!=null ? `<div style="font-size:10px;font-weight:700;">₹${fmt(item.rate)}</div>` : ''}
+  </div>`;
+  const n = Math.max(1, Math.min(200, Math.round(Number(count)||1)));
+  return `<div style="display:flex;flex-wrap:wrap;gap:3mm;">${Array(n).fill(label).join('')}</div>`;
+}
+function printBarcodeLabels(itemId, count){
+  try{
+    const item = state.items.find(i=>i.id===itemId);
+    if(!item) return;
+    let barcode = item.barcode;
+    if(!barcode){
+      barcode = generateItemBarcode();
+      item.barcode = barcode;
+      saveItems();
+    }
+    const html = buildBarcodeLabelSheetHTML(item, barcode, count);
+    let root = document.getElementById('labelPrintRoot');
+    if(!root){ root = document.createElement('div'); root.id = 'labelPrintRoot'; document.body.appendChild(root); }
+    root.innerHTML = html;
+    document.body.classList.add('label-print-active');
+    let done = false;
+    const cleanup = ()=>{
+      if(done) return; done = true;
+      document.body.classList.remove('label-print-active');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      window.print();
+      setTimeout(cleanup, 2000);
+    }));
+  }catch(e){
+    toast('Could not prepare the label sheet.');
+  }
+}
 // Returns {start, end} (YYYY-MM-DD, inclusive) for the Sun–Sat week containing dateStr -- the
 // compact Week view's date range (round 3), and also what calPrev/calNext shift by when
 // calViewMode==='week' (see attachHandlers()).
@@ -30611,9 +31020,17 @@ function stockItemForm(){
           <div class="field"><label>Opening Rate</label><input type="number" id="newItemOpeningRate" step="0.01" value="${d.openingRate!=null?d.openingRate:''}" placeholder="0.00"></div>
         </div>
         ${editing ? `<p class="muted" style="font-size:11px;margin-top:-4px;">Opening Quantity/Rate only affect stock as of the company's FY start — changing them here does not create a stock adjustment for today. Use "Adjust" on the item's row for an in-period correction.</p>` : ''}
+        <div class="field"><label>Quantity Price Tiers (optional)</label><textarea id="newItemPriceTiers" rows="3" placeholder="One per line: minQty:rate&#10;e.g.&#10;1:120&#10;50:110&#10;100:95" style="font-family:monospace;font-size:12px;">${(d.priceTiers||[]).map(t=>`${t.minQty}:${t.rate}`).join('\n')}</textarea>
+          <p class="muted" style="font-size:11px;margin-top:4px;">Auto-applies on a Sales/Credit Note line the moment the quantity reaches a tier's threshold — e.g. "50:110" means 50 or more units sell at ₹110 each. A customer-specific rate (set under Inventory Control's "Customer Price Lists") always wins over a tier.</p>
+        </div>
         <div class="row">
           <div class="field" style="max-width:220px;"><label>Reorder Level (optional)</label><input type="number" id="newItemReorderLevel" step="0.01" value="${d.reorderLevel!=null?d.reorderLevel:''}" placeholder="e.g. 20"></div>
-          <div class="field"><label>Barcode (optional)</label><input type="text" id="newItemBarcode" value="${escapeAttr(d.barcode)}" placeholder="Scan or type a barcode/SKU"></div>
+          <div class="field"><label>Barcode (optional)</label>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="newItemBarcode" value="${escapeAttr(d.barcode)}" placeholder="Scan or type a barcode/SKU" style="flex:1;">
+              <button class="btn secondary" id="autoGenBarcodeBtn" type="button" title="Generate a unique Code128-safe SKU">🔢</button>
+            </div>
+          </div>
         </div>
         <div class="field" style="max-width:340px;"><label style="display:flex;align-items:center;gap:6px;font-weight:600;"><input type="checkbox" id="newItemTrackBatches" style="width:auto;" ${d.trackBatches?'checked':''}>Track batch number &amp; expiry date for this item</label></div>
         <div class="row">
@@ -30629,6 +31046,10 @@ function stockItemForm(){
   `;
 }
 function attachStockItemFormHandlers(){
+  document.getElementById('autoGenBarcodeBtn')?.addEventListener('click', ()=>{
+    const input = document.getElementById('newItemBarcode');
+    if(input) input.value = generateItemBarcode();
+  });
   document.getElementById('addItemBtn')?.addEventListener('click', async ()=>{
     const name = document.getElementById('newItemName').value.trim();
     const group = document.getElementById('newItemGroup').value;
@@ -30646,6 +31067,7 @@ function attachStockItemFormHandlers(){
     const costingMethod = document.getElementById('newItemCostingMethod')?.value;
     const altUnit = document.getElementById('newItemAltUnit')?.value.trim();
     const altUnitFactorRaw = document.getElementById('newItemAltUnitFactor')?.value;
+    const priceTiersRaw = document.getElementById('newItemPriceTiers')?.value || '';
     if(!name){ toast('Enter an item name'); return; }
     const editingExisting = itemEditId ? state.items.find(i=>i.id===itemEditId) : null;
     const item = editingExisting || { id: uid('it') };
@@ -30663,6 +31085,14 @@ function attachStockItemFormHandlers(){
     if(costingMethod==='fifo') item.costingMethod = 'fifo'; else delete item.costingMethod; // unset = Weighted Average, the default
     if(altUnit && altUnitFactorRaw && Number(altUnitFactorRaw)>0){ item.altUnit = altUnit; item.altUnitFactor = Number(altUnitFactorRaw); }
     else { delete item.altUnit; delete item.altUnitFactor; }
+    // Quantity Price Tiers -- "minQty:rate" one per line, see priceForItem(). Malformed/incomplete
+    // lines are silently skipped rather than blocking the whole save over a typo.
+    const priceTiers = priceTiersRaw.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+      const parts = l.split(':');
+      const minQty = Number(parts[0]), rate = Number(parts[1]);
+      return (parts.length===2 && minQty>0 && rate>=0 && !isNaN(minQty) && !isNaN(rate)) ? {minQty, rate} : null;
+    }).filter(Boolean).sort((a,b)=>a.minQty-b.minQty);
+    if(priceTiers.length) item.priceTiers = priceTiers; else delete item.priceTiers;
     if(!editingExisting) state.items.push(item);
     await saveItems();
     toast(editingExisting ? `"${name}" updated` : 'Stock item created — it will now show up in Sales/Purchase voucher item pickers');
@@ -31104,6 +31534,7 @@ function viewInventory(){
 
     ${manageWarehousesPanel()}
     ${stockByLocationTable()}
+    ${pendingTransfersPanel()}
     ${cycleCountPanel()}
 
     <div class="section-title">Add New Item</div>
@@ -31173,6 +31604,7 @@ function viewInventory(){
                   <td data-label="Status">${statusBadge}</td>
                   <td class="ccard-actions" style="white-space:nowrap;">
                     <button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button>
+                    <button class="btn small secondary" data-print-barcode-labels="${item.id}" type="button" title="Print barcode labels for this item">🏷️ Labels</button>
                     <button class="btn small secondary" data-edit-item="${item.id}" type="button">Edit</button>
                     <button class="btn small secondary" data-delete-item="${item.id}" type="button">Delete</button>
                   </td>
@@ -31189,9 +31621,10 @@ function viewInventory(){
     <p class="muted" style="font-size:11px;">Closing stock = Opening Quantity + Purchases + Sales Returns (Credit Notes) − Sales − Purchase Returns (Debit Notes) ± manual adjustments. Click an item name for its full movement history.</p>
 
     <details class="disclosure">
-      <summary>Advanced — Serial Register, ABC Analysis, Demand Forecast, Sales by Channel &amp; Inventory Analytics</summary>
+      <summary>Advanced — Serial Register, Customer Price Lists, ABC Analysis, Demand Forecast, Sales by Channel &amp; Inventory Analytics</summary>
       <div class="disclosure-body">
     ${serialRegisterPanel()}
+    ${customerPriceListPanel()}
     ${abcAnalysisPanel()}
     ${demandForecastPanel()}
     ${salesByChannelPanel()}
@@ -36644,6 +37077,13 @@ function attachHandlers(){
   document.querySelectorAll('[data-download-invoice-pdf]').forEach(b=>{
     b.addEventListener('click', ()=> downloadInvoicePDFForVoucher(b.dataset.downloadInvoicePdf));
   });
+  document.querySelectorAll('[data-landed-cost]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      landedCostDraft = { purchaseVoucherId: b.dataset.landedCost, charges:{freight:'',customs:'',insurance:'',other:''}, basis:'value', paidFromLedgerId:'', date: new Date().toISOString().slice(0,10) };
+      modal = 'landedCost';
+      render();
+    });
+  });
 
   document.querySelectorAll('[data-open-attachments]').forEach(b=>{
     b.addEventListener('click', ()=>{
@@ -37234,6 +37674,20 @@ function attachHandlers(){
       vform.gst.party = e.target.value;
       const snapshotEl = document.getElementById('gstPartySnapshot');
       if(snapshotEl) snapshotEl.innerHTML = partySnapshotHtml(vform.gst.party);
+      // Tiered/Customer Price Lists: re-price every still-auto-priced line (one the user hasn't
+      // hand-typed a rate on -- see the .item-rate handler's autoRate=false below) now that the
+      // customer changed, same surgical in-place patch updateItemsTotals() already does for amounts.
+      if(['Sales','Credit Note'].includes(vform.type)){
+        (vform.gst.items||[]).forEach((row,i)=>{
+          if(row.autoRate===false || !row.itemId || row.itemId==='__custom__') return;
+          const price = priceForItem(row.itemId, vform.gst.party, row.qty);
+          if(price==null) return;
+          row.rate = price;
+          const input = document.querySelector(`.item-rate[data-i="${i}"]`);
+          if(input) input.value = price;
+        });
+        updateItemsTotals();
+      }
       refreshLiveInvoicePreview();
     });
     document.getElementById('gstTaxable')?.addEventListener('change', e=>{
@@ -37270,7 +37724,12 @@ function attachHandlers(){
           const m = state.items.find(x=>x.id===val);
           if(m){
             vform.gst.items[i].name = m.name;
-            if(m.rate!=null) vform.gst.items[i].rate = m.rate;
+            // Tiered/Customer Price Lists: on the selling side, the rate a freshly-picked item gets
+            // is whatever priceForItem() resolves (customer override > quantity tier > standard rate)
+            // rather than always the flat Standard Selling Rate -- see priceForItem()'s comment.
+            const canUsePriceList = ['Sales','Credit Note'].includes(vform.type);
+            const price = canUsePriceList ? priceForItem(val, vform.gst.party, vform.gst.items[i].qty||1) : (m.rate!=null?m.rate:null);
+            if(price!=null){ vform.gst.items[i].rate = price; vform.gst.items[i].autoRate = true; }
           }
         } else {
           vform.gst.items[i].name = '';
@@ -37290,6 +37749,16 @@ function attachHandlers(){
         // Alt-unit mode: the field shows alt-unit qty, but we always persist it.qty in base units.
         row.qty = (row.uomMode==='alt' && catalogItem && catalogItem.altUnitFactor && typed!=='')
           ? r2(Number(typed)*catalogItem.altUnitFactor) : typed;
+        // Quantity-tiered pricing: re-evaluate while the rate is still auto-priced (not hand-typed)
+        // and only on the selling side -- see priceForItem()'s comment.
+        if(catalogItem && row.autoRate!==false && ['Sales','Credit Note'].includes(vform.type)){
+          const price = priceForItem(row.itemId, vform.gst.party, row.qty);
+          if(price!=null){
+            row.rate = price;
+            const rateInput = document.querySelector(`.item-rate[data-i="${i}"]`);
+            if(rateInput) rateInput.value = (row.uomMode==='alt' && catalogItem.altUnitFactor) ? r2(price*catalogItem.altUnitFactor) : price;
+          }
+        }
         updateItemsTotals();
       });
     });
@@ -37302,6 +37771,7 @@ function attachHandlers(){
         // Alt-unit mode: the field shows a per-alt-unit rate, but it.rate is always the per-base-unit rate.
         row.rate = (row.uomMode==='alt' && catalogItem && catalogItem.altUnitFactor && typed!=='')
           ? r2(Number(typed)/catalogItem.altUnitFactor) : typed;
+        row.autoRate = false; // hand-typed -- stop auto-repricing this line on qty/customer changes
         updateItemsTotals();
       });
     });
@@ -37324,7 +37794,15 @@ function attachHandlers(){
       el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].serial = e.target.value; });
     });
     document.querySelectorAll('.item-warehouse').forEach(el=>{
-      el.addEventListener('change', e=>{ vform.gst.items[+e.target.dataset.i].warehouseId = e.target.value; });
+      el.addEventListener('change', e=>{
+        vform.gst.items[+e.target.dataset.i].warehouseId = e.target.value;
+        // Re-render: the Bin field (and its datalist of valid bins) depends on which warehouse is
+        // now selected on this line -- see itemRow()'s selectedWhBins.
+        render();
+      });
+    });
+    document.querySelectorAll('.item-bin').forEach(el=>{
+      el.addEventListener('input', e=>{ vform.gst.items[+e.target.dataset.i].bin = e.target.value; });
     });
     document.querySelectorAll('[data-item-rm]').forEach(el=>{
       el.addEventListener('click', ()=>{
@@ -37394,6 +37872,7 @@ function attachHandlers(){
         if(it.expiry) applied.expiry = it.expiry;
         if(it.serial) applied.serial = it.serial;
         if(it.warehouseId) applied.warehouseId = it.warehouseId;
+        if(it.bin) applied.bin = it.bin;
         return applied;
       });
       toast('GST entries added — review below and Save');
@@ -37443,6 +37922,7 @@ function attachHandlers(){
         if(it.expiry) applied.expiry = it.expiry;
         if(it.serial) applied.serial = it.serial;
         if(it.warehouseId) applied.warehouseId = it.warehouseId;
+        if(it.bin) applied.bin = it.bin;
         return applied;
       });
       toast('Items applied — Debit/Credit amounts updated, review and Save');
@@ -38450,6 +38930,13 @@ function attachHandlers(){
         render();
       });
     });
+    document.querySelectorAll('[data-print-barcode-labels]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        barcodeLabelDraft = { itemId: el.dataset.printBarcodeLabels, count: 1 };
+        modal = 'barcodeLabel';
+        render();
+      });
+    });
     document.getElementById('openStockTransferBtn')?.addEventListener('click', ()=>{
       const activeWarehouses = state.warehouses.filter(w=>w.active!==false);
       stockTransferDraft = {
@@ -38459,6 +38946,7 @@ function attachHandlers(){
         toWarehouseId: activeWarehouses[1]?activeWarehouses[1].id:(activeWarehouses[0]?activeWarehouses[0].id:''),
         date: new Date().toISOString().slice(0,10),
         remark: '',
+        inTransit: false,
       };
       modal = 'stockTransfer';
       render();
@@ -38477,6 +38965,45 @@ function attachHandlers(){
         if(!w) return;
         w.active = w.active===false ? true : false;
         await saveWarehouses();
+        render();
+      });
+    });
+    document.querySelectorAll('.wh-bins-input').forEach(el=>{
+      el.addEventListener('change', async e=>{
+        const w = state.warehouses.find(x=>x.id===e.target.dataset.wh);
+        if(!w) return;
+        const bins = e.target.value.split(',').map(s=>s.trim()).filter(Boolean);
+        w.bins = bins;
+        await saveWarehouses();
+        toast(bins.length ? `${bins.length} bin location${bins.length===1?'':'s'} saved for "${w.name}"` : `Bin locations cleared for "${w.name}"`);
+      });
+    });
+    document.getElementById('addPriceOverrideBtn')?.addEventListener('click', async ()=>{
+      const ledgerId = document.getElementById('priceOverrideLedger')?.value;
+      const itemId = document.getElementById('priceOverrideItem')?.value;
+      const rate = Number(document.getElementById('priceOverrideRate')?.value);
+      if(!ledgerId || !itemId || isNaN(rate) || rate<0){ toast('Pick a customer, an item, and a rate'); return; }
+      const existing = state.customerPriceOverrides.find(o=>o.ledgerId===ledgerId && o.itemId===itemId);
+      if(existing) existing.rate = rate; else state.customerPriceOverrides.push({id:uid('po'), ledgerId, itemId, rate});
+      await saveCustomerPriceOverrides();
+      toast('Customer price saved', {type:'success'});
+      render();
+    });
+    document.querySelectorAll('[data-remove-price-override]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        state.customerPriceOverrides = state.customerPriceOverrides.filter(o=>o.id!==el.dataset.removePriceOverride);
+        await saveCustomerPriceOverrides();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-receive-transfer]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const t = state.stockTransfers.find(x=>x.id===el.dataset.receiveTransfer);
+        if(!t) return;
+        t.status = 'received';
+        t.receivedDate = new Date().toISOString().slice(0,10);
+        await saveStockTransfers();
+        toast('Transfer marked received — stock now reflects at the destination', {type:'success'});
         render();
       });
     });
@@ -38550,6 +39077,7 @@ function attachHandlers(){
     document.getElementById('stockTransferQty')?.addEventListener('input', e=>{ stockTransferDraft.qty = e.target.value; });
     document.getElementById('stockTransferDate')?.addEventListener('change', e=>{ stockTransferDraft.date = e.target.value; });
     document.getElementById('stockTransferRemark')?.addEventListener('input', e=>{ stockTransferDraft.remark = e.target.value; });
+    document.getElementById('stockTransferInTransit')?.addEventListener('change', e=>{ stockTransferDraft.inTransit = e.target.checked; render(); });
     document.getElementById('saveStockTransferBtn')?.addEventListener('click', async ()=>{
       const d = stockTransferDraft;
       const qty = Number(d.qty);
@@ -38559,10 +39087,43 @@ function attachHandlers(){
       const item = state.items.find(i=>i.id===d.itemId);
       const available = item ? stockByWarehouseForItem(item).find(r=>r.warehouse.id===d.fromWarehouseId) : null;
       if(available && qty>available.qty && !confirm(`Only ${fmt(available.qty)} ${item.unit||''} available at the source location. Transfer anyway?`)) return;
-      state.stockTransfers.push({ id: uid('xfer'), date:d.date, itemId:d.itemId, qty:r2(qty), fromWarehouseId:d.fromWarehouseId, toWarehouseId:d.toWarehouseId, remark:d.remark||'' });
+      state.stockTransfers.push({ id: uid('xfer'), date:d.date, itemId:d.itemId, qty:r2(qty), fromWarehouseId:d.fromWarehouseId, toWarehouseId:d.toWarehouseId, remark:d.remark||'', status: d.inTransit?'in-transit':'received' });
       await saveStockTransfers();
-      toast('Stock transferred');
+      toast(d.inTransit ? 'Stock dispatched — mark it Received at the destination once it arrives' : 'Stock transferred');
       stockTransferDraft = null;
+      modal = null;
+      render();
+    });
+  }
+  if(modal==='landedCost'){
+    const bindCharge = (id,key)=> document.getElementById(id)?.addEventListener('input', e=>{ landedCostDraft.charges[key] = e.target.value; render(); });
+    bindCharge('lcFreight','freight'); bindCharge('lcCustoms','customs'); bindCharge('lcInsurance','insurance'); bindCharge('lcOther','other');
+    document.getElementById('lcBasis')?.addEventListener('change', e=>{ landedCostDraft.basis = e.target.value; render(); });
+    document.getElementById('lcPaidFrom')?.addEventListener('change', e=>{ landedCostDraft.paidFromLedgerId = e.target.value; render(); });
+    document.getElementById('saveLandedCostBtn')?.addEventListener('click', async ()=>{
+      const d = landedCostDraft;
+      const charges = [
+        {label:'Freight', amount:Number(d.charges.freight)||0},
+        {label:'Customs / Duty', amount:Number(d.charges.customs)||0},
+        {label:'Insurance', amount:Number(d.charges.insurance)||0},
+        {label:'Other', amount:Number(d.charges.other)||0},
+      ].filter(c=>c.amount>0);
+      if(!charges.length){ toast('Enter at least one charge amount'); return; }
+      await saveLandedCostAllocation({ purchaseVoucherId: d.purchaseVoucherId, charges, basis: d.basis, paidFromLedgerId: d.paidFromLedgerId||null, date: d.date });
+      toast(d.paidFromLedgerId ? 'Landed cost allocated and Payment voucher posted' : 'Landed cost allocated', {type:'success'});
+      landedCostDraft = null;
+      modal = null;
+      render();
+    });
+  }
+  if(modal==='barcodeLabel'){
+    document.getElementById('barcodeLabelCount')?.addEventListener('input', e=>{ barcodeLabelDraft.count = e.target.value; });
+    document.getElementById('printBarcodeLabelsBtn')?.addEventListener('click', ()=>{
+      const d = barcodeLabelDraft;
+      // printBarcodeLabels() generates + saves a barcode itself when the item doesn't have one yet,
+      // so nothing needs to be pre-assigned here from the modal's preview value.
+      printBarcodeLabels(d.itemId, d.count||1);
+      barcodeLabelDraft = null;
       modal = null;
       render();
     });
