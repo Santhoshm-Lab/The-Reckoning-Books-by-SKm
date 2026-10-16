@@ -574,6 +574,13 @@
   .panel-head{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg, rgba(44,160,28,0.035), rgba(44,160,28,0));}
   .panel-head h2{font-family:inherit;font-size:14.5px;font-weight:800;margin:0;letter-spacing:-.01em;color:var(--ink);}
   .panel-body{padding:18px 20px;overflow-x:auto;}
+  /* A "this is the primary place to work" card (the GST Calculator, Items Purchased) -- used to
+     borrow --gold for its border, which reads as a warning/alert everywhere else gold appears
+     (pinned badges, pending-sync dots, dashboard cautions). Nothing is wrong on these panels, so they
+     get the app's own brand green instead, carried a little further than the default panel's barely-
+     there wash to actually read as "the featured card on this screen". */
+  .panel-primary{border-color:color-mix(in srgb, var(--accent1) 38%, var(--border));}
+  .panel-primary .panel-head{background:linear-gradient(180deg, color-mix(in srgb, var(--accent1) 9%, transparent), color-mix(in srgb, var(--accent1) 1%, transparent));}
 
   /* ---------------- Interactive dashboard visuals (Power BI–style charts) ---------------- */
   .viz-grid{display:grid;grid-template-columns:repeat(2,minmax(320px,1fr));gap:12px;}
@@ -678,6 +685,15 @@
   .totals-line{transition:color .25s ease;}
   .totals-line .balanced-tick{display:inline-block;animation:tickPop .28s cubic-bezier(.34,1.56,.64,1);}
   @keyframes tickPop{from{transform:scale(0);opacity:0;}to{transform:scale(1);opacity:1;}}
+  /* Fired once by the saveVoucher handler right after a successful save/update, on the Save button
+     itself and the sticky balance bar -- a brief "it landed" moment before the view hands off to
+     Day Book (see the handler's "just-saved"/"save-success-pulse" comment). Both are transient,
+     one-shot classes added in JS; nothing removes them again because the view is torn down and
+     rebuilt by the render() that follows almost immediately after. */
+  .btn.save-success-pulse{background:var(--credit)!important;border-color:var(--credit)!important;animation:saveSuccessPulse .42s ease-out;}
+  @keyframes saveSuccessPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--credit) 45%, transparent);}100%{box-shadow:0 0 0 10px color-mix(in srgb, var(--credit) 0%, transparent);}}
+  .totals-line.sticky-balance.just-saved{animation:balanceJustSaved .42s ease-out;}
+  @keyframes balanceJustSaved{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--credit) 40%, transparent);}100%{box-shadow:0 0 0 10px color-mix(in srgb, var(--credit) 0%, transparent);}}
 
   /* Progressive disclosure: a plain <details>/<summary> (native keyboard/screen-reader support for
      free) styled to match the rest of the form chrome, for tucking rarely-needed fields away until
@@ -871,12 +887,43 @@
   .ghost-suggest{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:9px 12px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink-faint);opacity:.62;pointer-events:none;white-space:nowrap;}
   .ghost-suggest:empty{display:none;}
   .ghost-suggest .ghost-tab-hint{pointer-events:auto;cursor:pointer;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border:1px solid var(--border);border-radius:4px;padding:1px 4px;opacity:.9;background:var(--surface-strong);}
+  /* Same ghost-text pattern, adapted for a Double Entry row's own Debit/Credit cell -- which already
+     carries the Dr./Cr. suffix badge (.entry-amt-suffix, anchored at right:10px), so this sits just
+     to its left instead of covering the whole field like .ghost-suggest does. */
+  .entry-ghost-suggest{position:absolute;right:34px;top:50%;transform:translateY(-50%);z-index:2;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink-faint);opacity:.62;pointer-events:none;white-space:nowrap;}
+  .entry-ghost-suggest:empty{display:none;}
+  .entry-ghost-suggest .ghost-tab-hint{pointer-events:auto;cursor:pointer;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border:1px solid var(--border);border-radius:4px;padding:1px 4px;opacity:.9;background:var(--surface-strong);}
+  /* Live party-balance chip (partySnapshotHtml()) under the Customer/Supplier field -- neutral by
+     default; .warn/.critical only apply to a customer approaching or over their credit limit, reusing
+     the same gold/debit tokens the rest of the app uses for those two severities. */
+  .party-snapshot{font-size:11px;font-weight:600;color:var(--ink-soft);margin-top:5px;padding:0 2px;font-variant-numeric:tabular-nums;}
+  .party-snapshot:empty{display:none;}
+  .party-snapshot.warn{color:var(--gold-ink);}
+  .party-snapshot.critical{color:var(--debit);font-weight:700;}
   .row{display:flex;gap:12px;}
   .row > *{flex:1;}
 
   .vtype-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
-  .vtype-tabs button{padding:7px 16px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .vtype-tabs button{padding:7px 16px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--ink-soft);transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}
   .vtype-tabs button.active{background:var(--accent1);color:#fff;border-color:var(--accent1);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
+  /* Voucher-type tabs only (the ones carrying VOUCHER_TYPE_META's data-hue) -- restrained to 4 hue
+     families so this reads as "color-coded" rather than "rainbow": inactive tabs stay the plain
+     neutral style above, and only the active tab picks up its family's existing token. Higher
+     specificity than .vtype-tabs button.active above (an attribute selector plus a class vs. just
+     a class) so these win without !important. */
+  .vtype-tabs button[data-hue]{display:inline-flex;align-items:center;gap:5px;}
+  .vtype-tabs button[data-hue] .tab-msym{font-size:15px;color:inherit;}
+  .vtype-tabs button[data-hue="debit"].active{background:var(--debit);border-color:var(--debit);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--debit) 35%, transparent);}
+  .vtype-tabs button[data-hue="credit"].active{background:var(--credit);border-color:var(--credit);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--credit) 35%, transparent);}
+  .vtype-tabs button[data-hue="gold"].active{background:var(--gold);border-color:var(--gold);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--gold) 35%, transparent);}
+  .vtype-tabs button[data-hue="neutral"].active{background:var(--ink-soft);border-color:var(--ink-soft);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--ink-soft) 30%, transparent);}
+
+  /* voucherTodayStatChip() -- sits between the masthead and the type-tab strip on the Voucher
+     screen; purely informational, never a validation gate. */
+  .voucher-today-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--credit);background:color-mix(in srgb, var(--credit) 10%, var(--surface));border:1px solid color-mix(in srgb, var(--credit) 28%, var(--border));border-radius:999px;padding:6px 13px;margin-bottom:12px;font-variant-numeric:tabular-nums;}
+  .voucher-today-chip.muted{color:var(--ink-soft);background:var(--surface-strong);border-color:var(--border);}
+  .voucher-today-chip .tab-msym{font-size:15px;}
+  .voucher-today-chip-amt{font-weight:800;}
 
   .entry-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;}
   .entry-row .rm{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--debit);font-size:14px;padding:6px 10px;font-weight:700;}
@@ -891,6 +938,15 @@
   .entry-bal-meta{font-size:10.5px;font-weight:600;color:var(--ink-soft);padding:0 2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .entry-bal-meta:empty{display:none;}
   .entry-bal-arrow{color:var(--ink-faint);}
+  /* Ledger entries as an actual table, not a loose stack of form rows -- a bordered frame around the
+     header + every row, with a tinted header band and a hairline between rows standing in for the
+     missing cell borders. Scoped to .ledger-entries-table rather than onto .entry-row itself: the GST
+     Calculator's item grid reuses .entry-row with its own column widths and doesn't opt into this. */
+  .ledger-entries-table{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;}
+  .ledger-entries-table .entry-row{margin-bottom:0;padding:9px 10px;border-bottom:1px solid var(--border);}
+  .ledger-entries-table .entry-row:last-child{border-bottom:none;}
+  .ledger-entries-table .entry-row-head{padding:7px 10px;background:var(--surface-strong);}
+  .ledger-entries-table .entry-row:not(.entry-row-head):hover{background:color-mix(in srgb, var(--accent1) 4%, transparent);}
   .totals-line{display:flex;justify-content:flex-end;gap:26px;padding-top:12px;margin-top:8px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;}
   .totals-line.balanced{color:var(--credit);}
   .totals-line.unbalanced{color:var(--debit);}
@@ -1671,17 +1727,28 @@
        ordinary (non-modal) screen -- the original gap this still-open audit finding flagged. */
     .main{padding:14px 14px 86px;}
     .entry-row{grid-template-columns:1fr;}
+    /* The column header row (Ledger/Debit/Credit) only means something once those three sit side by
+       side -- collapsed to one column on a phone it just reads as four stray label lines above the
+       first field, so hide it rather than let it masquerade as content. */
+    .entry-row-head{display:none;}
     .row{flex-direction:column;}
     .viz-kpi-row.cols4{grid-template-columns:repeat(2,1fr);}
     /* .viz-grid's 2-column layout uses minmax(320px,1fr) per column, which never fits side-by-side
        on a phone screen — without this override the grid stays 2 columns and the second chart card
        is simply clipped off the right edge of the viewport instead of stacking. */
     .viz-grid{grid-template-columns:1fr;}
-    /* Below tablet width, drop the sidebar back to a horizontal, wrapping strip along the top —
-       a vertical column of 9 items eats too much width on a phone screen. */
+    /* Below tablet width, the sidebar moves above the page content instead of beside it. It used to
+       lay EVERY child out as one big wrapping row (brand card, search box, every nav icon across
+       every group, company/user cards, all competing for the same flex line) — on a true phone width
+       that pushed roughly a screen's worth of icons above the actual page content before you ever
+       saw it. Each top-level child now stacks normally (back to the sidebar's own default column
+       flow) and only the icons WITHIN a group (.nav-section-group) run horizontally, as one
+       scrollable strip per group — "Vouchers & Entry", "Masters", etc. each become a single compact
+       row instead of a multi-row grid, so the whole rail collapses to a few short strips. */
     .body-shell{flex-direction:column;}
-    .tabstrip{flex-direction:row;flex-wrap:wrap;width:auto;gap:6px;padding:12px 14px 8px;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible;}
-    .navtab{width:auto;border-radius:999px;}
+    .tabstrip{flex-direction:column;width:auto;gap:6px;padding:12px 14px 8px;border-right:none;border-bottom:1px solid var(--border);overflow-y:visible;}
+    .nav-section-group{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:3px;}
+    .navtab{width:auto;flex-shrink:0;border-radius:999px;}
     .navtab-label{display:none;}
     .nav-section-label{display:none;}
     /* The menubar's own items (Company/Edit/View/.../Delete Company) plus the right-aligned
@@ -5313,6 +5380,24 @@ function bucketOf(l){
 }
 
 const VOUCHER_TYPES = ['Payment','Receipt','Contra','Sales','Credit Note','Purchase','Debit Note','Journal'];
+
+// Per-voucher-type icon + accent-hue metadata for the type-tab strip in viewVoucher() -- purely
+// cosmetic grouping so the 8 types scan at a glance without turning the strip into a rainbow: only
+// 4 hue families are used (debit=red/cash leaving the business, credit=green/cash or revenue coming
+// in, gold=purchase or expense-side, neutral=internal transfer or a non-cash adjustment), reusing
+// the exact CSS custom properties the rest of the app already uses for Dr/Cr (--debit/--credit)
+// plus --gold/--ink-soft -- no new colors introduced. Only the ACTIVE tab takes on its hue; every
+// inactive tab stays plain/neutral (see the .vtype-tabs button[data-hue] CSS).
+const VOUCHER_TYPE_META = {
+  'Payment':     { icon:'call_made',         hue:'debit'   },
+  'Receipt':     { icon:'call_received',     hue:'credit'  },
+  'Contra':      { icon:'swap_horiz',        hue:'neutral' },
+  'Sales':       { icon:'point_of_sale',     hue:'credit'  },
+  'Credit Note': { icon:'assignment_return', hue:'credit'  },
+  'Purchase':    { icon:'shopping_cart',     hue:'gold'    },
+  'Debit Note':  { icon:'undo',              hue:'gold'    },
+  'Journal':     { icon:'menu_book',         hue:'neutral' },
+};
 
 // Common Indian withholding-tax sections offered on the voucher form's TDS/TCS panel. 'TDS' sections
 // apply to Payment vouchers (tax withheld before paying someone); 'TCS' sections apply to Receipt
@@ -11791,6 +11876,34 @@ function creditLimitWarningFor(type, entries, editingVoucherId){
     }
   }
   return null;
+}
+// Live, read-only context chip for whichever ledger was just picked as the customer/supplier on a
+// voucher (the GST Calculator's Party field, or Single Entry's Paid To/Received From field) -- their
+// current outstanding balance and, for a customer with one set, how much of their credit limit that
+// already uses. creditLimitWarningFor() above is the actual gate (a blocking confirm() at Save, Sales
+// vouchers only); this just surfaces the same balance earlier and on every voucher type that has a
+// party, so going over isn't a surprise you only discover after filling in the rest of the voucher.
+// Purely informational -- never blocks or validates anything itself.
+function partySnapshotHtml(ledgerId){
+  const l = ledgerOf(ledgerId);
+  if(!l || !l.partyType) return '';
+  const bal = ledgerBalance(l.id);
+  if(l.partyType === 'customer'){
+    const owed = Math.max(bal, 0);
+    if(l.creditLimit){
+      const pct = Math.min(999, Math.round((owed / l.creditLimit) * 100));
+      const level = owed > l.creditLimit ? 'critical' : (pct >= 80 ? 'warn' : 'ok');
+      return `<div class="party-snapshot ${level}">Owes ₹${fmt(owed)} of ₹${fmt(l.creditLimit)} credit limit (${pct}% used)</div>`;
+    }
+    if(owed > 0.004) return `<div class="party-snapshot">Currently owes ₹${fmt(owed)}</div>`;
+    return `<div class="party-snapshot">No outstanding balance</div>`;
+  }
+  if(l.partyType === 'supplier'){
+    const owedByUs = Math.max(-bal, 0);
+    if(owedByUs > 0.004) return `<div class="party-snapshot">You owe ₹${fmt(owedByUs)}</div>`;
+    return `<div class="party-snapshot">No outstanding balance</div>`;
+  }
+  return '';
 }
 // Standard 15-character GSTIN pattern: 2-digit state code, 10-character PAN, 1-digit entity code,
 // literal "Z", 1 checksum character. Used to catch obvious typos in an optional field before they
@@ -27547,6 +27660,17 @@ function openVoucherForEditing(id){
   view = 'voucher';
   return true;
 }
+// Small "today's activity" stat chip for the Voucher screen's masthead -- read-only context, never
+// a validation gate, so it's safe to compute from state.vouchers on every render. Deliberately left
+// out of masthead() itself (shared by every module) rather than added as a parameter there, since
+// no other module needs it and this keeps the change local to the Voucher screen.
+function voucherTodayStatChip(){
+  const today = new Date().toISOString().slice(0,10);
+  const todaysVouchers = state.vouchers.filter(v=>v.date===today);
+  if(!todaysVouchers.length) return `<div class="voucher-today-chip muted"><span class="tab-msym" translate="no">today</span>No vouchers posted today yet</div>`;
+  const total = todaysVouchers.reduce((s,v)=>s+voucherAmount(v),0);
+  return `<div class="voucher-today-chip"><span class="tab-msym" translate="no">today</span>${todaysVouchers.length} voucher${todaysVouchers.length===1?'':'s'} posted today <span class="voucher-today-chip-amt">₹${fmt(total)}</span></div>`;
+}
 function viewVoucher(){
   if(!vform){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
@@ -27605,8 +27729,9 @@ function viewVoucher(){
 
   return `
     ${masthead(editing?'Edit Voucher':'New Voucher', editing?`Editing voucher dated ${vform.date}`:'Choose Single Entry for a quick Cash/Bank line, or Double Entry for full control')}
+    ${voucherTodayStatChip()}
     <div class="vtype-tabs">
-      ${VOUCHER_TYPES.map(t=>`<button data-vtype="${t}" class="${vform.type===t?'active':''}">${t}</button>`).join('')}
+      ${VOUCHER_TYPES.map(t=>{ const meta = VOUCHER_TYPE_META[t]||{}; return `<button data-vtype="${t}" data-hue="${meta.hue||'neutral'}" class="${vform.type===t?'active':''}"><span class="tab-msym" translate="no">${meta.icon||'receipt_long'}</span>${t}</button>`; }).join('')}
     </div>
     ${(repeatCandidate || !editing) ? `
     <div style="display:flex;justify-content:flex-end;gap:8px;margin:-8px 0 12px;flex-wrap:wrap;">
@@ -27654,7 +27779,8 @@ function viewVoucher(){
           const posted = vform.entries.filter(e=>e.ledgerId && ((Number(e.dr)||0) + (Number(e.cr)||0) > 0));
           if(!posted.length) return `<p class="muted" style="font-size:12.5px;">No entries yet — use the GST Calculator above, then "Add to Voucher".</p>`;
           return `
-          <div class="entry-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:2px;padding:0 2px;">
+          <div class="ledger-entries-table">
+          <div class="entry-row entry-row-head" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;">
             <span>Ledger</span><span>Debit</span><span>Credit</span><span></span>
           </div>
           <div id="entryRows">
@@ -27668,11 +27794,13 @@ function viewVoucher(){
                 <span></span>
               </div>`;
             }).join('')}
+          </div>
           </div>`;
         })()}
         ` : `
         <div class="section-title">Entries</div>
-        <div class="entry-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;margin-bottom:2px;padding:0 2px;">
+        <div class="ledger-entries-table">
+        <div class="entry-row entry-row-head" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);font-weight:700;">
           <span>Ledger</span><span>Debit</span><span>Credit</span><span></span>
         </div>
         <div id="entryRows">
@@ -27687,6 +27815,7 @@ function viewVoucher(){
             return drRows.map(x=>entryRow(x.e,x.i,x.i===lastDrI)).join('')
                  + crRows.map(x=>entryRow(x.e,x.i,x.i===lastCrI)).join('');
           })()}
+        </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn secondary small" id="quickAddLedgerBtn" type="button">+ New Ledger</button>
@@ -27759,6 +27888,7 @@ function singleEntryFields(){
           <option value="">Select ledger…</option>
           ${ledgerSelectOptionsHtml(s.ledgerB, vform.type)}
         </select>
+        ${['Payment','Receipt'].includes(vform.type) ? `<div id="singleBPartySnapshot">${partySnapshotHtml(s.ledgerB)}</div>` : ''}
       </div>
     </div>
     <div class="field" style="max-width:220px;"><label>Amount</label>
@@ -27881,6 +28011,58 @@ function refreshEntryBalanceMeta(){
     if(el) el.innerHTML = entryBalanceMetaText(vform.entries, i);
   });
 }
+// Same ghost-text pattern as updateAmountGhostSuggestion()/wireGhostAmountInput() (Single Entry's
+// own Amount field), extended to Double Entry: each row's still-empty Debit or Credit cell gets a
+// predictive suggestion from suggestAmountForNarration() -- narration-word overlap plus "this ledger
+// usually appears at this amount" -- the moment a ledger's picked on that row or the narration
+// changes. Live-patches the row's .entry-ghost-suggest span in place (called from the same surgical
+// paths as refreshEntryBalanceMeta(), never a full render()), so it never steals focus/caret.
+function updateEntryAmountGhosts(){
+  if(!vform || !Array.isArray(vform.entries)) return;
+  vform.entries.forEach((e,i)=>{
+    const side = entrySide(e);
+    const already = side==='dr' ? e.dr : e.cr;
+    const holder = document.querySelector(`.entry-ghost-suggest[data-i="${i}"][data-side="${side}"]`);
+    if(!holder) return;
+    const input = document.querySelector(`.${side==='dr'?'e-dr':'e-cr'}[data-i="${i}"]`);
+    if(already){ holder.innerHTML=''; holder.dataset.value=''; return; }
+    const amt = suggestAmountForNarration(vform.narration, e.ledgerId || null);
+    if(amt==null){ holder.innerHTML=''; holder.dataset.value=''; if(input) input.placeholder = side==='dr'?'Debit amount':'Credit amount'; return; }
+    holder.dataset.value = amt;
+    holder.innerHTML = `₹${fmt(amt)} <span class="ghost-tab-hint">Tab</span>`;
+    if(input) input.placeholder = ''; // see updateAmountGhostSuggestion()'s own comment on this
+  });
+}
+// Binds each row's Tab-to-accept / click-to-accept on its ghost suggestion -- called once per full
+// render() alongside wireGhostAmountInput(). The input elements these bind to persist unchanged
+// through the surgical updateEntryAmountGhosts() refreshes above (added/removed rows are the only
+// thing that rebuilds this DOM, which always goes through a full render), so a single binding here
+// stays correct across every keystroke; it just reads whatever updateEntryAmountGhosts() most
+// recently wrote into the ghost's data-value.
+function wireEntryAmountGhosts(){
+  if(!vform || !Array.isArray(vform.entries)) return;
+  vform.entries.forEach((e,i)=>{
+    const side = entrySide(e);
+    const holder = document.querySelector(`.entry-ghost-suggest[data-i="${i}"][data-side="${side}"]`);
+    const input = document.querySelector(`.${side==='dr'?'e-dr':'e-cr'}[data-i="${i}"]`);
+    if(!holder || !input) return;
+    const accept = ()=>{
+      const v = holder.dataset.value;
+      if(!v) return;
+      if(side==='dr'){ vform.entries[i].dr = v; vform.entries[i].cr = 0; } else { vform.entries[i].cr = v; vform.entries[i].dr = 0; }
+      input.value = v;
+      holder.innerHTML=''; holder.dataset.value='';
+      renderTotalsOnly();
+    };
+    input.addEventListener('keydown', ev=>{
+      if(ev.key!=='Tab') return;
+      if(!holder.dataset.value) return; // nothing to accept -- let Tab move focus onward as normal
+      ev.preventDefault();
+      accept();
+    });
+    holder.addEventListener('click', ()=>{ accept(); input.focus(); });
+  });
+}
 // Double Entry rows are grouped into two blocks -- every ledger being Debited, then every ledger being
 // Credited -- matching how a compound journal entry is written by hand (list every Dr line, then every
 // Cr line, and the two totals must match) instead of exposing a Dr and a Cr box on every single row.
@@ -27912,8 +28094,11 @@ function entryRow(e,i,isLast){
   const trailing = isLast
     ? `<button class="add-side" data-add-side="${side}" title="Add another ${side==='dr'?'Debit':'Credit'} line" aria-label="Add another ${side==='dr'?'Debit':'Credit'} line" type="button">+</button>`
     : `<button class="rm" data-rm="${i}" title="Remove row" aria-label="Remove row">✕</button>`;
-  const drCell = `<div class="entry-amt-wrap"><input type="number" class="e-dr" data-i="${i}" placeholder="Debit amount" value="${e.dr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Dr.</span></div>`;
-  const crCell = `<div class="entry-amt-wrap"><input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Cr.</span></div>`;
+  // .entry-ghost-suggest is filled in by updateEntryAmountGhosts() after render -- never server-
+  // rendered with content, same reasoning as Single Entry's ghost: it must never show a value that
+  // could be mistaken for (or clobber) whatever the person is actually typing.
+  const drCell = `<div class="entry-amt-wrap"><input type="number" class="e-dr" data-i="${i}" placeholder="Debit amount" value="${e.dr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Dr.</span><span class="entry-ghost-suggest" data-i="${i}" data-side="dr"></span></div>`;
+  const crCell = `<div class="entry-amt-wrap"><input type="number" class="e-cr" data-i="${i}" placeholder="Credit amount" value="${e.cr||''}" min="0" step="0.01"><span class="entry-amt-suffix">Cr.</span><span class="entry-ghost-suggest" data-i="${i}" data-side="cr"></span></div>`;
   const emptyCell = `<span></span>`;
   if(bothPopulated){
     return `<div class="entry-row" data-idx="${i}">${ledgerCell}${drCell}${crCell}${trailing}</div>`;
@@ -28653,9 +28838,14 @@ function liveInvoicePreviewHTML(){
 // for how it's kept in sync without a full render() on every keystroke.
 function liveInvoicePreviewPanel(){
   const ready = !!liveInvoicePreviewHTML();
+  // Collapsed until there's something to show: forcing this open from the start (the old behavior)
+  // put a large empty gray placeholder box on screen before a customer or item was ever entered, with
+  // nothing to look at. It still opens itself the moment a preview exists (ready flips true on the
+  // next render after the GST Calculator has a party + item), so it surfaces the real preview without
+  // being asked -- it just doesn't hold a blank slab open before that.
   return `
-    <details class="disclosure" id="liveInvoicePreviewDetails" open>
-      <summary>🧾 Live Invoice Preview</summary>
+    <details class="disclosure" id="liveInvoicePreviewDetails" ${ready?'open':''}>
+      <summary>🧾 Live Invoice Preview${ready?'':' <span class="muted" style="font-weight:600;">— nothing to show yet</span>'}</summary>
       <div class="disclosure-body">
         <p class="muted" id="liveInvoicePreviewEmpty" style="font-size:12.5px;${ready?'display:none;':''}">Add a customer and at least one item in the GST Calculator above to see the invoice preview here — it updates as you type.</p>
         <iframe id="liveInvoicePreviewFrame" class="live-invoice-preview-frame" title="Invoice preview" sandbox="" style="${ready?'':'display:none;'}"></iframe>
@@ -29053,7 +29243,7 @@ function gstCalculator(){
     'Credit Note':'Sales Return Ledger', 'Debit Note':'Purchase Return Ledger'
   }[vform.type];
   return `
-    <div class="panel" style="border-color:var(--gold);">
+    <div class="panel panel-primary">
       <div class="panel-head"><h2>GST Calculator</h2><span class="muted" style="font-size:11.5px;">${subtitle}</span></div>
       <div class="panel-body">
         <div class="row">
@@ -29065,6 +29255,7 @@ function gstCalculator(){
               </select>
               <button class="btn secondary small" type="button" data-quick-ledger-for="party" title="Create a new ledger for this field">+ New</button>
             </div>
+            <div id="gstPartySnapshot">${partySnapshotHtml(g.party)}</div>
           </div>
           <div class="field"><label>${taxableLabel}</label>
             <div style="display:flex;gap:6px;">
@@ -29126,7 +29317,7 @@ function paymentPurchaseItemsPanel(){
   const g = vform.gst;
   if(!g.items) g.items = [];
   return `
-    <div class="panel" style="border-color:var(--gold);margin-top:14px;">
+    <div class="panel panel-primary" style="margin-top:14px;">
       <div class="panel-head"><h2>Items Purchased</h2><span class="muted" style="font-size:11.5px;">Fills the Debit/Credit amounts above and updates Inventory</span></div>
       <div class="panel-body">
         <div class="section-title" style="margin-top:0;">Items</div>
@@ -36809,7 +37000,7 @@ function attachHandlers(){
       b.addEventListener('click',()=>{ switchVoucherType(b.dataset.vtype); render(); });
     });
     document.getElementById('vdate').addEventListener('input', e=>{ vform.date = e.target.value; refreshLiveInvoicePreview(); });
-    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); refreshLiveInvoicePreview(); });
+    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); updateEntryAmountGhosts(); refreshLiveInvoicePreview(); });
     document.getElementById('vchannel')?.addEventListener('change', e=>{ vform.channel = e.target.value; });
     // Attachments during entry (before the voucher has an id): stage the file as a dataURL on the
     // draft itself, same size cap and read path as uploadAttachment(), then actually write them to
@@ -36842,6 +37033,8 @@ function attachHandlers(){
     updateNarrationSuggestion(); // show a suggestion immediately if editing a voucher that already has a narration
     updateAmountGhostSuggestion();
     wireGhostAmountInput();
+    updateEntryAmountGhosts();
+    wireEntryAmountGhosts();
     document.getElementById('vCurrency')?.addEventListener('change', e=>{
       vform.currency = e.target.value;
       vform.fxRate = currencyOf(vform.currency)?.rate || 1;
@@ -36855,6 +37048,8 @@ function attachHandlers(){
     document.getElementById('singleA')?.addEventListener('change', e=>{ vform.single.ledgerA = e.target.value; updateSingleEntryPreview(); });
     document.getElementById('singleB')?.addEventListener('change', e=>{
       vform.single.ledgerB = e.target.value;
+      const snapshotEl = document.getElementById('singleBPartySnapshot');
+      if(snapshotEl) snapshotEl.innerHTML = partySnapshotHtml(vform.single.ledgerB);
       // A full re-render (not the lightweight preview update) on a Payment voucher, since changing
       // "Paid To (Account)" to/from a Purchase Accounts ledger shows or hides the Items Purchased panel.
       if(vform.type==='Payment') render(); else updateSingleEntryPreview();
@@ -36971,7 +37166,7 @@ function attachHandlers(){
         // shows up or goes away immediately based on whether any Debit-side ledger is now a Purchase
         // Accounts ledger.
         if(vform.type==='Payment') render();
-        else refreshEntryBalanceMeta();
+        else { refreshEntryBalanceMeta(); updateEntryAmountGhosts(); }
       });
       s.addEventListener('focus', e=>{ quickLedgerFocus = { type:'entry', index: +e.target.dataset.i }; });
       // Enter on a ledger picker jumps straight to that row's own amount field (Dr or Cr, whichever
@@ -37035,7 +37230,12 @@ function attachHandlers(){
         render();
       });
     });
-    document.getElementById('gstParty')?.addEventListener('change', e=>{ vform.gst.party = e.target.value; refreshLiveInvoicePreview(); });
+    document.getElementById('gstParty')?.addEventListener('change', e=>{
+      vform.gst.party = e.target.value;
+      const snapshotEl = document.getElementById('gstPartySnapshot');
+      if(snapshotEl) snapshotEl.innerHTML = partySnapshotHtml(vform.gst.party);
+      refreshLiveInvoicePreview();
+    });
     document.getElementById('gstTaxable')?.addEventListener('change', e=>{
       vform.gst.taxableLedger = e.target.value;
       const l = ledgerOf(e.target.value);
@@ -37430,6 +37630,14 @@ function attachHandlers(){
       // A voucher actually saved -- remember which ledgers were used for this voucher type, so its
       // "Recently Used" optgroup (see ledgerSelectOptionsHtml) gets sharper the more the app is used.
       entries.forEach(e=> trackLedgerUsage(effectiveType, e.ledgerId));
+      // Micro-interaction: a brief "saved" pulse on the Save button and the balance bar before
+      // handing off to Day Book, instead of jumping away the instant the write lands. Every write
+      // above this point already completed, so this can't block or fail the save itself -- it's
+      // purely a felt moment instead of an instant teleport away from the voucher you just posted.
+      saveBtn.textContent = '✓ Saved';
+      saveBtn.classList.add('save-success-pulse');
+      document.querySelector('.totals-line.sticky-balance')?.classList.add('just-saved');
+      await new Promise(r=>setTimeout(r, 420));
       vform = null;
       view = 'daybook';
       render();
@@ -38826,6 +39034,7 @@ function updateSingleEntryPreview(){
 
 function renderTotalsOnly(){
   refreshEntryBalanceMeta();
+  updateEntryAmountGhosts();
   const dr = vform.entries.reduce((s,e)=>s+(Number(e.dr)||0),0);
   const cr = vform.entries.reduce((s,e)=>s+(Number(e.cr)||0),0);
   const balanced = Math.abs(dr-cr) < 0.005 && dr > 0;
