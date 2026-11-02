@@ -6530,6 +6530,20 @@ let verifyLinkSending = false;     // true while the link is being (re)sent
 let verifyLinkCooldownUntil = 0;   // Date.now() timestamp before which the Verify/Resend button stays disabled
 let verifyLinkNotice = '';         // inline success/status message on the sign-up form
 let verifyLinkError = '';          // inline error message on the sign-up form
+/* Referral growth loop -- every account's own username doubles as its referral code, so no new
+   code-generation scheme or lookup collection is needed: a link like https://.../?ref=<username>
+   is captured at boot (init()) into pendingReferralCode and mirrored into window.storage so it
+   survives the email-link signup round trip exactly the way pendingSignupDraft already does. At
+   step 2 (submitAuth's signup branch) or Google sign-up completion, it's resolved to the
+   referrer's uid via usernames/{lower}.uid (a `uid` field added to that doc alongside the existing
+   `email` one -- see attributeReferralIfPending()) and written once as a referrals/{newUserUid}
+   doc, keyed by the NEW account's own uid so it can never be attributed twice. Referral counts are
+   never stored/denormalized anywhere -- inviteEarnModal() queries referrals where
+   referrerUid==currentUser.id live every time it opens, the same derive-don't-store rule every
+   other figure in this app already follows. */
+let pendingReferralCode = '';  // the referring user's username, from ?ref= in the URL (or window.storage, surviving the signup email-link reload)
+let myReferrals = [];          // cached result of "who joined via my link", refreshed by loadMyReferrals()
+let myReferralsLoading = false;
 /* Password reset (Forgot Password, or an admin's "Reset Password" button) now stays in-app too,
    the same way sign-up verification already did: sendPasswordResetEmail() is sent with
    handleCodeInApp:true + url:signupLinkUrl(), so the emailed link reloads THIS app (with
@@ -7724,7 +7738,7 @@ async function adminCreateUserAccount(draft){
       createdAt: new Date().toISOString(), lastLoginAt: null,
     };
     await secDb.collection('users').doc(cred.user.uid).set(profile);
-    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email });
+    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email, uid: cred.user.uid });
     try{ await secAuth.signOut(); }catch(e){}
     return profile;
   } finally {
@@ -7872,7 +7886,7 @@ async function groupCreateUserAccount(draft){
       createdAt: new Date().toISOString(), lastLoginAt: null,
     };
     await secDb.collection('users').doc(cred.user.uid).set(profile);
-    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email });
+    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email, uid: cred.user.uid });
     try{ await secAuth.signOut(); }catch(e){}
     return profile;
   } finally {
@@ -7901,12 +7915,109 @@ async function companyTeamCreateUserAccount(draft){
       createdAt: new Date().toISOString(), lastLoginAt: null,
     };
     await secDb.collection('users').doc(cred.user.uid).set(profile);
-    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email });
+    await secDb.collection('usernames').doc(usernameKey).set({ email: draft.email, uid: cred.user.uid });
     try{ await secAuth.signOut(); }catch(e){}
     return profile;
   } finally {
     try{ await secondaryApp.delete(); }catch(e){}
   }
+}
+
+// Resolves pendingReferralCode (a referrer's username, captured at boot -- see init()) to that
+// referrer's uid via usernames/{lower}.uid, and -- if found, and not a self-referral -- writes one
+// referrals/{newUserUid} doc. The NEW account's own uid is the doc id, so this can only ever
+// succeed once per account (a second attempt would just overwrite the same doc with the same
+// referrer, harmlessly). Called right after every genuine self-signup (never after an
+// admin/group/team-created account, which isn't someone acting on their own invite link). Never
+// throws -- a referral link is a growth nicety, not something that should ever block account
+// creation if Firestore hiccups.
+async function attributeReferralIfPending(newUser){
+  const code = (pendingReferralCode||'').trim().toLowerCase();
+  pendingReferralCode = '';
+  try{ await window.storage.delete('pendingReferralCode'); }catch(e){}
+  if(!code || !newUser || !newUser.uid) return;
+  try{
+    const refDoc = await db.collection('usernames').doc(code).get();
+    const referrerUid = refDoc.exists ? refDoc.data().uid : null;
+    if(!referrerUid || referrerUid===newUser.uid) return; // unknown/stale code, or someone opened their own link
+    await db.collection('referrals').doc(newUser.uid).set({
+      referrerUid, referrerUsername: code,
+      newUserUid: newUser.uid, newUserUsername: newUser.username||'', newUserName: newUser.name||'',
+      at: new Date().toISOString(),
+    });
+  }catch(e){ console.warn('Referral attribution skipped:', e); }
+}
+// "Who joined via my link" -- queried live every time the Invite & Earn panel opens, never cached
+// across sessions or denormalized onto the user's own profile doc, same derive-don't-store rule
+// every other figure in this app follows. Newest first, same as every other activity list here.
+async function loadMyReferrals(){
+  if(!currentUser) { myReferrals = []; return; }
+  myReferralsLoading = true;
+  try{
+    const snap = await db.collection('referrals').where('referrerUid','==',currentUser.id).get();
+    myReferrals = snap.docs.map(d=>d.data()).sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  }catch(e){ myReferrals = []; }
+  myReferralsLoading = false;
+}
+// A simple, purely-for-fun milestone ladder -- this app is (and stays) free, so there's no credit
+// or discount to actually award; the "prize" is social proof and a small badge, which costs nothing
+// and can't be gamed into a support burden. Thresholds chosen so the very first referral already
+// unlocks something (immediate payoff), not just the tenth.
+const REFERRAL_TIERS = [
+  { min:10, label:'Community Pillar', icon:'🏆' },
+  { min:3,  label:'Growth Partner',    icon:'🌟' },
+  { min:1,  label:'Founding Referrer', icon:'🎖️' },
+  { min:0,  label:null,                icon:'🎁' },
+];
+function referralTierFor(count){ return REFERRAL_TIERS.find(t=>count>=t.min); }
+// The actual shareable link -- the live site's own origin/path (works unmodified on the deployed
+// domain, a custom domain, or localhost while testing) plus ?ref=<this account's username>.
+function referralShareLink(){
+  if(!currentUser || !currentUser.username) return '';
+  return `${window.location.origin}${window.location.pathname}?ref=${encodeURIComponent(currentUser.username)}`;
+}
+function inviteEarnModal(){
+  if(!currentUser) return '';
+  const link = referralShareLink();
+  const count = myReferrals.length;
+  const tier = referralTierFor(count);
+  const nextTier = REFERRAL_TIERS.filter(t=>t.min>count).sort((a,b)=>a.min-b.min)[0];
+  const waText = encodeURIComponent(`I've been using The Reckoning Books for my business books — free accounting software, GST-ready, no card required. Thought you'd find it useful too: ${link}`);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:520px;">
+        <div class="panel-head"><h2>🎁 Invite &amp; Earn</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-top:0;">Every business that signs up through your link shows up here. Nothing to redeem, no catch — just a running tally and a badge, free forever like the rest of this app.</p>
+          <div style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:10px;background:var(--surface-strong);margin-bottom:14px;">
+            <div style="font-size:30px;line-height:1;">${tier.icon}</div>
+            <div>
+              <div style="font-weight:800;font-size:15px;">${count} business${count===1?'':'es'} joined via your link${tier.label?` · ${tier.label}`:''}</div>
+              ${nextTier ? `<div class="muted" style="font-size:11.5px;">${nextTier.min-count} more to unlock "${nextTier.label}"</div>` : `<div class="muted" style="font-size:11.5px;">You've unlocked every tier — thank you.</div>`}
+            </div>
+          </div>
+          <label style="font-size:11.5px;font-weight:600;">Your invite link</label>
+          <div style="display:flex;gap:6px;margin:6px 0 12px;">
+            <input id="inviteLinkInput" type="text" readonly value="${escapeAttr(link)}" style="flex:1;padding:8px 10px;font-size:12px;border:1px solid var(--border,#E1E7E3);border-radius:8px;">
+            <button class="btn secondary small" id="copyInviteLinkBtn" type="button">Copy</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+            <a class="btn small" href="https://wa.me/?text=${waText}" target="_blank" rel="noopener" style="text-decoration:none;">💬 Share via WhatsApp</a>
+            <button class="btn secondary small" id="nativeShareInviteBtn" type="button" style="display:${navigator.share?'inline-flex':'none'};">Share…</button>
+          </div>
+          ${myReferralsLoading ? `<div class="empty">Loading…</div>` : (count ? `
+            <label style="font-size:11.5px;font-weight:600;">Joined via your link</label>
+            <div style="max-height:180px;overflow-y:auto;margin-top:6px;">
+              ${myReferrals.map(r=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border,#E1E7E3);font-size:12.5px;">
+                <span>${escapeHtml(r.newUserName||r.newUserUsername||'A new business')}</span>
+                <span class="muted">${(r.at||'').slice(0,10)}</span>
+              </div>`).join('')}
+            </div>
+          ` : `<div class="empty">Nobody yet — share your link above to get started.</div>`)}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 /* ---------------- Analytics tab (computed client-side from users/companies already in memory —
@@ -15400,6 +15511,7 @@ function render(){
     ${modal==='backup' ? backupModal() : ''}
     ${modal==='partyDetail' ? partyDetailModal() : ''}
     ${modal==='collectionsReminder' ? collectionsReminderModal() : ''}
+    ${modal==='shareSnapshot' ? shareSnapshotModal() : ''}
     ${modal==='partyRisk' ? partyRiskModal() : ''}
     ${modal==='prepaidMark' ? prepaidMarkModal() : ''}
     ${modal==='prepaidDue' ? prepaidDueModal() : ''}
@@ -19781,7 +19893,8 @@ function renderLogin(){
         await pendingVerifyUser.updatePassword(effectivePassword);
         const profile = { id: pendingVerifyUser.uid, name, username, usernameLower: usernameKey, mobile, email, role:'user', plan:'free', planExpiry:null, createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() };
         await db.collection('users').doc(pendingVerifyUser.uid).set(profile);
-        await db.collection('usernames').doc(usernameKey).set({ email });
+        await db.collection('usernames').doc(usernameKey).set({ email, uid: pendingVerifyUser.uid });
+        await attributeReferralIfPending({ uid: pendingVerifyUser.uid, username, name });
         if(signupUsePasskey){
           const passkeyOk = await setupPasskeyLogin(pendingVerifyUser.uid, username, email, effectivePassword);
           if(!passkeyOk){
@@ -20011,7 +20124,8 @@ function renderLogin(){
       }
       const profile = { id: googleAuthUser.uid, name, username, usernameLower: usernameKey, mobile, email, role:'user', plan:'free', planExpiry:null, createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() };
       await db.collection('users').doc(googleAuthUser.uid).set(profile);
-      await db.collection('usernames').doc(usernameKey).set({ email });
+      await db.collection('usernames').doc(usernameKey).set({ email, uid: googleAuthUser.uid });
+      await attributeReferralIfPending({ uid: googleAuthUser.uid, username, name });
       lastUsername = username;
       currentUser = { id: googleAuthUser.uid, name, username, mobile, email, isAdmin:false, role:'user', plan:'free', planExpiry:null };
       try{ await window.storage.set('lastUsername', lastUsername); }catch(e){}
@@ -20860,6 +20974,7 @@ function renderGateway(){
         <div class="gw-section-title">Your Companies</div>
         <div class="gw-toolbar">
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
+        ${!isDemoUser ? `<button class="btn secondary" id="openInviteEarnBtn" type="button" title="Invite other businesses and see who's joined through your link">🎁 Invite &amp; Earn</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openComparisonBtn" type="button" title="Put 2 or 3 companies side by side to see how they stack up">⚖️ Compare</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary ${gatewayBulkMode?'is-active':''}" id="gwBulkModeBtn" type="button" title="Select multiple companies">${gatewayBulkMode?'✕ Cancel Select':'☑ Select'}</button>` : ''}
@@ -21084,6 +21199,7 @@ function renderGateway(){
     ${companyCreateModalOpen ? companyCreateModal() : ''}
     ${companyRenameModalOpen ? companyRenameModal() : ''}
     ${modal==='accountantDash' ? accountantDashModal() : ''}
+    ${modal==='inviteEarn' ? inviteEarnModal() : ''}
     ${modal==='consolidation' ? consolidationModal() : ''}
     ${modal==='comparison' ? companyComparisonModal() : ''}
     ${modal==='stepUpVerify' ? stepUpVerifyModal() : ''}
@@ -21510,6 +21626,34 @@ function renderGateway(){
     modal = 'accountantDash';
     renderGateway();
   });
+  document.getElementById('openInviteEarnBtn')?.addEventListener('click', async ()=>{
+    modal = 'inviteEarn';
+    renderGateway();
+    await loadMyReferrals();
+    renderGateway();
+  });
+  if(modal==='inviteEarn'){
+    const closeInviteEarn = ()=>{ modal = null; renderGateway(); };
+    document.getElementById('modalClose')?.addEventListener('click', closeInviteEarn);
+    document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='modalOverlayBg') closeInviteEarn();
+    });
+    document.getElementById('copyInviteLinkBtn')?.addEventListener('click', async ()=>{
+      const link = referralShareLink();
+      try{
+        await navigator.clipboard.writeText(link);
+        toast('Invite link copied to clipboard', {type:'success'});
+      }catch(err){
+        const inp = document.getElementById('inviteLinkInput');
+        if(inp){ inp.focus(); inp.select(); }
+        toast('Select-all applied — copy with Ctrl/Cmd+C');
+      }
+    });
+    document.getElementById('nativeShareInviteBtn')?.addEventListener('click', async ()=>{
+      const link = referralShareLink();
+      try{ await navigator.share({ title:'The Reckoning Books', text:'Free accounting software for your business — GST-ready, no card required.', url: link }); }catch(e){}
+    });
+  }
   if(modal==='accountantDash'){
     const closeAccountantDash = ()=>{ modal = null; renderGateway(); };
     document.getElementById('modalClose')?.addEventListener('click', closeAccountantDash);
@@ -23676,6 +23820,18 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if isAdmin();
     }
+    match /referrals/{newUserUid} {
+      // One doc per referred account, keyed by that account's own uid -- so it can only ever be
+      // written once, by the account it describes, and never re-attributed afterwards (see
+      // attributeReferralIfPending()). The referrer reads it back to see who's joined via their
+      // link (loadMyReferrals()'s query); the referred account can see its own; nobody else can.
+      allow get:    if isAdmin() || (isSignedIn() && (request.auth.uid == newUserUid || request.auth.uid == resource.data.referrerUid));
+      allow list:   if isAdmin() || (isSignedIn() && resource.data.referrerUid == request.auth.uid);
+      allow create: if isSignedIn() && request.auth.uid == newUserUid
+        && request.resource.data.newUserUid == newUserUid
+        && request.resource.data.referrerUid != newUserUid;
+      allow update, delete: if false;
+    }
     match /auditLog/{entryId} {
       // A Support user may read entries where they are the actor (their own actions) or where the
       // target belongs to their group (actions taken on one of their members).
@@ -25043,7 +25199,11 @@ function collectionsReminderModal(){
         <div class="panel-body">
           <p class="muted" style="font-size:12px;margin-top:0;">Drafted locally from this invoice's details — nothing is sent from here. Copy it into your email, WhatsApp, or wherever you follow up.</p>
           <textarea id="collectionsReminderText" readonly rows="10" style="width:100%;font-size:12.5px;font-family:inherit;padding:10px;border:1px solid var(--border,#E1E7E3);border-radius:8px;resize:vertical;">${escapeHtml(collectionsReminderDraft.text)}</textarea>
-          <button class="btn" id="collectionsReminderCopyBtn" type="button" style="margin-top:10px;">Copy to Clipboard</button>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn" id="collectionsReminderCopyBtn" type="button">Copy to Clipboard</button>
+            <a class="btn secondary" href="https://wa.me/?text=${encodeURIComponent(collectionsReminderDraft.text)}" target="_blank" rel="noopener" style="text-decoration:none;">💬 Open in WhatsApp</a>
+          </div>
+          <p class="muted" style="font-size:11px;margin-top:8px;margin-bottom:0;">WhatsApp opens with this text pre-filled — pick the contact yourself (this app doesn't store a phone number for parties yet, so it can't address it for you).</p>
         </div>
       </div>
     </div>
@@ -33237,6 +33397,138 @@ function finPerfAltmanInterpretation(z){
   return notes;
 }
 
+/* ---------------- Shareable Business Snapshot card ----------------
+   A single branded, square image built entirely from figures this company has already posted —
+   no new data entry, no server round-trip beyond the one Firestore read loadMyReferrals() would
+   already need for the footer link. Meant to be posted to WhatsApp Status/LinkedIn/Instagram as
+   social proof: every copy carries the sharer's own referral link in its footer (referralShareLink()
+   -- see the Invite & Earn section above), so a snapshot shared for bragging rights doubles as a
+   growth channel. Always rendered in fixed brand colors (never the app's current light/dark theme),
+   the same "exported documents are always light-themed" convention svgToPngDataUrl() itself already
+   documents -- this is exported content, not a screen. */
+function buildShareSnapshotData(){
+  const series = financialPerformanceFYSeries(2);
+  const cur = series[series.length-1];
+  const prev = series.length>1 ? series[series.length-2] : null;
+  const altman = altmanZScoreData(cur.is, cur.bs);
+  const revenue = cur.is.revenue||0;
+  const netProfit = cur.is.profitForPeriod!=null ? cur.is.profitForPeriod : 0;
+  const netMargin = revenue ? (netProfit/revenue*100) : null;
+  const revenueYoY = (prev && prev.is.revenue) ? ((revenue-prev.is.revenue)/Math.abs(prev.is.revenue)*100) : null;
+  return {
+    companyName: (typeof currentCompany!=='undefined' && currentCompany) ? currentCompany.name : '',
+    fy: cur.fy, revenue, netProfit, netMargin, revenueYoY, altman,
+  };
+}
+function shareSnapshotZoneMeta(zone){
+  if(zone==='safe') return { color:'#2CA01C', label:'Healthy' };
+  if(zone==='grey') return { color:'#F2994A', label:'Watch Zone' };
+  if(zone==='distress') return { color:'#D5493E', label:'At Risk' };
+  return null;
+}
+// A fixed 1080×1080 (square, social-first) SVG -- hardcoded hex colors throughout, no CSS var/
+// theme dependency, since this card must look identical whoever shares it and whatever theme
+// they're in. The headline slot shows the Financial Health Score when a Balance Sheet exists,
+// else Revenue YoY growth, else just this year's Revenue -- always the single most interesting
+// number this company's own data can currently support.
+function svgShareSnapshotCard(data){
+  const W = 1080, H = 1080, cx = W/2;
+  const name = escapeHtml(data.companyName||'My Business');
+  const nameSize = name.length > 28 ? 40 : (name.length > 18 ? 48 : 58);
+  const zoneMeta = data.altman && data.altman.zone ? shareSnapshotZoneMeta(data.altman.zone) : null;
+  let headlineBig, headlineSmall, headlineColor;
+  if(zoneMeta){
+    headlineBig = data.altman.zScore.toFixed(2);
+    headlineSmall = `Financial Health Score · ${zoneMeta.label}`;
+    headlineColor = zoneMeta.color;
+  }else if(data.revenueYoY!=null){
+    headlineBig = `${data.revenueYoY>=0?'+':''}${data.revenueYoY.toFixed(1)}%`;
+    headlineSmall = 'Revenue Growth, Year on Year';
+    headlineColor = data.revenueYoY>=0 ? '#3ECB2C' : '#FF8A80';
+  }else{
+    headlineBig = `₹${fmtShort(data.revenue)}`;
+    headlineSmall = 'Revenue This Year';
+    headlineColor = '#F2A900';
+  }
+  const tiles = [
+    { label:'Revenue', value:`₹${fmtShort(data.revenue)}` },
+    { label:'Net Profit', value:`₹${fmtShort(data.netProfit)}`, sub: data.netMargin!=null ? `${data.netMargin.toFixed(1)}% margin` : null },
+    zoneMeta
+      ? { label:'Revenue Growth', value: data.revenueYoY!=null ? `${data.revenueYoY>=0?'+':''}${data.revenueYoY.toFixed(1)}%` : '—' }
+      : { label:'Financial Health', value: zoneMeta ? data.altman.zScore.toFixed(2) : 'N/A' },
+  ];
+  const tileW = 300, tileGap = 24, tilesStartX = cx - (tileW*3 + tileGap*2)/2;
+  const link = (typeof referralShareLink==='function' ? referralShareLink() : '') || 'reckoning-books.web.app';
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="font-family:'Inter',sans-serif;">
+    <defs>
+      <linearGradient id="skBg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#0F2A17"/><stop offset="0.55" stop-color="#123B1C"/><stop offset="1" stop-color="#1B5E20"/>
+      </linearGradient>
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#skBg)"/>
+    <circle cx="${W-80}" cy="120" r="220" fill="#ffffff" opacity="0.04"/>
+    <circle cx="60" cy="${H-120}" r="260" fill="#F2A900" opacity="0.06"/>
+    <text x="${cx}" y="110" text-anchor="middle" font-size="20" font-weight="800" letter-spacing="3" fill="#F2A900">THE RECKONING BOOKS</text>
+    <text x="${cx}" y="140" text-anchor="middle" font-size="14" fill="#CFE8CF" opacity="0.8">Free Accounting Software · reckoning-books.web.app</text>
+    <text x="${cx}" y="230" text-anchor="middle" font-size="${nameSize}" font-weight="800" fill="#ffffff">${name}</text>
+    <text x="${cx}" y="266" text-anchor="middle" font-size="16" fill="#CFE8CF" opacity="0.85">FY ${escapeHtml(data.fy||'')} Snapshot</text>
+    <circle cx="${cx}" cy="470" r="175" fill="#ffffff" opacity="0.06"/>
+    <circle cx="${cx}" cy="470" r="175" fill="none" stroke="${headlineColor}" stroke-width="6" opacity="0.9"/>
+    <text x="${cx}" y="${headlineBig.length>6?500:495}" text-anchor="middle" font-size="${headlineBig.length>6?74:96}" font-weight="800" fill="#ffffff">${headlineBig}</text>
+    <text x="${cx}" y="545" text-anchor="middle" font-size="16" font-weight="700" fill="${headlineColor}">${headlineSmall.toUpperCase()}</text>
+    ${tiles.map((t,i)=>{
+      const x = tilesStartX + i*(tileW+tileGap);
+      const y = 700;
+      return `
+        <rect x="${x}" y="${y}" width="${tileW}" height="140" rx="16" fill="#ffffff" opacity="0.08"/>
+        <text x="${x+tileW/2}" y="${y+48}" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="1" fill="#CFE8CF" opacity="0.85">${t.label.toUpperCase()}</text>
+        <text x="${x+tileW/2}" y="${y+92}" text-anchor="middle" font-size="30" font-weight="800" fill="#ffffff">${t.value}</text>
+        ${t.sub ? `<text x="${x+tileW/2}" y="${y+120}" text-anchor="middle" font-size="13" fill="#CFE8CF" opacity="0.8">${escapeHtml(t.sub)}</text>` : ''}
+      `;
+    }).join('')}
+    <line x1="140" y1="930" x2="${W-140}" y2="930" stroke="#F2A900" stroke-width="2" opacity="0.4"/>
+    <text x="${cx}" y="975" text-anchor="middle" font-size="18" font-weight="700" fill="#F2A900">${escapeHtml(link.replace(/^https?:\/\//,''))}</text>
+    <text x="${cx}" y="1005" text-anchor="middle" font-size="14" fill="#CFE8CF" opacity="0.8">Free forever · No card required · Built from this company's own posted figures</text>
+  </svg>`;
+}
+// Mounts the card offscreen (same "fixed, far off left, two animation frames" idiom
+// rasterizePresoCharts() already uses elsewhere in this file) so svgToPngDataUrl() has real
+// layout to measure, rasterizes it, then tears the host down either way.
+async function shareSnapshotPngDataUrl(data){
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;width:1080px;height:1080px;';
+  host.innerHTML = svgShareSnapshotCard(data);
+  document.body.appendChild(host);
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  try{
+    const svg = host.querySelector('svg');
+    return await svgToPngDataUrl(svg, {scale:1.5});
+  } finally {
+    document.body.removeChild(host);
+  }
+}
+let shareSnapshotDataUrl = null;   // cached PNG data URL for the currently-open Share Snapshot modal
+let shareSnapshotBusy = false;
+function shareSnapshotModal(){
+  const data = buildShareSnapshotData();
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:420px;">
+        <div class="panel-head"><h2>📤 Share Snapshot</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body" style="text-align:center;">
+          <p class="muted" style="font-size:12px;margin-top:0;">A shareable image built from ${escapeHtml(data.companyName||'this company')}'s own posted figures — post it to WhatsApp Status, LinkedIn, or wherever you like.</p>
+          ${shareSnapshotBusy ? `<div class="empty" style="padding:60px 0;">Rendering…</div>` :
+            (shareSnapshotDataUrl ? `<img src="${shareSnapshotDataUrl}" style="width:100%;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.25);">` : `<div class="empty" style="padding:60px 0;">Could not render the snapshot.</div>`)}
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn secondary small" id="shareSnapshotDownloadBtn" type="button" ${shareSnapshotDataUrl?'':'disabled'}>⬇ Download Image</button>
+            <button class="btn secondary small" id="shareSnapshotNativeBtn" type="button" style="display:${navigator.share?'inline-flex':'none'};" ${shareSnapshotDataUrl?'':'disabled'}>Share…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // 11. Free Cash Flow Analysis — see freeCashFlowData() above for the Operating + Investing
 // approximation. Charted month-by-month (reusing cashFlowMonthlySeries()'s existing buckets) so a
 // board/lender can see the trend, not just the life-to-date total this section's KPI strip shows.
@@ -33383,6 +33675,7 @@ function reportFinancialPerformance(){
         <h1 style="font-family:inherit;font-weight:800;font-size:19px;margin:0;letter-spacing:-.02em;color:var(--ink);">Financial Performance Report</h1>
       </div>
       <div style="display:flex;gap:8px;">
+        <button class="btn secondary small" id="openShareSnapshotBtn" type="button">📤 Share Snapshot</button>
         <button class="btn secondary small" id="exportFinPerfPdfBtn" type="button">⬇ Download PDF</button>
         <button class="btn secondary small" id="exportFinPerfWordBtn" type="button">⬇ Download Word</button>
       </div>
@@ -36464,6 +36757,24 @@ function attachHandlers(){
       }
     });
   }
+  if(modal==='shareSnapshot'){
+    document.getElementById('shareSnapshotDownloadBtn')?.addEventListener('click', ()=>{
+      if(!shareSnapshotDataUrl) return;
+      const a = document.createElement('a');
+      a.href = shareSnapshotDataUrl;
+      a.download = `${(currentCompany&&currentCompany.name||'business').replace(/[^a-z0-9]+/gi,'-')}-snapshot.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+    document.getElementById('shareSnapshotNativeBtn')?.addEventListener('click', async ()=>{
+      if(!shareSnapshotDataUrl) return;
+      try{
+        const res = await fetch(shareSnapshotDataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'snapshot.png', {type:'image/png'});
+        await navigator.share({ title:'The Reckoning Books', text:'Our latest business snapshot', files:[file] });
+      }catch(e){ /* user cancelled, or Web Share File support missing on this browser — the Download button stays as the fallback */ }
+    });
+  }
   if(view==='assets'){
     document.getElementById('newAssetBtn')?.addEventListener('click', ()=>{
       fixedAssetDraft = { name:'', ledgerId:'', cost:'', purchaseDate: new Date().toISOString().slice(0,10), usefulLifeYears:5, method:'SLM', salvageValue:0 };
@@ -39331,6 +39642,16 @@ function attachHandlers(){
     });
     document.getElementById('exportFinPerfPdfBtn')?.addEventListener('click', exportFinancialPerformanceToPdf);
     document.getElementById('exportFinPerfWordBtn')?.addEventListener('click', exportFinancialPerformanceToWord);
+    document.getElementById('openShareSnapshotBtn')?.addEventListener('click', async ()=>{
+      modal = 'shareSnapshot';
+      shareSnapshotDataUrl = null;
+      shareSnapshotBusy = true;
+      render();
+      try{ shareSnapshotDataUrl = await shareSnapshotPngDataUrl(buildShareSnapshotData()); }
+      catch(e){ shareSnapshotDataUrl = null; }
+      shareSnapshotBusy = false;
+      render();
+    });
     document.querySelectorAll('[data-benchmark-key]').forEach(el=>{
       // 'change' (fires on blur/Enter), not 'input' — a full render() on every keystroke would drop
       // focus mid-type, same class of bug as the show/hide password fix elsewhere in this file.
@@ -40136,6 +40457,39 @@ function setupHistoryRoot(){
   // session restore, same as the verification link below -- handled fully in-app now instead of
   // Firebase's generic hosted action page (see handlePasswordResetLink()/renderPasswordResetCard()).
   const urlParams = new URLSearchParams(window.location.search);
+
+  // Referral link capture: ?ref=<their username>, from a shared snapshot card or an Invite & Earn
+  // link. Mirrored into window.storage (not just the module variable) so it survives the signup
+  // email-link's own reload/new-tab round trip -- the exact same durability problem
+  // pendingSignupDraft already solves, same fix. A page load with no ?ref= falls back to whatever
+  // was already stored, so a visitor who clicked a referral link, then later opens the
+  // verification link (often in a different tab with no query string at all), still gets
+  // attributed correctly at step 2. Never blocks anything below -- a failed storage read/write
+  // just leaves pendingReferralCode empty, same as never having had a referral at all.
+  const refParam = (urlParams.get('ref')||'').trim();
+  if(refParam){
+    pendingReferralCode = refParam;
+    try{ await window.storage.set('pendingReferralCode', refParam); }catch(e){}
+  }else{
+    try{ const stored = await window.storage.get('pendingReferralCode'); pendingReferralCode = stored ? stored.value : ''; }catch(e){ pendingReferralCode = ''; }
+  }
+
+  // Instant "Try Demo" link: ?demo=1, for use in YouTube Shorts descriptions, social bios, or a
+  // referral card's own call-to-action -- drops a visitor straight into the read-only shared demo
+  // company with zero clicks, instead of landing on the marketing page first. Skipped if this
+  // browser already has a real session (fbAuth.currentUser, populated synchronously from local
+  // persistence by this point) so an already-logged-in person clicking a demo link never gets
+  // bumped into an anonymous session.
+  if(urlParams.get('demo')==='1' && !fbAuth.currentUser){
+    sessionRestoreDone = true;
+    screen = 'landing';
+    renderLanding();
+    try{ window.history.replaceState({}, document.title, window.location.pathname); }catch(e){}
+    await demoLogin();
+    setupHistoryRoot();
+    return;
+  }
+
   if(urlParams.get('mode')==='resetPassword' && urlParams.get('oobCode')){
     sessionRestoreDone = true;
     screen = 'login';
