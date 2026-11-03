@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Manrope:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&family=Manrope:wght@500;600;700;800;900&family=Bricolage+Grotesque:wght@600;700;800;900&display=swap" rel="stylesheet">
 <!-- Oct 15, 2026 -- sidebar icons moved from hand-picked Lucide SVG paths to Google's Material Symbols
      Outlined variable font (the current/successor icon system to the old static Material Icons, used
      across Android/Material Design 3, Google Workspace and most Google web apps). One glyph per module
@@ -2667,6 +2667,89 @@
     body.label-print-active > *:not(#labelPrintRoot){ display:none !important; }
     body.label-print-active #labelPrintRoot{ display:block !important; position:fixed; inset:0; margin:0; padding:10mm; z-index:99999; background:#fff; }
   }
+
+  /* ==================================================================================
+     v3 ADVANCED UI/UX PASS (Nov 2026) -- Landing / Login / Company Gateway
+     Additive only, following this project's standing "redefine tokens on a scope, change
+     nothing downstream" pattern (same technique as the Admin dark console and the
+     per-module masthead glow). Nothing below renames/removes an existing id or class, and
+     .btn itself is never redefined globally -- every button treatment is scoped to an
+     ancestor selector so the rest of the app (which uses .btn everywhere) is untouched.
+     Every motion effect is guarded by prefers-reduced-motion, matching every other
+     animation already in this file. See wireSpotlightGlow()/wireCardTilt() for the two
+     small JS helpers this block pairs with. ================================= */
+
+  /* Display typeface for headline text on the three "front door" screens only -- Inter/
+     Manrope remain the working typeface everywhere else in the app. */
+  .landing-hero h1, .login-brand-panel h2, .login-card h1, .gw-hero h1{
+    font-family:'Bricolage Grotesque',Inter,sans-serif;
+    letter-spacing:-0.01em;
+  }
+
+  /* Shared v3 custom properties, scoped so no other surface in the app inherits them. */
+  .landing-page, .login-shell, .gw-wrap{
+    --v3-spot-x:50%; --v3-spot-y:30%;
+  }
+
+  /* Film-grain texture over the three dark hero grounds -- a tiny inline fractal-noise
+     SVG data URI (no network request), screen-blended at near-zero opacity so it adds
+     depth without darkening anything underneath. */
+  .landing-hero::after, .login-shell::after, .gw-hero::after{
+    content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity:.05; mix-blend-mode:overlay;
+  }
+  .gw-hero::after{ opacity:.035; }
+  .login-shell{ position:relative; }
+
+  /* Cursor-follow spotlight: wireSpotlightGlow() writes --v3-spot-x/y as the pointer
+     moves; layered above each surface's existing ambient glow. Guarded so a reduced-
+     motion viewer simply keeps the existing static glow with no spotlight added. */
+  @media (prefers-reduced-motion: no-preference){
+    .landing-hero::before{
+      background-image:radial-gradient(circle 440px at var(--v3-spot-x) var(--v3-spot-y), rgba(242,169,0,0.16), transparent 70%), radial-gradient(ellipse 900px 500px at 15% -10%,#2E7D32 0%,transparent 60%);
+    }
+    .gw-hero::before{
+      background-image:radial-gradient(circle 380px at var(--v3-spot-x) var(--v3-spot-y), rgba(242,169,0,0.14), transparent 70%);
+      opacity:1;
+    }
+  }
+
+  /* Animated sheen sweep on the primary CTA only, scoped to the three hero/card button
+     groups -- never the global .btn. */
+  .landing-hero-ctas .btn:not(.secondary), .login-card .btn:not(.secondary), .gw-hero .btn:not(.secondary){
+    position:relative; overflow:hidden; isolation:isolate;
+  }
+  .landing-hero-ctas .btn:not(.secondary)::before, .login-card .btn:not(.secondary)::before, .gw-hero .btn:not(.secondary)::before{
+    content:''; position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background:linear-gradient(120deg,transparent,rgba(255,255,255,0.35),transparent);
+    transform:skewX(-20deg); transition:left .55s ease; pointer-events:none; z-index:1;
+  }
+  .landing-hero-ctas .btn:not(.secondary):hover::before, .login-card .btn:not(.secondary):hover::before, .gw-hero .btn:not(.secondary):hover::before{
+    left:130%;
+  }
+
+  /* Card tilt-on-hover: wireCardTilt() adds .v3-tilt and writes --v3-rx/--v3-ry per card
+     as the pointer moves across it. Falls back to each card's existing translateY lift
+     (already present) under reduced motion -- this rule simply doesn't apply there. */
+  @media (prefers-reduced-motion: no-preference){
+    .landing-feature-card.v3-tilt, .company-card.v3-tilt{
+      transform:perspective(900px) rotateX(var(--v3-rx,0deg)) rotateY(var(--v3-ry,0deg));
+      transition:transform .08s linear;
+      transform-style:preserve-3d;
+    }
+    .landing-feature-card.v3-tilt .landing-feature-icon, .company-card.v3-tilt .company-card-icon{
+      transform:translateZ(18px);
+    }
+  }
+
+  /* Nav link underline-grow micro-interaction. */
+  .landing-nav-links a::after{
+    content:''; position:absolute; left:0; bottom:-4px; width:0; height:2px;
+    background:linear-gradient(90deg,var(--accent2),var(--gold)); transition:width .22s ease;
+  }
+  .landing-nav-links a{ position:relative; }
+  .landing-nav-links a:hover::after{ width:100%; }
 </style>
 </head>
 <body>
@@ -19413,6 +19496,8 @@ function renderLanding(){
   wireDemoWidget();
   wireRoiCalculator();
   loadLandingPublicStats();
+  wireSpotlightGlow('.landing-hero');
+  wireCardTilt('.landing-feature-card');
 }
 // ---- ROI / switching-cost calculator (#calculator): recomputes and writes straight into the
 // output spans on every input/slider change, rather than a full renderLanding() per keystroke/drag
@@ -19591,6 +19676,46 @@ function wireLandingHeroParallax(){
     art.style.transform = `translate(${px*14}px, ${py*14}px)`;
   });
   hero.addEventListener('mouseleave', ()=>{ art.style.transform=''; });
+}
+// ---- v3 cursor-follow spotlight (Nov 2026 pass): writes --v3-spot-x/--v3-spot-y
+// (percentages) onto the element as the pointer moves, driving the radial-gradient glow
+// defined alongside the v3 CSS block above. Idempotent (safe to call on every render) and
+// a no-op under prefers-reduced-motion, matching every other ambient-motion convention in
+// this file. ----
+function wireSpotlightGlow(selector){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const el = document.querySelector(selector);
+  if(!el || el.dataset.v3SpotWired) return;
+  el.dataset.v3SpotWired = '1';
+  el.addEventListener('pointermove', (e)=>{
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--v3-spot-x', (((e.clientX - r.left) / r.width) * 100) + '%');
+    el.style.setProperty('--v3-spot-y', (((e.clientY - r.top) / r.height) * 100) + '%');
+  });
+}
+// ---- v3 card tilt-on-hover: adds .v3-tilt (the CSS alongside it does the actual
+// rotateX/rotateY via these custom properties) to every matching card and tracks pointer
+// position within each one independently, resetting to flat on pointerleave. Idempotent;
+// no-op under prefers-reduced-motion, in which case cards simply keep their existing
+// translateY hover lift. ----
+function wireCardTilt(selector){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll(selector).forEach(card=>{
+    if(card.dataset.v3TiltWired) return;
+    card.dataset.v3TiltWired = '1';
+    card.classList.add('v3-tilt');
+    card.addEventListener('pointermove', (e)=>{
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      card.style.setProperty('--v3-ry', (px * 8) + 'deg');
+      card.style.setProperty('--v3-rx', (py * -8) + 'deg');
+    });
+    card.addEventListener('pointerleave', ()=>{
+      card.style.setProperty('--v3-ry', '0deg');
+      card.style.setProperty('--v3-rx', '0deg');
+    });
+  });
 }
 
 /* ---------------- Login — welcome screen shown before Company Info ---------------- */
@@ -20653,6 +20778,7 @@ function renderLogin(){
       : (lastUsername ? document.getElementById('authPassword') : document.getElementById('authUsername'));
     firstField?.focus();
   }
+  wireSpotlightGlow('.login-shell');
 }
 
 /* ---------------- Gateway of Tally — company selection ---------------- */
@@ -23609,6 +23735,8 @@ function renderGateway(){
       renderGateway();
     });
   }
+  wireSpotlightGlow('.gw-hero');
+  wireCardTilt('.company-card');
 }
 function fileDropdown(){
   return `<div class="menu-dropdown"><a id="gwNewCompanyLink">New Company</a><a id="gwLogOutLink">Log Out</a></div>`;
