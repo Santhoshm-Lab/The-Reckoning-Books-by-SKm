@@ -6370,14 +6370,23 @@ let state = {
   reconciliations: [],  // [{id, ledgerId, date, statementBalance, bookBalance, difference, ...}] — saved history of past bank reconciliations
   recurringTemplates: [], // [{id, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate, lastGeneratedDate, active}]
   fixedAssets: [], // [{id, name, ledgerId, cost, purchaseDate, usefulLifeYears, method, salvageValue, postedFYs, active}]
-  costCenters: [], // [{id, name, active}]
+  costCenters: [], // [{id, name, active, parentId?, categoryId?}] -- parentId nests it under another cost center (roll-up reporting); categoryId tags which costCategories dimension it belongs to (null = uncategorized/"General")
+  costCategories: [], // [{id, name, active}] -- an independent cost-center dimension, Tally-style (e.g. "Department" vs "Project") used purely to group/filter cost centers in reports; see costCenterPLData()
+  costCenterClasses: [], // [{id, name, splits:[{costCenterId, percent}]}] -- a saved % template (percents sum to 100) that auto-fills a voucher entry's cost-center split; see applyCostCenterClass()
   currencies: [], // [{id, code, symbol, name, rate, active}] -- rate is units of this currency per 1 INR's worth i.e. INR = amount * rate... see currencyToINR()
   budgets: [], // [{id, ledgerId, fy, amount, costCenterId?}]
+  bankRules: [], // [{id, name, match:{field:'desc', mode:'contains'|'startsWith'|'exact', value}, ledgerId, active, priority, hitCount}] -- a saved, user-editable rule applied during bank-statement import to auto-suggest (or auto-apply) a ledger for a transaction, instead of the fuzzy ledger-name guess importGuessLedgerMatch() falls back to. See applyBankRules()/bankRulesModal().
+  scenarios: [], // [{id, name, active, createdAt, vouchers:[{id, date, type, narration, entries, costCenterId?}]}] -- a "What-If" sandbox: provisional vouchers that live ENTIRELY separate from state.vouchers and never post to the real books. Any report can optionally include a scenario's vouchers in its numbers (see scenarioAdjustedVouchers()) to answer "what would this look like if...", and a scenario voucher can be "Converted to Real" (copied into state.vouchers, same as any other voucher) or discarded. See scenarioPlannerTab()/convertScenarioVoucherToReal().
   employees: [], // [{id, code, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, active, salary:{basic,hra,allowances,bonus,pf,esi,pt,tds,otherDeductions}}]
   salaryVouchers: [], // [{id, employeeId, month (YYYY-MM), basic,hra,allowances,bonus,pf,esi,pt,tds,otherDeductions,employerPF,employerESI,loanDeduction,netPay,voucherId,generatedAt}]
   employeeLoans: [], // [{id, employeeId, principal, emiAmount, outstanding, disbursedDate, disburseVoucherId, active}]
   fnfSettlements: [], // [{id, employeeId, date, leaveEncashment, otherDues, loanRecovered, netPayable, voucherId, generatedAt}]
-  quotations: [], // [{id, docType:'quotation', no, date, partyLedgerId, items:[...], narration, status:'open'|'converted', convertedVoucherId}]
+  // [{id, docType:'quotation', no, date, partyLedgerId, items:[{itemId,name,qty,rate,disc,convertedQty}], narration,
+  //  status:'open'|'partial'|'converted', convertedVoucherIds:[]}] -- status/convertedVoucherIds upgraded from a
+  // binary open/converted flag + single id to support PARTIAL conversion: each item line tracks how much of its
+  // qty has been carried into a voucher so far (convertedQty, default 0), and the doc can be converted more than
+  // once as fresh quantity ships/bills. See convertOrderDocToVoucher()/orderDocRemainingQty().
+  quotations: [],
   salesOrders: [],
   purchaseOrders: [],
   deliveryChallans: [],
@@ -6542,6 +6551,7 @@ let verifyLinkError = '';          // inline error message on the sign-up form
    referrerUid==currentUser.id live every time it opens, the same derive-don't-store rule every
    other figure in this app already follows. */
 let pendingReferralCode = '';  // the referring user's username, from ?ref= in the URL (or window.storage, surviving the signup email-link reload)
+let pendingSharedReceiptFile = false; // ?shared-receipt=1 seen at init() -- consumed by enterCompanyApp() via openSharedReceiptIntoScan()
 let myReferrals = [];          // cached result of "who joined via my link", refreshed by loadMyReferrals()
 let myReferralsLoading = false;
 /* Password reset (Forgot Password, or an admin's "Reset Password" button) now stays in-app too,
@@ -7085,6 +7095,13 @@ let groupSettingsBusy = false;
 let groupSettingsNotice = '';
 
 let ledgerDetailId = null;   // which ledger was clicked in the Balance Sheet, for the detail modal
+let costCenterBreakupId = null; // which cost center's Tally-style "Breakup" drill-down is open, see costCenterBreakupModal()
+let bankRuleDraft = null; // null = not adding/editing a bank rule | {id?, name, field, mode, value, ledgerId, priority}
+let scenarioPlannerActiveId = null; // which state.scenarios[].id the What-If Scenario Planner tab is currently showing
+let scenarioVoucherDraft = null; // null = not adding/editing a provisional voucher inside a scenario | {scenarioId, id?, date, type, narration, entries, costCenterId}
+let includeScenarioInReports = null; // null = real books only | a scenario id -- when set, reports blend that scenario's provisional vouchers into their numbers, see scenarioAdjustedVouchers()
+let ccClassDraftSplits = []; // in-progress rows ({costCenterId, percent}) for the "Save Class" builder on the Accounts tab, reset after each save
+let showBankRulesModal = false; // a separate on/off flag (not the generic `modal` var) so Bank Rules can stack on top of the Smart Import modal instead of replacing it -- see bankRulesModal()
 let cfDetailBucket = null;   // which Cash Flow bucket (operating/investing/financing) was clicked, for the detail modal
 let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice ageing detail modal is showing
 let monthlyNarrativeMonth = null; // which 'YYYY-MM' the AI-Written Monthly Narrative Summary modal is showing -- null = current month
@@ -7194,7 +7211,8 @@ let fixedAssetDraft = null; // null = not adding an asset | {name, ledgerId, cos
 let ordersSubTab = 'quotation'; // which of the 4 pre-sale document types the Orders tab is showing
 let payrollSubTab = 'employees'; // which section of Payroll Management is showing -- see PAYROLL_SUBTABS
 let oform = null; // null = not adding/editing a pre-sale document | {docType, id?, partyLedgerId, date, narration, items:[{itemId,name,qty,rate,disc}], status}
-let pendingConvertDoc = null; // {docType, id} of the order document being converted, set by the Orders tab's "Convert to Voucher" button; the next voucher save marks it converted
+let pendingConvertDoc = null; // {docType, id, lineQtys} of the order document being converted, set by the Orders tab's "Convert to Voucher" button; the next voucher save bumps each line's convertedQty by lineQtys[i]
+let orderConvertDraft = null; // null = not open | {docType, id, qtys:[...]} -- the "choose what to convert now" step shown before jumping to the Voucher screen, see openOrderConvertDraft()/orderConvertModal()
 let budgetReportFY = null; // which FY the Budget vs Actual report is showing; null = default to the current FY the first time it's opened
 let forexRateOverrides = {}; // {currencyId: rateString} -- per-currency revaluation rate typed into the Forex Revaluation report; empty/missing falls back to that currency's current rate under Accounts → Foreign Currencies
 let employeeDraft = null; // null = not adding/editing an employee | {id?, code?, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions}
@@ -7975,6 +7993,73 @@ function referralTierFor(count){ return REFERRAL_TIERS.find(t=>count>=t.min); }
 function referralShareLink(){
   if(!currentUser || !currentUser.username) return '';
   return `${window.location.origin}${window.location.pathname}?ref=${encodeURIComponent(currentUser.username)}`;
+}
+// ---- "What's New" feature-discovery panel ----
+// A curated, hand-maintained spotlight of shipped features -- deliberately NOT every commit or
+// internal roadmap line item (most users would never read a 40-item changelog), just what's
+// actually worth a user knowing exists. Newest first. Add a line here whenever something genuinely
+// user-facing ships; this is the one place in the app whose whole job is "tell people what's new,"
+// so the many AI/growth features built across past rounds don't stay permanently undiscovered.
+const WHATS_NEW_ITEMS = [
+  { date:'2026-11-02', icon:'🔔', tag:'Mobile', title:'Local notifications', desc:'Opt in from the Dashboard\'s Notifications button to get nudged about new pending approvals, invoices gone overdue, or stock at reorder level — while the app is open on this device.' },
+  { date:'2026-11-02', icon:'📸', tag:'Mobile', title:'Share a receipt straight from WhatsApp', desc:'Install the app, then share a receipt photo from WhatsApp\'s own share sheet — "The Reckoning Books" now appears as a destination and lands it directly in Scan Receipt/Bill.' },
+  { date:'2026-11-02', icon:'🤖', tag:'Automation', title:'Opt-in auto-posting for recurring vouchers', desc:'Mark a recurring template "Auto" and set a ceiling, and it posts itself when due and under that amount — fully logged to Automation Activity with one-click Undo. Off by default.' },
+  { date:'2026-11-01', icon:'📤', tag:'Growth', title:'Shareable Business Snapshot card', desc:'Reports → Financial Performance Report → Share Snapshot — a branded, on-brand image of your revenue, growth and Financial Health Score, ready for WhatsApp Status, LinkedIn or Instagram.' },
+  { date:'2026-11-01', icon:'🎁', tag:'Growth', title:'Invite & Earn', desc:'Your own referral link (Gateway → Invite & Earn) — share it, see who\'s joined, and climb a Founding Referrer → Growth Partner → Community Pillar ladder.' },
+  { date:'2026-10-08', icon:'🗺️', tag:'Onboarding', title:'Migration Assistant', desc:'Switching from Tally or another tool? Upload a trial balance or ledger export and it proposes a Chart-of-Accounts mapping automatically — nothing imports until you confirm it.' },
+  { date:'2026-10-05', icon:'📊', tag:'Accountants', title:'Accountant Dashboard', desc:'One screen listing every client company you can access, sorted by what needs attention first — overdue invoices, pending approvals, unreconciled bank items.' },
+  { date:'2026-10-05', icon:'🧮', tag:'Reports', title:'Multi-entity Consolidation Report', desc:'A combined P&L and Balance Sheet across a group of your companies, with intercompany balances automatically eliminated.' },
+  { date:'2026-10-05', icon:'🌐', tag:'Reports', title:'Forex revaluation report', desc:'Unrealized gain/loss on every foreign-currency ledger, postable in one click to a standing Unrealized Forex Gain/Loss ledger.' },
+  { date:'2026-10-05', icon:'🚩', tag:'Security', title:'Vendor bank-change fraud flag', desc:'A large payment following close behind a change to a supplier\'s bank account or IFSC now surfaces on your Dashboard\'s exception queue — a classic invoice-fraud pattern, caught automatically.' },
+  { date:'2026-10-06', icon:'🔐', tag:'Security', title:'Ledger-group-level Team Access', desc:'Restrict a teammate below the module level — to specific ledger groups only, not just whole screens like Vouchers or Reports.' },
+  { date:'2026-10-01', icon:'👥', tag:'Security', title:'Company Team Access', desc:'Invite a bookkeeper, auditor or GST filer with their own restricted login, scoped to just this one company — five starting presets, fully customizable.' },
+  { date:'2026-09-20', icon:'📷', tag:'AI', title:'Scan Receipt/Bill (on-device OCR)', desc:'Photograph or upload a receipt — it reads the amount, date and vendor right in your browser (nothing uploaded anywhere) and drafts a voucher for you to review.' },
+  { date:'2026-09-20', icon:'🛡️', tag:'AI', title:'Party Risk Dashboard', desc:'Every customer and supplier with an open balance, scored on payment timing, concentration, credit-limit breaches and duplicate-payment history.' },
+  { date:'2026-09-20', icon:'🧾', tag:'AI', title:'GST Return Readiness report', desc:'A GSTR-1/3B-style monthly summary flagging any voucher still missing a GSTIN or HSN before you file.' },
+  { date:'2026-09-19', icon:'💬', tag:'AI', title:'Ask Your Books', desc:'Type a real question — "who owes me the most", "unpaid bills from Gamma Suppliers" — and get a straight answer, sometimes with a chart, pulled live from your own books.' },
+  { date:'2026-09-18', icon:'⌘', tag:'Productivity', title:'Agentic command palette (Ctrl/⌘K)', desc:'Type "paid 500 for rent yesterday" straight into search and it drafts the voucher for you to review and save — nothing ever posts without your click.' },
+  { date:'2026-09-18', icon:'💵', tag:'AI', title:'AI cash-flow forecast', desc:'A 30/60/90-day cash position projection on your Dashboard, built from your own open invoices and recurring templates.' },
+  { date:'2026-09-18', icon:'🔔', tag:'AI', title:'Needs Your Attention', desc:'Your Dashboard proactively flags possible duplicate invoices, expense spikes, GL outliers and stale unreconciled bank items — each one a click away from where to fix it.' },
+  { date:'2026-09-23', icon:'📱', tag:'Mobile', title:'Install as an app (PWA)', desc:'Add The Reckoning Books to your home screen or desktop like a native app, with offline-friendly caching.' },
+  { date:'2026-09-13', icon:'🔒', tag:'Security', title:'Maker-checker approvals', desc:'Require a second person to approve any voucher above a threshold you set, before it posts.' },
+];
+// localStorage, per-browser -- same convention as the rest of this app's light personalization
+// (rb_lastTab_, Dashboard layout). No account-level sync needed for "have I glanced at this list."
+function whatsNewLastSeenAt(){ try{ return localStorage.getItem('rb_whatsNewSeenAt')||''; }catch(e){ return ''; } }
+function whatsNewMarkSeen(){ try{ localStorage.setItem('rb_whatsNewSeenAt', WHATS_NEW_ITEMS[0].date); }catch(e){} }
+function whatsNewUnseenCount(){
+  const seen = whatsNewLastSeenAt();
+  if(!seen) return WHATS_NEW_ITEMS.length; // never opened it -- everything is "new" to them
+  return WHATS_NEW_ITEMS.filter(i=>i.date>seen).length;
+}
+function whatsNewModal(){
+  const seenAt = whatsNewLastSeenAt();
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:620px;max-height:84vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+        <div class="panel-head" style="padding:16px 20px;"><h2>✨ What's New</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
+          <p class="muted" style="font-size:12px;margin:0 0 14px;">A running spotlight of features shipped to The Reckoning Books — new since your last visit are marked.</p>
+          ${WHATS_NEW_ITEMS.map(i=>`
+            <div class="panel" style="margin-bottom:10px;">
+              <div class="panel-body" style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="font-size:22px;line-height:1;flex-shrink:0;">${i.icon}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <strong style="font-size:13px;">${escapeHtml(i.title)}</strong>
+                    <span class="pill" style="font-size:9.5px;">${escapeHtml(i.tag)}</span>
+                    ${(!seenAt || i.date>seenAt) ? `<span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;">NEW</span>` : ''}
+                    <span class="muted" style="font-size:10.5px;margin-left:auto;">${i.date}</span>
+                  </div>
+                  <p class="muted" style="font-size:11.5px;line-height:1.6;margin:4px 0 0;">${escapeHtml(i.desc)}</p>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
 }
 function inviteEarnModal(){
   if(!currentUser) return '';
@@ -10034,8 +10119,12 @@ async function loadState(){
     state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
     state.fixedAssets = Array.isArray(data.fixedAssets) ? data.fixedAssets : [];
     state.costCenters = Array.isArray(data.costCenters) ? data.costCenters : [];
+    state.costCategories = Array.isArray(data.costCategories) ? data.costCategories : [];
+    state.costCenterClasses = Array.isArray(data.costCenterClasses) ? data.costCenterClasses : [];
     state.currencies = Array.isArray(data.currencies) && data.currencies.length ? data.currencies : DEFAULT_CURRENCIES.slice();
     state.budgets = Array.isArray(data.budgets) ? data.budgets : [];
+    state.bankRules = Array.isArray(data.bankRules) ? data.bankRules : [];
+    state.scenarios = Array.isArray(data.scenarios) ? data.scenarios : [];
     state.employees = Array.isArray(data.employees) ? data.employees : [];
     state.salaryVouchers = Array.isArray(data.salaryVouchers) ? data.salaryVouchers : [];
     state.employeeLoans = Array.isArray(data.employeeLoans) ? data.employeeLoans : [];
@@ -10071,8 +10160,12 @@ async function loadState(){
     state.recurringTemplates = [];
     state.fixedAssets = [];
     state.costCenters = [];
+    state.costCategories = [];
+    state.costCenterClasses = [];
     state.currencies = DEFAULT_CURRENCIES.slice();
     state.budgets = [];
+    state.bankRules = [];
+    state.scenarios = [];
     state.employees = [];
     state.salaryVouchers = [];
     state.employeeLoans = [];
@@ -10151,6 +10244,17 @@ async function enterCompanyApp(company, opts={}){
   else recordCompanyOpened(company.id); // Gateway's "recently opened" ordering -- a read-only admin peek doesn't count as genuine usage
   showCompanyOpeningSkeleton(company.name);
   await loadState();
+  // Opt-in auto-posting: catches up anything due since this company was last opened, for templates
+  // the owner has individually marked Auto AND the company has enabled (see recurringModal() /
+  // runAutoPostDueTemplates()). A silent no-op unless both are on, so this is a no-op for the vast
+  // majority of companies that have never touched the feature.
+  const autoPostedCount = runAutoPostDueTemplates();
+  if(autoPostedCount && !opts.adminViewOnly) toast(`🤖 Auto-posted ${autoPostedCount} recurring voucher${autoPostedCount===1?'':'s'} — see Automation Activity to review or undo`, {type:'success'});
+  if(pendingSharedReceiptFile && !opts.adminViewOnly && !isReadOnlyMode()){
+    pendingSharedReceiptFile = false;
+    openSharedReceiptIntoScan(); // best-effort, see its own comment -- not awaited so it doesn't delay opening the company
+  }
+  if(!opts.adminViewOnly) checkAndFireLocalNotifications(); // best-effort, opt-in, see its own comment -- not awaited, never blocks opening the company
   // Read-only sessions (admin view-only, or anyone but the Administrator opening the shared demo
   // company) get a pristine snapshot taken right here, right after the real data loads — render()
   // re-applies it on every single paint, so no click handler anywhere can make a local edit stick
@@ -10405,6 +10509,30 @@ async function saveCostCenters(){
   markSyncSaving();
   try{ await db.collection('companies').doc(currentCompany.id).set({ costCenters: state.costCenters }, {merge:true}); markSyncSaved(); }
   catch(e){ toast('Could not save cost centers'); markSyncError(); }
+}
+async function saveCostCategories(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ costCategories: state.costCategories }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save cost categories'); markSyncError(); }
+}
+async function saveCostCenterClasses(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ costCenterClasses: state.costCenterClasses }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save cost center classes'); markSyncError(); }
+}
+async function saveBankRules(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ bankRules: state.bankRules }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save bank rules'); markSyncError(); }
+}
+async function saveScenarios(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ scenarios: state.scenarios }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save scenarios'); markSyncError(); }
 }
 async function saveCurrencies(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -11732,8 +11860,12 @@ function buildCompanyBackup(){
     recurringTemplates: state.recurringTemplates,
     fixedAssets: state.fixedAssets,
     costCenters: state.costCenters,
+    costCategories: state.costCategories,
+    costCenterClasses: state.costCenterClasses,
     currencies: state.currencies,
     budgets: state.budgets,
+    bankRules: state.bankRules,
+    scenarios: state.scenarios,
     employees: state.employees,
     salaryVouchers: state.salaryVouchers,
     employeeLoans: state.employeeLoans,
@@ -11949,8 +12081,12 @@ async function restoreCompanyBackup(data){
   state.recurringTemplates = Array.isArray(data.recurringTemplates) ? data.recurringTemplates : [];
   state.fixedAssets = Array.isArray(data.fixedAssets) ? data.fixedAssets : [];
   state.costCenters = Array.isArray(data.costCenters) ? data.costCenters : [];
+  state.costCategories = Array.isArray(data.costCategories) ? data.costCategories : [];
+  state.costCenterClasses = Array.isArray(data.costCenterClasses) ? data.costCenterClasses : [];
   state.currencies = Array.isArray(data.currencies) && data.currencies.length ? data.currencies : DEFAULT_CURRENCIES.slice();
   state.budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  state.bankRules = Array.isArray(data.bankRules) ? data.bankRules : [];
+  state.scenarios = Array.isArray(data.scenarios) ? data.scenarios : [];
   state.employees = Array.isArray(data.employees) ? data.employees : [];
   state.salaryVouchers = Array.isArray(data.salaryVouchers) ? data.salaryVouchers : [];
   state.employeeLoans = Array.isArray(data.employeeLoans) ? data.employeeLoans : [];
@@ -11968,7 +12104,7 @@ async function restoreCompanyBackup(data){
     saveWarehouses(), saveStockTransfers(), saveCycleCounts(),
     saveLandedCostAllocations(), saveCustomerPriceOverrides(),
     saveBankClears(), saveReconciliations(), saveRecurringTemplates(), saveFixedAssets(),
-    saveCostCenters(), saveCurrencies(), saveBudgets(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
+    saveCostCenters(), saveCostCategories(), saveCostCenterClasses(), saveCurrencies(), saveBudgets(), saveBankRules(), saveScenarios(), saveEmployees(), saveSalaryVouchers(), saveEmployeeLoans(), saveFnfSettlements(),
     saveQuotations(), saveSalesOrders(), savePurchaseOrders(), saveDeliveryChallans(),
     saveTaxDeductions(), saveDocVault(), saveAutomationLog(),
   ]);
@@ -12412,6 +12548,71 @@ function generateDueVouchers(){
   }
   if(count){ saveVouchers(); }
   saveRecurringTemplates();
+  return count;
+}
+
+// The amount a recurring template's auto-post ceiling check compares against -- the same total a
+// generated voucher would actually post for, so a Sales-with-items template is judged by its real
+// GST-inclusive total, not its stored display amount (which is only resynced at generation time).
+function autoPostEligibleAmount(t){
+  if(t.type==='Sales' && t.items && t.items.length){
+    const amt = itemsSubtotal(t.items); const rate = Number(t.gstRate)||0;
+    return r2(amt*(1+rate/100));
+  }
+  return Number(t.amount)||0;
+}
+// Opt-in auto-posting: posts any DUE recurring template that's both individually marked t.autoPost
+// (the owner picked this specific template, not "everything") AND currentCompany.autoPostSettings.enabled
+// (the company-wide switch, off by default) AND whose amount is at or under that company's own ceiling
+// -- re-checked fresh every time this runs, never cached, so editing the ceiling or a template's amount
+// takes effect immediately. Called once per company entry (see enterCompanyApp()) -- there's no
+// server-side cron in this client-only app, so "automatic" means "the next time anyone opens this
+// company," the same reality every other recurring-template catch-up in this app already has (compare
+// generateDueVouchers()'s own "missed periods" loop). Every voucher this posts is individually logged
+// to 🔁 Automation Activity with its own one-click Undo, on top of the normal voucher audit trail, and
+// it still defers to the company's Approval Rules and Year-End lock date -- opting in to auto-post never
+// lets a voucher skip a control the owner has separately turned on. Returns how many it posted.
+function runAutoPostDueTemplates(){
+  if(isReadOnlyMode()) return 0;
+  const s = currentCompany && currentCompany.autoPostSettings;
+  if(!s || !s.enabled) return 0;
+  const ceiling = Number(s.ceiling)||0;
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date().toISOString();
+  let count = 0;
+  for(const t of state.recurringTemplates){
+    if(!t.active || !t.autoPost) continue;
+    let guard = 0;
+    while(t.nextDueDate && t.nextDueDate<=today && guard<60){
+      const amt = autoPostEligibleAmount(t);
+      if(!(amt>0) || amt>ceiling) break; // leave it for the manual "Generate Due" button instead
+      if(currentCompany.lockDate && t.nextDueDate<=currentCompany.lockDate) break; // locked period -- a human should handle this one
+      let type, entries, extra={};
+      if(t.type==='Sales' && t.items && t.items.length){
+        if(!t.partyLedgerId || !t.taxableLedger) break;
+        type = 'Sales'; entries = entriesForRecurringSales(t); extra.items = t.items.map(it=>({...it}));
+      } else {
+        if(!t.ledgerA || !t.ledgerB) break;
+        type = t.type; entries = entriesForRecurring(t.type, t.ledgerA, t.ledgerB, amt);
+      }
+      if(voucherNeedsApproval(type, entries)) break; // the company's own maker-checker rule takes priority over auto-post
+      const dueDate = t.nextDueDate;
+      const v = { id: uid('v'), date: dueDate, type, narration: t.narration || t.name, entries, ...extra, createdAt: now, fromRecurring: t.id, autoPosted: true };
+      state.vouchers.push(v);
+      logVoucherAudit('create', v.id, null, voucherAuditSnapshot(v));
+      const prevNextDue = t.nextDueDate, prevLastGen = t.lastGeneratedDate;
+      t.lastGeneratedDate = t.nextDueDate;
+      t.nextDueDate = advanceDate(t.nextDueDate, t.frequency);
+      logAutomation('🤖', `Auto-posted "${t.name}" — ₹${fmt(amt)} ${type} for ${dueDate} (under your ₹${fmt(ceiling)} auto-post ceiling)`, async ()=>{
+        state.vouchers = state.vouchers.filter(x=>x.id!==v.id);
+        t.nextDueDate = prevNextDue; t.lastGeneratedDate = prevLastGen;
+        await saveVouchers(); await saveRecurringTemplates();
+      });
+      count++;
+      guard++;
+    }
+  }
+  if(count){ saveVouchers(); saveRecurringTemplates(); }
   return count;
 }
 
@@ -15479,6 +15680,9 @@ function render(){
     ${modal==='help' ? helpModal() : ''}
     ${modal==='isDetail' ? incomeDetailModal() : ''}
     ${modal==='ledgerDetail' ? ledgerDetailModal() : ''}
+    ${modal==='costCenterBreakup' ? costCenterBreakupModal() : ''}
+    ${modal==='orderConvert' ? orderConvertModal() : ''}
+    ${showBankRulesModal ? bankRulesModal() : ''}
     ${modal==='pieChart' ? pieChartModal() : ''}
     ${modal==='stockDetail' ? itemStockModal() : ''}
     ${modal==='stockAdjust' ? stockAdjustModal() : ''}
@@ -15489,6 +15693,8 @@ function render(){
     ${modal==='employeeDocuments' ? employeeDocumentsModal() : ''}
     ${modal==='recentVouchers' ? recentVouchersModal() : ''}
     ${modal==='automationFeed' ? automationFeedModal() : ''}
+    ${modal==='whatsNew' ? whatsNewModal() : ''}
+    ${modal==='notificationsSettings' ? notificationsSettingsModal() : ''}
     ${modal==='closeChecklist' ? closeChecklistModal() : ''}
     ${modal==='monthlyNarrative' ? monthlyNarrativeModal() : ''}
     ${modal==='dashboardPersonalize' ? dashboardPersonalizeModal() : ''}
@@ -15536,6 +15742,7 @@ function render(){
   attachHandlers();
   wireQAWidget();
   wireDIWidget();
+  wireBankRulesModal();
 
   document.getElementById('menuCompany').addEventListener('click', switchToCompanyGateway);
   document.getElementById('refreshSessionBtn')?.addEventListener('click', ()=> refreshCurrentSession('refreshSessionBtn'));
@@ -15655,10 +15862,11 @@ function render(){
   }
 
   if(modal){
+    const closeGenericModal = ()=>{ if(modal==='whatsNew') whatsNewMarkSeen(); modal = null; render(); };
     document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
-      if(e.target.id==='modalOverlayBg'){ modal = null; render(); }
+      if(e.target.id==='modalOverlayBg') closeGenericModal();
     });
-    document.getElementById('modalClose')?.addEventListener('click', ()=>{ modal = null; render(); });
+    document.getElementById('modalClose')?.addEventListener('click', closeGenericModal);
     autofocusModalIfNeeded();
   } else {
     lastAutofocusedModal = null;
@@ -17028,6 +17236,57 @@ function parseTransactionPhrase(text){
 // above) rather than a real NLP model -- it hands the result to the Voucher form's Action-Preview-style
 // draft for the user to review and correct before anything is ever saved, exactly like every other
 // "AI" feature in this app.
+// Runs a File through Tesseract OCR and lands the result in ocrScanState -- factored out of the
+// ocrScan modal's own file-input handler so the PWA Share Target pickup (openSharedReceiptIntoScan,
+// below) can feed it a file that never touched a file-input element at all.
+async function processReceiptScanFile(file){
+  if(typeof Tesseract === 'undefined'){
+    toast('OCR library failed to load — check your internet connection and try again');
+    return;
+  }
+  ocrScanState = { status:'reading', progress:0, fileName:file.name };
+  render();
+  try{
+    const result = await Tesseract.recognize(file, 'eng', {
+      logger: msg=>{
+        if(msg.status==='recognizing text' && ocrScanState && ocrScanState.status==='reading'){
+          ocrScanState.progress = msg.progress||0;
+          const bar = document.querySelector('#modalOverlayBg [style*="width:"]');
+          if(bar) bar.style.width = `${Math.round((msg.progress||0)*100)}%`;
+        }
+      },
+    });
+    const extracted = parseOcrReceiptText(result.data.text);
+    ocrScanState = { status:'done', fileName:file.name, extracted };
+    render();
+  }catch(err){
+    ocrScanState = { status:'error' };
+    render();
+  }
+}
+// PWA Share Target pickup: when someone shares a photo into "The Reckoning Books" from their phone's
+// share sheet (e.g. a receipt photo from WhatsApp), the service worker's fetch handler stashes it in
+// the Cache Storage API under the 'rb-share-target' cache (key '/shared-receipt') and redirects back
+// into the app with ?shared-receipt=1 (see service-worker.js and manifest.json's share_target). init()
+// sets pendingSharedReceiptFile=true when it sees that param; this is called once a company is open
+// (see enterCompanyApp()) to retrieve the stashed file and feed it straight into the same OCR flow the
+// manual "Scan Receipt/Bill" button uses -- best-effort throughout, since a share-target hiccup should
+// just leave the person to scan manually, never show a broken modal or a dead end.
+async function openSharedReceiptIntoScan(){
+  try{
+    if(!('caches' in window)) return;
+    const cache = await caches.open('rb-share-target');
+    const resp = await cache.match('/shared-receipt');
+    if(!resp) return;
+    const blob = await resp.blob();
+    await cache.delete('/shared-receipt');
+    const file = new File([blob], 'shared-receipt.jpg', {type: blob.type || 'image/jpeg'});
+    ocrScanState = { status:'idle' };
+    modal = 'ocrScan';
+    render();
+    await processReceiptScanFile(file);
+  }catch(e){ /* best-effort -- see comment above */ }
+}
 function parseOcrReceiptText(text){
   const raw = (text||'').replace(/\r/g,'');
   const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
@@ -17953,9 +18212,10 @@ function partiesHelpModal(){
 function recurringModal(){
   const today = new Date().toISOString().slice(0,10);
   const dueCount = dueRecurringTemplates(today).length;
+  const aps = currentCompany.autoPostSettings || {enabled:false, ceiling:0};
   return `
     <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
-      <div class="modal-card" style="width:660px;position:relative;">
+      <div class="modal-card" style="width:700px;position:relative;">
         <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
         <div class="panel-head"><h2>Recurring Vouchers</h2></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
@@ -17963,9 +18223,23 @@ function recurringModal(){
             <p class="muted" style="font-size:12px;margin:0;max-width:380px;">Templates auto-generate the same two-ledger voucher on a schedule — rent, EMIs, subscriptions, recurring bills.</p>
             <button class="btn small" id="generateDueBtn" type="button" ${dueCount?'':'disabled'}>▶ Generate Due${dueCount?` (${dueCount})`:''}</button>
           </div>
+          <details style="margin-bottom:14px;" ${aps.enabled?'open':''}>
+            <summary style="cursor:pointer;font-size:12.5px;font-weight:600;">🤖 Auto-Post Settings — opt-in only</summary>
+            <div style="padding:10px 0 4px;">
+              <p class="muted" style="font-size:11.5px;line-height:1.6;margin:0 0 10px;">Off by default, and nothing changes here unless you turn it on. When enabled, a recurring template you've individually marked "Auto" below posts itself the next time anyone opens this company — but only when it's due <strong style="color:var(--ink);">and</strong> its amount is under the ceiling you set. Every auto-posted voucher is logged to 🔁 Automation Activity with its own one-click Undo, same as any other automated posting here — and it still respects your Approval Rules and Year-End lock date, so it never bypasses either.</p>
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:8px;">
+                <input type="checkbox" id="autoPostEnabledChk" ${aps.enabled?'checked':''}> Allow opted-in templates to auto-post when due
+              </label>
+              <div class="field" style="max-width:220px;"><label>Auto-post ceiling (₹) — only templates at or under this amount qualify</label><input type="number" id="autoPostCeilingInput" value="${aps.ceiling||0}" min="0" step="100"></div>
+              <button class="btn small" id="saveAutoPostSettingsBtn" type="button" style="margin-top:8px;">Save Auto-Post Settings</button>
+            </div>
+          </details>
           <table>
-            <tr><th>Name</th><th>Type</th><th class="num">Amount</th><th>Frequency</th><th>Next Due</th><th style="text-align:center;">Active</th><th></th></tr>
-            ${state.recurringTemplates.map(t=>`
+            <tr><th>Name</th><th>Type</th><th class="num">Amount</th><th>Frequency</th><th>Next Due</th><th style="text-align:center;">Active</th><th style="text-align:center;" title="Auto-post when due and under the ceiling above">Auto</th><th></th></tr>
+            ${state.recurringTemplates.map(t=>{
+              const amt = autoPostEligibleAmount(t);
+              const overCeiling = aps.enabled && t.autoPost && amt > (Number(aps.ceiling)||0);
+              return `
             <tr>
               <td>${escapeHtml(t.name)}</td>
               <td class="muted">${t.type}</td>
@@ -17973,8 +18247,9 @@ function recurringModal(){
               <td class="muted" style="text-transform:capitalize;">${t.frequency}</td>
               <td class="muted">${t.nextDueDate}${t.nextDueDate<=today?' <span style="color:var(--debit);">⚠ due</span>':''}</td>
               <td style="text-align:center;"><input type="checkbox" data-toggle-recurring="${t.id}" ${t.active?'checked':''}></td>
+              <td style="text-align:center;"><input type="checkbox" data-toggle-autopost="${t.id}" ${t.autoPost?'checked':''} title="${overCeiling?'Over your auto-post ceiling — will wait for Generate Due instead':'Auto-post when due, if under the ceiling above'}">${overCeiling?' <span style="color:var(--debit);font-size:10px;">⚠ over ceiling</span>':''}</td>
               <td><button class="btn secondary small" data-delete-recurring="${t.id}" type="button">🗑</button></td>
-            </tr>`).join('') || `<tr><td colspan="7" class="empty">No recurring templates yet.</td></tr>`}
+            </tr>`;}).join('') || `<tr><td colspan="8" class="empty">No recurring templates yet.</td></tr>`}
           </table>
 
           ${recurringDraft ? recurringDraftForm() : `<button class="btn secondary small" id="newRecurringBtn" type="button" style="margin-top:14px;">+ New Recurring Template</button>`}
@@ -20973,6 +21248,7 @@ function renderGateway(){
       <div class="gw-section-row">
         <div class="gw-section-title">Your Companies</div>
         <div class="gw-toolbar">
+        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently" style="position:relative;">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
         ${!isDemoUser ? `<button class="btn secondary" id="openInviteEarnBtn" type="button" title="Invite other businesses and see who's joined through your link">🎁 Invite &amp; Earn</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
@@ -21199,6 +21475,7 @@ function renderGateway(){
     ${companyCreateModalOpen ? companyCreateModal() : ''}
     ${companyRenameModalOpen ? companyRenameModal() : ''}
     ${modal==='accountantDash' ? accountantDashModal() : ''}
+    ${modal==='whatsNew' ? whatsNewModal() : ''}
     ${modal==='inviteEarn' ? inviteEarnModal() : ''}
     ${modal==='consolidation' ? consolidationModal() : ''}
     ${modal==='comparison' ? companyComparisonModal() : ''}
@@ -21626,6 +21903,17 @@ function renderGateway(){
     modal = 'accountantDash';
     renderGateway();
   });
+  document.getElementById('openWhatsNewBtn')?.addEventListener('click', ()=>{
+    modal = 'whatsNew';
+    renderGateway();
+  });
+  if(modal==='whatsNew'){
+    const closeWhatsNew = ()=>{ whatsNewMarkSeen(); modal = null; renderGateway(); };
+    document.getElementById('modalClose')?.addEventListener('click', closeWhatsNew);
+    document.getElementById('modalOverlayBg')?.addEventListener('click', (e)=>{
+      if(e.target.id==='modalOverlayBg') closeWhatsNew();
+    });
+  }
   document.getElementById('openInviteEarnBtn')?.addEventListener('click', async ()=>{
     modal = 'inviteEarn';
     renderGateway();
@@ -25335,6 +25623,109 @@ function partyRiskModal(){
     </div>
   `;
 }
+// ---- Local notifications (Web Notification API, opt-in per browser) ----
+// HONEST SCOPE, stated plainly because it's easy to overpromise here: these fire only while this
+// app/tab is open or running in the background on this device -- NOT server push while the browser or
+// installed app is fully closed. Real "notify me even when it's closed" push needs a backend that
+// decides when to send (a scheduled Cloud Function calling the FCM send API), which costs money to
+// run and which this project has deliberately kept off (see service-worker.js's own comment, and the
+// standing decision to leave Cloud Functions undeployed to stay on Firebase's free Spark plan). This
+// is the honest, zero-cost version instead: a check that runs every time anyone opens a company,
+// surfacing what's newly worth knowing about since the dedup set below last saw it -- approvals
+// waiting on you, invoices that have gone newly overdue, stock that's dropped to its reorder level.
+function notificationsEnabled(){
+  try{ return localStorage.getItem('rb_notificationsEnabled')==='1'; }catch(e){ return false; }
+}
+function setNotificationsEnabled(v){
+  try{ localStorage.setItem('rb_notificationsEnabled', v?'1':'0'); }catch(e){}
+}
+async function showLocalNotification(title, body, tag){
+  try{
+    if(!('Notification' in window) || Notification.permission!=='granted') return;
+    // Only routes through the service worker when one is ALREADY active and controlling this page
+    // (navigator.serviceWorker.controller) -- awaiting .ready instead would hang forever on a host
+    // that never registers a service worker (e.g. plain http, or this app's own test harness), since
+    // .ready only resolves once a worker actually activates.
+    if('serviceWorker' in navigator && navigator.serviceWorker.controller){
+      const reg = await navigator.serviceWorker.ready.catch(()=>null);
+      if(reg && reg.showNotification){ await reg.showNotification(title, {body, icon:'icon-192.png', badge:'icon-192.png', tag}); return; }
+    }
+    new Notification(title, {body, icon:'icon-192.png', tag});
+  }catch(e){ /* best-effort -- a notification hiccup should never interrupt anything else */ }
+}
+// The "already notified" set is per-company, per-browser (localStorage) -- it tracks the CURRENT set
+// of flagged items, not a one-time-ever dismissal, so resolving something (an invoice gets paid,
+// stock gets replenished) and later having it recur later genuinely re-notifies.
+function notifiedIdsKey(){ return currentCompany ? `rb_notifiedIds_${currentCompany.id}` : null; }
+function readNotifiedIds(){
+  const key = notifiedIdsKey(); if(!key) return [];
+  try{ return JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){ return []; }
+}
+function writeNotifiedIds(ids){
+  const key = notifiedIdsKey(); if(!key) return;
+  try{ localStorage.setItem(key, JSON.stringify(ids)); }catch(e){}
+}
+// Called once per company entry (see enterCompanyApp()). A no-op unless this browser has both
+// opted in (notificationsEnabled()) AND actually granted OS notification permission -- so for the
+// overwhelming majority of sessions that have never touched this feature, it's one cheap localStorage
+// read and nothing else.
+async function checkAndFireLocalNotifications(){
+  if(!notificationsEnabled() || !('Notification' in window) || Notification.permission!=='granted') return;
+  if(isReadOnlyMode()) return;
+  const prevIds = new Set(readNotifiedIds());
+  const nextIds = [];
+  const fresh = [];
+
+  if(canApproveVouchers()){
+    for(const pv of state.pendingVouchers){
+      const id = `approval:${pv.id}`;
+      nextIds.push(id);
+      if(!prevIds.has(id)) fresh.push({ title:'Approval needed', body:`${pv.type} — ₹${fmt(voucherAmount(pv))} is waiting for your approval` });
+    }
+  }
+  for(const row of overdueInvoices()){
+    const id = `overdue:${row.invoice.voucherId}`;
+    nextIds.push(id);
+    if(!prevIds.has(id)) fresh.push({ title:'Invoice overdue', body:`${row.ledger.name} — ₹${fmt(row.invoice.remaining)} is ${row.daysOverdue} day${row.daysOverdue===1?'':'s'} overdue` });
+  }
+  for(const r of reorderSuggestions()){
+    const id = `lowstock:${r.item.id}`;
+    nextIds.push(id);
+    if(!prevIds.has(id)) fresh.push({ title:'Low stock', body:`${r.item.name} is at ${r.summary.closing} ${r.item.unit||''} — at or below its reorder level` });
+  }
+
+  writeNotifiedIds(nextIds);
+  if(!fresh.length) return;
+  if(fresh.length===1){
+    await showLocalNotification(fresh[0].title, fresh[0].body, 'rb-notify');
+  }else{
+    await showLocalNotification('The Reckoning Books', `${fresh.length} new things need your attention — approvals, overdue invoices or low stock`, 'rb-notify');
+  }
+}
+function notificationsSettingsModal(){
+  const supported = 'Notification' in window;
+  const perm = supported ? Notification.permission : 'unsupported';
+  const enabled = notificationsEnabled();
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:460px;">
+        <div class="panel-head"><h2>🔔 Notifications</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <p class="muted" style="font-size:12px;margin-top:0;line-height:1.7;">Get notified about new pending approvals, invoices that have just gone overdue, and stock that's dropped to its reorder level — on this device, while the app is open or running in the background.</p>
+          <p class="muted" style="font-size:11px;line-height:1.6;background:var(--surface-strong);padding:8px 10px;border-radius:6px;">This isn't server push — an invoice won't notify you while your browser or the installed app is fully closed. True "closed app" push needs a paid backend, which this app doesn't run. This checks each time you open the company instead.</p>
+          ${!supported ? `<p style="font-size:12.5px;color:var(--debit);">Your browser doesn't support notifications.</p>` : perm==='denied' ? `
+            <p style="font-size:12.5px;color:var(--debit);">Notifications are blocked for this site in your browser settings. Allow them there, then come back and enable here.</p>
+          ` : `
+            <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:12px 0;">
+              <input type="checkbox" id="notificationsEnabledChk" ${enabled && perm==='granted' ? 'checked' : ''}> Enable notifications on this device
+            </label>
+            <button class="btn small" id="saveNotificationsSettingsBtn" type="button">Save</button>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
 // ---- "Needs Your Attention" exception queue: proactively surfaces things that usually deserve a
 // human look before they turn into a real problem, rather than waiting for the user to notice them
 // while scanning some other report. Every check here is read-only detection -- nothing is changed
@@ -25957,6 +26348,8 @@ function viewDashboard(){
         <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
         <button class="btn secondary" id="openMigrateBtn" type="button">🗺️ Migration Assistant</button>
         <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
+        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
+        <button class="btn secondary" id="openNotificationsSettingsBtn" type="button" title="Get notified about approvals, overdue invoices and low stock">🔔 Notifications${notificationsEnabled() && 'Notification' in window && Notification.permission==='granted' ? ' <span style="color:var(--credit);">●</span>' : ''}</button>
         <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close Checklist</button>
         <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
         <button class="btn secondary" id="openDashboardPersonalizeBtn" type="button">⚙️ Personalize Dashboard</button>
@@ -27314,6 +27707,155 @@ function parseImportAmount(v){
   return isNaN(n) ? 0 : n;
 }
 function importNormalizeNarration(s){ return (s||'').trim().replace(/\s+/g,' ').toLowerCase(); }
+// A saved, user-authored Bank Rule (state.bankRules), checked BEFORE the fuzzy importGuessLedgerMatch()
+// fallback below. Unlike that heuristic -- which only matches against an existing ledger's own NAME --
+// a rule matches the bank statement's raw description text itself (e.g. "contains 'GOOGLE WORKSPACE'
+// -> Software Subscriptions"), persists across sessions, and is fully visible/editable on the Bank
+// Rules screen (bankRulesModal()). Rules are tried in priority order (lower number first); first
+// match wins, same "first match wins" semantics real bank-rule engines use.
+function applyBankRules(desc){
+  const norm = (desc||'').trim().toLowerCase();
+  if(!norm) return null;
+  const rules = state.bankRules.filter(r=>r.active!==false && r.match && r.match.value).slice().sort((a,b)=>(a.priority||0)-(b.priority||0));
+  for(const r of rules){
+    const val = r.match.value.trim().toLowerCase();
+    if(!val) continue;
+    const mode = r.match.mode || 'contains';
+    const hit = mode==='exact' ? norm===val : mode==='startsWith' ? norm.startsWith(val) : norm.includes(val);
+    if(hit) return { ledgerId: r.ledgerId, rule: r };
+  }
+  return null;
+}
+// A rule with the exact same match text+mode as another active rule is a silent conflict -- whichever
+// has the lower priority number wins at import time, which is easy to not notice. Checked on save.
+function bankRuleConflictWarning(draft, excludeId){
+  const val = (draft.value||'').trim().toLowerCase();
+  if(!val) return null;
+  const dup = state.bankRules.find(r=>r.id!==excludeId && r.active!==false && (r.match.value||'').trim().toLowerCase()===val && (r.match.mode||'contains')===draft.mode);
+  if(!dup) return null;
+  const l = ledgerOf(dup.ledgerId);
+  return `This exact match text and mode is already used by rule "${dup.name}" (→ ${l?l.name:'a deleted ledger'}, priority ${dup.priority||0}). Saving this one creates a conflict — the lower priority number wins.`;
+}
+function bankRulesModal(){
+  const draft = bankRuleDraft;
+  const rules = state.bankRules.slice().sort((a,b)=>(a.priority||0)-(b.priority||0));
+  return `
+    <div class="modal-overlay" id="bankRulesOverlayBg" role="dialog" aria-modal="true" style="z-index:10001;">
+      <div class="modal-card" style="width:700px;position:relative;">
+        <button class="btn secondary small" id="bankRulesModalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <div style="padding:18px;max-height:82vh;overflow-y:auto;">
+          <h2 style="margin:0 0 4px;font-size:16px;">🏦 Bank Rules</h2>
+          <p class="muted" style="font-size:11.5px;margin:0 0 14px;">Saved rules are checked in priority order during Smart Import, before the fuzzy ledger-name guess — the first match wins. Each match is logged (see "Used") so you can see which rules are actually earning their keep.</p>
+          <div class="panel"><div class="panel-body" style="padding:0;">
+            ${rules.length ? `<table>
+              <tr><th>#</th><th>Rule</th><th>Match</th><th>→ Ledger</th><th class="num">Used</th><th>Active</th><th></th></tr>
+              ${rules.map(r=>{
+                const l = ledgerOf(r.ledgerId);
+                return `<tr>
+                  <td class="muted">${r.priority||0}</td>
+                  <td>${escapeHtml(r.name)}</td>
+                  <td class="muted" style="font-size:11px;">${escapeHtml(r.match.mode||'contains')} "${escapeHtml(r.match.value)}"</td>
+                  <td>${l?escapeHtml(l.name):'<span class="muted">Deleted ledger</span>'}</td>
+                  <td class="num">${r.hitCount||0}</td>
+                  <td><input type="checkbox" class="bankrule-active" data-bankrule="${r.id}" ${r.active!==false?'checked':''}></td>
+                  <td class="ccard-actions">
+                    <button class="btn small secondary" data-edit-bankrule="${r.id}" type="button">Edit</button>
+                    <button class="btn small secondary" data-delete-bankrule="${r.id}" type="button">Delete</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </table>` : `<div class="empty">No bank rules yet — add one below, or use "+ Save as rule" from the Smart Import preview screen.</div>`}
+          </div></div>
+          <div class="panel">
+            <div class="panel-head"><h2>${draft && draft.id ? 'Edit Rule' : 'New Rule'}</h2></div>
+            <div class="panel-body">
+              <div class="row">
+                <div class="field"><label>Rule Name</label><input type="text" id="brName" value="${escapeAttr(draft?.name||'')}" placeholder="e.g. Google Workspace"></div>
+                <div class="field" style="max-width:120px;"><label>Priority</label><input type="number" id="brPriority" value="${draft?.priority??(state.bankRules.length+1)}" min="0" step="1"></div>
+              </div>
+              <div class="row">
+                <div class="field" style="max-width:150px;"><label>Match Mode</label>
+                  <select id="brMode">
+                    <option value="contains" ${draft?.mode==='contains'||!draft?.mode?'selected':''}>Contains</option>
+                    <option value="startsWith" ${draft?.mode==='startsWith'?'selected':''}>Starts with</option>
+                    <option value="exact" ${draft?.mode==='exact'?'selected':''}>Exact match</option>
+                  </select>
+                </div>
+                <div class="field"><label>Statement text to match</label><input type="text" id="brValue" value="${escapeAttr(draft?.value||'')}" placeholder="e.g. GOOGLE WORKSPACE"></div>
+              </div>
+              <div class="field"><label>Assign to Ledger</label>
+                <select id="brLedger">
+                  <option value="">Select ledger…</option>
+                  ${state.ledgers.map(l=>`<option value="${l.id}" ${draft?.ledgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+                </select>
+              </div>
+              <button class="btn secondary small" id="bankRuleSaveBtn" type="button">${draft && draft.id ? 'Update Rule' : 'Add Rule'}</button>
+              ${draft ? `<button class="btn secondary small" id="bankRuleCancelBtn" type="button">Cancel</button>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+// Wires up the Bank Rules modal's own controls. Called unconditionally on every render() (it's
+// gated by the separate showBankRulesModal flag, not the generic `modal` var, so it can stack on
+// top of the Smart Import modal) -- see the comment on showBankRulesModal's declaration.
+function wireBankRulesModal(){
+  if(!showBankRulesModal) return;
+  const closeIt = ()=>{ showBankRulesModal = false; bankRuleDraft = null; render(); };
+  document.getElementById('bankRulesOverlayBg')?.addEventListener('click', e=>{ if(e.target.id==='bankRulesOverlayBg') closeIt(); });
+  document.getElementById('bankRulesModalClose')?.addEventListener('click', closeIt);
+  document.querySelectorAll('.bankrule-active').forEach(el=>{
+    el.addEventListener('change', async e=>{
+      const r = state.bankRules.find(x=>x.id===e.target.dataset.bankrule);
+      if(!r) return;
+      r.active = e.target.checked;
+      await saveBankRules();
+      render();
+    });
+  });
+  document.querySelectorAll('[data-delete-bankrule]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      if(!window.confirm('Delete this bank rule?')) return;
+      state.bankRules = state.bankRules.filter(x=>x.id!==el.dataset.deleteBankrule);
+      await saveBankRules();
+      render();
+    });
+  });
+  document.querySelectorAll('[data-edit-bankrule]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const r = state.bankRules.find(x=>x.id===el.dataset.editBankrule);
+      if(!r) return;
+      bankRuleDraft = { id:r.id, name:r.name, mode:r.match.mode||'contains', value:r.match.value, ledgerId:r.ledgerId, priority:r.priority||0 };
+      render();
+    });
+  });
+  document.getElementById('bankRuleCancelBtn')?.addEventListener('click', ()=>{ bankRuleDraft = null; render(); });
+  document.getElementById('bankRuleSaveBtn')?.addEventListener('click', async ()=>{
+    const name = document.getElementById('brName').value.trim();
+    const mode = document.getElementById('brMode').value;
+    const value = document.getElementById('brValue').value.trim();
+    const ledgerId = document.getElementById('brLedger').value;
+    const priority = Number(document.getElementById('brPriority').value)||0;
+    if(!name){ toast('Enter a rule name'); return; }
+    if(!value){ toast('Enter the statement text to match'); return; }
+    if(!ledgerId){ toast('Select a ledger to assign'); return; }
+    const editingId = bankRuleDraft && bankRuleDraft.id;
+    const conflict = bankRuleConflictWarning({mode,value}, editingId);
+    if(conflict && !window.confirm(conflict + '\n\nSave anyway?')) return;
+    if(editingId){
+      const r = state.bankRules.find(x=>x.id===editingId);
+      if(r){ r.name=name; r.match={mode,value}; r.ledgerId=ledgerId; r.priority=priority; }
+    } else {
+      state.bankRules.push({ id: uid('br'), name, match:{mode,value}, ledgerId, active:true, priority, hitCount:0 });
+    }
+    await saveBankRules();
+    bankRuleDraft = null;
+    toast(editingId ? 'Bank rule updated' : 'Bank rule added', {type:'success'});
+    render();
+  });
+}
 function importGuessLedgerMatch(desc){
   const norm = importNormalizeNarration(desc);
   if(!norm) return '';
@@ -27364,7 +27906,15 @@ function importBuildGroups(txns){
   const map = new Map();
   txns.forEach(t=>{
     const key = importNormalizeNarration(t.desc) || '(blank)';
-    if(!map.has(key)) map.set(key, {key, label: t.desc || '(No description)', count:0, drTotal:0, crTotal:0, ledgerId: importGuessLedgerMatch(t.desc)});
+    if(!map.has(key)){
+      const ruleHit = applyBankRules(t.desc);
+      map.set(key, {
+        key, label: t.desc || '(No description)', count:0, drTotal:0, crTotal:0,
+        ledgerId: ruleHit ? ruleHit.ledgerId : importGuessLedgerMatch(t.desc),
+        matchedRuleId: ruleHit ? ruleHit.rule.id : null,
+        matchedRuleName: ruleHit ? ruleHit.rule.name : null,
+      });
+    }
     const g = map.get(key);
     g.count++;
     if(t.drcr==='dr') g.drTotal += t.amount; else g.crTotal += t.amount;
@@ -27417,7 +27967,14 @@ async function commitImport(){
     let lid = g.ledgerId;
     if(!lid || lid === '__suspense__') lid = ensureSuspense();
     groupLedgerMap[g.key] = lid;
+    // A Bank Rule that was actually used for this import earns its keep -- bump its hit counter so
+    // bankRulesModal()'s "Used" column reflects real usage, not just how many times it was defined.
+    if(g.matchedRuleId && lid===g.ledgerId){
+      const rule = state.bankRules.find(r=>r.id===g.matchedRuleId);
+      if(rule) rule.hitCount = (rule.hitCount||0) + g.count;
+    }
   }
+  if(importState.groups.some(g=>g.matchedRuleId)) await saveBankRules();
 
   // Reconciliation auto-match: when this statement is for a BANK ledger, a row on it usually isn't
   // brand new to the books -- it's very often confirming a Payment/Receipt the user already entered
@@ -27522,10 +28079,10 @@ function importModal(){
     return `
       <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
         <div class="modal-card" style="width:680px;">
-          <div class="panel-head"><h2>Preview Import</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+          <div class="panel-head"><h2>Preview Import</h2><div style="display:flex;gap:8px;align-items:center;"><button class="btn secondary small" id="manageBankRulesBtn" type="button">🏦 Bank Rules ${state.bankRules.length?`<span class="pill" style="margin-left:4px;">${state.bankRules.length}</span>`:''}</button><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div></div>
           <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
             <div style="padding:14px 18px 0;">
-              <p class="muted" style="font-size:12px;margin:0 0 10px;">${importState.transactions.length} transaction(s) will be imported as vouchers against <strong style="color:var(--ink);">${escapeHtml(primaryLedger)}</strong>. Review the ledger assigned to each narration below — matches are pre-filled, unmatched rows default to a Suspense Account you can reclassify later.</p>
+              <p class="muted" style="font-size:12px;margin:0 0 10px;">${importState.transactions.length} transaction(s) will be imported as vouchers against <strong style="color:var(--ink);">${escapeHtml(primaryLedger)}</strong>. Review the ledger assigned to each narration below — Bank Rule matches are pre-filled first, then a fuzzy name guess for the rest; unmatched rows default to a Suspense Account you can reclassify later.</p>
               ${isBankImport ? `<p class="muted" style="font-size:12px;margin:0 0 10px;">🔗 This is a bank ledger, so each row will first be checked against vouchers you've already entered (same date ±3 days, same amount) — a match gets ticked "Cleared" on the Reconcile screen instead of being imported again as a duplicate.</p>` : ''}
             </div>
             <table>
@@ -27541,6 +28098,7 @@ function importModal(){
                       <option value="__suspense__" ${!g.ledgerId?'selected':''}>Suspense Account (auto)</option>
                       ${state.ledgers.map(l=>`<option value="${l.id}" ${g.ledgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
                     </select>
+                    ${g.matchedRuleName ? `<div class="muted" style="font-size:10px;margin-top:2px;">🤖 Bank Rule: ${escapeHtml(g.matchedRuleName)}</div>` : g.ledgerId ? `<button class="btn small secondary" data-save-as-rule="${i}" type="button" style="margin-top:4px;font-size:10px;padding:2px 6px;">+ Save as rule</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -28086,6 +28644,8 @@ function openVoucherForEditing(id){
     entries: v.entries.map(e=>({...e})),
     gst: {party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items: (v.items||[]).map(it=>({...it}))},
     costCenterId: v.costCenterId || null,
+    costAllocations: v.costAllocations ? v.costAllocations.map(a=>({...a})) : [],
+    splitCostCenters: !!(v.costAllocations && v.costAllocations.length),
     channel: v.channel || '',
     appliedItems: (v.items||[]).map(it=>({...it})), // preserved as-is unless the GST Calculator's "Add to Voucher" is used again
   };
@@ -28176,8 +28736,8 @@ function viewVoucher(){
       <button data-mode="double" type="button" class="${effectiveMode==='double'?'active':''}">Double Entry</button>
     </div>` : ''}
     ${(state.currencies.filter(c=>c.id!=='inr' && c.active).length || state.costCenters.length) ? `
-    <details class="disclosure" id="vMoreOptions" ${(isForeign || vform.costCenterId) ? 'open' : ''}>
-      <summary>More options — Currency${state.costCenters.length?', Cost Center':''}${isForeign||vform.costCenterId?'':' (not set for this voucher)'}</summary>
+    <details class="disclosure" id="vMoreOptions" ${(isForeign || vform.costCenterId || vform.splitCostCenters) ? 'open' : ''}>
+      <summary>More options — Currency${state.costCenters.length?', Cost Center':''}${isForeign||vform.costCenterId||vform.splitCostCenters?'':' (not set for this voucher)'}</summary>
       <div class="disclosure-body" style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
         ${state.currencies.filter(c=>c.id!=='inr' && c.active).length ? `
         <div class="field" style="max-width:180px;"><label>Currency</label>
@@ -28190,12 +28750,15 @@ function viewVoucher(){
         <p class="muted" style="font-size:11.5px;margin:0 0 9px;max-width:320px;">Enter every amount below in ${currencyOf(vform.currency)?.code} — it posts to your ledgers converted to ₹ at this rate.</p>
         ` : ''}` : ''}
         ${state.costCenters.length ? `
-        <div class="field" style="max-width:200px;"><label>Cost Center (optional)</label>
+        <div class="field" style="max-width:200px;">
+          <label>Cost Center (optional) <label style="font-weight:400;font-size:10.5px;margin-left:6px;"><input type="checkbox" id="vSplitCostCenters" ${vform.splitCostCenters?'checked':''}> split across several</label></label>
+          ${vform.splitCostCenters ? '' : `
           <select id="vCostCenter">
             <option value="">— None —</option>
             ${state.costCenters.filter(c=>c.active || c.id===vform.costCenterId).map(c=>`<option value="${c.id}" ${vform.costCenterId===c.id?'selected':''}>${c.name}</option>`).join('')}
-          </select>
-        </div>` : ''}
+          </select>`}
+        </div>
+        ${vform.splitCostCenters ? voucherCostSplitEditor() : ''}` : ''}
       </div>
     </details>` : ''}
     ${showGST ? gstCalculator() : ''}
@@ -28298,6 +28861,182 @@ function viewVoucher(){
       <span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span>
       <span>${balanced?'Balanced ✓':'Not balanced'}</span>
     </div>` : ''}
+  `;
+}
+// The "split across several" cost-center editor on the Voucher form -- an alternative to the plain
+// single-select Cost Center field, for a voucher whose amount should be divided across more than
+// one cost center (e.g. a shared office-rent payment split 60/40 between two departments). Backed by
+// vform.costAllocations:[{costCenterId,amount}], validated against the voucher's own total at save
+// time (see the "Save Voucher" handler's costAllocations check). Picking a Cost Center Class
+// (applyCostCenterClass()) auto-fills these rows proportionally instead of typing each amount.
+function voucherTotalAmount(){
+  const singleEligible = ['Payment','Receipt','Contra'].includes(vform.type);
+  const mode = singleEligible ? vform.mode : 'double';
+  if(mode==='single') return Number(vform.single?.amount)||0;
+  return (vform.entries||[]).reduce((s,e)=>s+(Number(e.dr)||0),0);
+}
+function voucherCostSplitEditor(){
+  const splits = vform.costAllocations && vform.costAllocations.length ? vform.costAllocations : [{costCenterId:'',amount:''}];
+  const total = voucherTotalAmount();
+  const allocTotal = r2(splits.reduce((s,sp)=>s+(Number(sp.amount)||0),0));
+  const remaining = r2(total - allocTotal);
+  return `
+    <div class="field" style="width:100%;margin-top:6px;">
+      ${state.costCenterClasses.length ? `
+      <label style="font-size:11px;">Apply a Cost Center Class</label>
+      <select id="vCostCenterClass" style="margin-bottom:8px;">
+        <option value="">— Choose a class to auto-fill —</option>
+        ${state.costCenterClasses.map(cls=>`<option value="${cls.id}">${escapeHtml(cls.name)}</option>`).join('')}
+      </select>` : ''}
+      <div id="vCostSplitRows">
+        ${splits.map((sp,i)=>`
+        <div class="row" data-vsplit-idx="${i}" style="align-items:center;margin-bottom:4px;">
+          <div class="field" style="flex:2;margin-bottom:0;"><select class="vsplit-center" data-i="${i}">
+            <option value="">Select cost center…</option>
+            ${state.costCenters.map(c=>`<option value="${c.id}" ${sp.costCenterId===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}
+          </select></div>
+          <div class="field" style="max-width:130px;margin-bottom:0;"><input type="number" class="vsplit-amount" data-i="${i}" placeholder="Amount" value="${sp.amount||''}" min="0" step="0.01"></div>
+          <button class="btn small secondary rm" data-vsplit-rm="${i}" type="button">✕</button>
+        </div>`).join('')}
+      </div>
+      <button class="btn secondary small" id="vSplitAddRowBtn" type="button">+ Add split line</button>
+      <p class="muted" style="font-size:11px;margin-top:4px;">Allocated ₹${fmt(allocTotal)} of ₹${fmt(total)} — ${Math.abs(remaining)<0.01 ? '<span style="color:var(--pos);">fully allocated ✓</span>' : `₹${fmt(Math.abs(remaining))} ${remaining>0?'left to allocate':'over-allocated'}`}.</p>
+    </div>
+  `;
+}
+// Fills vform.costAllocations proportionally from a saved Cost Center Class's % splits, scaled to
+// the voucher's current total -- see voucherCostSplitEditor()/state.costCenterClasses.
+function applyCostCenterClass(classId){
+  const cls = state.costCenterClasses.find(c=>c.id===classId);
+  if(!cls) return;
+  const total = voucherTotalAmount();
+  vform.costAllocations = cls.splits.map(sp=>({ costCenterId: sp.costCenterId, amount: r2(total*sp.percent/100) }));
+}
+/* ---------------- What-If Scenario Planner ----------------
+   A sandbox of provisional vouchers (state.scenarios[].vouchers) that live ENTIRELY separate from
+   state.vouchers and never post to the real books -- "what would happen if I delayed this payment"
+   or "what if this big sale closes" without risking an accidental real entry. Deliberately scoped:
+   rather than threading an "include scenario" flag through every report in the app (Trial Balance,
+   P&L, Balance Sheet, GST...), which would be a huge blast radius for a feature people reach for
+   occasionally, the impact preview here covers the two numbers a what-if question is usually
+   actually about -- Net Profit and Cash Position -- computed as a delta on top of the real figures.
+   A scenario voucher is already shaped exactly like a real voucher (same entries:[{ledgerId,dr,cr}]
+   array), so "Convert to Real" is a straight copy into state.vouchers, no transformation needed. */
+function scenarioVoucherDelta(vouchers){
+  let profit=0, cash=0;
+  for(const v of vouchers){
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l) continue;
+      const dr = Number(e.dr)||0, cr = Number(e.cr)||0;
+      const g = groupOf(l.group);
+      if(g){
+        if(g.cat==='Income') profit += (cr-dr);
+        else if(g.cat==='Expenses') profit -= (dr-cr);
+      }
+      const b = bucketOf(l);
+      if(b==='cash'||b==='bank') cash += (dr-cr);
+    }
+  }
+  return { profit: r2(profit), cash: r2(cash) };
+}
+function scenarioImpactPreview(scenario){
+  const realProfit = r2(netProfit());
+  const realCash = r2(state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank').reduce((s,l)=>s+ledgerBalance(l.id),0));
+  const delta = scenarioVoucherDelta(scenario.vouchers||[]);
+  return {
+    realProfit, realCash,
+    scenarioProfit: r2(realProfit+delta.profit), scenarioCash: r2(realCash+delta.cash),
+    deltaProfit: delta.profit, deltaCash: delta.cash,
+  };
+}
+function scenarioVoucherEntries(draft){
+  const amt = r2(Number(draft.amount)||0);
+  return [{ ledgerId: draft.ledgerA, dr: amt, cr: 0 }, { ledgerId: draft.ledgerB, dr: 0, cr: amt }];
+}
+function scenarioPlannerView(){
+  const scenario = scenarioPlannerActiveId ? state.scenarios.find(s=>s.id===scenarioPlannerActiveId) : null;
+  if(!scenario){
+    return `
+      ${reportHeader('What-If Scenarios')}
+      <p class="muted" style="font-size:11.5px;margin-top:-8px;">A sandbox for modeling hypotheticals — provisional vouchers that never touch your real books until you explicitly convert one.</p>
+      <div class="panel"><div class="panel-body" style="padding:0;">
+        ${state.scenarios.length ? `<table>
+          <tr><th>Scenario</th><th class="num">Provisional Vouchers</th><th></th></tr>
+          ${state.scenarios.map(s=>`<tr>
+            <td class="ccard-title">${escapeHtml(s.name)}</td>
+            <td class="num">${(s.vouchers||[]).length}</td>
+            <td class="ccard-actions">
+              <button class="btn small secondary" data-open-scenario="${s.id}" type="button">Open</button>
+              <button class="btn small secondary" data-delete-scenario="${s.id}" type="button">Delete</button>
+            </td>
+          </tr>`).join('')}
+        </table>` : `<div class="empty">No scenarios yet — create one below.</div>`}
+      </div></div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="row">
+            <div class="field"><label>New Scenario Name</label><input type="text" id="newScenarioName" placeholder="e.g. Delay the Sharma payment by 30 days"></div>
+          </div>
+          <button class="btn secondary small" id="addScenarioBtn" type="button">Create Scenario</button>
+        </div>
+      </div>
+    `;
+  }
+  const impact = scenarioImpactPreview(scenario);
+  const draft = scenarioVoucherDraft && scenarioVoucherDraft.scenarioId===scenario.id ? scenarioVoucherDraft : null;
+  return `
+    ${reportHeader('What-If: ' + scenario.name)}
+    <button class="btn secondary small" id="backToScenariosBtn" type="button" style="margin:-6px 0 12px;">← All Scenarios</button>
+    <div class="viz-kpi-row cols4">
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Net Profit (Real)</div><div class="viz-kpi-val">₹${fmt(impact.realProfit)}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Net Profit (With Scenario)</div><div class="viz-kpi-val ${impact.deltaProfit>=0?'pos':'neg'}">₹${fmt(impact.scenarioProfit)} <span style="font-size:11px;">(${impact.deltaProfit>=0?'+':''}₹${fmt(impact.deltaProfit)})</span></div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Cash Position (Real)</div><div class="viz-kpi-val">₹${fmt(impact.realCash)}</div></div>
+      <div class="viz-kpi" style="cursor:default;"><div class="viz-kpi-label">Cash Position (With Scenario)</div><div class="viz-kpi-val ${impact.deltaCash>=0?'pos':'neg'}">₹${fmt(impact.scenarioCash)} <span style="font-size:11px;">(${impact.deltaCash>=0?'+':''}₹${fmt(impact.deltaCash)})</span></div></div>
+    </div>
+    <p class="muted" style="font-size:11px;margin:8px 0 16px;">This preview covers Net Profit and Cash Position only — a deliberate simplification rather than rerunning every report (Trial Balance, GST, full P&amp;L...) under the scenario. None of this ever touches your real books unless you click "Convert to Real" on a voucher below.</p>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      ${(scenario.vouchers||[]).length ? `<table>
+        <tr><th>Date</th><th>Type</th><th>Narration</th><th class="num">Amount</th><th></th></tr>
+        ${scenario.vouchers.map(v=>{
+          const amt = (v.entries||[]).reduce((s,e)=>s+(Number(e.dr)||0),0);
+          return `<tr>
+            <td class="muted">${v.date}</td>
+            <td>${escapeHtml(v.type||'Journal')}</td>
+            <td>${escapeHtml(v.narration||'')}</td>
+            <td class="num">₹${fmt(amt)}</td>
+            <td class="ccard-actions">
+              <button class="btn small secondary" data-edit-scenario-voucher="${v.id}" type="button">Edit</button>
+              <button class="btn small secondary" data-convert-scenario-voucher="${v.id}" type="button">Convert to Real</button>
+              <button class="btn small secondary" data-delete-scenario-voucher="${v.id}" type="button">Delete</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </table>` : `<div class="empty">No provisional vouchers yet — add one below to see its effect above.</div>`}
+    </div></div>
+    <div class="panel">
+      <div class="panel-head"><h2>${draft && draft.id ? 'Edit' : 'Add'} Provisional Voucher</h2></div>
+      <div class="panel-body">
+        <div class="row">
+          <div class="field" style="max-width:160px;"><label>Date</label><input type="date" id="svDate" value="${draft?.date || new Date().toISOString().slice(0,10)}"></div>
+          <div class="field" style="max-width:160px;"><label>Type (label only)</label>
+            <select id="svType">${VOUCHER_TYPES.map(t=>`<option value="${t}" ${(draft?.type||'Journal')===t?'selected':''}>${t}</option>`).join('')}</select>
+          </div>
+          <div class="field" style="max-width:160px;"><label>Amount</label><input type="number" id="svAmount" value="${draft?.amount||''}" min="0" step="0.01"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Debit Ledger</label>
+            <select id="svLedgerA"><option value="">Select ledger…</option>${state.ledgers.map(l=>`<option value="${l.id}" ${draft?.ledgerA===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Credit Ledger</label>
+            <select id="svLedgerB"><option value="">Select ledger…</option>${state.ledgers.map(l=>`<option value="${l.id}" ${draft?.ledgerB===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="field"><label>Narration</label><input type="text" id="svNarration" value="${escapeAttr(draft?.narration||'')}" placeholder="e.g. Hypothetical: Sharma payment pushed to next month"></div>
+        <button class="btn secondary small" id="saveScenarioVoucherBtn" type="button">${draft && draft.id ? 'Update' : 'Add'} Voucher</button>
+        ${draft ? `<button class="btn secondary small" id="cancelScenarioVoucherBtn" type="button">Cancel</button>` : ''}
+      </div>
+    </div>
   `;
 }
 function singleEntryFields(){
@@ -29510,9 +30249,10 @@ function orderDocForm(){
 function viewOrders(){
   const meta = ORDER_DOC_META[ordersSubTab];
   let list = state[meta.stateKey].slice().sort((a,b)=> (Number(b.no)||0)-(Number(a.no)||0));
-  const openCount = list.filter(d=>d.status!=='converted').length;
-  const convertedCount = list.length - openCount;
-  const openValue = list.filter(d=>d.status!=='converted').reduce((s,d)=>s+itemsSubtotal(d.items||[]),0);
+  const statuses = list.map(d=>orderDocStatus(d));
+  const openCount = statuses.filter(s=>s!=='converted').length;
+  const convertedCount = statuses.filter(s=>s==='converted').length;
+  const openValue = list.reduce((s,d)=>s+orderDocRemainingValue(d),0);
   if(ordersSearchQuery.trim()){
     const q = ordersSearchQuery.trim().toLowerCase();
     list = list.filter(d=>{
@@ -29521,8 +30261,9 @@ function viewOrders(){
       return docNo.includes(q) || (party && party.name.toLowerCase().includes(q));
     });
   }
+  const STATUS_BADGE = { open:`<span class="pill neutral">Open</span>`, partial:`<span class="pill" style="background:color-mix(in srgb, var(--gold) 25%, var(--surface));color:var(--ink);">Partially Converted</span>`, converted:`<span class="pill pos">Converted</span>` };
   return `
-    ${masthead('Sales & Purchase Documents','Quotations, Sales Orders, Purchase Orders & Delivery Challans — track before you invoice')}
+    ${masthead('Sales & Purchase Documents','Quotations, Sales Orders, Purchase Orders & Delivery Challans — track before you invoice, with partial conversion as quantity ships or bills in stages')}
     <div class="vtype-tabs" style="margin-bottom:14px;">
       ${Object.keys(ORDER_DOC_META).map(k=>`<button data-orders-subtab="${k}" type="button" class="${ordersSubTab===k?'active':''}">${ORDER_DOC_META[k].label}s</button>`).join('')}
     </div>
@@ -29531,7 +30272,7 @@ function viewOrders(){
         <div class="stat"><div class="label">Total ${meta.label}s</div><div class="val">${state[meta.stateKey].length}</div></div>
         <div class="stat"><div class="label">Open</div><div class="val">${openCount}</div></div>
         <div class="stat"><div class="label">Converted</div><div class="val pos">${convertedCount}</div></div>
-        <div class="stat"><div class="label">Open Value</div><div class="val">₹${fmt(openValue)}</div></div>
+        <div class="stat"><div class="label">Open Value (remaining qty)</div><div class="val">₹${fmt(openValue)}</div></div>
       </div>
       <div class="panel">
         <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
@@ -29546,15 +30287,16 @@ function viewOrders(){
             ${list.map(d=>{
               const party = ledgerOf(d.partyLedgerId);
               const amt = itemsSubtotal(d.items||[]);
-              const statusBadge = d.status==='converted' ? `<span class="pill pos">Converted</span>` : `<span class="pill neutral">Open</span>`;
+              const status = orderDocStatus(d);
+              const vCount = (d.convertedVoucherIds||(d.convertedVoucherId?[d.convertedVoucherId]:[])).length;
               return `<tr>
                 <td class="ccard-title" data-label="${meta.prefix} No.">${meta.prefix}-${String(d.no).padStart(4,'0')}</td>
                 <td class="muted" data-label="Date">${d.date}</td>
                 <td data-label="${meta.partyRole==='customer'?'Customer':'Supplier'}">${party?party.name:'—'}</td>
                 <td class="num ccard-amount" data-label="Amount">₹${fmt(amt)}</td>
-                <td data-label="Status">${statusBadge}</td>
+                <td data-label="Status">${STATUS_BADGE[status]}${vCount?` <span class="muted" style="font-size:10px;">(${vCount} voucher${vCount===1?'':'s'})</span>`:''}</td>
                 <td class="ccard-actions" data-label="Action">
-                  ${d.status!=='converted' ? `<button class="btn small secondary" data-edit-order="${d.id}" type="button">Edit</button> <button class="btn small secondary" data-convert-order="${d.id}" type="button">Convert to Voucher</button>` : ''}
+                  ${status!=='converted' ? `<button class="btn small secondary" data-edit-order="${d.id}" type="button">Edit</button> <button class="btn small secondary" data-convert-order="${d.id}" type="button">${status==='partial'?'Convert Remaining':'Convert to Voucher'}</button>` : ''}
                   <button class="btn small secondary" data-print-order="${d.id}" type="button">🖨 Print</button>
                   <button class="btn small secondary" data-delete-order="${d.id}" type="button">Delete</button>
                 </td>
@@ -29640,22 +30382,107 @@ function printOrderDoc(docType, id){
 // Calculator's own "Add to Voucher", then Save. pendingConvertDoc is resolved in the saveVoucher
 // handler once that voucher is actually saved, so an abandoned conversion never marks the source
 // document as converted.
-function convertOrderDocToVoucher(docType, id){
+//
+// PARTIAL conversion: a Quotation/Order/Challan's items[] carries a convertedQty per line (default
+// 0), so the same document can be converted more than once as quantity ships or bills in stages --
+// a real PO for 100 units might see 60 converted into one Purchase now and the remaining 40 next
+// month, exactly like QuickBooks/Xero/Tally track order fulfilment. orderDocStatus() derives
+// open/partial/converted from those per-line quantities rather than a single stored flag, and
+// convertedVoucherIds (plural) replaces the old single convertedVoucherId so every voucher raised
+// against a document stays traceable back to it.
+function orderDocItemRemaining(it){ return r2(Math.max(0, (Number(it.qty)||0) - (Number(it.convertedQty)||0))); }
+function orderDocStatus(doc){
+  const items = (doc.items||[]).filter(it=>(Number(it.qty)||0)>0);
+  if(!items.length) return 'open';
+  const totalQty = items.reduce((s,it)=>s+(Number(it.qty)||0),0);
+  const convertedQty = items.reduce((s,it)=>s+Math.min(Number(it.convertedQty)||0, Number(it.qty)||0),0);
+  if(convertedQty<=0.0001) return 'open';
+  if(convertedQty>=totalQty-0.0001) return 'converted';
+  return 'partial';
+}
+function orderDocRemainingValue(doc){
+  return r2((doc.items||[]).reduce((s,it)=>{
+    const remaining = orderDocItemRemaining(it);
+    if(!remaining) return s;
+    const rate = Number(it.rate)||0, disc = Number(it.disc)||0;
+    return s + remaining*rate*(1-disc/100);
+  },0));
+}
+// Opens the "choose what to convert now" step instead of jumping straight to the Voucher screen --
+// every line defaults to its full remaining quantity, but each is editable down to any smaller
+// amount (or 0, to leave that line out of this particular voucher).
+function openOrderConvertDraft(docType, id){
   const meta = ORDER_DOC_META[docType];
   const doc = state[meta.stateKey].find(d=>d.id===id);
   if(!doc){ toast('Document not found'); return; }
-  if(doc.status==='converted'){ toast('Already converted to a voucher'); return; }
+  if(orderDocStatus(doc)==='converted'){ toast('Already fully converted'); return; }
+  orderConvertDraft = { docType, id, qtys: (doc.items||[]).map(it=>orderDocItemRemaining(it)) };
+  modal = 'orderConvert';
+  render();
+}
+function orderConvertModal(){
+  if(!orderConvertDraft) return '';
+  const meta = ORDER_DOC_META[orderConvertDraft.docType];
+  const doc = state[meta.stateKey].find(d=>d.id===orderConvertDraft.id);
+  if(!doc) return '';
+  const docNo = `${meta.prefix}-${String(doc.no).padStart(4,'0')}`;
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:600px;position:relative;">
+        <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <div style="padding:18px;max-height:78vh;overflow-y:auto;">
+          <h2 style="margin:0 0 4px;font-size:16px;">Convert ${docNo} to a Voucher</h2>
+          <p class="muted" style="font-size:11.5px;margin:0 0 14px;">Choose how much of each line to carry into this voucher — anything left over stays open on ${docNo} for a later, separate conversion (partial delivery/partial billing).</p>
+          <table>
+            <tr><th>Item</th><th class="num">Ordered</th><th class="num">Already Converted</th><th class="num">Convert Now</th></tr>
+            ${(doc.items||[]).map((it,i)=>{
+              const remaining = orderDocItemRemaining(it);
+              if(!(Number(it.qty)>0)) return '';
+              return `<tr>
+                <td>${escapeHtml(it.name)}</td>
+                <td class="num muted">${it.qty}</td>
+                <td class="num muted">${it.convertedQty||0}</td>
+                <td class="num"><input type="number" class="oc-qty" data-i="${i}" value="${orderConvertDraft.qtys[i]}" min="0" max="${remaining}" step="0.01" style="width:90px;"></td>
+              </tr>`;
+            }).join('')}
+          </table>
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <button class="btn" id="orderConvertContinueBtn" type="button">Continue to Voucher</button>
+            <button class="btn secondary" id="orderConvertCancelBtn" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function convertOrderDocToVoucher(docType, id, qtys){
+  const meta = ORDER_DOC_META[docType];
+  const doc = state[meta.stateKey].find(d=>d.id===id);
+  if(!doc){ toast('Document not found'); return; }
+  if(orderDocStatus(doc)==='converted'){ toast('Already fully converted'); return; }
   const isPurchase = docType==='purchaseOrder';
   const docNo = `${meta.prefix}-${String(doc.no).padStart(4,'0')}`;
+  const sourceItems = doc.items||[];
+  const requestedQtys = qtys || sourceItems.map(it=>orderDocItemRemaining(it));
+  // lineQtys[i] = how much of sourceItems[i] THIS conversion covers (0 = left out this time),
+  // clamped to what's actually still open on that line.
+  const lineQtys = sourceItems.map((it,i)=> r2(Math.min(Number(requestedQtys[i])||0, orderDocItemRemaining(it))));
+  const convertItems = sourceItems
+    .map((it,i)=> lineQtys[i]>0 ? { ...it, qty: lineQtys[i] } : null)
+    .filter(Boolean);
+  if(!convertItems.length){ toast('Enter a quantity greater than zero on at least one line'); return; }
   vform = {
     type: isPurchase ? 'Purchase' : 'Sales',
     date: new Date().toISOString().slice(0,10),
     narration: `${meta.label} ${docNo}`,
     entries: [{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}],
-    gst: { party: doc.partyLedgerId, taxableLedger:'', amount:'', rate:18, supply:'intra', items: (doc.items||[]).map(it=>({...it})) },
+    gst: { party: doc.partyLedgerId, taxableLedger:'', amount:'', rate:18, supply:'intra', items: convertItems.map(it=>({...it})) },
     mode:'double',
   };
-  pendingConvertDoc = { docType, id: doc.id };
+  // Carried through to the saveVoucher handler so it knows exactly how much of EACH source line to
+  // credit back onto the document's convertedQty once the voucher is actually saved -- keyed by the
+  // source item's position in doc.items, matching sourceItems above.
+  pendingConvertDoc = { docType, id: doc.id, lineQtys };
   view = 'voucher';
   render();
   toast(`Items carried over from ${docNo} — pick the ${isPurchase?'purchase':'sales'} ledger & GST rate, then "Add to Voucher" and Save`);
@@ -31437,14 +32264,38 @@ function viewCOA(){
       <summary>🏷 Cost Centers / Dimensions ${state.costCenters.length?`<span class="pill" style="margin-left:6px;">${state.costCenters.length}</span>`:''}</summary>
       <div class="disclosure-body">
     <div class="panel">
+      <div class="panel-body" style="padding:10px 14px;">
+        <div class="section-title" style="margin:0 0 8px;">Cost Categories (optional dimensions)</div>
+        <p class="muted" style="font-size:11px;margin:0 0 8px;">Tally-style independent dimensions, e.g. "Department" and "Project" — tag a cost center under one so the Cost Center P&amp;L can group and total by category.</p>
+        <table class="rb-card-table">
+          <tr><th>Category</th><th>Active</th><th></th></tr>
+          ${state.costCategories.length ? state.costCategories.map(cat=>`<tr>
+            <td class="ccard-title" data-label="Category">${escapeHtml(cat.name)}</td>
+            <td data-label="Active"><input type="checkbox" class="costcategory-active" data-costcategory="${cat.id}" ${cat.active!==false?'checked':''}></td>
+            <td class="ccard-actions"><button class="btn small secondary" data-delete-costcategory="${cat.id}" type="button">Remove</button></td>
+          </tr>`).join('') : `<tr><td colspan="3" class="empty">No cost categories yet — every cost center stays "General" until you add one.</td></tr>`}
+        </table>
+        <div class="row" style="margin-top:8px;">
+          <div class="field"><label>New Category Name</label><input type="text" id="newCostCategoryName" placeholder="e.g. Department, Project, Branch"></div>
+        </div>
+        <button class="btn secondary small" id="addCostCategoryBtn" type="button">Add Category</button>
+      </div>
+    </div>
+    <div class="panel">
       <div class="panel-body" style="padding:0;">
         <table class="rb-card-table">
-          <tr><th>Name</th><th>Active</th><th></th></tr>
-          ${state.costCenters.length ? state.costCenters.map(c=>`<tr>
-            <td class="ccard-title" data-label="Name">${c.name}</td>
+          <tr><th>Name</th><th>Category</th><th>Parent (nested under)</th><th>Active</th><th></th></tr>
+          ${state.costCenters.length ? state.costCenters.map(c=>{
+            const cat = c.categoryId ? state.costCategories.find(x=>x.id===c.categoryId) : null;
+            const parent = c.parentId ? state.costCenters.find(x=>x.id===c.parentId) : null;
+            return `<tr>
+            <td class="ccard-title" data-label="Name">${parent?'↳ ':''}${escapeHtml(c.name)}</td>
+            <td class="muted" data-label="Category">${cat?escapeHtml(cat.name):'General'}</td>
+            <td class="muted" data-label="Parent">${parent?escapeHtml(parent.name):'—'}</td>
             <td data-label="Active"><input type="checkbox" class="costcenter-active" data-costcenter="${c.id}" ${c.active?'checked':''}></td>
             <td class="ccard-actions"><button class="btn small secondary" data-delete-costcenter="${c.id}" type="button">Remove</button></td>
-          </tr>`).join('') : `<tr><td colspan="3" class="empty">No cost centers yet — add one below to start tagging vouchers by department, project, or location.</td></tr>`}
+          </tr>`;
+          }).join('') : `<tr><td colspan="5" class="empty">No cost centers yet — add one below to start tagging vouchers by department, project, or location.</td></tr>`}
         </table>
       </div>
     </div>
@@ -31452,11 +32303,46 @@ function viewCOA(){
       <div class="panel-body">
         <div class="row">
           <div class="field"><label>New Cost Center Name</label><input type="text" id="newCostCenterName" placeholder="e.g. Chennai Branch, Project Alpha, Sales Dept"></div>
+          ${state.costCategories.length ? `<div class="field" style="max-width:170px;"><label>Category (optional)</label>
+            <select id="newCostCenterCategory"><option value="">General</option>${state.costCategories.map(cat=>`<option value="${cat.id}">${escapeHtml(cat.name)}</option>`).join('')}</select>
+          </div>` : ''}
+          ${state.costCenters.length ? `<div class="field" style="max-width:190px;"><label>Nest under (optional)</label>
+            <select id="newCostCenterParent"><option value="">— Top level —</option>${state.costCenters.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select>
+          </div>` : ''}
         </div>
         <button class="btn secondary small" id="addCostCenterBtn" type="button">Add Cost Center</button>
       </div>
     </div>
-    <p class="muted" style="font-size:11px;">Tag any voucher with a cost center on the Voucher tab, then see income/expense by cost center under Reports → Cost Center P&amp;L.</p>
+    <p class="muted" style="font-size:11px;">Tag any voucher with a cost center on the Voucher tab (or split one voucher across several — see the Cost Center field there), then see income/expense by cost center under Reports → Cost Center P&amp;L.</p>
+
+    <div class="panel" style="margin-top:14px;">
+      <div class="panel-body" style="padding:10px 14px;">
+        <div class="section-title" style="margin:0 0 8px;">Cost Center Classes (auto-split templates)</div>
+        <p class="muted" style="font-size:11px;margin:0 0 8px;">A saved % template — pick it on a voucher and it fills the cost-center split automatically instead of typing amounts every time. Percentages must add up to 100%.</p>
+        ${state.costCenterClasses.length ? state.costCenterClasses.map(cls=>`
+          <div class="row" style="align-items:center;border-bottom:1px solid var(--border);padding:6px 0;">
+            <div style="flex:1;"><strong>${escapeHtml(cls.name)}</strong>
+              <div class="muted" style="font-size:11px;">${(cls.splits||[]).map(sp=>{ const c=state.costCenters.find(x=>x.id===sp.costCenterId); return `${c?escapeHtml(c.name):'—'} ${sp.percent}%`; }).join(' · ')}</div>
+            </div>
+            <button class="btn small secondary" data-delete-costcenterclass="${cls.id}" type="button">Remove</button>
+          </div>
+        `).join('') : `<p class="muted" style="font-size:11.5px;">No classes yet.</p>`}
+        <div id="ccClassBuilder" style="margin-top:10px;">
+          <div class="row">
+            <div class="field"><label>Class Name</label><input type="text" id="newCCClassName" placeholder="e.g. Shared Overheads"></div>
+          </div>
+          <div id="ccClassSplitRows">${(ccClassDraftSplits.length?ccClassDraftSplits:[{costCenterId:'',percent:''}]).map((sp,i)=>`
+            <div class="row" data-cc-split-idx="${i}" style="align-items:center;">
+              <div class="field" style="flex:2;"><select class="cc-split-center" data-i="${i}"><option value="">Select cost center…</option>${state.costCenters.map(c=>`<option value="${c.id}" ${sp.costCenterId===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select></div>
+              <div class="field" style="max-width:110px;"><input type="number" class="cc-split-percent" data-i="${i}" placeholder="%" value="${sp.percent||''}" min="0" max="100" step="0.01"></div>
+              <button class="btn small secondary rm" data-cc-split-rm="${i}" type="button">✕</button>
+            </div>
+          `).join('')}</div>
+          <button class="btn secondary small" id="ccClassAddRowBtn" type="button">+ Add split line</button>
+          <button class="btn secondary small" id="addCostCenterClassBtn" type="button">Save Class</button>
+        </div>
+      </div>
+    </div>
       </div>
     </details>
 
@@ -31965,6 +32851,7 @@ function viewReports(){
   if(reportsSelected==='ratios') return reportRatioAnalysis();
   if(reportsSelected==='cashFlow') return reportCashFlow();
   if(reportsSelected==='costCenterPL') return reportCostCenterPL();
+  if(reportsSelected==='scenarios') return scenarioPlannerView();
   if(reportsSelected==='budgetVsActual') return reportBudgetVsActual();
   if(reportsSelected==='forexRevaluation') return reportForexRevaluation();
   if(reportsSelected==='tdsTcs') return reportTdsTcs();
@@ -31985,6 +32872,7 @@ const REPORT_CARDS = [
   {id:'financialPerformance', icon:'explore', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
   {id:'stakeholderPresentation', icon:'co_present', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
   {id:'costCenterPL', icon:'sell', title:'Cost Center P&L', desc:'Income and expense broken down by the cost centers/dimensions you tag on vouchers.', group:'Management Reports'},
+  {id:'scenarios', icon:'explore', title:'What-If Scenarios', desc:'Model a hypothetical — a delayed payment, a big sale closing — with provisional vouchers that never touch your real books, then see the effect on your reports before deciding.', group:'Management Reports'},
   {id:'budgetVsActual', icon:'track_changes', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
   {id:'forexRevaluation', icon:'currency_exchange', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
   // Oct 15, 2026 -- the Consolidation Report already existed (consolidatedFinancials()/consolidationModal(),
@@ -32017,7 +32905,7 @@ const REPORT_CARD_HUES = {
   trialBalance:'#4F46E5', incomeStatement:'#16A34A', balanceSheet:'#0D9488', cashFlow:'#0284C7',
   ratios:'#7C3AED', financialPerformance:'#0891B2', stakeholderPresentation:'#DB2777',
   costCenterPL:'#EA580C', budgetVsActual:'#CA8A04', forexRevaluation:'#059669',
-  consolidated:'#9333EA', tdsTcs:'#B45309', dataIntegrity:'#2563EB',
+  consolidated:'#9333EA', tdsTcs:'#B45309', dataIntegrity:'#2563EB', scenarios:'#7C3AED',
 };
 function reportCardArt(id){
   const hue = REPORT_CARD_HUES[id] || 'var(--accent1)';
@@ -32136,6 +33024,17 @@ function reportCardArt(id){
       <ellipse cx="48" cy="46" rx="10" ry="4" style="fill:${hue};opacity:.85;"/>
       <rect x="38" y="42" width="20" height="8" style="fill:${hue};opacity:.85;"/>
       <ellipse cx="48" cy="50" rx="10" ry="4" style="fill:${hue};opacity:.85;"/>`,
+    // A forked path -- one solid branch (the real books), one dashed branch (the hypothetical) --
+    // splitting from a single starting point, for "what happens if we go this way instead".
+    scenarios: `
+      <circle cx="16" cy="32" r="4" style="fill:${hue};"/>
+      <path d="M20 32 L30 32" style="fill:none;stroke:${hue};stroke-width:3;stroke-linecap:round;"/>
+      <path d="M30 32 L46 18" style="fill:none;stroke:${hue};stroke-width:3;stroke-linecap:round;"/>
+      <path d="M30 32 L46 46" style="fill:none;stroke:${hue};stroke-width:3;stroke-linecap:round;stroke-dasharray:4 5;"/>
+      <circle cx="48" cy="16" r="5" style="fill:color-mix(in srgb, ${hue} 55%, var(--surface));stroke:${hue};stroke-width:1.5;"/>
+      <circle cx="48" cy="47" r="5" style="fill:var(--surface);stroke:${hue};stroke-width:1.5;stroke-dasharray:2.5 2.5;"/>
+      <text x="44" y="19.5" style="font-size:7px;font-weight:800;fill:${hue};font-family:inherit;">✓</text>
+      <text x="44.5" y="50" style="font-size:7px;font-weight:800;fill:${hue};font-family:inherit;">?</text>`,
   };
   const scene = scenes[id] || '';
   return `<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true" focusable="false">${backdrop}${scene}</svg>`;
@@ -32743,19 +33642,36 @@ function printCashFlowReport(){
 // straight off each voucher's costCenterId + its entries' ledger groups, the same "derive, don't
 // store" approach the rest of the reports use. Untagged vouchers roll up under "Unassigned" so the
 // totals always tie back to the Income Statement.
+// Which cost center(s) a voucher's entries count against, and in what proportion. A voucher-level
+// costAllocations split (see state.vouchers comment, and the "Split" editor on the Voucher tab)
+// overrides the simple single v.costCenterId tag -- weight is each allocation's share of the
+// voucher's total amount, so a ₹60/₹40 split divides every entry's income or expense the same way.
+function voucherCostCenterWeights(v){
+  if(Array.isArray(v.costAllocations) && v.costAllocations.length){
+    const total = v.costAllocations.reduce((s,a)=>s+(Number(a.amount)||0),0);
+    if(total>0) return v.costAllocations.map(a=>({ costCenterId: a.costCenterId, weight: (Number(a.amount)||0)/total }));
+  }
+  return [{ costCenterId: v.costCenterId || null, weight: 1 }];
+}
 function costCenterPLData(){
   const bounds = activeFY ? fyBoundsForLabel(activeFY) : null;
   const buckets = {}; // key: costCenterId || '__none__'
   for(const v of state.vouchers){
     if(bounds && (v.date < bounds.start || v.date > bounds.end)) continue;
-    const key = v.costCenterId || '__none__';
-    if(!buckets[key]) buckets[key] = {income:0, expense:0};
+    const weights = voucherCostCenterWeights(v);
     for(const e of v.entries){
       const l = ledgerOf(e.ledgerId);
       const g = l && groupOf(l.group);
       if(!g) continue;
-      if(g.cat==='Income') buckets[key].income += (Number(e.cr)||0) - (Number(e.dr)||0);
-      else if(g.cat==='Expenses') buckets[key].expense += (Number(e.dr)||0) - (Number(e.cr)||0);
+      const incomeDelta = g.cat==='Income' ? (Number(e.cr)||0) - (Number(e.dr)||0) : 0;
+      const expenseDelta = g.cat==='Expenses' ? (Number(e.dr)||0) - (Number(e.cr)||0) : 0;
+      if(!incomeDelta && !expenseDelta) continue;
+      for(const w of weights){
+        const key = w.costCenterId || '__none__';
+        if(!buckets[key]) buckets[key] = {income:0, expense:0};
+        buckets[key].income += incomeDelta*w.weight;
+        buckets[key].expense += expenseDelta*w.weight;
+      }
     }
   }
   // Every defined cost center shows up even with zero activity yet, so a freshly-tagged one is visible.
@@ -32769,25 +33685,136 @@ function costCenterPLData(){
     .sort((a,b)=> (b.income+b.expense) - (a.income+a.expense));
   return rows;
 }
+// Rolls a cost center's OWN figures (from costCenterPLData(), keyed by id) up to include every
+// descendant's too -- Tally's "Cost Centre Summary" behaviour, where a parent (e.g. a whole project)
+// shows the combined total of every sub-job nested under it. `seen` guards against a corrupted
+// parentId cycle (dataIntegrityChecks() flags those, but this stays safe regardless).
+function costCenterRollup(ccId, ownByCC, seen){
+  seen = seen || new Set();
+  if(seen.has(ccId)) return {income:0, expense:0};
+  seen.add(ccId);
+  const own = ownByCC[ccId] || {income:0, expense:0};
+  let income = own.income, expense = own.expense;
+  for(const child of state.costCenters.filter(c=>c.parentId===ccId)){
+    const sub = costCenterRollup(child.id, ownByCC, seen);
+    income += sub.income; expense += sub.expense;
+  }
+  return { income: r2(income), expense: r2(expense) };
+}
+// Builds the hierarchical, category-grouped view reportCostCenterPL() renders: top-level cost
+// centers (no parent) each with their rolled-up total, nested children indented underneath with
+// their OWN rollup, grouped by Cost Category when more than one is defined. A voucher's income/
+// expense can only be double-counted across categories, not within one -- see the costAllocations
+// comment on state.vouchers for why that's a deliberate simplification, not a bug.
+function costCenterHierarchyData(){
+  const flat = costCenterPLData();
+  const ownByCC = {};
+  flat.forEach(r=>{ if(r.costCenter) ownByCC[r.costCenter.id] = { income: r.income, expense: r.expense }; });
+  const unassigned = flat.find(r=>!r.costCenter) || null;
+  const categories = state.costCategories.filter(c=>c.active!==false);
+  const groupKey = cc => cc.categoryId && categories.some(cat=>cat.id===cc.categoryId) ? cc.categoryId : '__general__';
+  const groups = {};
+  for(const cc of state.costCenters){
+    if(cc.parentId) continue; // children render nested under their parent, not as their own top-level row
+    const gk = groupKey(cc);
+    (groups[gk] = groups[gk]||[]).push(cc);
+  }
+  const groupOrder = [...categories.map(c=>c.id), '__general__'].filter(gk=>groups[gk]);
+  const sections = groupOrder.map(gk=>{
+    const cat = categories.find(c=>c.id===gk) || null;
+    const roots = groups[gk].map(cc=>{
+      const rolled = costCenterRollup(cc.id, ownByCC);
+      const children = state.costCenters.filter(c=>c.parentId===cc.id).map(child=>({
+        costCenter: child, ...costCenterRollup(child.id, ownByCC),
+      })).sort((a,b)=>(b.income+b.expense)-(a.income+a.expense));
+      return { costCenter: cc, income: rolled.income, expense: rolled.expense, children };
+    }).sort((a,b)=>(b.income+b.expense)-(a.income+a.expense));
+    return { category: cat, roots };
+  });
+  return { sections, unassigned, hasCategories: categories.length>0 };
+}
 function reportCostCenterPL(){
-  const rows = costCenterPLData();
-  const totalIncome = rows.reduce((s,r)=>s+r.income,0);
-  const totalExpense = rows.reduce((s,r)=>s+r.expense,0);
+  const { sections, unassigned, hasCategories } = costCenterHierarchyData();
+  const anyRows = sections.some(s=>s.roots.length) || (unassigned && (unassigned.income||unassigned.expense));
+  let totalIncome = 0, totalExpense = 0;
+  sections.forEach(s=>s.roots.forEach(r=>{ totalIncome+=r.income; totalExpense+=r.expense; }));
+  if(unassigned){ totalIncome += unassigned.income; totalExpense += unassigned.expense; }
+  const rowHtml = (r, indent)=>`<tr>
+      <td style="padding-left:${12+indent*22}px;">${indent?'↳ ':''}${escapeHtml(r.costCenter.name)}</td>
+      <td class="num">₹${fmt(r.income)}</td>
+      <td class="num">₹${fmt(r.expense)}</td>
+      <td class="num ${r.income-r.expense>=0?'pos':'neg'}">₹${fmt(r2(r.income-r.expense))}</td>
+      <td><button class="btn small secondary" data-costcenter-breakup="${r.costCenter.id}" type="button">Breakup</button></td>
+    </tr>`;
   return `
     ${reportHeader('Cost Center P&L', 'exportCostCenterBtn')}
-    <p class="muted" style="font-size:11.5px;margin-top:-8px;">${activeFY?`For FY ${activeFY}`:'All time'} — tag vouchers with a cost center on the Voucher tab; manage cost centers on the Accounts tab.</p>
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">${activeFY?`For FY ${activeFY}`:'All time'} — tag vouchers with a cost center on the Voucher tab (or split one voucher across several); manage cost centers, categories and classes on the Accounts tab.</p>
     <div class="panel"><div class="panel-body" style="padding:0;">
-      ${rows.length ? `<table>
-        <tr><th>Cost Center</th><th class="num">Income</th><th class="num">Expense</th><th class="num">Net</th></tr>
-        ${rows.map(r=>`<tr>
-          <td>${r.costCenter ? r.costCenter.name : `<span class="muted">Unassigned</span>`}</td>
-          <td class="num">₹${fmt(r.income)}</td>
-          <td class="num">₹${fmt(r.expense)}</td>
-          <td class="num ${r.net>=0?'pos':'neg'}">₹${fmt(r.net)}</td>
-        </tr>`).join('')}
-        <tr style="font-weight:700;border-top:2px solid var(--ink);"><td>Total</td><td class="num">₹${fmt(totalIncome)}</td><td class="num">₹${fmt(totalExpense)}</td><td class="num ${totalIncome-totalExpense>=0?'pos':'neg'}">₹${fmt(totalIncome-totalExpense)}</td></tr>
+      ${anyRows ? `<table>
+        <tr><th>Cost Center${hasCategories?' / Category':''}</th><th class="num">Income</th><th class="num">Expense</th><th class="num">Net</th><th></th></tr>
+        ${sections.map(s=>`
+          ${hasCategories ? `<tr style="background:var(--panel-2,#f6f7f6);"><td colspan="5" style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;">${s.category?escapeHtml(s.category.name):'General (uncategorized)'}</td></tr>` : ''}
+          ${s.roots.map(r=>rowHtml(r,0) + r.children.map(c=>rowHtml(c,1)).join('')).join('')}
+        `).join('')}
+        ${unassigned && (unassigned.income||unassigned.expense) ? `<tr><td style="padding-left:12px;"><span class="muted">Unassigned</span></td><td class="num">₹${fmt(unassigned.income)}</td><td class="num">₹${fmt(unassigned.expense)}</td><td class="num ${unassigned.net>=0?'pos':'neg'}">₹${fmt(unassigned.net)}</td><td></td></tr>` : ''}
+        <tr style="font-weight:700;border-top:2px solid var(--ink);"><td>Total</td><td class="num">₹${fmt(r2(totalIncome))}</td><td class="num">₹${fmt(r2(totalExpense))}</td><td class="num ${totalIncome-totalExpense>=0?'pos':'neg'}">₹${fmt(r2(totalIncome-totalExpense))}</td><td></td></tr>
       </table>` : `<div class="empty">No cost centers defined yet, and no activity to show. Add a cost center on the Accounts tab, then tag it on a voucher.</div>`}
     </div></div>
+  `;
+}
+
+// Tally's "Cost Centre Breakup": every ledger posting tagged to ONE cost center, with the actual
+// vouchers behind each ledger's total -- the drill-down the plain Cost Center P&L row can't show.
+// Reuses voucherCostCenterWeights() so a split-allocation voucher only counts its proportional share.
+function costCenterBreakupData(ccId){
+  const bounds = activeFY ? fyBoundsForLabel(activeFY) : null;
+  const byLedger = {};
+  for(const v of state.vouchers){
+    if(bounds && (v.date < bounds.start || v.date > bounds.end)) continue;
+    const w = voucherCostCenterWeights(v).find(x=>x.costCenterId===ccId);
+    if(!w) continue;
+    for(const e of v.entries){
+      const l = ledgerOf(e.ledgerId);
+      const g = l && groupOf(l.group);
+      if(!g || (g.cat!=='Income' && g.cat!=='Expenses')) continue;
+      const raw = g.cat==='Income' ? (Number(e.cr)||0)-(Number(e.dr)||0) : (Number(e.dr)||0)-(Number(e.cr)||0);
+      const amt = raw*w.weight;
+      if(!amt) continue;
+      if(!byLedger[l.id]) byLedger[l.id] = { ledger:l, cat:g.cat, amount:0, lines:[] };
+      byLedger[l.id].amount += amt;
+      byLedger[l.id].lines.push({ voucher:v, amount: r2(amt) });
+    }
+  }
+  return Object.values(byLedger).map(x=>({ ...x, amount: r2(x.amount) })).sort((a,b)=>Math.abs(b.amount)-Math.abs(a.amount));
+}
+function costCenterBreakupModal(){
+  if(!costCenterBreakupId) return '';
+  const cc = state.costCenters.find(c=>c.id===costCenterBreakupId);
+  if(!cc) return '';
+  const rows = costCenterBreakupData(costCenterBreakupId);
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:620px;position:relative;">
+        <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:absolute;top:14px;right:14px;z-index:2;">✕</button>
+        <div style="padding:18px;max-height:78vh;overflow-y:auto;">
+          <h2 style="margin:0 0 4px;font-size:16px;">Cost Centre Breakup — ${escapeHtml(cc.name)}</h2>
+          <p class="muted" style="font-size:11.5px;margin:0 0 14px;">${activeFY?`For FY ${activeFY}`:'All time'} — every ledger posting tagged to this cost center, with the vouchers behind each total.</p>
+          ${rows.length ? rows.map(r=>`
+            <div class="panel" style="margin-bottom:10px;">
+              <div class="panel-body" style="padding:10px 12px;">
+                <div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;">
+                  <span>${escapeHtml(r.ledger.name)} <span class="pill ${r.cat==='Income'?'pos':'neutral'}" style="margin-left:6px;">${r.cat}</span></span>
+                  <span class="${r.amount>=0?'pos':'neg'}">₹${fmt(r.amount)}</span>
+                </div>
+                <table style="margin-top:8px;">
+                  ${r.lines.map(l=>`<tr><td class="muted" style="width:90px;">${l.voucher.date}</td><td>${escapeHtml(l.voucher.type)}${l.voucher.narration?' — '+escapeHtml(l.voucher.narration):''}</td><td class="num" style="width:110px;">₹${fmt(l.amount)}</td></tr>`).join('')}
+                </table>
+              </div>
+            </div>
+          `).join('') : `<div class="empty">No postings tagged to this cost center yet.</div>`}
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -34584,6 +35611,20 @@ function dataIntegrityChecks(){
       findings.push({ severity:'warning', category:'Orphaned Cost Center Reference',
         message:`${v.type} voucher dated ${v.date} is tagged with a cost center that no longer exists` });
     }
+    if(Array.isArray(v.costAllocations) && v.costAllocations.length){
+      const total = v.entries.reduce((s,e)=>s+(Number(e.dr)||0),0);
+      const allocTotal = r2(v.costAllocations.reduce((s,a)=>s+(Number(a.amount)||0),0));
+      for(const a of v.costAllocations){
+        if(!a.costCenterId || !costCenterIds.has(a.costCenterId)){
+          findings.push({ severity:'warning', category:'Orphaned Cost Center Reference',
+            message:`${v.type} voucher dated ${v.date} has a cost-center split line pointing to a cost center that no longer exists` });
+        }
+      }
+      if(Math.abs(allocTotal-r2(total)) >= 0.01){
+        findings.push({ severity:'warning', category:'Unbalanced Cost Center Split',
+          message:`${v.type} voucher dated ${v.date} — cost-center split totals ₹${fmt(allocTotal)}, which doesn't match the voucher amount of ₹${fmt(total)}` });
+      }
+    }
   }
 
   const nameMap = {};
@@ -34612,6 +35653,33 @@ function dataIntegrityChecks(){
   for(const emp of state.employees){
     if(emp.ledgerId && !ledgerIds.has(emp.ledgerId)){
       findings.push({ severity:'warning', category:'Orphaned Employee Ledger', message:`Employee "${emp.name}" points to a ledger that no longer exists` });
+    }
+  }
+  for(const c of state.costCenters){
+    if(c.parentId && !costCenterIds.has(c.parentId)){
+      findings.push({ severity:'warning', category:'Orphaned Cost Center Parent', message:`Cost center "${c.name}" is nested under a parent that no longer exists` });
+    }
+    if(c.parentId===c.id){
+      findings.push({ severity:'error', category:'Orphaned Cost Center Parent', message:`Cost center "${c.name}" is nested under itself` });
+    }
+    if(c.categoryId && !state.costCategories.some(cat=>cat.id===c.categoryId)){
+      findings.push({ severity:'warning', category:'Orphaned Cost Category Reference', message:`Cost center "${c.name}" is tagged with a cost category that no longer exists` });
+    }
+  }
+  for(const cls of state.costCenterClasses){
+    const pct = r2((cls.splits||[]).reduce((s,sp)=>s+(Number(sp.percent)||0),0));
+    if((cls.splits||[]).length && Math.abs(pct-100) >= 0.01){
+      findings.push({ severity:'warning', category:'Unbalanced Cost Center Class', message:`Cost Center Class "${cls.name}" splits add up to ${pct}%, not 100%` });
+    }
+    for(const sp of (cls.splits||[])){
+      if(!costCenterIds.has(sp.costCenterId)){
+        findings.push({ severity:'warning', category:'Orphaned Cost Center Class', message:`Cost Center Class "${cls.name}" references a cost center that no longer exists` });
+      }
+    }
+  }
+  for(const r of state.bankRules){
+    if(r.ledgerId && !ledgerIds.has(r.ledgerId)){
+      findings.push({ severity:'warning', category:'Orphaned Bank Rule', message:`Bank rule "${r.name}" points to a ledger that no longer exists` });
     }
   }
   const voucherIds = new Set(state.vouchers.map(v=>v.id));
@@ -36941,8 +38009,22 @@ function attachHandlers(){
     document.querySelectorAll('[data-convert-order]').forEach(el=>{
       el.addEventListener('click', ()=>{
         if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-        convertOrderDocToVoucher(ordersSubTab, el.dataset.convertOrder);
+        openOrderConvertDraft(ordersSubTab, el.dataset.convertOrder);
       });
+    });
+    document.querySelectorAll('.oc-qty').forEach(el=>{
+      el.addEventListener('input', e=>{
+        if(!orderConvertDraft) return;
+        orderConvertDraft.qtys[Number(e.target.dataset.i)] = e.target.value;
+      });
+    });
+    document.getElementById('orderConvertCancelBtn')?.addEventListener('click', ()=>{ orderConvertDraft = null; modal = null; render(); });
+    document.getElementById('orderConvertContinueBtn')?.addEventListener('click', ()=>{
+      if(!orderConvertDraft) return;
+      const { docType, id, qtys } = orderConvertDraft;
+      orderConvertDraft = null;
+      modal = null;
+      convertOrderDocToVoucher(docType, id, qtys);
     });
     document.querySelectorAll('[data-print-order]').forEach(el=>{
       el.addEventListener('click', ()=>{ printOrderDoc(ordersSubTab, el.dataset.printOrder); });
@@ -37342,7 +38424,7 @@ function attachHandlers(){
           items: items.map(it=>({ name: it.name, qty: Number(it.qty)||0, rate: Number(it.rate)||0 })),
           amount: r2(itemsSubtotal(items) * (1 + (Number(d.gstRate)||0)/100)), // display-only total, kept in sync with items at generation time
           narration: d.narration.trim(), frequency: d.frequency,
-          nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, createdAt: new Date().toISOString(),
+          nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, autoPost: false, createdAt: new Date().toISOString(),
         });
       } else {
         if(!d.ledgerA || !d.ledgerB){ toast('Select both ledgers'); return; }
@@ -37351,7 +38433,7 @@ function attachHandlers(){
         state.recurringTemplates.push({
           id: uid('rtpl'), name: d.name.trim(), type: d.type, ledgerA: d.ledgerA, ledgerB: d.ledgerB,
           amount: Number(d.amount), narration: d.narration.trim(), frequency: d.frequency,
-          nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, createdAt: new Date().toISOString(),
+          nextDueDate: d.nextDueDate, lastGeneratedDate: null, active: true, autoPost: false, createdAt: new Date().toISOString(),
         });
       }
       await saveRecurringTemplates();
@@ -37364,6 +38446,21 @@ function attachHandlers(){
         const t = state.recurringTemplates.find(x=>x.id===el.dataset.toggleRecurring);
         if(t){ t.active = el.checked; await saveRecurringTemplates(); }
       });
+    });
+    document.querySelectorAll('[data-toggle-autopost]').forEach(el=>{
+      el.addEventListener('change', async ()=>{
+        const t = state.recurringTemplates.find(x=>x.id===el.dataset.toggleAutopost);
+        if(t){ t.autoPost = el.checked; await saveRecurringTemplates(); render(); }
+      });
+    });
+    document.getElementById('saveAutoPostSettingsBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const enabled = !!document.getElementById('autoPostEnabledChk')?.checked;
+      const ceiling = Number(document.getElementById('autoPostCeilingInput')?.value)||0;
+      currentCompany.autoPostSettings = { enabled, ceiling };
+      const ok = await saveCompanyMeta(currentCompany);
+      if(ok) toast('Auto-post settings saved', {type:'success'});
+      render();
     });
     document.querySelectorAll('[data-delete-recurring]').forEach(el=>{
       el.addEventListener('click', async ()=>{
@@ -37412,33 +38509,28 @@ function attachHandlers(){
     });
   });
   wireApprovalsAccessTeamHandlers();
+  if(modal==='notificationsSettings'){
+    document.getElementById('saveNotificationsSettingsBtn')?.addEventListener('click', async ()=>{
+      const wantsEnabled = !!document.getElementById('notificationsEnabledChk')?.checked;
+      if(wantsEnabled){
+        let perm = Notification.permission;
+        if(perm==='default') perm = await Notification.requestPermission().catch(()=>'denied');
+        if(perm!=='granted'){ toast('Notifications permission was not granted'); setNotificationsEnabled(false); render(); return; }
+        setNotificationsEnabled(true);
+        toast('Notifications enabled on this device', {type:'success'});
+        checkAndFireLocalNotifications(); // surface anything already outstanding right away, not just on the next company open
+      } else {
+        setNotificationsEnabled(false);
+        toast('Notifications disabled on this device');
+      }
+      modal = null;
+      render();
+    });
+  }
   if(modal==='ocrScan'){
     document.getElementById('ocrFileInput')?.addEventListener('change', async e=>{
       const file = e.target.files[0];
-      if(!file) return;
-      if(typeof Tesseract === 'undefined'){
-        toast('OCR library failed to load — check your internet connection and try again');
-        return;
-      }
-      ocrScanState = { status:'reading', progress:0, fileName:file.name };
-      render();
-      try{
-        const result = await Tesseract.recognize(file, 'eng', {
-          logger: msg=>{
-            if(msg.status==='recognizing text' && ocrScanState && ocrScanState.status==='reading'){
-              ocrScanState.progress = msg.progress||0;
-              const bar = document.querySelector('#modalOverlayBg [style*="width:"]');
-              if(bar) bar.style.width = `${Math.round((msg.progress||0)*100)}%`;
-            }
-          },
-        });
-        const extracted = parseOcrReceiptText(result.data.text);
-        ocrScanState = { status:'done', fileName:file.name, extracted };
-        render();
-      }catch(err){
-        ocrScanState = { status:'error' };
-        render();
-      }
+      if(file) await processReceiptScanFile(file);
     });
     document.getElementById('ocrAmountInput')?.addEventListener('input', e=>{ ocrScanState.extracted.amount = e.target.value; });
     document.getElementById('ocrDateInput')?.addEventListener('change', e=>{ ocrScanState.extracted.date = e.target.value; });
@@ -37698,6 +38790,14 @@ function attachHandlers(){
       modal = 'automationFeed';
       render();
     });
+    document.getElementById('openWhatsNewBtn')?.addEventListener('click', ()=>{
+      modal = 'whatsNew';
+      render();
+    });
+    document.getElementById('openNotificationsSettingsBtn')?.addEventListener('click', ()=>{
+      modal = 'notificationsSettings';
+      render();
+    });
     document.getElementById('openDashboardPersonalizeBtn')?.addEventListener('click', ()=>{
       modal = 'dashboardPersonalize';
       render();
@@ -37793,6 +38893,52 @@ function attachHandlers(){
     });
     document.getElementById('vFxRate')?.addEventListener('input', e=>{ vform.fxRate = e.target.value; });
     document.getElementById('vCostCenter')?.addEventListener('change', e=>{ vform.costCenterId = e.target.value || null; });
+    document.getElementById('vSplitCostCenters')?.addEventListener('change', e=>{
+      vform.splitCostCenters = e.target.checked;
+      if(vform.splitCostCenters && !(vform.costAllocations && vform.costAllocations.length)){
+        vform.costAllocations = [{costCenterId: vform.costCenterId||'', amount: voucherTotalAmount()||''}];
+      }
+      render();
+    });
+    document.getElementById('vCostCenterClass')?.addEventListener('change', e=>{
+      if(e.target.value) applyCostCenterClass(e.target.value);
+      render();
+    });
+    document.querySelectorAll('.vsplit-center').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const i = Number(e.target.dataset.i);
+        vform.costAllocations = vform.costAllocations || [];
+        vform.costAllocations[i] = vform.costAllocations[i] || {costCenterId:'',amount:''};
+        vform.costAllocations[i].costCenterId = e.target.value;
+      });
+    });
+    document.querySelectorAll('.vsplit-amount').forEach(el=>{
+      el.addEventListener('input', e=>{
+        const i = Number(e.target.dataset.i);
+        vform.costAllocations = vform.costAllocations || [];
+        vform.costAllocations[i] = vform.costAllocations[i] || {costCenterId:'',amount:''};
+        vform.costAllocations[i].amount = e.target.value;
+        const hint = document.getElementById('vCostSplitRows')?.parentElement?.querySelector('p.muted');
+        if(hint){
+          const total = voucherTotalAmount();
+          const allocTotal = r2((vform.costAllocations||[]).reduce((s,sp)=>s+(Number(sp.amount)||0),0));
+          const remaining = r2(total-allocTotal);
+          hint.innerHTML = `Allocated ₹${fmt(allocTotal)} of ₹${fmt(total)} — ${Math.abs(remaining)<0.01 ? '<span style="color:var(--pos);">fully allocated ✓</span>' : `₹${fmt(Math.abs(remaining))} ${remaining>0?'left to allocate':'over-allocated'}`}.`;
+        }
+      });
+    });
+    document.querySelectorAll('[data-vsplit-rm]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = Number(el.dataset.vsplitRm);
+        vform.costAllocations.splice(i,1);
+        render();
+      });
+    });
+    document.getElementById('vSplitAddRowBtn')?.addEventListener('click', ()=>{
+      vform.costAllocations = vform.costAllocations || [];
+      vform.costAllocations.push({costCenterId:'',amount:''});
+      render();
+    });
     document.querySelectorAll('[data-mode]').forEach(b=>{
       b.addEventListener('click', ()=>{ vform.mode = b.dataset.mode; render(); });
     });
@@ -38317,6 +39463,21 @@ function attachHandlers(){
         : null;
       const stockWarning = stockWarningFor(vform.type, appliedItems, vform.id);
       if(stockWarning && !confirm(stockWarning + '\n\nSave anyway?')) return;
+      // Cost-center split validation -- same "balanced before it can save" spirit as the Dr/Cr check,
+      // just for the optional split-allocation editor (see voucherCostSplitEditor()). Only enforced
+      // when the split UI is actually in use; the plain single Cost Center tag needs no such check.
+      let costAllocationsToSave = null;
+      if(vform.splitCostCenters && vform.costAllocations && vform.costAllocations.length){
+        const cleanSplits = vform.costAllocations.filter(sp=>sp.costCenterId && Number(sp.amount)>0).map(sp=>({ costCenterId: sp.costCenterId, amount: r2(Number(sp.amount)) }));
+        if(!cleanSplits.length){ toast('Add at least one cost center split line, or turn off "split across several"'); return; }
+        const voucherTotal = r2(entries.reduce((s,e)=>s+(Number(e.dr)||0),0));
+        const allocTotal = r2(cleanSplits.reduce((s,sp)=>s+sp.amount,0));
+        if(Math.abs(allocTotal-voucherTotal) >= 0.01){
+          toast(`Cost center split totals ₹${fmt(allocTotal)}, which doesn't match the voucher amount of ₹${fmt(voucherTotal)}`);
+          return;
+        }
+        costAllocationsToSave = cleanSplits;
+      }
       // A Payment voucher that picked up items via paymentPurchaseItemsPanel() ("Apply Items to
       // Voucher") is really a cash purchase -- save it as type:'Purchase' (not 'Payment') so it shows
       // up in GST input-tax/Purchase reports and stock movement the same way any other Purchase
@@ -38339,6 +39500,7 @@ function attachHandlers(){
         if(appliedItems) pv.items = appliedItems;
         if(foreignTotal!=null){ pv.currency = vform.currency; pv.fxRate = fx; pv.foreignAmount = foreignTotal; }
         if(vform.costCenterId) pv.costCenterId = vform.costCenterId;
+        if(costAllocationsToSave) pv.costAllocations = costAllocationsToSave;
         if(vform.type==='Sales' && vform.channel) pv.channel = vform.channel;
         state.pendingVouchers.push(pv);
         await savePendingVouchers();
@@ -38369,6 +39531,7 @@ function attachHandlers(){
           if(appliedItems) state.vouchers[idx].items = appliedItems;
           if(foreignTotal!=null){ state.vouchers[idx].currency = vform.currency; state.vouchers[idx].fxRate = fx; state.vouchers[idx].foreignAmount = foreignTotal; }
           if(vform.costCenterId) state.vouchers[idx].costCenterId = vform.costCenterId;
+          if(costAllocationsToSave) state.vouchers[idx].costAllocations = costAllocationsToSave;
           if(vform.type==='Sales' && vform.channel) state.vouchers[idx].channel = vform.channel;
         }
         await saveVouchers();
@@ -38380,6 +39543,7 @@ function attachHandlers(){
         if(appliedItems) v.items = appliedItems;
         if(foreignTotal!=null){ v.currency = vform.currency; v.fxRate = fx; v.foreignAmount = foreignTotal; }
         if(vform.costCenterId) v.costCenterId = vform.costCenterId;
+        if(costAllocationsToSave) v.costAllocations = costAllocationsToSave;
         if(vform.type==='Sales' && vform.channel) v.channel = vform.channel;
         state.vouchers.push(v);
         savedVoucherId = v.id;
@@ -38389,7 +39553,19 @@ function attachHandlers(){
         if(pendingConvertDoc){
           const meta = ORDER_DOC_META[pendingConvertDoc.docType];
           const doc = meta && state[meta.stateKey].find(d=>d.id===pendingConvertDoc.id);
-          if(doc){ doc.status = 'converted'; doc.convertedVoucherId = v.id; await meta.save(); }
+          if(doc){
+            // Bump each line's convertedQty by what THIS voucher covered (lineQtys, positional —
+            // see convertOrderDocToVoucher()), rather than blanket-marking the whole document
+            // converted, so a second, later partial conversion still has the right remaining qty.
+            (doc.items||[]).forEach((it,i)=>{
+              const q = Number(pendingConvertDoc.lineQtys && pendingConvertDoc.lineQtys[i])||0;
+              if(q>0) it.convertedQty = r2((Number(it.convertedQty)||0) + q);
+            });
+            doc.status = orderDocStatus(doc);
+            doc.convertedVoucherIds = [...(doc.convertedVoucherIds||(doc.convertedVoucherId?[doc.convertedVoucherId]:[])), v.id];
+            delete doc.convertedVoucherId;
+            await meta.save();
+          }
           pendingConvertDoc = null;
         }
       }
@@ -39186,9 +40362,87 @@ function attachHandlers(){
       const name = document.getElementById('newCostCenterName').value.trim();
       if(!name){ toast('Enter a cost center name'); return; }
       if(state.costCenters.some(c=>c.name.toLowerCase()===name.toLowerCase())){ toast('A cost center with that name already exists'); return; }
-      state.costCenters.push({ id: uid('cc'), name, active:true });
+      const categoryId = document.getElementById('newCostCenterCategory')?.value || null;
+      const parentId = document.getElementById('newCostCenterParent')?.value || null;
+      const cc = { id: uid('cc'), name, active:true };
+      if(categoryId) cc.categoryId = categoryId;
+      if(parentId) cc.parentId = parentId;
+      state.costCenters.push(cc);
       await saveCostCenters();
       toast('Cost center added');
+      render();
+    });
+    document.querySelectorAll('.costcategory-active').forEach(el=>{
+      el.addEventListener('change', async e=>{
+        const cat = state.costCategories.find(x=>x.id===e.target.dataset.costcategory);
+        if(!cat) return;
+        cat.active = e.target.checked;
+        await saveCostCategories();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-delete-costcategory]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        if(!window.confirm('Remove this cost category? Cost centers tagged with it fall back to "General".')) return;
+        const id = el.dataset.deleteCostcategory;
+        state.costCategories = state.costCategories.filter(x=>x.id!==id);
+        state.costCenters.forEach(c=>{ if(c.categoryId===id) c.categoryId = null; });
+        await Promise.all([saveCostCategories(), saveCostCenters()]);
+        render();
+      });
+    });
+    document.getElementById('addCostCategoryBtn')?.addEventListener('click', async ()=>{
+      const name = document.getElementById('newCostCategoryName').value.trim();
+      if(!name){ toast('Enter a category name'); return; }
+      if(state.costCategories.some(c=>c.name.toLowerCase()===name.toLowerCase())){ toast('A cost category with that name already exists'); return; }
+      state.costCategories.push({ id: uid('cat'), name, active:true });
+      await saveCostCategories();
+      toast('Cost category added');
+      render();
+    });
+    document.querySelectorAll('.cc-split-center').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const i = Number(e.target.dataset.i);
+        ccClassDraftSplits[i] = ccClassDraftSplits[i] || {costCenterId:'',percent:''};
+        ccClassDraftSplits[i].costCenterId = e.target.value;
+      });
+    });
+    document.querySelectorAll('.cc-split-percent').forEach(el=>{
+      el.addEventListener('input', e=>{
+        const i = Number(e.target.dataset.i);
+        ccClassDraftSplits[i] = ccClassDraftSplits[i] || {costCenterId:'',percent:''};
+        ccClassDraftSplits[i].percent = e.target.value;
+      });
+    });
+    document.querySelectorAll('[data-cc-split-rm]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = Number(el.dataset.ccSplitRm);
+        ccClassDraftSplits.splice(i,1);
+        render();
+      });
+    });
+    document.getElementById('ccClassAddRowBtn')?.addEventListener('click', ()=>{
+      ccClassDraftSplits.push({costCenterId:'',percent:''});
+      render();
+    });
+    document.querySelectorAll('[data-delete-costcenterclass]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        state.costCenterClasses = state.costCenterClasses.filter(x=>x.id!==el.dataset.deleteCostcenterclass);
+        await saveCostCenterClasses();
+        render();
+      });
+    });
+    document.getElementById('addCostCenterClassBtn')?.addEventListener('click', async ()=>{
+      const name = document.getElementById('newCCClassName').value.trim();
+      if(!name){ toast('Enter a class name'); return; }
+      const splits = ccClassDraftSplits.filter(sp=>sp.costCenterId && Number(sp.percent)>0).map(sp=>({ costCenterId: sp.costCenterId, percent: Number(sp.percent) }));
+      if(!splits.length){ toast('Add at least one cost center split line'); return; }
+      const pct = r2(splits.reduce((s,sp)=>s+sp.percent,0));
+      if(Math.abs(pct-100) >= 0.01){ toast(`Splits add up to ${pct}%, not 100% — adjust before saving`); return; }
+      state.costCenterClasses.push({ id: uid('ccc'), name, splits });
+      ccClassDraftSplits = [];
+      await saveCostCenterClasses();
+      toast('Cost Center Class saved');
       render();
     });
     document.querySelectorAll('[data-delete-budget]').forEach(el=>{
@@ -39532,9 +40786,32 @@ function attachHandlers(){
     document.querySelectorAll('[data-group-ledger]').forEach(sel=>{
       sel.addEventListener('change', e=>{
         const i = +e.target.dataset.groupLedger;
-        importState.groups[i].ledgerId = e.target.value === '__suspense__' ? '' : e.target.value;
+        const g = importState.groups[i];
+        const newLedgerId = e.target.value === '__suspense__' ? '' : e.target.value;
+        if(newLedgerId !== g.ledgerId){ g.matchedRuleId = null; g.matchedRuleName = null; } // manual override -- the rule badge no longer applies
+        g.ledgerId = newLedgerId;
+        render();
       });
     });
+    document.querySelectorAll('[data-save-as-rule]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const i = Number(el.dataset.saveAsRule);
+        const g = importState.groups[i];
+        if(!g || !g.ledgerId){ toast('Pick a real ledger for this row first'); return; }
+        const value = (g.label||'').trim();
+        if(!value){ toast('Nothing to save — this row has a blank narration'); return; }
+        if(state.bankRules.some(r=>(r.match?.value||'').trim().toLowerCase()===value.toLowerCase() && r.match?.mode==='contains')){
+          toast('A bank rule for this exact text already exists'); return;
+        }
+        const ledger = ledgerOf(g.ledgerId);
+        state.bankRules.push({ id: uid('br'), name: value.slice(0,60), match:{mode:'contains', value}, ledgerId: g.ledgerId, active:true, priority: state.bankRules.length+1, hitCount:0 });
+        await saveBankRules();
+        logAutomation('🏦', `Saved a Bank Rule: "${value}" → ${ledger?ledger.name:'a ledger'}`);
+        toast('Bank rule saved — future imports will auto-match this narration', {type:'success'});
+        render();
+      });
+    });
+    document.getElementById('manageBankRulesBtn')?.addEventListener('click', ()=>{ showBankRulesModal = true; render(); });
 
     document.getElementById('importCommitBtn')?.addEventListener('click', commitImport);
   }
@@ -39623,6 +40900,94 @@ function attachHandlers(){
     document.getElementById('printBSBtn')?.addEventListener('click', printBalanceSheetReport);
     document.getElementById('printCFBtn')?.addEventListener('click', printCashFlowReport);
     document.getElementById('exportCostCenterBtn')?.addEventListener('click', exportCostCenterToExcel);
+    document.querySelectorAll('[data-costcenter-breakup]').forEach(el=>{
+      el.addEventListener('click', ()=>{ costCenterBreakupId = el.dataset.costcenterBreakup; modal = 'costCenterBreakup'; render(); });
+    });
+    document.getElementById('addScenarioBtn')?.addEventListener('click', async ()=>{
+      const name = document.getElementById('newScenarioName').value.trim();
+      if(!name){ toast('Enter a scenario name'); return; }
+      const s = { id: uid('scn'), name, active:true, createdAt: new Date().toISOString(), vouchers:[] };
+      state.scenarios.push(s);
+      await saveScenarios();
+      scenarioPlannerActiveId = s.id;
+      toast('Scenario created — add a provisional voucher to see its effect');
+      render();
+    });
+    document.querySelectorAll('[data-open-scenario]').forEach(el=>{
+      el.addEventListener('click', ()=>{ scenarioPlannerActiveId = el.dataset.openScenario; render(); });
+    });
+    document.getElementById('backToScenariosBtn')?.addEventListener('click', ()=>{ scenarioPlannerActiveId = null; scenarioVoucherDraft = null; render(); });
+    document.querySelectorAll('[data-delete-scenario]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        if(!window.confirm('Delete this scenario and every provisional voucher in it? This cannot be undone (nothing here ever touched your real books).')) return;
+        state.scenarios = state.scenarios.filter(s=>s.id!==el.dataset.deleteScenario);
+        await saveScenarios();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-edit-scenario-voucher]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const scenario = state.scenarios.find(s=>s.id===scenarioPlannerActiveId);
+        const v = scenario && scenario.vouchers.find(x=>x.id===el.dataset.editScenarioVoucher);
+        if(!v) return;
+        const amt = (v.entries||[]).reduce((s,e)=>s+(Number(e.dr)||0),0);
+        scenarioVoucherDraft = { scenarioId: scenario.id, id: v.id, date: v.date, type: v.type||'Journal', narration: v.narration||'', amount: amt, ledgerA: v.entries?.[0]?.ledgerId||'', ledgerB: v.entries?.[1]?.ledgerId||'' };
+        render();
+      });
+    });
+    document.querySelectorAll('[data-delete-scenario-voucher]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const scenario = state.scenarios.find(s=>s.id===scenarioPlannerActiveId);
+        if(!scenario) return;
+        scenario.vouchers = scenario.vouchers.filter(v=>v.id!==el.dataset.deleteScenarioVoucher);
+        await saveScenarios();
+        render();
+      });
+    });
+    document.querySelectorAll('[data-convert-scenario-voucher]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+        const scenario = state.scenarios.find(s=>s.id===scenarioPlannerActiveId);
+        const v = scenario && scenario.vouchers.find(x=>x.id===el.dataset.convertScenarioVoucher);
+        if(!v) return;
+        if(!window.confirm(`Post "${v.narration||v.type}" as a real voucher? This removes it from the scenario and adds it to your actual books.`)) return;
+        const real = { id: uid('v'), date: v.date, type: v.type||'Journal', narration: (v.narration||'')+' (converted from What-If scenario)', entries: v.entries.map(e=>({...e})), createdAt: new Date().toISOString() };
+        state.vouchers.push(real);
+        scenario.vouchers = scenario.vouchers.filter(x=>x.id!==v.id);
+        await Promise.all([saveVouchers(), saveScenarios()]);
+        logVoucherAudit('create', real.id, null, voucherAuditSnapshot(real));
+        logAutomation('🔀', `Converted a What-If scenario voucher ("${scenario.name}") into a real ${real.type} voucher`);
+        toast('Converted to a real voucher — it now posts to your books', {type:'success'});
+        render();
+      });
+    });
+    document.getElementById('cancelScenarioVoucherBtn')?.addEventListener('click', ()=>{ scenarioVoucherDraft = null; render(); });
+    document.getElementById('saveScenarioVoucherBtn')?.addEventListener('click', async ()=>{
+      const scenario = state.scenarios.find(s=>s.id===scenarioPlannerActiveId);
+      if(!scenario) return;
+      const date = document.getElementById('svDate').value;
+      const type = document.getElementById('svType').value;
+      const amount = Number(document.getElementById('svAmount').value);
+      const ledgerA = document.getElementById('svLedgerA').value;
+      const ledgerB = document.getElementById('svLedgerB').value;
+      const narration = document.getElementById('svNarration').value.trim();
+      if(!date){ toast('Pick a date'); return; }
+      if(!ledgerA || !ledgerB){ toast('Select both ledgers'); return; }
+      if(ledgerA===ledgerB){ toast('Pick two different ledgers'); return; }
+      if(!(amount>0)){ toast('Enter an amount greater than zero'); return; }
+      const entries = scenarioVoucherEntries({amount, ledgerA, ledgerB});
+      const editingId = scenarioVoucherDraft && scenarioVoucherDraft.id;
+      if(editingId){
+        const v = scenario.vouchers.find(x=>x.id===editingId);
+        if(v){ v.date=date; v.type=type; v.narration=narration; v.entries=entries; }
+      } else {
+        scenario.vouchers.push({ id: uid('scnv'), date, type, narration, entries });
+      }
+      await saveScenarios();
+      scenarioVoucherDraft = null;
+      toast(editingId ? 'Provisional voucher updated' : 'Provisional voucher added', {type:'success'});
+      render();
+    });
     document.getElementById('exportBudgetBtn')?.addEventListener('click', exportBudgetVsActualToExcel);
     document.getElementById('budgetFYSelect')?.addEventListener('change', e=>{ budgetReportFY = e.target.value; render(); });
     document.querySelectorAll('[data-forex-rate]').forEach(el=>{
@@ -40472,6 +41837,16 @@ function setupHistoryRoot(){
     try{ await window.storage.set('pendingReferralCode', refParam); }catch(e){}
   }else{
     try{ const stored = await window.storage.get('pendingReferralCode'); pendingReferralCode = stored ? stored.value : ''; }catch(e){ pendingReferralCode = ''; }
+  }
+
+  // PWA Share Target pickup: ?shared-receipt=1 means service-worker.js just stashed a shared image
+  // (e.g. a receipt photo shared from WhatsApp's own share sheet) into the Cache Storage API and
+  // redirected back here -- see openSharedReceiptIntoScan()'s comment. Deferred until a company is
+  // actually open (enterCompanyApp() checks this flag) since the OCR draft needs a ledger list to
+  // match against; cleared from the URL immediately either way so a reload never re-triggers it.
+  if(urlParams.get('shared-receipt')==='1'){
+    pendingSharedReceiptFile = true;
+    try{ window.history.replaceState({}, document.title, window.location.pathname); }catch(e){}
   }
 
   // Instant "Try Demo" link: ?demo=1, for use in YouTube Shorts descriptions, social bios, or a
