@@ -326,12 +326,19 @@
   /* ---------------- Oct 12, 2026 sidebar round 5: search/filter, drag-to-reorder & custom groups,
      notification bell, accent picker ---------------- */
   .sidebar-search-wrap{position:relative;display:flex;align-items:center;margin:2px 0 10px;}
-  .sidebar-search-icon{position:absolute;left:9px;font-size:11px;opacity:.55;pointer-events:none;}
-  .sidebar-search-wrap input{width:100%;padding:7px 28px 7px 27px;border:1px solid var(--border);border-radius:9px;
+  .sidebar-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;
+    display:flex;color:var(--ink-faint);opacity:.75;pointer-events:none;}
+  .sidebar-search-icon svg{width:13px;height:13px;}
+  /* .tabstrip prefix (not just .sidebar-search-wrap) deliberately matches the specificity of the
+     global `input[type=text]{padding:9px 12px;...}` base style further down (around line 875) --
+     same specificity, later in the cascade, so without it that base rule always won and silently
+     overrode this padding back down to 12px, which is what let the search icon collide with the "S"
+     of the placeholder text. Bug predates this fix; not introduced by it. */
+  .tabstrip .sidebar-search-wrap input{width:100%;padding:7px 28px 7px 34px;border:1px solid var(--border);border-radius:9px;
     background:var(--surface-strong);color:var(--ink);font-family:inherit;font-size:11.5px;font-weight:600;
     transition:border-color .15s ease,background .15s ease;}
   .sidebar-search-wrap input::placeholder{color:var(--ink-faint);font-weight:500;}
-  .sidebar-search-wrap input:focus{outline:none;border-color:var(--sidebar-accent, var(--accent1));background:var(--surface);}
+  .tabstrip .sidebar-search-wrap input:focus{outline:none;border-color:var(--sidebar-accent, var(--accent1));background:var(--surface);}
   .sidebar-search-clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:18px;height:18px;
     display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:5px;
     font-size:10px;color:var(--ink-faint);cursor:pointer;}
@@ -7188,6 +7195,7 @@ let showBankRulesModal = false; // a separate on/off flag (not the generic `moda
 let cfDetailBucket = null;   // which Cash Flow bucket (operating/investing/financing) was clicked, for the detail modal
 let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice ageing detail modal is showing
 let monthlyNarrativeMonth = null; // which 'YYYY-MM' the AI-Written Monthly Narrative Summary modal is showing -- null = current month
+let bookCloseMonth = null; // which 'YYYY-MM' the Month-End Close modal is targeting -- null = defaultBookCloseMonth() (the earliest unlocked month with activity, or the current month)
 let gstReadinessMonth = null; // which 'YYYY-MM' the GST Return Readiness card on the GST tab is showing -- null = current month
 let pieChartLedgerId = null; // which ledger's pie chart to show
 let collectionsReminderDraft = null; // {partyName, text} for the drafted-collections-reminder modal — draft-and-copy only, never sent
@@ -16682,7 +16690,7 @@ function sidebarAddGroupRow(){
 // navSection()'s "force open while filtering" logic for how a match actually surfaces.
 function sidebarSearchBox(){
   return `<div class="sidebar-search-wrap">
-    <span class="sidebar-search-icon" aria-hidden="true">🔎</span>
+    <span class="sidebar-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
     <input type="text" id="sidebarSearchInput" placeholder="Search modules…" value="${escapeAttr(sidebarFilterQuery)}" autocomplete="off" aria-label="Search sidebar modules">
     ${sidebarFilterQuery ? `<button type="button" class="sidebar-search-clear" id="sidebarSearchClear" title="Clear search" aria-label="Clear search">✕</button>` : ''}
   </div>`;
@@ -26478,7 +26486,7 @@ function viewDashboard(){
         <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
         <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
         <button class="btn secondary" id="openNotificationsSettingsBtn" type="button" title="Get notified about approvals, overdue invoices and low stock">🔔 Notifications${notificationsEnabled() && 'Notification' in window && Notification.permission==='granted' ? ' <span style="color:var(--credit);">●</span>' : ''}</button>
-        <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close Checklist</button>
+        <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close${currentCompany && currentCompany.bookClose && currentCompany.bookClose.lockedThrough ? ` <span class="pill" style="font-size:9.5px;background:var(--surface-strong);color:var(--ink-soft);margin-left:2px;">🔒 thru ${new Date(currentCompany.bookClose.lockedThrough+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>` : ''}</button>
         <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
         <button class="btn secondary" id="openDashboardPersonalizeBtn" type="button">⚙️ Personalize Dashboard</button>
       </div>
@@ -27527,13 +27535,80 @@ function automationFeedModal(){
     </div>
   `;
 }
-// ---- AI-Assisted Month-End Close Checklist: walks through the four things a month-end close
-// usually needs -- depreciation, accruals/provisions (recurring templates), GST, and bank
-// reconciliation -- each derived live from the same functions the rest of the app already uses for
-// those screens (assetDepreciationForFY/postedFYs, dueRecurringTemplates, the exception queue's GST
-// check, bankReconcileEntries). Nothing here is "completed" and forgotten -- it's a live read of the
-// books, so it always reflects the current state, and each row deep-links to where to actually act.
-function monthEndCloseChecklistItems(){
+// ---- Month-End Close: period lock helpers. `company.bookClose.lockedThrough` is the last date
+// (YYYY-MM-DD) of the most recently closed period -- a record-keeping marker (shown as a 🔒 badge
+// on the Dashboard and in this modal), not a hard transaction gate: this app has no single central
+// "create voucher" choke point to enforce a hard block against -- vouchers are created from close to
+// twenty different flows (manual entry, recurring auto-post, imports, POS, order conversion, and
+// more) -- so closing a period here matches how a real bookkeeper's "soft close" works: a clear,
+// intentional, visible boundary the person is trusted to honor, the same convention Tally's "Books
+// Beginning From" uses. Re-opening is always one click away for a genuine correction. ----
+function lastDateOfMonth(monthKey){
+  const [y,m] = monthKey.split('-').map(Number);
+  return new Date(y, m, 0).toISOString().slice(0,10);
+}
+function isPeriodLocked(monthKey){
+  const lockedThrough = currentCompany && currentCompany.bookClose && currentCompany.bookClose.lockedThrough;
+  return !!lockedThrough && monthKey <= lockedThrough.slice(0,7);
+}
+function defaultBookCloseMonth(){
+  const today = new Date().toISOString().slice(0,10);
+  const lockedThrough = currentCompany && currentCompany.bookClose && currentCompany.bookClose.lockedThrough;
+  if(lockedThrough){
+    const next = new Date(lockedThrough+'T00:00:00');
+    next.setDate(next.getDate()+1);
+    return next.toISOString().slice(0,7);
+  }
+  const months = Array.from(new Set(state.vouchers.filter(v=>v.date).map(v=>v.date.slice(0,7)))).sort();
+  return months[0] || today.slice(0,7);
+}
+// Every unlocked month from the earliest one worth closing through the current month, capped at 24
+// so a very old/neglected company doesn't produce an unbounded dropdown.
+function unlockedMonthOptions(){
+  const todayMonth = new Date().toISOString().slice(0,7);
+  const months = [];
+  let cursor = defaultBookCloseMonth();
+  while(cursor <= todayMonth && months.length < 24){
+    months.push(cursor);
+    const [y,m] = cursor.split('-').map(Number);
+    cursor = new Date(y, m, 1).toISOString().slice(0,7);
+  }
+  if(!months.length) months.push(todayMonth);
+  return months;
+}
+async function lockBookPeriod(monthKey){
+  if(!currentCompany || isReadOnlyMode()) return false;
+  const label = new Date(monthKey+'-01T00:00:00').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+  currentCompany.bookClose = currentCompany.bookClose || { lockedThrough:null, history:[] };
+  currentCompany.bookClose.lockedThrough = lastDateOfMonth(monthKey);
+  currentCompany.bookClose.history = currentCompany.bookClose.history || [];
+  currentCompany.bookClose.history.unshift({ period: monthKey, label, lockedAt: new Date().toISOString() });
+  const ok = await saveCompanyMeta(currentCompany);
+  if(ok){ logAutomation('🔒', `${label} closed and locked.`); toast(`${label} locked ✓`); }
+  return ok;
+}
+async function reopenLastBookPeriod(){
+  if(!currentCompany || isReadOnlyMode()) return false;
+  const bc = currentCompany.bookClose;
+  if(!bc || !bc.history || !bc.history.length) return false;
+  const removed = bc.history.shift();
+  bc.lockedThrough = bc.history.length ? lastDateOfMonth(bc.history[0].period) : null;
+  const ok = await saveCompanyMeta(currentCompany);
+  if(ok){ logAutomation('🔓', `${removed.label} re-opened for corrections.`); toast(`${removed.label} re-opened`); }
+  return ok;
+}
+// ---- AI-Assisted Month-End Close Checklist: walks through the things a month-end close usually
+// needs -- depreciation, accruals/provisions (recurring templates), GST, bank reconciliation, prepaid
+// amortization, and a final reports-review attestation -- each (bar the last) derived live from the
+// same functions the rest of the app already uses for those screens (assetDepreciationForFY/
+// postedFYs, dueRecurringTemplates, the exception queue's GST check, bankReconcileEntries). Nothing
+// here is "completed" and forgotten -- it's a live read of the books, so it always reflects the
+// current state, and each row deep-links to where to actually act. `targetMonth` (YYYY-MM) only
+// matters for the reports-review item and the Close & Lock action in closeChecklistModal() below --
+// every other item is still a live, un-period-scoped read of today's books, same as before this round.
+function monthEndCloseChecklistItems(targetMonth){
+  targetMonth = targetMonth || bookCloseMonth || defaultBookCloseMonth();
+  const monthLabel = new Date(targetMonth+'-01T00:00:00').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
   const today = new Date().toISOString().slice(0,10);
   const currentFY = fyLabelForDate(today);
   const items = [];
@@ -27583,17 +27658,53 @@ function monthEndCloseChecklistItems(){
     action: ()=>{ modal='prepaidDue'; render(); },
   });
 
+  const reportsReviewed = currentCompany && currentCompany.bookClose && currentCompany.bookClose.reportsReviewedPeriod === targetMonth;
+  items.push({
+    id:'reports-review', icon:'📊', title:'Review Profit & Loss and Balance Sheet',
+    status: reportsReviewed ? 'done' : 'pending',
+    detail: reportsReviewed ? `Reports reviewed for ${monthLabel}.` : `Open Reports and look over ${monthLabel}'s P&L and Balance Sheet before closing it.`,
+    action: ()=>{
+      currentCompany.bookClose = currentCompany.bookClose || { lockedThrough:null, history:[] };
+      currentCompany.bookClose.reportsReviewedPeriod = targetMonth;
+      saveCompanyMeta(currentCompany);
+      modal=null; goToTab('reports');
+    },
+  });
+
   return items;
 }
+// ---- Month-End Close modal: the orchestration layer on top of monthEndCloseChecklistItems() above
+// -- a period picker, a visual progress bar, the live checklist rows (unchanged), and the capstone
+// action the checklist alone never had: a gated "Close & Lock" button that only enables once every
+// row is clear, plus a one-click re-open for the most recently closed period. See the lock-helpers
+// comment above monthEndCloseChecklistItems() for why locking is a visible record-keeping marker
+// rather than a hard block on voucher entry. ----
 function closeChecklistModal(){
-  const items = monthEndCloseChecklistItems();
+  const monthOptions = unlockedMonthOptions();
+  const targetMonth = (bookCloseMonth && monthOptions.includes(bookCloseMonth)) ? bookCloseMonth : monthOptions[0];
+  const monthLabel = new Date(targetMonth+'-01T00:00:00').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+  const items = monthEndCloseChecklistItems(targetMonth);
   const doneCount = items.filter(i=>i.status==='done').length;
+  const allDone = doneCount===items.length;
+  const pct = Math.round((doneCount/items.length)*100);
+  const lockedThrough = currentCompany && currentCompany.bookClose && currentCompany.bookClose.lockedThrough;
+  const history = ((currentCompany && currentCompany.bookClose && currentCompany.bookClose.history) || []).slice(0,3);
   return `
     <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
-      <div class="modal-card" style="width:580px;">
-        <div class="panel-head"><h2>✅ Month-End Close Checklist</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+      <div class="modal-card" style="width:600px;">
+        <div class="panel-head"><h2>✅ Month-End Close</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body">
-          <p class="muted" style="font-size:12px;margin-bottom:12px;">${doneCount} of ${items.length} steps clear right now. This re-checks your live books every time it's opened — click any row to go act on it.</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
+            <label class="muted" style="font-size:12px;">Closing</label>
+            <select id="bookCloseMonthPicker" ${monthOptions.length<=1?'disabled':''}>
+              ${monthOptions.map(m=>`<option value="${m}" ${m===targetMonth?'selected':''}>${new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</option>`).join('')}
+            </select>
+            ${lockedThrough ? `<span class="muted" style="font-size:11.5px;">🔒 Locked through ${new Date(lockedThrough+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</span>` : ''}
+          </div>
+          <p class="muted" style="font-size:12px;margin:8px 0 10px;">${doneCount} of ${items.length} steps clear for ${escapeHtml(monthLabel)}. This re-checks your live books every time it's opened — click any row to go act on it.</p>
+          <div style="height:6px;border-radius:4px;background:var(--surface-strong);overflow:hidden;margin-bottom:14px;">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent2),var(--gold));transition:width .3s ease;"></div>
+          </div>
           <div style="display:flex;flex-direction:column;gap:8px;">
             ${items.map(it=>`
               <div data-close-item="${it.id}" tabindex="0" role="button" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;${it.status==='done'?'':'background:#FFF8E8;'}">
@@ -27606,6 +27717,25 @@ function closeChecklistModal(){
               </div>
             `).join('')}
           </div>
+          <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+            ${allDone ? `
+              <button class="btn" id="lockBookPeriodBtn" type="button" style="width:100%;">🔒 Close &amp; Lock ${escapeHtml(monthLabel)}</button>
+              <p class="muted" style="font-size:11px;margin:8px 0 0;text-align:center;">Marks the period closed and shows a 🔒 badge throughout the app — a record-keeping close, not a hard transaction block.</p>
+            ` : `
+              <button class="btn" type="button" disabled style="width:100%;opacity:.5;cursor:not-allowed;">🔒 Close &amp; Lock ${escapeHtml(monthLabel)}</button>
+              <p class="muted" style="font-size:11px;margin:8px 0 0;text-align:center;">Clear every step above to close this period.</p>
+            `}
+          </div>
+          ${history.length ? `
+          <div style="margin-top:14px;">
+            <div class="muted" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Recently Closed</div>
+            ${history.map((h,i)=>`
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;${i<history.length-1?'border-bottom:1px solid var(--border);':''}">
+                <span>${escapeHtml(h.label)}</span>
+                <span class="muted">${fmtTimestamp(h.lockedAt)}${i===0?` · <a href="#" id="reopenBookPeriodBtn">Re-open</a>`:''}</span>
+              </div>
+            `).join('')}
+          </div>` : ''}
         </div>
       </div>
     </div>
@@ -38714,6 +38844,27 @@ function attachHandlers(){
       };
       el.addEventListener('click', run);
       el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); run(); } });
+    });
+    document.getElementById('bookCloseMonthPicker')?.addEventListener('change', e=>{
+      bookCloseMonth = e.target.value;
+      render();
+    });
+    document.getElementById('lockBookPeriodBtn')?.addEventListener('click', async ()=>{
+      const monthOptions = unlockedMonthOptions();
+      const targetMonth = (bookCloseMonth && monthOptions.includes(bookCloseMonth)) ? bookCloseMonth : monthOptions[0];
+      const monthLabel = new Date(targetMonth+'-01T00:00:00').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+      if(!window.confirm(`Close and lock ${monthLabel}? You can re-open it later if you need to make a correction.`)) return;
+      await lockBookPeriod(targetMonth);
+      bookCloseMonth = null;
+      render();
+    });
+    document.getElementById('reopenBookPeriodBtn')?.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const latest = currentCompany.bookClose && currentCompany.bookClose.history && currentCompany.bookClose.history[0];
+      if(!latest) return;
+      if(!window.confirm(`Re-open ${latest.label} for corrections? You'll need to close it again when you're done.`)) return;
+      await reopenLastBookPeriod();
+      render();
     });
   }
   if(modal==='monthlyNarrative'){
