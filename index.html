@@ -7350,6 +7350,12 @@ let qaOpen = false;      // whether the floating Q&A chat panel is expanded
 let qaMessages = [];     // [{role:'user'|'assistant', content:string}] — this browser session's conversation, not persisted
 let qaLoading = false;   // currently always false — kept for when/if the AI-powered backend below is wired back in
 let qaError = '';        // inline error message shown in the chat panel, if a question ever fails
+// Nov 2026 -- a second, lighter front-end onto the exact same local answerQuestionLocallyRich()/
+// qaBuildCsvForAnswer() engine the floating "Ask Your Books" widget already uses, surfaced directly
+// on the Reports landing page instead of a chat bubble you have to open separately. Deliberately its
+// own tiny state (not qaMessages) -- this is a single answer inline on the page, not a conversation.
+let reportsAskQuestion = '';
+let reportsAskAnswer = null; // {content, chartHtml?, entityHtml?, csv?} | null
 // NOT CURRENTLY USED — askQA() below answers locally (see answerQuestionLocally), no network call, no cost.
 // This is where the URL would go if you later deploy the optional AI-powered backend in functions/
 // (functions/README.md) and switch askQA() back to calling it — `firebase deploy --only functions`
@@ -15373,6 +15379,15 @@ function askQA(question){
   if(el) el.scrollTop = el.scrollHeight;
   document.getElementById('qaInputBox')?.focus();
 }
+function askReportsBooks(question){
+  question = (question||'').trim();
+  if(!question) return;
+  reportsAskQuestion = question;
+  const rich = answerQuestionLocallyRich(question);
+  const csv = qaBuildCsvForAnswer(question);
+  reportsAskAnswer = { content: rich.content, chartHtml: rich.chartHtml || null, entityHtml: rich.entityHtml || null, csv: csv || null };
+  render();
+}
 // A couple of shared-chrome controls (theme toggle, the Ask Your Books bubble) are styled as
 // <span>/<div>, not <button>, so browsers don't fire a click on Enter/Space for them the way they
 // would for a real button. This makes those keyboard-activatable without changing their markup/CSS.
@@ -16639,6 +16654,11 @@ function navSection(label, items, groupId, isCustom){
 // pinned report looks and behaves like any other favorite, just routed to openPinnedReport()
 // instead of goToTab() and marked "active" by reportsSelected rather than the view id alone.
 function favoritesNavSection(){
+  // Nov 2026: Favorites section hidden from the sidebar per user request. Pin/star buttons
+  // elsewhere (nav tabs, report cards) still toggle getSidebarFavorites()/getPinnedReports()
+  // so the underlying feature isn't deleted -- it just no longer renders a section here.
+  return '';
+  // eslint-disable-next-line no-unreachable
   const favs = getSidebarFavorites();
   const moduleHtml = favs.map(id=>{
     const meta = SIDEBAR_MODULE_LABELS[id];
@@ -26054,6 +26074,19 @@ function glAmountOutliers(){
   }
   return flags;
 }
+// Nov 2026 -- surfaces glAmountOutliers() (previously Dashboard-exception-queue-only) inline, next
+// to the actual ledger row it concerns, on Trial Balance and Balance Sheet -- so a report reader
+// doesn't have to cross-reference the Dashboard to notice a recent unusual posting.
+function anomalyFlaggedLedgerIds(){
+  const map = {};
+  glAmountOutliers().forEach(f=>{ map[f.ledgerId] = (map[f.ledgerId]||0)+1; });
+  return map;
+}
+function anomalyBadge(ledgerId, flagMap){
+  const n = flagMap && flagMap[ledgerId];
+  if(!n) return '';
+  return ` <span class="pill neg" style="font-size:9px;padding:1px 6px;" title="${n} recent posting${n===1?'':'s'} on this ledger ran well above its own typical amount">⚠</span>`;
+}
 function glFirstTimeLargeParties(){
   const firstTxn = {}; // ledgerId -> {date, voucherId, amount, type, ledgerName, ledgerId}
   for(const v of state.vouchers){
@@ -27636,6 +27669,7 @@ function monthEndCloseChecklistItems(targetMonth){
     status: gstItem ? 'pending' : 'done',
     detail: gstItem ? gstItem.text : 'No GST-applicable invoices are missing a GSTIN on file.',
     action: ()=>{ modal=null; goToTab('gst'); },
+    dependsOn: ['reconcile'], // recommended order: reconcile bank activity before treating the period's GST as final
   });
 
   const STALE_DAYS = 21;
@@ -27669,8 +27703,18 @@ function monthEndCloseChecklistItems(targetMonth){
       saveCompanyMeta(currentCompany);
       modal=null; goToTab('reports');
     },
+    dependsOn: ['depreciation','accruals','prepaid-amortization'], // P&L and Balance Sheet aren't final reading until these have posted
   });
 
+  // Nov 2026 -- the "orchestration" a flat checklist never had: a recommended order, not a hard
+  // gate (consistent with this app's existing soft-lock philosophy -- see lockBookPeriod() below).
+  // An item with unmet dependsOn gets a visible "recommended after" note and a waiting icon, but
+  // stays fully clickable -- a person who knows their own books can still act out of order.
+  items.forEach(it=>{
+    if(!it.dependsOn) return;
+    const unmet = it.dependsOn.map(id=>items.find(i=>i.id===id)).filter(dep=>dep && dep.status!=='done');
+    it.waitingOn = unmet.length ? unmet.map(dep=>dep.title) : null;
+  });
   return items;
 }
 // ---- Month-End Close modal: the orchestration layer on top of monthEndCloseChecklistItems() above
@@ -27707,10 +27751,11 @@ function closeChecklistModal(){
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;">
             ${items.map(it=>`
-              <div data-close-item="${it.id}" tabindex="0" role="button" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;${it.status==='done'?'':'background:#FFF8E8;'}">
-                <span style="font-size:18px;line-height:1.2;">${it.status==='done'?'✅':'⏳'}</span>
+              <div data-close-item="${it.id}" tabindex="0" role="button" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;${it.status==='done'?'':(it.waitingOn?'background:var(--surface-strong);opacity:.75;':'background:#FFF8E8;')}">
+                <span style="font-size:18px;line-height:1.2;">${it.status==='done'?'✅':(it.waitingOn?'⏸':'⏳')}</span>
                 <div style="flex:1;">
                   <div style="font-weight:600;font-size:13px;">${escapeHtml(it.title)}</div>
+                  ${it.waitingOn ? `<div style="font-size:11px;color:var(--gold);margin-top:1px;">Recommended after: ${it.waitingOn.map(escapeHtml).join(', ')} — can still be done now if you prefer.</div>` : ''}
                   <div class="muted" style="font-size:12px;margin-top:2px;">${it.detail}</div>
                 </div>
                 <span class="muted" style="font-size:13px;">${it.status==='done'?'':'→'}</span>
@@ -32943,8 +32988,8 @@ function viewInventory(){
 function reportRow(label, val, opts={}){
   return `<tr ${opts.bold?'style="font-weight:700;border-top:2px solid var(--ink);"':''}><td>${label}</td><td class="num ${opts.cls||''}">${val}</td></tr>`;
 }
-function reportLedgerRows(ledgers, sign){
-  return ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
+function reportLedgerRows(ledgers, sign, flagMap){
+  return ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}${anomalyBadge(l.id,flagMap)}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td></tr>`).join('') || `<tr><td colspan="2" class="empty">None</td></tr>`;
 }
 function reportHeader(title, exportBtnId, exportLabel, printBtnId){
   // Round 7: pin-to-Favorites star, keyed off reportsSelected (the id this detail page was opened
@@ -33108,6 +33153,8 @@ function viewReports(){
   if(reportsSelected==='balanceSheet') return reportBalanceSheet();
   if(reportsSelected==='ratios') return reportRatioAnalysis();
   if(reportsSelected==='cashFlow') return reportCashFlow();
+  if(reportsSelected==='cashFlowForecast') return reportCashFlowForecast();
+  if(reportsSelected==='esg') return reportESG();
   if(reportsSelected==='costCenterPL') return reportCostCenterPL();
   if(reportsSelected==='scenarios') return scenarioPlannerView();
   if(reportsSelected==='budgetVsActual') return reportBudgetVsActual();
@@ -33126,6 +33173,11 @@ const REPORT_CARDS = [
   {id:'incomeStatement', icon:'trending_up', title:'Income Statement (Schedule III)', desc:'Statement of Profit and Loss per Schedule III, Division I to the Companies Act, 2013.', group:'Core Financial Statements'},
   {id:'balanceSheet', icon:'account_balance', title:'Balance Sheet (Schedule III)', desc:'Balance Sheet per Schedule III, Division I (2021 amendment), with a plain-language interpretation.', group:'Core Financial Statements'},
   {id:'cashFlow', icon:'water_drop', title:'Cash Flow Statement', desc:'Detailed, direct-method operating, investing and financing cash flows.', group:'Core Financial Statements'},
+  // Nov 2026 -- cashFlowForecastData()/cashFlowForecastCard() already existed as a Dashboard-only
+  // card (30/60/90-day projection from open receivables/payables + active recurring templates). This
+  // card doesn't duplicate that computation, just gives it a permanent home next to the historical
+  // Cash Flow Statement, where "what's coming" belongs beside "what already happened".
+  {id:'cashFlowForecast', icon:'monitoring', title:'Cash Flow Forecast', desc:'A 30/60/90-day projection of cash on hand, built from open receivables, open payables, and active recurring templates.', group:'Core Financial Statements'},
   {id:'ratios', icon:'bar_chart', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
   {id:'financialPerformance', icon:'explore', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
   {id:'stakeholderPresentation', icon:'co_present', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
@@ -33145,6 +33197,10 @@ const REPORT_CARDS = [
   {id:'consolidated', icon:'workspaces', title:'Consolidated Financials', desc:'Combine P&L and Balance Sheet across every company you can access, with intercompany balances eliminated. Opens across all your companies, not just this one.', group:'Multi-Company'},
   {id:'tdsTcs', icon:'receipt_long', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
   {id:'dataIntegrity', icon:'fact_check', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', group:'Compliance & Data Quality'},
+  // Nov 2026 -- a genuinely new report, not a wiring exercise like most of this round. Spend-based
+  // emissions ARE estimates, not an audited figure -- see the disclaimer panel inside reportESG()
+  // itself, which this card's own description also flags up front rather than burying in fine print.
+  {id:'esg', icon:'eco', title:'ESG / Sustainability (Estimate)', desc:'An estimated carbon footprint from spend on fuel, electricity, logistics and paper — a labeled estimate using standard proxy factors, not an audited figure.', group:'Compliance & Data Quality'},
 ];
 // Oct 15, 2026 -- the Reports landing grid's cards asked for "a relevant picture, not an icon": a
 // small illustrated scene per report, richer than a single Material Symbols glyph, but still hand-
@@ -33164,6 +33220,7 @@ const REPORT_CARD_HUES = {
   ratios:'#7C3AED', financialPerformance:'#0891B2', stakeholderPresentation:'#DB2777',
   costCenterPL:'#EA580C', budgetVsActual:'#CA8A04', forexRevaluation:'#059669',
   consolidated:'#9333EA', tdsTcs:'#B45309', dataIntegrity:'#2563EB', scenarios:'#7C3AED',
+  cashFlowForecast:'#0369A1', esg:'#15803D',
 };
 function reportCardArt(id){
   const hue = REPORT_CARD_HUES[id] || 'var(--accent1)';
@@ -33293,6 +33350,22 @@ function reportCardArt(id){
       <circle cx="48" cy="47" r="5" style="fill:var(--surface);stroke:${hue};stroke-width:1.5;stroke-dasharray:2.5 2.5;"/>
       <text x="44" y="19.5" style="font-size:7px;font-weight:800;fill:${hue};font-family:inherit;">✓</text>
       <text x="44.5" y="50" style="font-size:7px;font-weight:800;fill:${hue};font-family:inherit;">?</text>`,
+    // A radar/scan sweep behind a dashed, rising projection line ending in a small diamond "today +
+    // N days" marker -- looking ahead rather than back, distinct from cashFlow's solid backward-
+    // looking stream.
+    cashFlowForecast: `
+      <path d="M32 46 A 24 24 0 0 1 56 22" style="fill:none;stroke:color-mix(in srgb, ${hue} 20%, var(--surface));stroke-width:3;stroke-dasharray:3 4;"/>
+      <path d="M32 46 A 18 18 0 0 1 50 28" style="fill:none;stroke:color-mix(in srgb, ${hue} 35%, var(--surface));stroke-width:3;stroke-dasharray:3 4;"/>
+      <circle cx="32" cy="46" r="3" style="fill:${hue};"/>
+      <path d="M12 44 L20 40 L28 43 L36 32 L44 34 L52 20" style="fill:none;stroke:${hue};stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:2 1,0 5,2 1,0 5,2 1,6 0;"/>
+      <circle cx="52" cy="20" r="4.5" style="fill:var(--gold);stroke:${hue};stroke-width:1.5;"/>`,
+    // A small sprouting leaf rising from a rounded base, with two concentric "impact" rings -- an
+    // environmental/sustainability motif distinct from every money-shaped icon on this grid.
+    esg: `
+      <circle cx="32" cy="34" r="17" style="fill:none;stroke:color-mix(in srgb, ${hue} 18%, var(--surface));stroke-width:2;"/>
+      <circle cx="32" cy="34" r="11" style="fill:none;stroke:color-mix(in srgb, ${hue} 30%, var(--surface));stroke-width:2;"/>
+      <path d="M32 44 C 32 30, 24 26, 20 18 C 32 18, 38 26, 38 34 C 38 38, 36 42, 32 44 Z" style="fill:${hue};"/>
+      <path d="M32 44 C 32 34, 34 28, 40 22" style="fill:none;stroke:color-mix(in srgb, ${hue} 55%, var(--surface));stroke-width:1.6;stroke-linecap:round;"/>`,
   };
   const scene = scenes[id] || '';
   return `<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true" focusable="false">${backdrop}${scene}</svg>`;
@@ -33303,6 +33376,23 @@ function reportsLanding(){
   const groups = ['Core Financial Statements','Analysis & Insights','Management Reports','Multi-Company','Compliance & Data Quality'];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
+    <div class="panel" style="margin-bottom:18px;">
+      <div class="panel-body">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;margin-bottom:8px;"><span class="tab-msym" style="font-size:18px;">search</span> Ask your books</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="reportsAskInput" value="${escapeAttr(reportsAskQuestion)}" placeholder="e.g. &quot;top 5 expense categories this quarter as a chart&quot; or &quot;who owes me the most&quot;" style="flex:1;">
+          <button class="btn secondary small" id="reportsAskBtn" type="button">Ask</button>
+        </div>
+        <p class="muted" style="font-size:11px;margin:6px 0 0;">Answers locally from your own ledgers and vouchers — the same engine as the 💬 Ask Your Books bubble, no internet connection needed.</p>
+        ${reportsAskAnswer ? `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;white-space:pre-wrap;">${escapeHtml(reportsAskAnswer.content)}</div>
+          ${reportsAskAnswer.chartHtml ? `<div style="margin-top:8px;">${reportsAskAnswer.chartHtml}</div>` : ''}
+          ${reportsAskAnswer.entityHtml ? `<div style="margin-top:8px;">${reportsAskAnswer.entityHtml}</div>` : ''}
+          ${reportsAskAnswer.csv ? `<button type="button" class="btn small secondary" id="reportsAskCsvBtn" style="margin-top:8px;">⬇ Export rows as CSV</button>` : ''}
+        </div>` : ''}
+      </div>
+    </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
       <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Export All (Excel)</button>
     </div>
@@ -33334,17 +33424,19 @@ function reportTrialBalance(){
   const tb = state.ledgers.map(l=>({l, b:ledgerBalance(l.id)}));
   const tbDr = tb.reduce((s,r)=>s + (r.b>0?r.b:0),0);
   const tbCr = tb.reduce((s,r)=>s + (r.b<0?-r.b:0),0);
+  const flagMap = anomalyFlaggedLedgerIds();
   return `
     ${reportHeader('Trial Balance', 'exportTBBtn', null, 'printTBBtn')}
     <div id="trialBalanceStatementBody">
     <div class="panel"><div class="panel-body" style="padding:0;">
       <table class="rb-card-table statement-table">
         <tr><th scope="col">Ledger</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th></tr>
-        ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
+        ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}${anomalyBadge(r.l.id,flagMap)}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
         <tr style="font-weight:600;border-top:2px solid var(--ink);"><td class="ccard-title" data-label="Ledger">Total</td><td class="num ccard-amount" data-label="Debit">₹${fmt(tbDr)}</td><td class="num ccard-amount" data-label="Credit">₹${fmt(tbCr)}</td></tr>
       </table>
     </div></div>
     </div>
+    ${narrativePanel(trialBalanceNarrative(tb, tbDr, tbCr))}
   `;
 }
 function reportIncomeStatement(){
@@ -33388,6 +33480,7 @@ function reportIncomeStatement(){
     </div></div>
     </div>
     <p class="muted" style="font-size:11px;">Presented per Schedule III (Division I) to the Companies Act, 2013, as amended in 2021.${hasPrev?' Figures are for the current financial year to date, with the immediately preceding financial year shown alongside for comparison, as Schedule III requires.':" This is the company's first financial year on the books, so there is no prior year yet to compare against."} Click any line above to see the individual ledger accounts behind it (all-time, not just this year). Employee Benefits Expense / Depreciation &amp; Amortisation / Finance Costs are detected from ledger names; everything else in the Direct/Indirect Expenses groups falls under Other Expenses. Income tax is not tracked separately from GST in this system (see the GST tab), so Current Tax and Deferred Tax show as nil. Earnings Per Share is not shown, as share count and face value are not tracked.</p>
+    ${narrativePanel(incomeStatementNarrative(fy))}
   `;
 }
 function reportBalanceSheet(){
@@ -33411,9 +33504,10 @@ function reportBalanceSheet(){
   };
   const bzero = label => brow(label, '₹0.00', hasPrev?'₹0.00':'');
   const bhead = label => `<tr><th colspan="${cols}" scope="colgroup">${label}</th></tr>`;
+  const bsFlagMap = anomalyFlaggedLedgerIds();
   const blrows = (ledgers, sign) => hasPrev
-    ? (ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td><td></td></tr>`).join('') || `<tr><td colspan="3" class="empty">None</td></tr>`)
-    : reportLedgerRows(ledgers, sign);
+    ? (ledgers.map(l=>`<tr data-ledger-detail="${l.id}" style="cursor:pointer;"><td>&nbsp;&nbsp;${l.name}${anomalyBadge(l.id,bsFlagMap)}</td><td class="num">₹${fmt(sign*ledgerBalance(l.id))}</td><td></td></tr>`).join('') || `<tr><td colspan="3" class="empty">None</td></tr>`)
+    : reportLedgerRows(ledgers, sign, bsFlagMap);
 
   return `
     ${reportHeader('Balance Sheet (Schedule III, Division I)', 'exportBSBtn', null, 'printBSBtn')}
@@ -33491,6 +33585,7 @@ function reportBalanceSheet(){
     <p class="muted" style="font-size:11.5px;">Total Assets ${Math.abs(bs.totalAssets-bs.totalEquityAndLiab)<0.01?'matches':'does NOT match'} Total Equity and Liabilities (₹${fmt(bs.totalAssets)} vs ₹${fmt(bs.totalEquityAndLiab)}). A mismatch usually means an opening balance or entry was recorded on the wrong side.</p>
     </div>
     <p class="muted" style="font-size:11px;">Presented per Schedule III (Division I) to the Companies Act, 2013, as amended in 2021 — including the Trade Payables MSME/Others split.${hasPrev?' The Previous Year column is as at the end of the preceding financial year, as Schedule III requires.':" This is the company's first financial year on the books, so there is no prior year yet to compare against."} Mark a Current Liabilities ledger as an MSME supplier from the Chart of Accounts to route it into (A) instead of (B). Ledgers under Investments, Provisions, Loans &amp; Advances, and Suspense Account now feed their own lines above; this system doesn't track loan tenure or deferred tax separately, so all borrowings are shown under Long-term and lines like Deferred Tax and Short-term Borrowings stay at ₹0.00 (a head this system doesn't track, not a confirmed nil balance) — review before filing. Note-level disclosures (ageing schedules, share reconciliation, promoter shareholding, Additional Regulatory Information) are not included.</p>
+    ${narrativePanel(balanceSheetNarrative(fy))}
 
     <div class="section-title" style="margin-top:20px;">Financing Mix</div>
     <div class="panel"><div class="panel-body">
@@ -33576,6 +33671,7 @@ function reportRatioAnalysis(){
   const fySeries = ratioFYSeries(6);
   return `
     ${reportHeader('Ratio Analysis (Detailed)', 'exportRatiosBtn')}
+    ${narrativePanel(ratioAnalysisNarrative(ratios))}
     <h2 style="font-family:inherit;font-weight:800;font-size:15px;margin:0 0 12px;letter-spacing:-.01em;color:var(--ink);">Ratio Trends &amp; Liquidity Health</h2>
     <div class="viz-grid">
       ${ratioLiquidityLeverageTrendCard(fySeries)}
@@ -33769,6 +33865,7 @@ function reportCashFlow(){
     </div>
     <p class="muted" style="font-size:11.5px;">${cashMatches ? '✓ Closing cash matches actual Cash + Bank ledger balances.' : `⚠ Closing cash (₹${fmt(cf.closingCash)}) does not match actual Cash + Bank balances (₹${fmt(cf.actualCash)}) — check for unusual voucher entries.`} Contra vouchers between Cash and Bank are excluded since they don't change the combined cash position. Classification: Fixed Asset lines → Investing; Capital/Loan lines → Financing; everything else → Operating.</p>
     </div>
+    ${narrativePanel(cashFlowNarrative(cf))}
 
     <h2 style="font-family:inherit;font-weight:800;font-size:15px;margin:22px 0 12px;letter-spacing:-.01em;color:var(--ink);">Cash Flow Visuals</h2>
     <div class="panel viz-panel">
@@ -33785,6 +33882,36 @@ function reportCashFlow(){
   `;
 }
 
+// Nov 2026 -- gives cashFlowForecastData()/cashFlowForecastCard() (previously Dashboard-only) a
+// permanent home in the Reports module, beside the historical Cash Flow Statement. Adds the day-by-
+// day event list underneath the existing chart/KPI card so "why does the 90-day number look like
+// that" is answerable without leaving the report -- every inflow/outflow event the forecast summed,
+// grouped by the 30/60/90-day bucket it falls into.
+function reportCashFlowForecast(){
+  const data = cashFlowForecastData();
+  const today = new Date().toISOString().slice(0,10);
+  const bucketFor = d => d<=addDays(today,30) ? 30 : d<=addDays(today,60) ? 60 : 90;
+  const sorted = [...data.events].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  return `
+    ${reportHeader('Cash Flow Forecast')}
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">A forward-looking projection, not a historical statement — see the Cash Flow Statement for what already happened. Built from open receivables (by each customer's Credit Period), open payables, and active recurring templates due within the next 90 days.</p>
+    ${cashFlowForecastCard()}
+    <div class="panel" style="margin-top:14px;">
+      <div class="panel-head"><h2>Events Behind This Forecast</h2></div>
+      <div class="panel-body" style="padding:0;">
+        ${sorted.length ? `<table>
+          <tr><th>Expected Date</th><th>Within</th><th class="num">Expected Amount</th></tr>
+          ${sorted.map(e=>`<tr>
+            <td class="muted">${e.date}</td>
+            <td><span class="pill ${e.amount>=0?'pos':'neutral'}">+${bucketFor(e.date)}d</span></td>
+            <td class="num ${e.amount>=0?'pos':'neg'}">${e.amount>=0?'+':''}₹${fmt(e.amount)}</td>
+          </tr>`).join('')}
+        </table>` : `<div class="empty">No open receivables, payables, or due recurring templates within the next 90 days.</div>`}
+      </div>
+    </div>
+    <p class="muted" style="font-size:10.5px;margin-top:10px;">An estimate from your own data, not a guarantee — a customer paying late, an unplanned expense, or a cancelled recurring template will move these numbers. Review it alongside the Cash Flow Statement, not instead of it.</p>
+  `;
+}
 /* ---------------- Round 8 (task 292): Print / PDF for the four formal statements ----------------
    Trial Balance, Income Statement, Balance Sheet and Cash Flow previously had no print/PDF output at
    all -- only "Download (Excel)". The Financial Performance Report solved this exact problem already
@@ -34018,6 +34145,7 @@ function reportCostCenterPL(){
         <tr style="font-weight:700;border-top:2px solid var(--ink);"><td>Total</td><td class="num">₹${fmt(r2(totalIncome))}</td><td class="num">₹${fmt(r2(totalExpense))}</td><td class="num ${totalIncome-totalExpense>=0?'pos':'neg'}">₹${fmt(r2(totalIncome-totalExpense))}</td><td></td></tr>
       </table>` : `<div class="empty">No cost centers defined yet, and no activity to show. Add a cost center on the Accounts tab, then tag it on a voucher.</div>`}
     </div></div>
+    ${narrativePanel(costCenterNarrative(sections, unassigned))}
   `;
 }
 
@@ -34114,6 +34242,114 @@ const BUDGET_ANOMALY_PCT = 25;
 // the Dashboard's Monthly Narrative Summary. Unlike that summary (which only ever names the single
 // biggest mover), this flags EVERY ledger off budget by BUDGET_ANOMALY_PCT% or more, worst first, so
 // a FY with several problem lines doesn't hide all but one of them.
+// Nov 2026 -- extends budgetVarianceNarrative()'s three-part prose shape (one headline sentence,
+// the notable items named explicitly, an honest "nothing stands out" line when that's true) to the
+// reports that didn't have it. Each function below is a second, prose rendering of numbers its own
+// report already computes -- no new aggregation beyond what's already on the page (glAmountOutliers()
+// is the one exception, reused from the Dashboard exception queue rather than re-derived here).
+function narrativePanel(notes){
+  if(!notes || !notes.length) return '';
+  return `<div class="panel" style="border-style:dashed;background:var(--surface-strong);margin-top:14px;">
+    <div class="panel-body">${notes.map(p=>`<p style="font-size:12.5px;line-height:1.6;margin:0 0 6px;">${p}</p>`).join('')}</div>
+  </div>`;
+}
+function trialBalanceNarrative(tb, tbDr, tbCr){
+  const notes = [];
+  notes.push(`${tb.length} ledger${tb.length===1?'':'s'} carry a balance today, totalling ₹${fmt(tbDr)} debit and ₹${fmt(tbCr)} credit.`);
+  const biggestDr = tb.filter(r=>r.b>0).sort((a,b)=>b.b-a.b)[0];
+  const biggestCr = tb.filter(r=>r.b<0).sort((a,b)=>a.b-b.b)[0];
+  if(biggestDr || biggestCr){
+    notes.push(`${biggestDr?`Largest debit balance: ${escapeHtml(biggestDr.l.name)} at ₹${fmt(biggestDr.b)}.`:''}${biggestCr?` Largest credit balance: ${escapeHtml(biggestCr.l.name)} at ₹${fmt(Math.abs(biggestCr.b))}.`:''}`);
+  }
+  const outliers = glAmountOutliers();
+  if(outliers.length){
+    const names = Array.from(new Set(outliers.map(o=>o.ledgerName))).slice(0,3);
+    notes.push(`⚠ ${outliers.length} recent posting${outliers.length===1?'':'s'} on ${names.map(escapeHtml).join(', ')}${outliers.length>names.length?' and others':''} ${outliers.length===1?'runs':'run'} well above that ledger's own typical amount — worth a second look.`);
+  } else {
+    notes.push('No ledger has a recent posting well outside its own typical range.');
+  }
+  return notes;
+}
+function incomeStatementNarrative(fy){
+  const pl = fy.pl, pp = fy.prevPl, hasPrev = fy.hasPriorData;
+  const notes = [];
+  if(!hasPrev){ notes.push('No prior-year data yet to compare against — this is the first period with recorded activity.'); return notes; }
+  const pctChange = (cur, prev) => prev ? r2((cur/prev-1)*100) : null;
+  const incomePct = pctChange(pl.totalIncome, pp.totalIncome);
+  const expensePct = pctChange(pl.totalExpenses, pp.totalExpenses);
+  notes.push(`Total income ${incomePct==null?'held steady':`is ${Math.abs(incomePct)}% ${incomePct>=0?'up':'down'}`} on ${fy.prevPeriodLabel}, total expenses ${expensePct==null?'held steady':`${Math.abs(expensePct)}% ${expensePct>=0?'higher':'lower'}`}, leaving a Profit for the Period of ₹${fmt(pl.profitForPeriod)} (₹${fmt(pp.profitForPeriod)} previously).`);
+  const lineDeltas = [
+    {label:'Revenue from Operations', cur:pl.revenueFromOperations, prev:pp.revenueFromOperations},
+    {label:'Other Income', cur:pl.otherIncome, prev:pp.otherIncome},
+    {label:'Employee Benefits Expense', cur:pl.employeeBenefitsExpense, prev:pp.employeeBenefitsExpense},
+    {label:'Finance Costs', cur:pl.financeCosts, prev:pp.financeCosts},
+    {label:'Depreciation and Amortisation', cur:pl.depreciationExpense, prev:pp.depreciationExpense},
+    {label:'Other Expenses', cur:pl.otherExpenses, prev:pp.otherExpenses},
+  ].map(x=>({...x, delta: r2((x.cur||0)-(x.prev||0))})).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+  const biggest = lineDeltas[0];
+  if(biggest && Math.abs(biggest.delta)>0.01) notes.push(`The biggest single mover: ${biggest.label} changed by ₹${fmt(Math.abs(biggest.delta))} ${biggest.delta>=0?'(up)':'(down)'} versus ${fy.prevPeriodLabel}.`);
+  else notes.push('No single line item moved materially versus the prior period.');
+  return notes;
+}
+function balanceSheetNarrative(fy){
+  const bs = fy.bs, pb = fy.prevBs, hasPrev = fy.hasPriorData;
+  const notes = [];
+  notes.push(`Total assets of ₹${fmt(bs.totalAssets)} are funded by ₹${fmt(bs.shareholdersFundsTotal)} of equity and ₹${fmt(bs.totalAssets-bs.shareholdersFundsTotal)} of liabilities.`);
+  if(!hasPrev){ notes.push('No prior-year Balance Sheet yet to compare against.'); return notes; }
+  const pct = pb.totalAssets ? r2((bs.totalAssets/pb.totalAssets-1)*100) : null;
+  if(pct!=null) notes.push(`Total assets are ${Math.abs(pct)}% ${pct>=0?'higher':'lower'} than ${fy.prevAsOfLabel}.`);
+  return notes;
+}
+function cashFlowNarrative(cf){
+  const notes = [];
+  const buckets = [{label:'Operating', v:cf.operating}, {label:'Investing', v:cf.investing}, {label:'Financing', v:cf.financing}].sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+  const driver = buckets[0];
+  notes.push(`Cash ${cf.netChange>=0?'increased':'decreased'} by ₹${fmt(Math.abs(cf.netChange))} overall, driven mainly by ${driver.label} activities (₹${fmt(driver.v)}).`);
+  return notes;
+}
+function ratioAnalysisNarrative(ratios){
+  const notes = [];
+  const flags = [];
+  if(ratios.currentRatio!=null && ratios.currentRatio<1) flags.push(`Current Ratio is ${fmtRatio(ratios.currentRatio)}× (below 1×) — current liabilities exceed current assets.`);
+  if(ratios.debtToEquity!=null && ratios.debtToEquity>2) flags.push(`Debt-to-Equity is ${fmtRatio(ratios.debtToEquity)}× — leverage is high relative to equity.`);
+  if(ratios.netMargin!=null && ratios.netMargin<0) flags.push(`Net Profit Margin is negative (${fmtPct(ratios.netMargin)}).`);
+  if(ratios.dso!=null && ratios.dpo!=null && ratios.dso>ratios.dpo*1.5 && ratios.dso>45) flags.push(`Days Sales Outstanding (${fmtDays(ratios.dso)}) is running well ahead of Days Payable Outstanding (${fmtDays(ratios.dpo)}) — customers are taking longer to pay than you take to pay suppliers.`);
+  if(flags.length) notes.push(`${flags.length} ratio${flags.length===1?'':'s'} worth a closer look: ${flags.join(' ')}`);
+  else notes.push('No ratio here is flagging a conventional warning threshold — liquidity, leverage and profitability all look within a normal range.');
+  return notes;
+}
+function costCenterNarrative(sections, unassigned){
+  const rows = [];
+  sections.forEach(s=>s.roots.forEach(r=>{ rows.push(r); r.children.forEach(c=>rows.push(c)); }));
+  if(unassigned && (unassigned.income||unassigned.expense)) rows.push({costCenter:{name:'Unassigned'}, income:unassigned.income, expense:unassigned.expense});
+  if(!rows.length) return [];
+  const withNet = rows.map(r=>({...r, net: r2(r.income-r.expense)}));
+  const best = withNet.slice().sort((a,b)=>b.net-a.net)[0];
+  const worst = withNet.slice().sort((a,b)=>a.net-b.net)[0];
+  const notes = [];
+  if(best) notes.push(`Most profitable cost center: ${escapeHtml(best.costCenter.name)} at ₹${fmt(best.net)} net.`);
+  if(worst && worst!==best && worst.net<0) notes.push(`Running at a loss: ${escapeHtml(worst.costCenter.name)} at ₹${fmt(Math.abs(worst.net))} net.`);
+  else if(worst && worst.net>=0) notes.push('Every cost center is net-positive for the period.');
+  return notes;
+}
+function forexRevaluationNarrative(rows, totalGainLoss){
+  if(!rows.length) return [];
+  const notes = [];
+  notes.push(`Net unrealized ${totalGainLoss>=0?'gain':'loss'} of ₹${fmt(Math.abs(totalGainLoss))} across ${rows.length} foreign-currency ledger${rows.length===1?'':'s'}.`);
+  const biggest = rows.slice().sort((a,b)=>Math.abs(b.gainLoss)-Math.abs(a.gainLoss))[0];
+  if(biggest) notes.push(`Largest single swing: ${escapeHtml(biggest.ledger.name)} at ₹${fmt(Math.abs(biggest.gainLoss))} ${biggest.gainLoss>=0?'gain':'loss'}.`);
+  return notes;
+}
+function tdsTcsNarrative(rows, totalsByKind){
+  if(!rows.length) return [];
+  const notes = [];
+  notes.push(`₹${fmt(totalsByKind.TDS||0)} withheld as TDS and ₹${fmt(totalsByKind.TCS||0)} collected as TCS across ${rows.length} voucher${rows.length===1?'':'s'} so far.`);
+  const bySection = {};
+  rows.forEach(r=>{ const k = r.sectionLabel||r.sectionCode||'Unspecified'; bySection[k] = (bySection[k]||0) + r.taxAmount; });
+  const topSection = Object.entries(bySection).sort((a,b)=>b[1]-a[1])[0];
+  if(topSection) notes.push(`Largest section by amount: ${escapeHtml(topSection[0])} at ₹${fmt(topSection[1])}.`);
+  return notes;
+}
 function budgetVarianceNarrative(fy, rows){
   const notes = [];
   if(!rows.length){ notes.push(`No budgets have been set for FY ${fy} yet, so variance can't be measured.`); return notes; }
@@ -34208,6 +34444,7 @@ function reportForexRevaluation(){
     <button class="btn" id="postForexRevaluationBtn" type="button" ${isReadOnlyMode()?'disabled':''}>Post as Journal Voucher</button>
     ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
     <p class="muted" style="font-size:11px;margin-top:8px;">Posting creates one Journal voucher dated today, adjusting each foreign-currency ledger to its revalued ₹ value above, offset by a standing "Foreign Exchange Gain/Loss (Unrealized)" ledger — same as any other Journal, it shows in Day Book and can be edited or deleted. Change a rate above and re-post later (e.g. next month) to true it up again; each run only adjusts from whatever is booked at that time.</p>
+    ${narrativePanel(forexRevaluationNarrative(rows, totalGainLoss))}
     `}
   `;
 }
@@ -35807,6 +36044,92 @@ function tdsTcsSummaryData(){
   for(const r of rows) totalsByKind[r.kind] = r2((totalsByKind[r.kind]||0) + (Number(r.taxAmount)||0));
   return { rows, totalsByKind };
 }
+// Nov 2026 -- a new, genuinely different report (not a wiring exercise like most of this round):
+// estimates a carbon footprint from spend, using the same "classify by keyword, flag what doesn't
+// match" approach suggestGroupForImportedLedgerName() already established for the Migration
+// Assistant. These are standard SPEND-BASED proxy factors (kg CO2e per Rs.100 of spend), the
+// simplest and most common starting point for a business with no activity-level data (litres of
+// fuel, kWh of power) -- clearly labeled as an estimate everywhere it's shown, never presented as an
+// audited Scope 1/2/3 inventory. A real compliance submission should use activity-based data and
+// India-specific factors (e.g. the CEA's grid emission factor for electricity, the GLEC Framework
+// for logistics) instead of this.
+const ESG_CATEGORIES = [
+  { key:'fuel', label:'Fuel & Vehicles', scope:'Scope 1 (direct)', factorPer100:2.5, keywords:['fuel','diesel','petrol','vehicle','conveyance','mileage'] },
+  { key:'electricity', label:'Electricity & Power', scope:'Scope 2 (energy)', factorPer100:1.8, keywords:['electricity','power bill','energy bill','utilities','utility'] },
+  { key:'logistics', label:'Logistics, Freight & Travel', scope:'Scope 3 (estimate)', factorPer100:1.2, keywords:['courier','freight','logistics','shipping','cargo','delivery','travel','transport'] },
+  { key:'paper', label:'Paper, Printing & Office Supplies', scope:'Scope 3 (estimate)', factorPer100:0.6, keywords:['paper','printing','stationery','office supplies','xerox','photocopy'] },
+];
+function esgReportData(){
+  const bounds = activeFY ? fyBoundsForLabel(activeFY) : null;
+  const spendByLedger = {};
+  for(const v of state.vouchers){
+    if(bounds && (v.date < bounds.start || v.date > bounds.end)) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || !['purch','dexp','iexp'].includes(bucketOf(l))) continue;
+      const amt = (Number(e.dr)||0)-(Number(e.cr)||0);
+      if(amt<=0) continue;
+      spendByLedger[l.id] = (spendByLedger[l.id]||0) + amt;
+    }
+  }
+  const categories = ESG_CATEGORIES.map(c=>({...c, ledgers:[], spend:0}));
+  const unclassified = [];
+  for(const ledgerId in spendByLedger){
+    const l = ledgerOf(ledgerId);
+    if(!l) continue;
+    const spend = r2(spendByLedger[ledgerId]);
+    const nameLower = l.name.toLowerCase();
+    const match = categories.find(c=>c.keywords.some(k=>nameLower.includes(k)));
+    if(match){ match.ledgers.push({ledger:l, spend}); match.spend += spend; }
+    else unclassified.push({ledger:l, spend});
+  }
+  categories.forEach(c=>{ c.spend = r2(c.spend); c.estCO2e = r2(c.spend/100*c.factorPer100); c.ledgers.sort((a,b)=>b.spend-a.spend); });
+  const totalEstCO2eKg = r2(categories.reduce((s,c)=>s+c.estCO2e,0));
+  unclassified.sort((a,b)=>b.spend-a.spend);
+  return { categories, unclassified, totalEstCO2eKg, totalClassifiedSpend: r2(categories.reduce((s,c)=>s+c.spend,0)) };
+}
+function reportESG(){
+  const data = esgReportData();
+  const anyClassified = data.categories.some(c=>c.ledgers.length);
+  return `
+    ${reportHeader('ESG / Sustainability (Estimate)')}
+    <div class="panel" style="border-color:var(--gold);">
+      <div class="panel-body">
+        <strong style="font-size:13px;">⚠ Estimate, not an audited figure</strong>
+        <p class="muted" style="font-size:11.5px;margin:6px 0 0;line-height:1.6;">Uses standard spend-based proxy factors (kg CO₂e per ₹100 spent on fuel, electricity, logistics and paper) — the simplest starting point when litres, kWh or shipment-weight data isn't tracked. A real compliance submission (BRSR, CDP, or a lender's ESG questionnaire) needs activity-based data and India-specific factors (e.g. the CEA's grid emission factor for electricity) instead of this. Treat this as a rough first read, not a reportable number.</p>
+      </div>
+    </div>
+    <div class="bento-grid" style="margin-top:14px;">
+      <div class="stat"><div class="label">Estimated Footprint${activeFY?` (FY ${activeFY})`:''}</div><div class="val">${fmt(data.totalEstCO2eKg)} kg CO₂e</div></div>
+      <div class="stat"><div class="label">Classified Spend</div><div class="val">₹${fmt(data.totalClassifiedSpend)}</div></div>
+    </div>
+    <div class="panel" style="margin-top:14px;"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Category</th><th>Scope</th><th class="num">Spend</th><th class="num">Est. kg CO₂e</th></tr>
+        ${data.categories.map(c=>`<tr><td class="ccard-title">${escapeHtml(c.label)}</td><td class="muted">${c.scope}</td><td class="num">₹${fmt(c.spend)}</td><td class="num">${fmt(c.estCO2e)}</td></tr>`).join('')}
+        <tr style="font-weight:700;border-top:2px solid var(--ink);"><td colspan="3">Total Estimated Footprint</td><td class="num">${fmt(data.totalEstCO2eKg)} kg CO₂e</td></tr>
+      </table>
+    </div></div>
+    ${anyClassified ? `
+    <div class="section-title" style="margin-top:18px;">Ledgers Behind Each Category</div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Ledger</th><th>Category</th><th class="num">Spend</th></tr>
+        ${data.categories.flatMap(c=>c.ledgers.map(l=>`<tr data-ledger-detail="${l.ledger.id}" style="cursor:pointer;"><td>${escapeHtml(l.ledger.name)}</td><td class="muted">${escapeHtml(c.label)}</td><td class="num">₹${fmt(l.spend)}</td></tr>`)).join('')}
+      </table>
+    </div></div>` : ''}
+    ${data.unclassified.length ? `
+    <div class="section-title" style="margin-top:18px;">Not Yet Classified</div>
+    <p class="muted" style="font-size:11.5px;margin-top:-6px;">These expense/purchase ledgers didn't match a fuel, electricity, logistics or paper keyword, so they're left out of the estimate above rather than force-fit into a category. Rename a ledger to include a recognizable word (e.g. "Diesel", "Electricity Bill", "Courier Charges") to bring it in.</p>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table>
+        <tr><th>Ledger</th><th class="num">Spend</th></tr>
+        ${data.unclassified.slice(0,20).map(u=>`<tr data-ledger-detail="${u.ledger.id}" style="cursor:pointer;"><td>${escapeHtml(u.ledger.name)}</td><td class="num">₹${fmt(u.spend)}</td></tr>`).join('')}
+      </table>
+    </div></div>` : ''}
+    ${!anyClassified && !data.unclassified.length ? `<div class="empty" style="margin-top:14px;">No expense or purchase activity yet to estimate from.</div>` : ''}
+  `;
+}
 function reportTdsTcs(){
   const { rows, totalsByKind } = tdsTcsSummaryData();
   return `
@@ -35841,6 +36164,7 @@ function reportTdsTcs(){
       </table>` : `<div class="empty">No TDS/TCS applied yet — switch a Payment or Receipt voucher to Single Entry and turn on the TDS/TCS panel to start tracking it here.</div>`}
     </div></div>
     <p class="muted" style="font-size:11px;">Pay these amounts to the government within the statutory due date for each section, then record that payment as its own voucher against the TDS/TCS Payable ledger — this report doesn't track filing/challan status.</p>
+    ${narrativePanel(tdsTcsNarrative(rows, totalsByKind))}
   `;
 }
 
@@ -41168,6 +41492,14 @@ function attachHandlers(){
   }
 
   if(view==='reports'){
+    const reportsAskInput = document.getElementById('reportsAskInput');
+    const sendReportsAsk = ()=>{ askReportsBooks(reportsAskInput?.value||''); };
+    document.getElementById('reportsAskBtn')?.addEventListener('click', sendReportsAsk);
+    reportsAskInput?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sendReportsAsk(); } });
+    document.getElementById('reportsAskCsvBtn')?.addEventListener('click', ()=>{
+      const csv = reportsAskAnswer && reportsAskAnswer.csv;
+      if(csv) downloadCSV(csv.header, csv.rows, csv.filename);
+    });
     document.getElementById('exportExcelBtn')?.addEventListener('click', exportReportsToExcel);
     document.getElementById('exportTBBtn')?.addEventListener('click', exportTrialBalanceToExcel);
     document.getElementById('exportPLBtn')?.addEventListener('click', exportPLToExcel);
