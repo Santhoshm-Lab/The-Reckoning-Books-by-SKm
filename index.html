@@ -7197,6 +7197,8 @@ let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice agein
 let monthlyNarrativeMonth = null; // which 'YYYY-MM' the AI-Written Monthly Narrative Summary modal is showing -- null = current month
 let bookCloseMonth = null; // which 'YYYY-MM' the Month-End Close modal is targeting -- null = defaultBookCloseMonth() (the earliest unlocked month with activity, or the current month)
 let gstReadinessMonth = null; // which 'YYYY-MM' the GST Return Readiness card on the GST tab is showing -- null = current month
+let archivedFYViewing = null; // FY label the read-only Archived Financial Year modal is open for -- see archivedFYModal()/loadArchivedFY()
+let archivedFYVoucherSearch = ''; // free-text filter typed into that modal's voucher list
 let pieChartLedgerId = null; // which ledger's pie chart to show
 let collectionsReminderDraft = null; // {partyName, text} for the drafted-collections-reminder modal — draft-and-copy only, never sent
 let prepaidMarkDraft = null; // {voucherId, months} while the "Mark Prepaid" modal is open
@@ -7272,6 +7274,17 @@ let stockDetailItemId = null;  // which item's stock movement modal to show
 let stockAdjustItemId = null;  // which item's adjust-stock modal to show
 let stockTransferDraft = null; // null = not transferring | {itemId, qty, fromWarehouseId, toWarehouseId, date, remark}
 let barcodeScanQuery = '';     // "scan or type a barcode" quick-lookup box on Inventory Control
+// Camera barcode/QR scanning (Nov 2026) -- opens modal='cameraScan' over EITHER Inventory Control's
+// barcodeScanInput or POS's posSearchInput, decodes via the browser's native BarcodeDetector (no
+// library, consistent with this app shipping nothing third-party), and fills whichever field it was
+// opened from. cameraScanTarget says which field a successful decode should write back to; the live
+// MediaStream/animation-frame handle live OUTSIDE state/render (same reason cmdkRecognition does --
+// see speechRecognitionSupported() -- a live stream can't be reconstructed from a re-render, it has
+// to be started once and explicitly torn down).
+let cameraScanTarget = null;   // null = scanner closed | 'barcodeScan' | 'posSearch'
+let cameraScanError = '';      // set when getUserMedia/BarcodeDetector fails, shown in the modal
+let cameraScanStream = null;   // live MediaStream, outside state -- see comment above
+let cameraScanRAFId = null;    // requestAnimationFrame handle for the detect-loop, outside state
 let cycleCountModalId = null;  // which state.cycleCounts[].id's count-sheet modal to show (round: Inventory Advanced Update)
 let landedCostDraft = null;    // null = not allocating | {purchaseVoucherId, charges:[{label,amount}], basis, paidFromLedgerId, date} (round: Inventory Advanced Update Phase 2)
 let barcodeLabelDraft = null;  // null = not printing labels | {itemId, count} (round: Inventory Advanced Update Phase 2)
@@ -7299,6 +7312,7 @@ let reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' }
 let recurringDraft = null; // null = not adding/editing a recurring template | {id?, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate}
 let restoreFile = null; // parsed backup JSON staged for confirmation in the Backup & Restore modal, or null
 let fixedAssetDraft = null; // null = not adding an asset | {name, ledgerId, cost, purchaseDate, usefulLifeYears, method, salvageValue}
+let disposeAssetDraft = null; // null = not disposing an asset | {assetId, disposalDate, saleProceeds, depositToLedgerId} -- see disposeAssetModal()/postAssetDisposal()
 let ordersSubTab = 'quotation'; // which of the 4 pre-sale document types the Orders tab is showing
 let payrollSubTab = 'employees'; // which section of Payroll Management is showing -- see PAYROLL_SUBTABS
 let oform = null; // null = not adding/editing a pre-sale document | {docType, id?, partyLedgerId, date, narration, items:[{itemId,name,qty,rate,disc}], status}
@@ -7306,10 +7320,12 @@ let pendingConvertDoc = null; // {docType, id, lineQtys} of the order document b
 let orderConvertDraft = null; // null = not open | {docType, id, qtys:[...]} -- the "choose what to convert now" step shown before jumping to the Voucher screen, see openOrderConvertDraft()/orderConvertModal()
 let budgetReportFY = null; // which FY the Budget vs Actual report is showing; null = default to the current FY the first time it's opened
 let forexRateOverrides = {}; // {currencyId: rateString} -- per-currency revaluation rate typed into the Forex Revaluation report; empty/missing falls back to that currency's current rate under Accounts → Foreign Currencies
+let eclMatrixOverrides = {}; // {'0-30'|'31-60'|'61-90'|'90+': ratePercentString} -- per-bucket ECL provision rate typed into the Bad-Debt Risk & ECL report; empty/missing falls back to DEFAULT_ECL_MATRIX
 let employeeDraft = null; // null = not adding/editing an employee | {id?, code?, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions}
 let payrollMonth = new Date().toISOString().slice(0,7); // YYYY-MM the "Generate Payroll" panel is showing
 let payrollPayFromLedgerId = null; // which Bank/Cash ledger salary net pay is credited from, for the "Generate Payroll" panel
 let payslipYearFilter = 'all'; // 'all' or a 'YYYY' string — filters the Payslips history table
+let statutoryFileMonth = null; // null = default to the most recent payroll month | 'YYYY-MM' — which month's PF ECR/ESI file to generate (Payroll → Statutory Files)
 let loanDraft = null; // null = not giving a loan/advance | {employeeId, principal, emiAmount, payFromLedgerId, date}
 let payrollLopDays = {}; // employeeId -> Loss-of-Pay days entered for the CURRENT Generate Payroll run (transient, reset on month change)
 let fnfDraft = null; // null = not running a settlement | {employeeId, date, leaveEncashment, otherDues, payFromLedgerId}
@@ -11292,6 +11308,7 @@ const PAYROLL_SUBTABS = {
   settlements: 'Settlements',
   run:         'Run Payroll',
   payslips:    'Payslips & Reports',
+  statutory:   'Statutory Files',
 };
 function nextOrderDocNo(docType){
   const meta = ORDER_DOC_META[docType];
@@ -11410,6 +11427,58 @@ async function postDepreciationForFY(assetId, fyLabel){
   await saveVouchers();
   await saveFixedAssets();
   toast(`Posted ₹${fmt(amt)} depreciation for ${asset.name}`);
+}
+
+/* ---------------- Fixed asset disposal/sale ----------------
+   Until now the only way to remove an asset was the plain "🗑" delete button, which just drops it
+   from the register and explicitly leaves every depreciation voucher already posted untouched --
+   there was never a way to record the sale itself (proceeds received, profit/loss booked). This
+   posts that missing accounting entry: retires the asset at its CURRENT book value (read live off
+   its ledger -- see viewAssets()'s own "Book Value is read live off the linked ledger's balance",
+   the same number already shown on screen, not recomputed independently) against whatever was
+   actually received for it, with the difference going to a standing Profit/Loss on Sale of Assets
+   ledger -- one ledger handles both directions, credited for a profit (like income) or debited for
+   a loss (like an expense), the exact same single-ledger-both-signs pattern as
+   ensureForexGainLossLedger()/postForexRevaluation(). The asset is marked disposed (kept in the
+   register, filtered into its own "Disposed Assets" history table in viewAssets()) rather than
+   deleted, so past depreciation vouchers and this disposal entry both stay fully auditable. */
+async function postAssetDisposal(assetId, disposalDate, saleProceeds, depositToLedgerId){
+  const asset = state.fixedAssets.find(a=>a.id===assetId);
+  if(!asset) return;
+  if(asset.disposedAt){ toast('This asset has already been disposed'); return; }
+  const ledger = ledgerOf(asset.ledgerId);
+  if(!ledger){ toast('This asset\'s ledger no longer exists — cannot compute its book value'); return; }
+  const proceeds = r2(Math.max(0, Number(saleProceeds)||0));
+  if(proceeds > 0 && !depositToLedgerId){ toast('Select which Bank/Cash ledger received the sale proceeds'); return; }
+  const wdv = r2(ledgerBalance(ledger.id));
+  const profitLoss = r2(proceeds - wdv);
+  const today = new Date().toISOString().slice(0,10);
+  const date = (disposalDate && disposalDate <= today) ? disposalDate : today;
+  const entries = [];
+  if(wdv > 0.005) entries.push({ledgerId: ledger.id, dr:0, cr:wdv});
+  else if(wdv < -0.005) entries.push({ledgerId: ledger.id, dr:-wdv, cr:0});
+  if(proceeds > 0.005) entries.push({ledgerId: depositToLedgerId, dr:proceeds, cr:0});
+  let plLedger = null, plCreated = false;
+  if(Math.abs(profitLoss) >= 0.5){
+    const ensured = ensureLedgerByName('Profit/Loss on Sale of Assets', 'dinc');
+    plLedger = ensured.ledger; plCreated = ensured.created;
+    if(profitLoss > 0) entries.push({ledgerId: plLedger.id, dr:0, cr:profitLoss});
+    else entries.push({ledgerId: plLedger.id, dr:-profitLoss, cr:0});
+  }
+  state.vouchers.push({
+    id: uid('v'), date, type:'Journal',
+    narration: `Disposal of asset — ${asset.name} (book value ₹${fmt(wdv)}, proceeds ₹${fmt(proceeds)})`,
+    entries, createdAt: new Date().toISOString(), fromFixedAsset: asset.id, isAssetDisposal: true,
+  });
+  asset.disposedAt = date;
+  asset.disposalBookValue = wdv;
+  asset.disposalProceeds = proceeds;
+  asset.disposalProfitLoss = profitLoss;
+  asset.active = false;
+  if(plCreated) await saveLedgers();
+  await saveVouchers();
+  await saveFixedAssets();
+  toast(`Disposed ${asset.name} — ${profitLoss>=0?'profit':'loss'} of ₹${fmt(Math.abs(profitLoss))} on sale`, {type:'success'});
 }
 
 // ---- Prepaid-expense amortization -- mark a Payment voucher's expense entry as spanning multiple
@@ -11585,6 +11654,260 @@ async function postForexRevaluation(overrideRates){
   });
   await saveVouchers();
   toast(`Posted forex revaluation — net ${report.totalGainLoss>=0?'gain':'loss'} ₹${fmt(Math.abs(report.totalGainLoss))} across ${rows.length} ledger${rows.length===1?'':'s'}`, {type:'success'});
+}
+
+/* ---------------- Realized forex gain/loss (on settlement) ----------------
+   forexRevaluationReport()/postForexRevaluation() above handle UNREALIZED gain/loss -- what an
+   open foreign-currency balance would be worth today. This handles REALIZED gain/loss -- what
+   actually happened the day a foreign-currency invoice was settled at a different rate than it was
+   booked at. A Sales/Purchase voucher and the Receipt/Payment voucher that later settles it are both
+   {currency, fxRate}-tagged (see viewVoucher's Currency selector), each at its OWN day's rate, so the
+   settlement's ₹ entry never exactly equals the invoice's ₹ entry even though both describe the same
+   foreign-currency amount -- that gap, once FIFO-matched invoice-to-settlement the same way
+   partyOutstandingInvoices() matches ₹ amounts, is the realized gain or loss.
+   Sign convention stays identical to foreignLedgerBalance()/forexRevaluationReport(): positive =
+   a Dr adjustment to the party ledger (Cr to the gain/loss ledger) = a GAIN; negative = Cr the party
+   ledger (Dr the gain/loss ledger) = a LOSS. Worked example (customer/debtor ledger): a $100 invoice
+   booked at fxRate 80 (₹8,000 Dr), settled later by a receipt at fxRate 85 (₹8,500 Cr) -- the ledger
+   would net to −₹500 (looks like an overpayment) unless something Drs it back to zero; that ₹500 Dr
+   adjustment is exactly matched*(settlement fxRate − invoice fxRate) = 100*(85−80) = +500, a gain
+   (received more rupees per dollar than booked). The same arithmetic flips sign correctly for a
+   creditor/payable ledger too -- see the two branches below, which always compute
+   matched*(the Cr-side event's fxRate − the Dr-side event's fxRate) regardless of which side
+   happened first or which party-type the ledger is. */
+function realizedForexEventsForLedger(l){
+  if(!l || !l.currency || l.currency==='inr') return [];
+  const events = [];
+  for(const v of state.vouchers){
+    if(v.currency !== l.currency || !v.fxRate) continue;
+    for(const e of v.entries){
+      if(e.ledgerId !== l.id) continue;
+      const signed = ((Number(e.dr)||0) - (Number(e.cr)||0)) / v.fxRate;
+      if(Math.abs(signed) < 0.005) continue;
+      events.push({ voucherId:v.id, date:v.date, fxRate:v.fxRate, amt:signed, createdAt:v.createdAt||'' });
+    }
+  }
+  events.sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
+  const drQueue=[], crQueue=[];
+  const matches = [];
+  for(const ev of events){
+    if(ev.amt>0){
+      let rem = ev.amt;
+      while(rem>0.005 && crQueue.length){
+        const lot = crQueue[0];
+        const matched = Math.min(rem, lot.remaining);
+        const gainLoss = r2(matched*(lot.fxRate - ev.fxRate)); // lot=Cr-side, ev=Dr-side
+        matches.push({ ledgerId:l.id, matchedForeign:r2(matched), drVoucherId:ev.voucherId, drFxRate:ev.fxRate, crVoucherId:lot.voucherId, crFxRate:lot.fxRate, date:ev.date, gainLoss });
+        lot.remaining = r2(lot.remaining-matched); rem = r2(rem-matched);
+        if(lot.remaining<=0.005) crQueue.shift();
+      }
+      if(rem>0.005) drQueue.push({voucherId:ev.voucherId, date:ev.date, fxRate:ev.fxRate, remaining:rem});
+    } else if(ev.amt<0){
+      let rem = -ev.amt;
+      while(rem>0.005 && drQueue.length){
+        const lot = drQueue[0];
+        const matched = Math.min(rem, lot.remaining);
+        const gainLoss = r2(matched*(ev.fxRate - lot.fxRate)); // ev=Cr-side, lot=Dr-side
+        matches.push({ ledgerId:l.id, matchedForeign:r2(matched), drVoucherId:lot.voucherId, drFxRate:lot.fxRate, crVoucherId:ev.voucherId, crFxRate:ev.fxRate, date:ev.date, gainLoss });
+        lot.remaining = r2(lot.remaining-matched); rem = r2(rem-matched);
+        if(lot.remaining<=0.005) drQueue.shift();
+      }
+      if(rem>0.005) crQueue.push({voucherId:ev.voucherId, date:ev.date, fxRate:ev.fxRate, remaining:rem});
+    }
+  }
+  return matches.filter(m=>Math.abs(m.gainLoss)>=0.01);
+}
+// Every previously-posted realized-forex Journal records exactly which (dr voucher, cr voucher,
+// matched amount) triples it already settled, in settledPairs -- scanning those (rather than adding
+// a whole new persisted array/loader entry) is what makes re-running this idempotent: the same
+// invoice/settlement pair, once posted, never gets re-offered or double-posted, even though
+// realizedForexEventsForLedger() recomputes the full match set from scratch every time.
+function postedRealizedForexKeys(){
+  const keys = new Set();
+  for(const v of state.vouchers){
+    if(!v.isRealizedForexGainLoss || !Array.isArray(v.settledPairs)) continue;
+    for(const p of v.settledPairs) keys.add(`${p.drVoucherId}:${p.crVoucherId}:${p.matchedForeign}`);
+  }
+  return keys;
+}
+function realizedForexGainLossReport(){
+  const posted = postedRealizedForexKeys();
+  const rows = [];
+  for(const l of state.ledgers){
+    if(!l.currency || l.currency==='inr' || l.isIntercompany) continue;
+    const matches = realizedForexEventsForLedger(l).filter(m=> !posted.has(`${m.drVoucherId}:${m.crVoucherId}:${m.matchedForeign}`));
+    if(!matches.length) continue;
+    const c = currencyOf(l.currency);
+    const gainLoss = r2(matches.reduce((s,m)=>s+m.gainLoss,0));
+    rows.push({ ledger:l, currency:c, matches, gainLoss });
+  }
+  return { rows, totalGainLoss: r2(rows.reduce((s,r)=>s+r.gainLoss,0)) };
+}
+async function postRealizedForexGainLoss(){
+  const { rows, totalGainLoss } = realizedForexGainLossReport();
+  const allMatches = rows.flatMap(r=>r.matches);
+  if(!allMatches.length){ toast('Nothing new to post — no newly-settled foreign-currency invoices at a different rate since the last run'); return; }
+  const {ledger: forexLedger, created} = ensureLedgerByName('Foreign Exchange Gain/Loss (Realized)', 'dinc');
+  const today = new Date().toISOString().slice(0,10);
+  const entries = [];
+  const settledPairs = [];
+  for(const r of rows){
+    for(const m of r.matches){
+      if(m.gainLoss > 0){
+        entries.push({ledgerId:r.ledger.id, dr:m.gainLoss, cr:0});
+        entries.push({ledgerId:forexLedger.id, dr:0, cr:m.gainLoss});
+      } else {
+        entries.push({ledgerId:r.ledger.id, dr:0, cr:-m.gainLoss});
+        entries.push({ledgerId:forexLedger.id, dr:-m.gainLoss, cr:0});
+      }
+      settledPairs.push({ drVoucherId:m.drVoucherId, crVoucherId:m.crVoucherId, matchedForeign:m.matchedForeign });
+    }
+  }
+  state.vouchers.push({
+    id: uid('v'), date: today, type:'Journal',
+    narration: `Realized forex gain/loss on settlement — ${rows.length} ledger${rows.length===1?'':'s'}, ${allMatches.length} invoice${allMatches.length===1?'':'s'} settled`,
+    entries, createdAt: new Date().toISOString(),
+    isRealizedForexGainLoss: true, settledPairs,
+  });
+  if(created) await saveLedgers();
+  await saveVouchers();
+  toast(`Posted realized forex ${totalGainLoss>=0?'gain':'loss'} of ₹${fmt(Math.abs(totalGainLoss))} across ${allMatches.length} settled invoice${allMatches.length===1?'':'s'}`, {type:'success'});
+}
+
+/* ---------------- AI: Predictive Bad-Debt Risk & Expected Credit Loss (ECL) Provisioning ----------------
+   The one genuinely predictive, locally-computed "AI" feature of this round -- grounded in Ind AS 109
+   / IFRS 9's simplified "provision matrix" approach for trade receivables, not an invented scheme.
+   Two layers, both fully transparent (every number on the report traces back to a visible rate and a
+   visible history -- nothing is a black box):
+     1. An ageing-bucket base rate (DEFAULT_ECL_MATRIX, editable on the report) -- the standard
+        practice of provisioning more heavily the longer a receivable has been outstanding, reusing
+        partyAgeingSummary()'s existing bucket math (the same buckets the Parties/ageing screens and
+        Party Risk Dashboard already show) rather than re-deriving ageing from scratch.
+     2. A per-customer reliability multiplier from customerPaymentReliability() below -- THIS
+        customer's own track record of how fast they've actually settled past invoices, not just
+        today's snapshot. A customer who has reliably paid on time gets a lighter provision than the
+        matrix alone would charge; one with a history of very late or unsettled invoices gets a
+        heavier one. This is the "predictive" half: two customers with an identical ₹50,000 outstanding
+        in the 31-60 day bucket can get different provisions if their payment histories differ.
+   Distinct from the existing Party Risk Dashboard (partyRiskList()/partyRiskCard()) -- that blends
+   timing/concentration/compliance into a relationship-health SCORE for today's snapshot; this is an
+   accounting PROVISION meant to post to the books and sit on the Balance Sheet, reported in ₹, not a
+   0-100 score. */
+const DEFAULT_ECL_MATRIX = {'0-30':0.01, '31-60':0.08, '61-90':0.25, '90+':0.50};
+const ECL_PROVISION_LEDGER_NAME = 'Provision for Expected Credit Loss (Doubtful Debts)';
+const ECL_EXPENSE_LEDGER_NAME = 'Provision for Doubtful Debts (Expense)';
+// Replays every dr/cr entry on a customer ledger (same FIFO invoice-vs-payment matching
+// partyOutstandingInvoices() uses for the ₹ amounts) but, unlike that function, keeps every invoice
+// -- settled or not -- and records the DATE each one finished settling, so it can measure how many
+// days this customer actually took to pay, invoice by invoice. Only fully-settled invoices count
+// toward the track record (a still-open invoice's eventual payment date isn't known yet).
+function customerPaymentReliability(ledgerId){
+  const l = ledgerOf(ledgerId);
+  if(!l) return { sampleSize:0, avgDaysToPay:null, pctOnTime:null, worstDelayDays:0 };
+  const creditDays = l.creditDays || 30;
+  const txns = [];
+  for(const v of state.vouchers){
+    for(const e of v.entries){
+      if(e.ledgerId!==ledgerId) continue;
+      if(!(e.dr||e.cr)) continue;
+      txns.push({ date:v.date, dr:e.dr||0, cr:e.cr||0, createdAt:v.createdAt||'' });
+    }
+  }
+  txns.sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
+  const invoices = [];
+  let paymentPool = 0, poolDate = null;
+  for(const t of txns){
+    if(t.dr>0){
+      invoices.push({ date:t.date, remaining:r2(t.dr), settledDate:null });
+      if(paymentPool>0.005){
+        const last = invoices[invoices.length-1];
+        const applied = Math.min(paymentPool, last.remaining);
+        last.remaining = r2(last.remaining-applied); paymentPool = r2(paymentPool-applied);
+        if(last.remaining<=0.005) last.settledDate = poolDate;
+      }
+    }
+    if(t.cr>0){
+      let rem = t.cr;
+      for(const inv of invoices){
+        if(rem<=0.005) break;
+        if(inv.remaining<=0.005) continue;
+        const applied = Math.min(inv.remaining, rem);
+        inv.remaining = r2(inv.remaining-applied); rem = r2(rem-applied);
+        if(inv.remaining<=0.005) inv.settledDate = t.date;
+      }
+      if(rem>0.005){ paymentPool = r2(paymentPool+rem); poolDate = t.date; }
+    }
+  }
+  const settled = invoices.filter(i=>i.settledDate);
+  if(!settled.length) return { sampleSize:0, avgDaysToPay:null, pctOnTime:null, worstDelayDays:0 };
+  const daysToPay = settled.map(i=> Math.round((new Date(i.settledDate) - new Date(i.date)) / 86400000));
+  const avgDaysToPay = r2(daysToPay.reduce((a,b)=>a+b,0)/daysToPay.length);
+  const onTimeCount = daysToPay.filter(d=>d<=creditDays).length;
+  const pctOnTime = r2(100*onTimeCount/daysToPay.length);
+  const worstDelayDays = Math.max(0, ...daysToPay.map(d=>d-creditDays));
+  return { sampleSize: settled.length, avgDaysToPay, pctOnTime, worstDelayDays };
+}
+// The reliability → multiplier mapping is deliberately a simple, documented step function (not a
+// fitted model) so every number on the report can be explained in one sentence: a customer with no
+// settled-invoice history yet is treated neutrally (1x, the matrix rate as-is); everyone else is
+// scaled by how often they've actually paid within their own credit terms historically.
+function eclReliabilityMultiplier(reliability){
+  if(!reliability || reliability.sampleSize===0) return 1;
+  if(reliability.pctOnTime>=90) return 0.5;
+  if(reliability.pctOnTime>=70) return 1;
+  if(reliability.pctOnTime>=40) return 1.5;
+  return 2;
+}
+function eclProvisionReport(matrixOverride){
+  const matrix = Object.assign({}, DEFAULT_ECL_MATRIX, matrixOverride||{});
+  const buckets = ['0-30','31-60','61-90','90+'];
+  const rows = [];
+  for(const l of state.ledgers){
+    if(l.partyType!=='customer') continue;
+    const summary = partyAgeingSummary(l.id);
+    if(summary.total<=0.005) continue;
+    const reliability = customerPaymentReliability(l.id);
+    const multiplier = eclReliabilityMultiplier(reliability);
+    const bucketProvision = {};
+    let provisionTotal = 0;
+    for(const b of buckets){
+      const outstanding = summary.buckets[b]||0;
+      const rate = Math.min(1, matrix[b]*multiplier);
+      const amt = r2(outstanding*rate);
+      bucketProvision[b] = { outstanding, rate, amt };
+      provisionTotal += amt;
+    }
+    provisionTotal = r2(provisionTotal);
+    rows.push({ ledger:l, summary, reliability, multiplier, bucketProvision, provisionTotal });
+  }
+  rows.sort((a,b)=>b.provisionTotal-a.provisionTotal);
+  return { rows, matrix, buckets, totalOutstanding: r2(rows.reduce((s,r)=>s+r.summary.total,0)), totalProvision: r2(rows.reduce((s,r)=>s+r.provisionTotal,0)) };
+}
+// Posts (or trues-up) the provision to exactly match the report's computed total -- same "re-run
+// later and it only adjusts from whatever is booked at that time" idea as postForexRevaluation(),
+// so this is safe to re-run every month-end as receivables and payment histories change. An
+// INCREASE debits the P&L expense ledger and credits the provision (Balance Sheet) ledger; a
+// decrease (a write-back, e.g. an at-risk customer finally paid up) does the reverse.
+async function postECLProvision(matrixOverride){
+  const { rows, totalProvision } = eclProvisionReport(matrixOverride);
+  if(!rows.length){ toast('No outstanding customer receivables to provision for'); return; }
+  const {ledger: provLedger, created: provCreated} = ensureLedgerByName(ECL_PROVISION_LEDGER_NAME, 'provsub');
+  const {ledger: expLedger, created: expCreated} = ensureLedgerByName(ECL_EXPENSE_LEDGER_NAME, 'iexp');
+  const existingProvisionBal = r2(-ledgerBalance(provLedger.id));
+  const delta = r2(totalProvision - existingProvisionBal);
+  if(Math.abs(delta) < 0.5){ toast('Provision already matches the computed ECL — nothing to adjust'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  const entries = delta>0
+    ? [ {ledgerId:expLedger.id, dr:delta, cr:0}, {ledgerId:provLedger.id, dr:0, cr:delta} ]
+    : [ {ledgerId:provLedger.id, dr:-delta, cr:0}, {ledgerId:expLedger.id, dr:0, cr:-delta} ];
+  state.vouchers.push({
+    id: uid('v'), date: today, type:'Journal',
+    narration: `Expected Credit Loss provision ${delta>0?'increase':'write-back'} — ${rows.length} customer${rows.length===1?'':'s'} (ageing-bucket provision matrix)`,
+    entries, createdAt: new Date().toISOString(), isECLProvision: true,
+  });
+  if(provCreated || expCreated) await saveLedgers();
+  await saveVouchers();
+  toast(`Posted ECL provision ${delta>0?'increase':'write-back'} of ₹${fmt(Math.abs(delta))} — new total provision ₹${fmt(totalProvision)}`, {type:'success'});
 }
 
 /* ---------------- Party Master + AR/AP ageing ---------------- */
@@ -12119,6 +12442,19 @@ function svgToPngDataUrl(svgEl, opts){
 function downloadJSON(obj, filename){
   const json = JSON.stringify(obj, null, 2);
   const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+// Generic plain-text download -- used for the PF ECR / ESI contribution files, which (like every
+// Indian statutory bulk-upload format) are flat delimited text, not CSV or JSON.
+function downloadTextFile(content, filename, mimeType){
+  const blob = new Blob([content], {type: mimeType||'text/plain;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -13727,7 +14063,12 @@ async function saveLandedCostAllocation({ purchaseVoucherId, charges, basis, pai
 // depletes at that average on every outward move; 'fifo' keeps an explicit queue of open layers and
 // consumes the oldest one(s) first. An inward movement with no recorded rate (older data saved before
 // this round) falls back to the item's own rate/openingRate so valuation never breaks on old vouchers.
-function stockValuation(item){
+// asOfDate (Nov 2026, FY Archiving): optional cutoff -- when given, only movements dated on or
+// before it are folded in, so the returned {closing, value} is the item's valuation AT that past
+// date rather than today. Every existing call site passes no second argument and is unaffected.
+// Used by archiveFY() to compute the new opening qty/rate an item should carry forward once an
+// older financial year's vouchers (and the stock movements embedded in them) are archived away.
+function stockValuation(item, asOfDate){
   const method = item.costingMethod==='fifo' ? 'fifo' : 'wavg';
   const fallbackRate = item.rate!=null ? item.rate : (item.openingRate||0);
   const openingQty = item.openingQty||0;
@@ -13737,6 +14078,7 @@ function stockValuation(item){
   let inward = 0, outward = 0;
   const layers = openingQty>0 ? [{ qty: openingQty, rate: openingRate }] : []; // FIFO queue, oldest first
   for(const m of stockMovementForItem(item.id)){
+    if(asOfDate && m.date > asOfDate) continue;
     if(m.dir>0){
       const rate = m.rate!=null ? m.rate : fallbackRate;
       inward += m.qty;
@@ -15802,6 +16144,7 @@ function render(){
     ${modal==='whatsNew' ? whatsNewModal() : ''}
     ${modal==='notificationsSettings' ? notificationsSettingsModal() : ''}
     ${modal==='closeChecklist' ? closeChecklistModal() : ''}
+    ${modal==='archivedFY' ? archivedFYModal() : ''}
     ${modal==='monthlyNarrative' ? monthlyNarrativeModal() : ''}
     ${modal==='dashboardPersonalize' ? dashboardPersonalizeModal() : ''}
     ${modal==='import' ? importModal() : ''}
@@ -15841,6 +16184,8 @@ function render(){
     ${modal==='companyTeam' ? companyTeamModal() : ''}
     ${modal==='ocrScan' ? ocrScanModal() : ''}
     ${modal==='commandPalette' ? commandPaletteModal() : ''}
+    ${modal==='cameraScan' ? cameraScanModal() : ''}
+    ${modal==='disposeAsset' ? disposeAssetModal() : ''}
     ${qaWidget()}
     ${diWidget()}
     ${presentModeOpen ? presentModeOverlay() : ''}
@@ -15980,6 +16325,26 @@ function render(){
     // make sure closing the palette by any route (Escape, overlay click, selecting a result) actually
     // stops it, rather than leaving the browser's mic-in-use indicator on in the background.
     if(cmdkRecognition && cmdkVoiceActive){ try{ cmdkRecognition.stop(); }catch(e){} cmdkVoiceActive = false; }
+  }
+  if(modal==='cameraScan'){
+    document.getElementById('cameraScanCloseBtn')?.addEventListener('click', closeCameraScanner);
+    startCameraScanStream();
+  }
+  if(modal==='disposeAsset'){
+    const close = ()=>{ disposeAssetDraft = null; modal = null; render(); };
+    document.getElementById('disposeAssetCloseBtn')?.addEventListener('click', close);
+    document.getElementById('cancelDisposeAssetBtn')?.addEventListener('click', close);
+    document.getElementById('disposeDate')?.addEventListener('change', e=>{ disposeAssetDraft.disposalDate = e.target.value; render(); });
+    document.getElementById('disposeProceeds')?.addEventListener('input', e=>{ disposeAssetDraft.saleProceeds = e.target.value; render(); });
+    document.getElementById('disposeDepositTo')?.addEventListener('change', e=>{ disposeAssetDraft.depositToLedgerId = e.target.value; });
+    document.getElementById('confirmDisposeAssetBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const d = disposeAssetDraft;
+      await postAssetDisposal(d.assetId, d.disposalDate, d.saleProceeds, d.depositToLedgerId);
+      disposeAssetDraft = null;
+      modal = null;
+      render();
+    });
   }
   if(modal==='commandPalette'){
     const focusCmdkInput = (caret)=>{
@@ -16125,6 +16490,22 @@ function render(){
       el.addEventListener('click', async ()=>{
         if(!confirm(`Reopen FY ${el.dataset.reopenFy}? This unlocks its vouchers for editing again.`)) return;
         await reopenFY(el.dataset.reopenFy);
+      });
+    });
+    document.querySelectorAll('[data-archive-fy]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const fy = el.dataset.archiveFy;
+        if(!confirm(`Archive FY ${fy}? Its vouchers move out of the live document into a read-only archive — ledger and stock balances carry forward automatically, nothing is lost, but it can no longer be edited. This can't be easily undone.`)) return;
+        await archiveFY(fy);
+      });
+    });
+    document.querySelectorAll('[data-view-archive-fy]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        archivedFYViewing = el.dataset.viewArchiveFy;
+        archivedFYVoucherSearch = '';
+        modal = 'archivedFY';
+        render();
+        await loadArchivedFY(archivedFYViewing);
       });
     });
     document.getElementById('saveCoEditBtn').addEventListener('click', async ()=>{
@@ -17286,6 +17667,104 @@ function toggleCmdkVoiceInput(){
   }
   render();
 }
+/* ---------------- Camera barcode/QR scanning (Nov 2026) ----------------
+   Opens a modal with a live camera preview over either Inventory Control's "Scan or Type a Barcode"
+   box or POS/Quick Sale's search box, and decodes with the browser's own BarcodeDetector API -- no
+   library, no server round-trip, same "ship nothing third-party" convention as everything else here.
+   BarcodeDetector currently ships in Chromium-based browsers (desktop and Android) but not Safari/iOS
+   or Firefox; unsupported browsers get a plain explanation instead of a broken camera button -- the
+   existing text-entry box (which a physical USB/Bluetooth barcode scanner gun already "types" into
+   just fine) keeps working everywhere regardless, so this is a camera-specific upgrade, not a
+   replacement. */
+function barcodeDetectorSupported(){
+  return typeof window!=='undefined' && 'BarcodeDetector' in window;
+}
+function openCameraScanner(target){
+  if(modal) return; // never stack over another modal that's already open
+  cameraScanTarget = target; // 'barcodeScan' | 'posSearch'
+  cameraScanError = '';
+  modal = 'cameraScan';
+  render();
+}
+function stopCameraScanStream(){
+  if(cameraScanRAFId!=null){ try{ cancelAnimationFrame(cameraScanRAFId); }catch(e){} cameraScanRAFId = null; }
+  if(cameraScanStream){ try{ cameraScanStream.getTracks().forEach(t=>t.stop()); }catch(e){} cameraScanStream = null; }
+}
+function closeCameraScanner(){
+  stopCameraScanStream();
+  cameraScanTarget = null;
+  cameraScanError = '';
+  modal = null;
+  render();
+}
+// Called once a code is successfully decoded -- writes it into whichever field the scanner was
+// opened from, exactly as if that text had been typed/scanner-gun-typed there, then re-runs that
+// field's own existing lookup logic (both inputs already drive their lookup purely off the module-
+// level variable they're bound to, so just setting it + render() is enough).
+function cameraScanDetected(value){
+  const target = cameraScanTarget;
+  closeCameraScanner();
+  if(!value) return;
+  if(target==='barcodeScan'){ barcodeScanQuery = value; render(); toast(`Scanned: ${value}`); }
+  else if(target==='posSearch'){ pos.search = value; render(); toast(`Scanned: ${value}`); }
+}
+// Starts the camera stream + a requestAnimationFrame detect-loop against a <video> already in the
+// DOM (the modal must have rendered first). Separate from openCameraScanner() because the <video>
+// element doesn't exist until after that render() -- attachHandlers() calls this once it sees
+// modal==='cameraScan', the same "render first, wire live behaviour after" sequencing every other
+// modal in this app already follows.
+async function startCameraScanStream(){
+  if(cameraScanStream) return; // already running (e.g. a stray re-render while the camera is open)
+  const video = document.getElementById('cameraScanVideo');
+  if(!video) return;
+  if(!barcodeDetectorSupported()){
+    cameraScanError = "This browser doesn't support camera barcode scanning (BarcodeDetector) — try Chrome on Android or desktop, or use a physical barcode scanner / type the code instead.";
+    render();
+    return;
+  }
+  try{
+    cameraScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  }catch(e){
+    cameraScanError = 'Could not access the camera — check camera permission for this site, then try again.';
+    render();
+    return;
+  }
+  video.srcObject = cameraScanStream;
+  await video.play().catch(()=>{});
+  let detector;
+  try{
+    detector = new window.BarcodeDetector({ formats: ['qr_code','code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf'] });
+  }catch(e){
+    detector = new window.BarcodeDetector(); // some implementations reject an unsupported formats list -- fall back to its defaults
+  }
+  const tick = async ()=>{
+    if(!cameraScanStream) return; // scanner was closed mid-loop
+    try{
+      const codes = await detector.detect(video);
+      if(codes && codes.length){ cameraScanDetected(codes[0].rawValue); return; } // stops the loop -- cameraScanDetected() tears the stream down
+    }catch(e){ /* a transient decode error on one frame is normal -- just try the next frame */ }
+    cameraScanRAFId = requestAnimationFrame(tick);
+  };
+  cameraScanRAFId = requestAnimationFrame(tick);
+}
+function cameraScanModal(){
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:420px;">
+        <div class="panel-head"><h2>📷 Scan Barcode / QR</h2><button class="btn secondary small" id="cameraScanCloseBtn" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          ${cameraScanError ? `<p class="empty" style="margin-top:0;">${escapeHtml(cameraScanError)}</p>` : `
+          <div style="position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:4/3;">
+            <video id="cameraScanVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+            <div style="position:absolute;inset:14%;border:2px solid rgba(255,255,255,0.85);border-radius:10px;pointer-events:none;"></div>
+          </div>
+          <p class="muted" style="font-size:12px;text-align:center;margin-bottom:0;">Point the camera at a barcode or QR code</p>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
 // Very small, fully local NL parser behind the command palette's agentic entry point (type a
 // transaction straight into Ctrl+K, e.g. "paid 500 for rent yesterday"). It never posts anything on
 // its own -- a match only prefills a fresh Voucher-screen draft (vform), landing the user on exactly
@@ -17661,7 +18140,7 @@ function editCompanyModal(){
           ${storageUsageSection()}
 
           <div class="section-title" style="margin-top:14px;">Year-End Close</div>
-          <p class="muted" style="font-size:11px;margin:-4px 0 8px;">Close a financial year once it's reviewed and filed. Closing locks every voucher dated on or before that year's end (the Data Lock below moves with it) and marks the year closed here for reference — ledger balances already carry forward automatically, so there's nothing separate to post.</p>
+          <p class="muted" style="font-size:11px;margin:-4px 0 8px;">Close a financial year once it's reviewed and filed. Closing locks every voucher dated on or before that year's end (the Data Lock below moves with it) and marks the year closed here for reference — ledger balances already carry forward automatically, so there's nothing separate to post. A closed year old enough that it's no longer needed for this year's comparatives can then be <strong>Archived</strong> — its vouchers move out of this live document into a read-only lookup, keeping things fast and well under the storage cap as your books grow.</p>
           ${yearEndCloseSection()}
 
           <div class="section-title" style="margin-top:14px;">Data Lock</div>
@@ -24367,6 +24846,26 @@ service cloud.firestore {
         isTeamMember()
       );
     }
+    match /companies/{companyId}/archives/{fyId} {
+      function companyDoc() { return get(/databases/$(database)/documents/companies/$(companyId)).data; }
+      function myGroupId() { return isSupport() ? request.auth.uid : myProfile().groupOwnerId; }
+      function isTeamMember() { return 'teamMemberIds' in companyDoc() && request.auth.uid in companyDoc().teamMemberIds; }
+      // Financial Year Archiving (Nov 2026) -- one document per archived FY, holding that year's
+      // vouchers/stock adjustments plus the opening-balance snapshots the Archived Financial Year
+      // viewer needs (see archiveFY()/archivedFYModal()). Same visibility/write shape as the
+      // attachments subcollection right above: kept off the main company document so an older
+      // business's full voucher history can never blow past Firestore's 1 MiB cap on that one doc.
+      allow get, list: if isSignedIn() && (
+        companyDoc().ownerId == request.auth.uid || isAdmin() ||
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
+        isTeamMember()
+      );
+      allow create, update, delete: if isSignedIn() && (
+        companyDoc().ownerId == request.auth.uid || isAdmin() ||
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
+        isTeamMember()
+      );
+    }
     match /settings/{docId} {
       allow get: if true;
       allow list: if false;
@@ -30369,28 +30868,41 @@ function fyBoundsForLabel(fyLabel){
 // year's vouchers and remember, for display, which years have been explicitly closed. Years must be
 // closed in order (oldest first) so closedFYs always tallies with the FY the lockDate reflects.
 function yearEndCloseSection(){
-  const fys = distinctFYsInVouchers().slice().sort(); // ascending
+  // allKnownFYs() (not distinctFYsInVouchers() alone) so an archived year -- whose vouchers are by
+  // definition no longer in state.vouchers -- still shows up here instead of silently vanishing
+  // from the list the moment it's archived.
+  const fys = allKnownFYs();
   if(!fys.length) return `<p class="muted" style="font-size:12px;">No vouchers yet — nothing to close.</p>`;
   const closed = new Set(currentCompany.closedFYs||[]);
-  const nextClosable = fys.find(fy=>!closed.has(fy));
+  const archivedMap = {};
+  (currentCompany.archivedFYs||[]).forEach(a=> archivedMap[a.fy] = a);
+  const nextClosable = distinctFYsInVouchers().slice().sort().find(fy=>!closed.has(fy));
   const closedSorted = Array.from(closed).sort();
   const latestClosed = closedSorted.length ? closedSorted[closedSorted.length-1] : null;
+  const toArchive = nextArchivableFY();
   const rows = fys.slice().reverse().map(fy=>{
     const isClosed = closed.has(fy);
+    const archived = archivedMap[fy];
     const bounds = fyBoundsForLabel(fy);
     let action = '';
-    if(isClosed){
-      if(fy===latestClosed) action = `<button class="btn secondary small" data-reopen-fy="${fy}" type="button">Reopen</button>`;
-    } else if(fy===nextClosable){
-      action = `<button class="btn small" data-close-fy="${fy}" type="button">Close FY</button>`;
+    let statusPill;
+    if(archived){
+      statusPill = `<span class="pill" style="background:var(--surface-strong);color:var(--ink);">📦 Archived</span>`;
+      action = `<button class="btn secondary small" data-view-archive-fy="${fy}" type="button">View Archive →</button>`;
+    } else if(isClosed){
+      statusPill = `<span class="pill pos">Closed</span>`;
+      if(fy===toArchive) action = `<button class="btn secondary small" data-archive-fy="${fy}" type="button">📦 Archive</button>`;
+      else if(fy===latestClosed) action = `<button class="btn secondary small" data-reopen-fy="${fy}" type="button">Reopen</button>`;
     } else {
-      action = `<span class="muted" style="font-size:10.5px;">Close FY ${nextClosable} first</span>`;
+      statusPill = `<span class="pill" style="background:var(--border);color:var(--ink-faint);">Open</span>`;
+      if(fy===nextClosable) action = `<button class="btn small" data-close-fy="${fy}" type="button">Close FY</button>`;
+      else action = `<span class="muted" style="font-size:10.5px;">Close FY ${nextClosable} first</span>`;
     }
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
-        <div><strong style="font-size:12.5px;">FY ${fy}</strong> <span class="muted" style="font-size:10.5px;">(${bounds.start} to ${bounds.end})</span></div>
+        <div><strong style="font-size:12.5px;">FY ${fy}</strong> <span class="muted" style="font-size:10.5px;">(${bounds.start} to ${bounds.end})${archived?` — ${archived.voucherCount} vouchers archived`:''}</span></div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <span class="pill${isClosed?' pos':''}"${isClosed?'':' style="background:var(--border);color:var(--ink-faint);"'}>${isClosed?'Closed':'Open'}</span>
+          ${statusPill}
           ${action}
         </div>
       </div>`;
@@ -30424,6 +30936,208 @@ async function reopenFY(fy){
   logAudit('yearEndReopen', `Reopened FY ${fy} for ${currentCompany.name}`, null, null);
   toast(`FY ${fy} reopened`);
   render();
+}
+
+/* ---------------- Financial Year Archiving (Nov 2026) ----------------
+   Every ledger/voucher/item for a company lives as array fields on ONE Firestore document
+   (companies/{id}), capped at 1 MiB -- see storageUsageSection(). A company with years of history
+   can accumulate tens of thousands of vouchers on that one document, which both pushes toward that
+   hard cap and slows every report (ledgerBalance()/stockValuation() re-scan the full in-memory
+   array on every render). Archiving moves a CLOSED year's vouchers (and that year's stock
+   adjustments) out to their own document, companies/{id}/archives/{fy} -- same "split out of the
+   single doc" move already used for attachments and Data Interchange messages -- leaving only the
+   open books in state/the live document.
+   The trick that makes this safe: ledgerBalance()/ledgerBalanceAsOf()/stockValuation() all compute
+   off one static l.opening/item.openingQty plus whatever vouchers are currently in state. Folding
+   an archived year's NET effect into that opening figure (rather than deleting it outright) means
+   every one of those functions keeps working unmodified -- they never need to know a year was ever
+   archived. Only a year ALREADY closed (see closeFY() above) can be archived, oldest-first, and never
+   the real current FY or the one immediately before it -- currentAndPriorFYData() (the Income
+   Statement/Balance Sheet "vs last year" comparative) always needs that immediately-prior year's
+   vouchers live, so archiving stops one year short of it. */
+// Every FY this company has ever had activity in, oldest first -- vouchers still in state, PLUS any
+// year that's been closed or archived even after its vouchers are long gone from state.vouchers
+// (distinctFYsInVouchers() alone would silently drop an archived year from every "which years
+// exist" list the moment its vouchers are removed).
+function allKnownFYs(){
+  const set = new Set(distinctFYsInVouchers());
+  (currentCompany.closedFYs||[]).forEach(fy=>set.add(fy));
+  (currentCompany.archivedFYs||[]).forEach(a=>set.add(a.fy||a));
+  return Array.from(set).sort();
+}
+// The one FY archiving is currently offered for (or null), applying every eligibility rule in
+// order: closed, not already archived, oldest closed-but-unarchived year first (so opening-balance
+// folding never has to skip a gap), and never the real current FY or the one right before it.
+function nextArchivableFY(){
+  const today = new Date().toISOString().slice(0,10);
+  const actualCurrentFY = fyLabelForDate(today);
+  const guardFY = priorFYLabel(actualCurrentFY);
+  const archived = new Set((currentCompany.archivedFYs||[]).map(a=>a.fy||a));
+  const closedSorted = (currentCompany.closedFYs||[]).slice().sort();
+  for(const fy of closedSorted){
+    if(archived.has(fy)) continue;
+    if(fy===actualCurrentFY || fy===guardFY) return null; // reached the protected years -- stop offering
+    return fy;
+  }
+  return null;
+}
+async function archiveFY(fy){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  if(fy !== nextArchivableFY()){ toast('That year is not ready to archive.'); return; }
+  const bounds = fyBoundsForLabel(fy);
+  const toArchive = state.vouchers.filter(v=> v.date >= bounds.start && v.date <= bounds.end);
+  if(!toArchive.length){ toast(`No vouchers in FY ${fy} to archive.`); return; }
+  const adjToArchive = (state.stockAdjustments||[]).filter(a=> a.date >= bounds.start && a.date <= bounds.end);
+
+  // Snapshot every ledger's opening balance and every item's opening qty/rate BEFORE anything is
+  // mutated or removed -- archiving oldest-closed-year-first means these are exactly the figures
+  // as they stood at the START of this FY (any older FY is either already archived, with its own
+  // effect already folded in here, or never existed).
+  const ledgerOpeningSnapshot = {};
+  state.ledgers.forEach(l=> ledgerOpeningSnapshot[l.id] = l.opening||0);
+  const itemOpeningSnapshot = {};
+  state.items.forEach(it=> itemOpeningSnapshot[it.id] = { qty: it.openingQty||0, rate: it.openingRate!=null ? it.openingRate : (it.rate||0) });
+
+  // Fold this FY's net effect into each ledger's opening, computed from the vouchers about to be
+  // archived -- so ledgerBalance() (opening + every voucher still in state) keeps returning the
+  // exact same figure it would have with this FY's vouchers still present.
+  const ledgerDelta = {};
+  for(const v of toArchive){
+    for(const e of (v.entries||[])){
+      ledgerDelta[e.ledgerId] = (ledgerDelta[e.ledgerId]||0) + ((e.dr||0)-(e.cr||0));
+    }
+  }
+  state.ledgers.forEach(l=>{ if(ledgerDelta[l.id]) l.opening = (l.opening||0) + ledgerDelta[l.id]; });
+
+  // Items: valuation isn't a simple sum (FIFO/weighted-average both depend on sequence), so instead
+  // of computing a delta, ask stockValuation() for this item's closing qty/value AS OF this FY's end
+  // -- using TODAY's full state, before anything is removed -- and that becomes the new opening.
+  // (A FIFO item's multi-layer cost history collapses into one opening layer at the blended average
+  // rate from this point forward -- the same single-layer starting point every item already has at
+  // its true opening, just applied one FY boundary later. Totals stay exact; only FIFO's layer-level
+  // cost breakdown for stock bought before this cutoff is no longer distinguishable after it.)
+  state.items.forEach(it=>{
+    const v = stockValuation(it, bounds.end);
+    it.openingQty = v.closing;
+    it.openingRate = v.closing>0 ? v.avgCost : (it.openingRate!=null ? it.openingRate : (it.rate||0));
+  });
+
+  const archiveDoc = {
+    fy, bounds, archivedAt: new Date().toISOString(),
+    voucherCount: toArchive.length,
+    vouchers: toArchive,
+    stockAdjustments: adjToArchive,
+    ledgerOpeningSnapshot, itemOpeningSnapshot,
+  };
+  try{
+    await db.collection('companies').doc(currentCompany.id).collection('archives').doc(fy).set(archiveDoc);
+  }catch(e){
+    toast('Could not save the archive — nothing was changed.');
+    return;
+  }
+
+  const archivedIds = new Set(toArchive.map(v=>v.id));
+  state.vouchers = state.vouchers.filter(v=>!archivedIds.has(v.id));
+  const adjIds = new Set(adjToArchive.map(a=>a.id));
+  state.stockAdjustments = (state.stockAdjustments||[]).filter(a=>!adjIds.has(a.id));
+
+  currentCompany.archivedFYs = Array.isArray(currentCompany.archivedFYs) ? currentCompany.archivedFYs : [];
+  currentCompany.archivedFYs.push({ fy, archivedAt: archiveDoc.archivedAt, voucherCount: toArchive.length });
+  const idx = companies.findIndex(c=>c.id===currentCompany.id);
+  if(idx>-1) companies[idx] = currentCompany;
+
+  await Promise.all([saveLedgers(), saveItems(), saveVouchers(), saveStockAdjustments(), saveCompanyMeta(currentCompany)]);
+  archivedFYCache[fy] = archiveDoc;
+  if(activeFY === fy) activeFY = null; // don't leave the user stranded viewing an FY that no longer has live data
+  logAudit('archiveFY', `Archived FY ${fy} for ${currentCompany.name} — ${toArchive.length} vouchers`, null, null);
+  toast(`FY ${fy} archived — ${toArchive.length} vouchers moved out of the live document. Still viewable under Archived Years.`, {type:'success'});
+  render();
+}
+// Lazy-loads one archived FY's document the first time it's needed (View Archive, or the
+// Trial-Balance/Day-Book-style read inside archivedFYModal()) and caches it for the rest of the
+// session -- same pattern as loadAttachmentsForVoucher() for voucher attachments.
+let archivedFYCache = {};
+let archivedFYLoading = false;
+async function loadArchivedFY(fy){
+  if(archivedFYCache[fy]) return archivedFYCache[fy];
+  archivedFYLoading = true;
+  render();
+  try{
+    const doc = await db.collection('companies').doc(currentCompany.id).collection('archives').doc(fy).get();
+    if(doc.exists) archivedFYCache[fy] = doc.data();
+  }catch(e){
+    toast('Could not load that archived year.');
+  }
+  archivedFYLoading = false;
+  render();
+  return archivedFYCache[fy];
+}
+// A simple, self-contained Trial Balance for one archived FY -- ledgerOpeningSnapshot (that FY's
+// own opening, captured at archive time) plus only that FY's own archived voucher entries. Deliberately
+// not the full reportTrialBalance() -- this is a read-only historical lookup, not a live report.
+function archivedFYTrialBalance(archiveDoc){
+  const balances = {};
+  Object.keys(archiveDoc.ledgerOpeningSnapshot||{}).forEach(id=> balances[id] = archiveDoc.ledgerOpeningSnapshot[id]);
+  for(const v of (archiveDoc.vouchers||[])){
+    for(const e of (v.entries||[])){
+      balances[e.ledgerId] = (balances[e.ledgerId]||0) + ((e.dr||0)-(e.cr||0));
+    }
+  }
+  const rows = Object.keys(balances).map(id=>{
+    const l = ledgerOf(id);
+    return { id, name: l ? l.name : '(deleted ledger)', bal: balances[id] };
+  }).filter(r=> Math.abs(r.bal) > 0.004).sort((a,b)=> a.name.localeCompare(b.name));
+  const totalDr = rows.reduce((s,r)=> s + Math.max(r.bal,0), 0);
+  const totalCr = rows.reduce((s,r)=> s + Math.max(-r.bal,0), 0);
+  return { rows, totalDr, totalCr };
+}
+// Read-only "Archived Financial Year" modal -- opened via View Archive in Year-End Close
+// (yearEndCloseSection()). Shows a loading state on first open while loadArchivedFY() fetches the
+// document, then a Trial Balance (archivedFYTrialBalance()) and a searchable, non-interactive
+// voucher list -- deliberately no edit/delete/click-to-open, since this data no longer lives in the
+// live, editable books.
+function archivedFYModal(){
+  const fy = archivedFYViewing;
+  const doc = archivedFYCache[fy];
+  const bounds = fyBoundsForLabel(fy);
+  let body;
+  if(archivedFYLoading || !doc){
+    body = `<div class="loading"></div>`;
+  } else {
+    const tb = archivedFYTrialBalance(doc);
+    const q = archivedFYVoucherSearch.trim().toLowerCase();
+    const vouchers = (doc.vouchers||[]).slice().sort((a,b)=> b.date.localeCompare(a.date))
+      .filter(v=> !q || v.type.toLowerCase().includes(q) || (v.narration||'').toLowerCase().includes(q) || v.date.includes(q));
+    body = `
+      <p class="muted" style="font-size:12px;margin:0 0 12px;">Archived ${humanDate(doc.archivedAt.slice(0,10))} — ${doc.voucherCount} vouchers moved out of the live document. Read-only: this year is closed and can no longer be edited.</p>
+      <div class="section-title" style="margin-top:0;">Trial Balance as of ${bounds.end}</div>
+      <table class="table" style="margin-bottom:14px;">
+        <thead><tr><th>Ledger</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
+        <tbody>
+          ${tb.rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td class="num">${r.bal>=0?fmt(r.bal):''}</td><td class="num">${r.bal<0?fmt(-r.bal):''}</td></tr>`).join('') || `<tr><td colspan="3" class="muted">No ledger activity in this year.</td></tr>`}
+        </tbody>
+        <tfoot><tr><td><strong>Total</strong></td><td class="num"><strong>${fmt(tb.totalDr)}</strong></td><td class="num"><strong>${fmt(tb.totalCr)}</strong></td></tr></tfoot>
+      </table>
+      <div class="section-title">Vouchers (${vouchers.length})</div>
+      <input type="text" id="archivedFYSearchInput" placeholder="Search by type, narration or date…" value="${escapeAttr(archivedFYVoucherSearch)}" style="margin-bottom:8px;">
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+        <table class="table" style="margin:0;">
+          <thead><tr><th>Date</th><th>Type</th><th>Narration</th><th class="num">Amount</th></tr></thead>
+          <tbody>
+            ${vouchers.map(v=>`<tr><td>${v.date}</td><td>${escapeHtml(v.type)}</td><td>${escapeHtml(v.narration||'')}</td><td class="num">${fmt(v.entries.reduce((s,e)=>s+(Number(e.dr)||0),0))}</td></tr>`).join('') || `<tr><td colspan="4" class="muted">No vouchers match "${escapeHtml(archivedFYVoucherSearch)}".</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:680px;">
+        <div class="panel-head"><h2>📦 Archived — FY ${fy}</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">${body}</div>
+      </div>
+    </div>
+  `;
 }
 // A stable-enough invoice number derived from position among all Sales vouchers ordered by date —
 // there's no separate persisted invoice-numbering sequence, so this is recomputed each time from the
@@ -31037,7 +31751,10 @@ function viewPOS(){
     </div>` : ''}
     <div class="pos-layout">
       <div class="pos-browse">
-        <div class="field"><input type="text" id="posSearchInput" placeholder="Scan a barcode, or search items by name…" value="${escapeAttr(pos.search)}" autocomplete="off"></div>
+        <div class="field" style="display:flex;gap:8px;align-items:flex-start;">
+          <input type="text" id="posSearchInput" placeholder="Scan a barcode, or search items by name…" value="${escapeAttr(pos.search)}" autocomplete="off" style="flex:1;">
+          <button class="btn secondary small" id="openCameraScanPosBtn" type="button" title="${barcodeDetectorSupported()?'Scan with your camera':"This browser doesn't support camera scanning — tap for details"}">📷</button>
+        </div>
         <div class="vtype-tabs pos-group-filters">
           <button class="${!pos.groupFilter?'active':''}" data-pos-group-filter="" type="button">All</button>
           ${itemGroups.map(g=>`<button class="${pos.groupFilter===g?'active':''}" data-pos-group-filter="${escapeAttr(g)}" type="button">${escapeHtml(g)}</button>`).join('')}
@@ -32866,6 +33583,7 @@ function viewInventory(){
       <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <div class="field" style="flex:1;min-width:220px;margin-bottom:0;"><label>Scan or Type a Barcode</label><input type="text" id="barcodeScanInput" placeholder="Focus here, then scan — or type a barcode/SKU and press Enter" value="${escapeAttr(barcodeScanQuery)}" autocomplete="off"></div>
         <div style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn secondary" id="openCameraScanBarcodeBtn" type="button" title="${barcodeDetectorSupported()?'Scan with your camera':"This browser doesn't support camera scanning — tap for details"}">📷 Scan</button>
           ${state.warehouses.filter(w=>w.active!==false).length>1 ? `<button class="btn secondary" id="openStockTransferBtn" type="button">🔁 Transfer Stock</button>` : ''}
         </div>
       </div>
@@ -33159,6 +33877,8 @@ function viewReports(){
   if(reportsSelected==='scenarios') return scenarioPlannerView();
   if(reportsSelected==='budgetVsActual') return reportBudgetVsActual();
   if(reportsSelected==='forexRevaluation') return reportForexRevaluation();
+  if(reportsSelected==='forexRealized') return reportForexRealized();
+  if(reportsSelected==='eclProvision') return reportECLProvision();
   if(reportsSelected==='tdsTcs') return reportTdsTcs();
   if(reportsSelected==='dataIntegrity') return reportDataIntegrity();
   if(reportsSelected==='financialPerformance') return reportFinancialPerformance();
@@ -33185,6 +33905,20 @@ const REPORT_CARDS = [
   {id:'scenarios', icon:'explore', title:'What-If Scenarios', desc:'Model a hypothetical — a delayed payment, a big sale closing — with provisional vouchers that never touch your real books, then see the effect on your reports before deciding.', group:'Management Reports'},
   {id:'budgetVsActual', icon:'track_changes', title:'Budget vs Actual', desc:'Every ledger budget you\'ve set, compared against what actually posted this financial year.', group:'Management Reports'},
   {id:'forexRevaluation', icon:'currency_exchange', title:'Forex Revaluation', desc:'Unrealized gain/loss on foreign-currency ledger balances at today\'s (or a custom) rate, with an option to post an adjusting entry.', group:'Management Reports'},
+  // Nov 2026 -- the companion to forexRevaluation above: that one is "what today's open balance
+  // would be worth"; this one is "what already happened" the day a foreign-currency invoice was
+  // actually settled at a different rate. Deliberately a separate card/ledger (Realized vs
+  // Unrealized are reported on separate P&L lines under real accounting practice) rather than
+  // folded into the existing one.
+  {id:'forexRealized', icon:'sync_alt', title:'Realized Forex Gain/Loss', desc:'Gain or loss actually locked in when a foreign-currency invoice was settled at a different rate than it was booked at — FIFO-matched invoice-to-settlement, with an option to post it.', group:'Management Reports'},
+  // Nov 2026 -- the flagship AI feature of this round: a provision-matrix Expected Credit Loss
+  // estimate (Ind AS 109/IFRS 9's simplified approach for trade receivables) blended with each
+  // customer's OWN historical payment-lag track record, not just today's ageing snapshot (that's
+  // what the Party Risk Dashboard already does -- see partyRiskList()/partyRiskCard() -- this is
+  // a GAAP-grounded provisioning number meant to post to the books and feed the Balance Sheet, not
+  // a relationship-health score). Its own group keeps it visually distinct as this app's one
+  // genuinely predictive, locally-computed "AI" report rather than a plain wiring exercise.
+  {id:'eclProvision', icon:'psychology', title:'Bad-Debt Risk & ECL Provisioning (AI)', desc:'Predicts the provision for doubtful debts your receivables actually need — an ageing-bucket provision matrix tuned by each customer\'s own payment-history reliability, with one-click Journal posting.', group:'AI & Predictive Insights'},
   // Oct 15, 2026 -- the Consolidation Report already existed (consolidatedFinancials()/consolidationModal(),
   // combining P&L and Balance Sheet across a chosen group of companies with intercompany balances
   // eliminated) but only ever lived on the Gateway screen, opened via a button beside the company list --
@@ -33221,6 +33955,7 @@ const REPORT_CARD_HUES = {
   costCenterPL:'#EA580C', budgetVsActual:'#CA8A04', forexRevaluation:'#059669',
   consolidated:'#9333EA', tdsTcs:'#B45309', dataIntegrity:'#2563EB', scenarios:'#7C3AED',
   cashFlowForecast:'#0369A1', esg:'#15803D',
+  forexRealized:'#0D9488', eclProvision:'#6D28D9',
 };
 function reportCardArt(id){
   const hue = REPORT_CARD_HUES[id] || 'var(--accent1)';
@@ -33314,6 +34049,25 @@ function reportCardArt(id){
       <circle cx="39" cy="40" r="13" style="fill:color-mix(in srgb, ${hue} 45%, var(--surface));stroke:${hue};stroke-width:2;opacity:.92;"/>
       <text x="15.5" y="45" style="font-size:12px;font-weight:800;fill:${hue};font-family:inherit;">₹</text>
       <text x="34.5" y="45" style="font-size:12px;font-weight:800;fill:var(--surface);font-family:inherit;">$</text>`,
+    // A circular swap-arrows glyph (settlement locking a rate in) over a small coin -- distinct from
+    // the two-coin exchange above, read as "done/settled" rather than "still open".
+    forexRealized: `
+      <circle cx="32" cy="24" r="15" style="fill:none;stroke:${hue};stroke-width:2.5;"/>
+      <path d="M32 11 A13 13 0 0 1 45 24" style="fill:none;stroke:${hue};stroke-width:2.5;stroke-linecap:round;"/>
+      <path d="M41 19 L45 24 L40 28" style="fill:none;stroke:${hue};stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"/>
+      <path d="M32 37 A13 13 0 0 1 19 24" style="fill:none;stroke:${hue};stroke-width:2.5;stroke-linecap:round;"/>
+      <path d="M23 29 L19 24 L24 20" style="fill:none;stroke:${hue};stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;"/>
+      <circle cx="32" cy="48" r="10" style="fill:${hue};"/>
+      <path d="M27 48 L31 52 L38 44" style="fill:none;stroke:var(--surface);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"/>`,
+    // A stylized brain/circuit glyph over a small shield -- "predictive" (the brain) protecting
+    // receivables (the shield), this app's one visibly "AI" report icon.
+    eclProvision: `
+      <path d="M32 10 C 24 10, 19 15, 19 21 C 19 25, 21 27, 21 30 C 21 34, 24 36, 28 36 L 36 36 C 40 36, 43 34, 43 30 C 43 27, 45 25, 45 21 C 45 15, 40 10, 32 10 Z" style="fill:color-mix(in srgb, ${hue} 18%, var(--surface));stroke:${hue};stroke-width:2;stroke-linejoin:round;"/>
+      <circle cx="26" cy="20" r="2" style="fill:${hue};"/><circle cx="32" cy="17" r="2" style="fill:${hue};"/><circle cx="38" cy="20" r="2" style="fill:${hue};"/><circle cx="29" cy="26" r="2" style="fill:${hue};"/><circle cx="36" cy="27" r="2" style="fill:${hue};"/>
+      <path d="M26 20 L29 26 M32 17 L29 26 M32 17 L36 27 M38 20 L36 27" style="stroke:${hue};stroke-width:1.3;"/>
+      <path d="M28 36 L28 41 L36 41 L36 36" style="fill:none;stroke:${hue};stroke-width:2;"/>
+      <path d="M32 45 L22 49 C 22 56, 26 60, 32 62 C 38 60, 42 56, 42 49 Z" style="fill:${hue};"/>
+      <path d="M27 54 L31 58 L38 50" style="fill:none;stroke:var(--surface);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"/>`,
     // Three small company squares merging their connecting lines into one larger combined square --
     // the multi-entity consolidation this card deep-links to.
     consolidated: `
@@ -33373,7 +34127,7 @@ function reportCardArt(id){
 function reportsLanding(){
   const integrityCount = dataIntegrityChecks().length;
   const cards = REPORT_CARDS.map(c=> c.id==='dataIntegrity' ? {...c, badge: integrityCount>0 ? integrityCount : null} : c);
-  const groups = ['Core Financial Statements','Analysis & Insights','Management Reports','Multi-Company','Compliance & Data Quality'];
+  const groups = ['Core Financial Statements','Analysis & Insights','AI & Predictive Insights','Management Reports','Multi-Company','Compliance & Data Quality'];
   return `
     ${masthead('Reports','Choose a report to view in detail and download it individually')}
     <div class="panel" style="margin-bottom:18px;">
@@ -34445,6 +35199,104 @@ function reportForexRevaluation(){
     ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
     <p class="muted" style="font-size:11px;margin-top:8px;">Posting creates one Journal voucher dated today, adjusting each foreign-currency ledger to its revalued ₹ value above, offset by a standing "Foreign Exchange Gain/Loss (Unrealized)" ledger — same as any other Journal, it shows in Day Book and can be edited or deleted. Change a rate above and re-post later (e.g. next month) to true it up again; each run only adjusts from whatever is booked at that time.</p>
     ${narrativePanel(forexRevaluationNarrative(rows, totalGainLoss))}
+    `}
+  `;
+}
+function realizedForexNarrative(rows, totalGainLoss){
+  if(!rows.length) return [];
+  const notes = [];
+  const invoiceCount = rows.reduce((s,r)=>s+r.matches.length,0);
+  notes.push(`Net realized ${totalGainLoss>=0?'gain':'loss'} of ₹${fmt(Math.abs(totalGainLoss))} across ${invoiceCount} newly-settled invoice${invoiceCount===1?'':'s'} on ${rows.length} foreign-currency ledger${rows.length===1?'':'s'}, not yet posted.`);
+  const biggest = rows.slice().sort((a,b)=>Math.abs(b.gainLoss)-Math.abs(a.gainLoss))[0];
+  if(biggest) notes.push(`Largest single swing: ${escapeHtml(biggest.ledger.name)} at ₹${fmt(Math.abs(biggest.gainLoss))} ${biggest.gainLoss>=0?'gain':'loss'}.`);
+  return notes;
+}
+function reportForexRealized(){
+  const { rows, totalGainLoss } = realizedForexGainLossReport();
+  return `
+    ${reportHeader('Realized Forex Gain/Loss')}
+    <p class="muted" style="font-size:12px;margin-top:-10px;">Gain or loss actually locked in when a foreign-currency Sales/Purchase invoice was settled by a Receipt/Payment at a different exchange rate than it was booked at — FIFO-matched the same way Party ageing matches invoices to payments. Only invoices settled since the last time this was posted are shown; nothing here changes your books until you post it.</p>
+    ${!rows.length ? emptyState({icon:'🔁', title:'Nothing newly settled', text:'Once a foreign-currency invoice is fully or partially settled by a Receipt/Payment voucher at a different rate, the realized gain or loss on that settlement will show up here.'}) : `
+    <div class="bento-grid">
+      <div class="stat"><div class="label">Ledgers with New Settlements</div><div class="val">${rows.length}</div></div>
+      <div class="stat"><div class="label">Net Realized ${totalGainLoss>=0?'Gain':'Loss'}</div><div class="val ${totalGainLoss>=0?'pos':'neg'}">₹${fmt(Math.abs(totalGainLoss))}</div></div>
+    </div>
+    ${rows.map(r=>`
+    <div class="panel"><div class="panel-head"><h2>${escapeHtml(r.ledger.name)}</h2><span class="viz-sub">${escapeHtml(r.currency?r.currency.code:'')}</span></div>
+    <div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Settlement Date</th><th class="num">Matched Amount</th><th class="num">Invoice Rate</th><th class="num">Settlement Rate</th><th class="num">Gain/(Loss)</th></tr>
+        ${r.matches.map(m=>`<tr>
+          <td data-label="Settlement Date">${m.date}</td>
+          <td class="num" data-label="Matched Amount">${fmt(m.matchedForeign)} ${escapeHtml(r.currency?r.currency.code:'')}</td>
+          <td class="num" data-label="Invoice Rate">${m.drFxRate}</td>
+          <td class="num" data-label="Settlement Rate">${m.crFxRate}</td>
+          <td class="num ${m.gainLoss>=0?'pos':'neg'}" data-label="Gain/(Loss)">${m.gainLoss>=0?'':'−'}₹${fmt(Math.abs(m.gainLoss))}</td>
+        </tr>`).join('')}
+      </table>
+    </div></div>
+    `).join('')}
+    <button class="btn" id="postRealizedForexBtn" type="button" ${isReadOnlyMode()?'disabled':''}>Post as Journal Voucher</button>
+    ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
+    <p class="muted" style="font-size:11px;margin-top:8px;">Posting creates one Journal voucher dated today adjusting each ledger above by its realized gain/loss, offset by a standing "Foreign Exchange Gain/Loss (Realized)" ledger — kept separate from the Unrealized one above since real accounting reports them on separate lines. Each settlement is tracked so re-running this later only picks up newly-settled invoices, never the same ones twice.</p>
+    ${narrativePanel(realizedForexNarrative(rows, totalGainLoss))}
+    `}
+  `;
+}
+function eclProvisionNarrative(rows, totalProvision, totalOutstanding){
+  if(!rows.length) return [];
+  const notes = [];
+  const pct = totalOutstanding>0 ? r2(100*totalProvision/totalOutstanding) : 0;
+  notes.push(`₹${fmt(totalProvision)} of provision computed across ${rows.length} customer${rows.length===1?'':'s'} — ${pct}% of the ₹${fmt(totalOutstanding)} currently outstanding.`);
+  const riskiest = rows.slice().sort((a,b)=>b.multiplier-a.multiplier)[0];
+  if(riskiest && riskiest.multiplier>1) notes.push(`${escapeHtml(riskiest.ledger.name)} carries the heaviest adjustment (${riskiest.multiplier}x the base matrix rate) — their own settled-invoice history shows only ${riskiest.reliability.pctOnTime}% paid within credit terms.`);
+  const mostReliable = rows.slice().filter(r=>r.reliability.sampleSize>0).sort((a,b)=>a.multiplier-b.multiplier)[0];
+  if(mostReliable && mostReliable.multiplier<1) notes.push(`${escapeHtml(mostReliable.ledger.name)} gets a lighter provision (${mostReliable.multiplier}x) on the strength of a reliable payment history — ${mostReliable.reliability.pctOnTime}% of their past invoices settled within credit terms.`);
+  return notes;
+}
+function reportECLProvision(){
+  const matrixOverride = {};
+  for(const b of ['0-30','31-60','61-90','90+']){ if(eclMatrixOverrides[b]!=null && eclMatrixOverrides[b]!=='') matrixOverride[b] = Number(eclMatrixOverrides[b])/100; }
+  const { rows, matrix, totalProvision, totalOutstanding } = eclProvisionReport(matrixOverride);
+  return `
+    ${reportHeader('Bad-Debt Risk & ECL Provisioning (AI)')}
+    <p class="muted" style="font-size:12px;margin-top:-10px;">A provision for doubtful debts your receivables actually need — Ind AS 109's simplified "provision matrix" approach for trade receivables (ageing-bucket base rates below) blended with each customer's own historical payment reliability, not just today's snapshot. Fully transparent: every provision amount traces back to a visible rate and a visible track record. Nothing here changes your books until you post it.</p>
+    ${!rows.length ? emptyState({icon:'🛡️', title:'No outstanding receivables', text:'Once a customer has an open invoice balance, their Expected Credit Loss estimate will show up here.'}) : `
+    <div class="bento-grid">
+      <div class="stat"><div class="label">Customers Assessed</div><div class="val">${rows.length}</div></div>
+      <div class="stat"><div class="label">Total Receivables</div><div class="val">₹${fmt(totalOutstanding)}</div></div>
+      <div class="stat bento-hero"><div class="label">Computed ECL Provision</div><div class="val">₹${fmt(totalProvision)}</div></div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>Base Provision Matrix</h2><span class="viz-sub">% of outstanding, by age — editable</span></div>
+      <div class="panel-body">
+        <div class="row">
+          ${['0-30','31-60','61-90','90+'].map(b=>`
+          <div class="field" style="max-width:120px;"><label>${b} days</label><input type="number" class="ecl-rate-input" data-ecl-rate="${b}" value="${eclMatrixOverrides[b]!=null?eclMatrixOverrides[b]:r2(matrix[b]*100)}" step="0.5" min="0" max="100" style="text-align:right;">%</div>
+          `).join('')}
+        </div>
+        <p class="muted" style="font-size:11px;margin-bottom:0;">Each customer's actual rate per bucket also multiplies by their own reliability score below (0.5x for a consistently on-time payer, up to 2x for one with a history of very late or unsettled invoices).</p>
+      </div>
+    </div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Customer</th><th class="num">Outstanding</th><th>Payment History</th><th class="num">Reliability</th><th class="num">ECL Provision</th></tr>
+        ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
+          <td class="ccard-title" data-label="Customer">${escapeHtml(r.ledger.name)}</td>
+          <td class="num" data-label="Outstanding">₹${fmt(r.summary.total)}</td>
+          <td class="muted" data-label="Payment History" style="font-size:11.5px;">${r.reliability.sampleSize>0 ? `${r.reliability.sampleSize} settled, avg ${r.reliability.avgDaysToPay}d, ${r.reliability.pctOnTime}% on time` : 'No settled history yet'}</td>
+          <td class="num" data-label="Reliability">${r.multiplier}x</td>
+          <td class="num ccard-amount" data-label="ECL Provision">₹${fmt(r.provisionTotal)}</td>
+        </tr>`).join('')}
+        <tr style="font-weight:700;border-top:2px solid var(--ink);">
+          <td colspan="4" data-label="">Total ECL Provision</td>
+          <td class="num">₹${fmt(totalProvision)}</td>
+        </tr>
+      </table>
+    </div></div>
+    <button class="btn" id="postECLProvisionBtn" type="button" ${isReadOnlyMode()?'disabled':''}>Post Provision as Journal Voucher</button>
+    ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
+    <p class="muted" style="font-size:11px;margin-top:8px;">Posting trues up a standing "${ECL_PROVISION_LEDGER_NAME}" ledger (Current Liabilities → Provisions, shown net against receivables on the Balance Sheet) to exactly this total, debiting or crediting "${ECL_EXPENSE_LEDGER_NAME}" for the difference — same as any other Journal, it shows in Day Book and can be edited or deleted. Re-run this at month-end; each run only adjusts from whatever is booked at that time.</p>
+    ${narrativePanel(eclProvisionNarrative(rows, totalProvision, totalOutstanding))}
     `}
   `;
 }
@@ -36840,24 +37692,66 @@ function assetDraftForm(){
     </div>
   `;
 }
+function disposeAssetModal(){
+  if(!disposeAssetDraft) return '';
+  const d = disposeAssetDraft;
+  const asset = state.fixedAssets.find(a=>a.id===d.assetId);
+  if(!asset) return '';
+  const ledger = ledgerOf(asset.ledgerId);
+  const wdv = ledger ? r2(ledgerBalance(ledger.id)) : 0;
+  const proceeds = r2(Number(d.saleProceeds)||0);
+  const profitLoss = r2(proceeds - wdv);
+  const depositOptions = state.ledgers.filter(l=>['bank','cash'].includes(bucketOf(l)));
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
+      <div class="modal-card" style="width:480px;">
+        <div class="panel-head"><h2>Dispose Asset — ${escapeHtml(asset.name)}</h2><button class="btn secondary small" id="disposeAssetCloseBtn" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body">
+          <div class="bento-grid" style="margin-bottom:10px;">
+            <div class="stat"><div class="label">Book Value Today</div><div class="val">₹${fmt(wdv)}</div></div>
+            <div class="stat"><div class="label">Profit/(Loss) on Sale</div><div class="val ${profitLoss>=0?'pos':'neg'}">${profitLoss>=0?'':'−'}₹${fmt(Math.abs(profitLoss))}</div></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Disposal Date</label><input type="date" id="disposeDate" value="${d.disposalDate}"></div>
+            <div class="field"><label>Sale Proceeds (₹)</label><input type="number" id="disposeProceeds" step="0.01" min="0" value="${escapeAttr(String(d.saleProceeds))}" placeholder="0 if scrapped"></div>
+          </div>
+          <div class="field">
+            <label>Deposit Proceeds Into</label>
+            <select id="disposeDepositTo" ${proceeds<=0.005?'disabled':''}>
+              <option value="">Select ledger…</option>
+              ${depositOptions.map(l=>`<option value="${l.id}" ${d.depositToLedgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
+            </select>
+          </div>
+          <p class="muted" style="font-size:11.5px;">Posts a Journal: removes the asset's book value of ₹${fmt(wdv)}, ${proceeds>0?`records ₹${fmt(proceeds)} received`:'records no proceeds (scrap/write-off)'}, and books the ${profitLoss>=0?'profit':'loss'} of ₹${fmt(Math.abs(profitLoss))} to a standing "Profit/Loss on Sale of Assets" ledger. The asset moves to Disposed Assets below — past depreciation vouchers are untouched.</p>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button class="btn" id="confirmDisposeAssetBtn" type="button" ${isReadOnlyMode()?'disabled':''}>Post Disposal</button>
+            <button class="btn secondary" id="cancelDisposeAssetBtn" type="button">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function viewAssets(){
   const currentFY = fyLabelForDate(new Date().toISOString().slice(0,10));
-  const totalCost = state.fixedAssets.reduce((s,a)=>s+(Number(a.cost)||0),0);
-  const totalBookValue = state.fixedAssets.reduce((s,a)=>{ const l=ledgerOf(a.ledgerId); return s+(l?ledgerBalance(l.id):0); },0);
-  const dueThisFY = state.fixedAssets.filter(a=>!(a.postedFYs||[]).includes(currentFY) && assetDepreciationForFY(a,currentFY)>0).length;
+  const activeAssets = state.fixedAssets.filter(a=>!a.disposedAt);
+  const disposedAssets = state.fixedAssets.filter(a=>a.disposedAt);
+  const totalCost = activeAssets.reduce((s,a)=>s+(Number(a.cost)||0),0);
+  const totalBookValue = activeAssets.reduce((s,a)=>{ const l=ledgerOf(a.ledgerId); return s+(l?ledgerBalance(l.id):0); },0);
+  const dueThisFY = activeAssets.filter(a=>!(a.postedFYs||[]).includes(currentFY) && assetDepreciationForFY(a,currentFY)>0).length;
   return `
     ${masthead('Fixed Asset Register',`Track assets and post depreciation for FY ${currentFY}`,'assets')}
     <div class="grid">
-      <div class="stat"><div class="label">Total Assets</div><div class="val">${state.fixedAssets.length}</div></div>
+      <div class="stat"><div class="label">Total Assets</div><div class="val">${activeAssets.length}</div></div>
       <div class="stat"><div class="label">Total Cost</div><div class="val">₹${fmt(totalCost)}</div></div>
       <div class="stat"><div class="label">Total Book Value</div><div class="val">₹${fmt(totalBookValue)}</div></div>
       <div class="stat"><div class="label">Depreciation Due (FY ${currentFY})</div><div class="val ${dueThisFY?'neg':''}">${dueThisFY}</div></div>
     </div>
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${state.fixedAssets.length ? `<table class="rb-card-table">
+        ${activeAssets.length ? `<table class="rb-card-table">
           <tr><th>Asset</th><th>Ledger</th><th class="num">Cost</th><th>Method</th><th>Life</th><th class="num">Book Value</th><th class="num">FY ${currentFY} Dep.</th><th></th></tr>
-          ${state.fixedAssets.map(a=>{
+          ${activeAssets.map(a=>{
             const ledger = ledgerOf(a.ledgerId);
             const bookValue = ledger ? ledgerBalance(ledger.id) : null;
             const posted = (a.postedFYs||[]).includes(currentFY);
@@ -36875,6 +37769,7 @@ function viewAssets(){
               <td class="num" data-label="FY ${currentFY} Dep.">${posted ? `<span class="muted">✓ Posted</span>` : (dueDep>0 ? '₹'+fmt(dueDep) : '—')}</td>
               <td class="ccard-actions" data-label="Actions">
                 ${!posted && dueDep>0 && ledger ? `<button class="btn small secondary" data-post-depreciation="${a.id}" type="button">Post Dep.</button>` : ''}
+                ${ledger ? `<button class="btn small secondary" data-dispose-asset="${a.id}" type="button">Dispose</button>` : ''}
                 <button class="btn small secondary" data-delete-asset="${a.id}" type="button">🗑</button>
               </td>
             </tr>`;
@@ -36885,7 +37780,22 @@ function viewAssets(){
     <div class="panel"><div class="panel-body">
       ${fixedAssetDraft ? assetDraftForm() : `<button class="btn secondary small" id="newAssetBtn" type="button">+ Add Fixed Asset</button>`}
     </div></div>
-    <p class="muted" style="font-size:11.5px;">Book Value is read live off the linked ledger's balance. "Post Dep." posts a Journal voucher (Dr Depreciation / Cr the asset's ledger) for the current financial year and can only be posted once per asset per year.</p>
+    <p class="muted" style="font-size:11.5px;">Book Value is read live off the linked ledger's balance. "Post Dep." posts a Journal voucher (Dr Depreciation / Cr the asset's ledger) for the current financial year and can only be posted once per asset per year. "Dispose" retires an asset at its current book value and posts the resulting profit/loss on sale.</p>
+    ${disposedAssets.length ? `
+    <div class="section-title" style="margin-top:16px;">Disposed Assets</div>
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table class="rb-card-table">
+        <tr><th>Asset</th><th class="muted">Disposed</th><th class="num">Book Value at Disposal</th><th class="num">Sale Proceeds</th><th class="num">Profit/(Loss)</th></tr>
+        ${disposedAssets.slice().sort((a,b)=>(b.disposedAt||'').localeCompare(a.disposedAt||'')).map(a=>`<tr>
+          <td class="ccard-title" data-label="Asset">${escapeHtml(a.name)}</td>
+          <td class="muted" data-label="Disposed">${a.disposedAt}</td>
+          <td class="num" data-label="Book Value at Disposal">₹${fmt(a.disposalBookValue||0)}</td>
+          <td class="num" data-label="Sale Proceeds">₹${fmt(a.disposalProceeds||0)}</td>
+          <td class="num ${(a.disposalProfitLoss||0)>=0?'pos':'neg'}" data-label="Profit/(Loss)">${(a.disposalProfitLoss||0)>=0?'':'−'}₹${fmt(Math.abs(a.disposalProfitLoss||0))}</td>
+        </tr>`).join('')}
+      </table>
+    </div></div>
+    ` : ''}
   `;
 }
 
@@ -37071,6 +37981,11 @@ function employeeDraftForm(){
           <div class="field" style="max-width:150px;"><label>IFSC</label><input type="text" id="empBankIFSC" value="${escapeAttr(d.bankIFSC)}"></div>
           <div class="field" style="max-width:150px;"><label>PAN</label><input type="text" id="empPAN" value="${escapeAttr(d.pan)}"></div>
         </div>
+        <div class="row">
+          <div class="field" style="max-width:180px;"><label>UAN (EPFO)</label><input type="text" id="empUAN" value="${escapeAttr(d.uan)}" placeholder="12-digit Universal Account No."></div>
+          <div class="field" style="max-width:180px;"><label>ESI (IP) Number</label><input type="text" id="empESINumber" value="${escapeAttr(d.esiNumber)}" placeholder="10-digit Insured Person No."></div>
+        </div>
+        <p class="muted" style="font-size:11px;">UAN and ESI Number feed the PF ECR / ESI Contribution File downloads under Payroll → Statutory Files — leave blank if not yet allotted.</p>
           </div>
         </details>
         <div class="section-title" style="margin-top:10px;">Monthly Salary Structure — Earnings</div>
@@ -37414,9 +38329,39 @@ function viewPayroll(){
           </tr>
         </table>` : emptyState({icon:'🧾', title:'No payroll data for this range', text:'Run payroll to see statutory deductions summarized here.'})}
       </div>
-      <p class="muted" style="font-size:11px;padding:0 16px 12px;">Export gets the full per-employee, per-month breakup (with PAN) for filing — this on-screen summary is just the totals. This report only covers the fields already tracked per employee (PF/ESI/PT/TDS/PAN); it doesn't hold UAN, ESIC IP, or TAN details, so it's a starting worksheet for your filing, not a ready-to-submit government form.</p>
+      <p class="muted" style="font-size:11px;padding:0 16px 12px;">Export gets the full per-employee, per-month breakup (with PAN) for filing — this on-screen summary is just the totals. Add UAN and ESI (IP) Number on an employee's record (Bank &amp; Statutory Details) to have them picked up by the PF ECR / ESI Contribution File downloads under the Statutory Files tab.</p>
     </div>
     ` : ''}
+
+    ${payrollSubTab==='statutory' ? (()=>{
+      const statMonthsWithPayroll = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
+      const ecrRows = statMonthsWithPayroll.length ? pfEcrRowsForMonth(statutoryFileMonth||statMonthsWithPayroll[0]) : [];
+      const esiRows = statMonthsWithPayroll.length ? esiContributionRowsForMonth(statutoryFileMonth||statMonthsWithPayroll[0]) : [];
+      const missingUan = ecrRows.filter(r=>r.uan==='FILL_UAN').length;
+      const missingEsiNum = esiRows.filter(r=>r.esiNumber==='FILL_ESI_NUMBER').length;
+      return `
+    <div class="section-title">Statutory Files</div>
+    <p class="muted" style="font-size:12px;margin-top:-6px;">Downloads the exact flat-file layout the EPFO employer portal (ECR Version 2.0) and the ESIC employer portal (monthly contribution upload) expect, built from that month's payroll run — for you to review and upload manually, same as e-Invoice/e-Way Bill elsewhere in this app. No government API is called; nothing here is filed on your behalf.</p>
+    ${!statMonthsWithPayroll.length ? emptyState({icon:'📄', title:'No payroll run yet', text:'Run payroll for at least one month (under "Run Payroll") before statutory files can be generated.'}) : `
+    <div class="panel"><div class="panel-body">
+      <div class="field" style="max-width:200px;"><label>Month</label>
+        <select id="statutoryFileMonthInput">${statMonthsWithPayroll.map(m=>`<option value="${m}" ${(statutoryFileMonth||statMonthsWithPayroll[0])===m?'selected':''}>${m}</option>`).join('')}</select>
+      </div>
+      <div class="bento-grid" style="margin-top:4px;">
+        <div class="stat"><div class="label">Employees This Month</div><div class="val">${ecrRows.length}</div></div>
+        <div class="stat"><div class="label">Missing UAN</div><div class="val ${missingUan?'neg':''}">${missingUan}</div></div>
+        <div class="stat"><div class="label">Missing ESI Number</div><div class="val ${missingEsiNum?'neg':''}">${missingEsiNum}</div></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn secondary" id="downloadPfEcrBtn" type="button">⬇ PF ECR File (.txt)</button>
+        <button class="btn secondary" id="downloadEsiFileBtn" type="button">⬇ ESI Contribution File (.txt)</button>
+      </div>
+      ${(missingUan||missingEsiNum) ? `<p class="muted" style="font-size:11.5px;margin-top:8px;">${missingUan?`${missingUan} employee${missingUan===1?'':'s'} missing UAN`:''}${missingUan&&missingEsiNum?' and ':''}${missingEsiNum?`${missingEsiNum} employee${missingEsiNum===1?'':'s'} missing ESI Number`:''} — the downloaded file marks those rows with a FILL_ placeholder; add the number on Employee Master (Bank &amp; Statutory Details) and re-download before uploading to the portal.</p>` : ''}
+      <p class="muted" style="font-size:11px;margin-top:10px;">PF ECR: EPF/EPS/EDLI wages are capped at the statutory ₹15,000 ceiling per member, computed off that employee's Basic. The employee's PF contribution comes straight from this payroll run; the employer's EPF/EPS split uses the standard 3.67%/8.33% statutory formula. ESI file: wages and contribution also come straight from this payroll run; the Reason Code is a simple 0 (contributed) / 1 (no contribution) — verify against the ESIC portal's own reason-code list for anyone who joined, left, or was on leave mid-month.</p>
+    </div></div>
+    `}
+      `;
+    })() : ''}
   `;
 }
 function printPayslip(salaryVoucherId){
@@ -37587,6 +38532,67 @@ function downloadPayrollTaxReport(svs, label){
   const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
   XLSX.writeFile(wb, `${safeName}_Statutory_Tax_Report_${label}.xlsx`.replace(/\s+/g,'_'));
   toast('Statutory tax report exported');
+}
+/* ---------------- PF ECR + ESI statutory files ----------------
+   Same pattern as eInvoicePayloadForVoucher()/downloadEInvoiceJSON() and eWayBillPayloadForVoucher()/
+   downloadEWayBillJSON() -- this app ships no paid government-integration API, so these build the
+   EXACT flat-file layout the EPFO employer portal (ECR Version 2.0) and the ESIC employer portal
+   (monthly contribution upload) expect, for the user to review and upload manually. Figures the app
+   can compute from already-entered payroll data (gross, the employee's own recorded PF/ESI deduction,
+   the statutory 3.67%/8.33% employer PF-EPS split) are real; anything the app has no source for (an
+   employee's UAN/ESI Number, if left blank on Employee Master) is left as an explicit FILL_
+   placeholder rather than guessed, exactly like the e-Invoice/e-Way Bill JSON's own placeholders.
+   EPF/EPS wages are capped at the statutory ₹15,000 ceiling per member per month, computed off that
+   employee's Basic (the closest field this app's salary structure has to EPFO's "Basic+DA"). */
+const EPF_EPS_WAGE_CEILING = 15000;
+function pfEcrRowsForMonth(month){
+  const svs = state.salaryVouchers.filter(sv=>sv.month===month);
+  return svs.map(sv=>{
+    const e = state.employees.find(x=>x.id===sv.employeeId) || {};
+    const gross = r2((sv.basic||0)+(sv.hra||0)+(sv.allowances||0)+(sv.bonus||0));
+    const epfWages = Math.round(Math.min(sv.basic||0, EPF_EPS_WAGE_CEILING));
+    const epsWages = epfWages;
+    const edliWages = epfWages;
+    const epfContriRemitted = Math.round(sv.pf||0);
+    const epsContriRemitted = Math.round(epsWages * 0.0833);
+    const epfEpsDiffRemitted = Math.max(0, Math.round((sv.employerPF||0)) - epsContriRemitted) || Math.round(epfWages * 0.0367);
+    return {
+      employeeId: e.id, name: e.name||sv.employeeId, uan: (e.uan||'').trim() || 'FILL_UAN',
+      grossWages: Math.round(gross), epfWages, epsWages, edliWages,
+      epfContriRemitted, epsContriRemitted, epfEpsDiffRemitted,
+      ncpDays: sv.lopDays||0, refundOfAdvances: 0,
+    };
+  });
+}
+function downloadPfEcrFile(month){
+  const rows = pfEcrRowsForMonth(month);
+  if(!rows.length){ toast(`No payroll run found for ${month} yet — generate payroll first.`); return; }
+  const lines = rows.map(r=> [r.uan, r.name, r.grossWages, r.epfWages, r.epsWages, r.edliWages, r.epfContriRemitted, r.epsContriRemitted, r.epfEpsDiffRemitted, r.ncpDays, r.refundOfAdvances].join('#~#'));
+  const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
+  downloadTextFile(lines.join('\r\n'), `${safeName}_PF_ECR_${month}.txt`.replace(/\s+/g,'_'), 'text/plain;charset=utf-8;');
+  const missingUan = rows.filter(r=>r.uan==='FILL_UAN').length;
+  toast(`PF ECR file downloaded for ${month} — ${rows.length} employee${rows.length===1?'':'s'}${missingUan?`, ${missingUan} missing UAN (search "FILL_UAN" before uploading)`:''}`, {type: missingUan?'warning':'success'});
+}
+function esiContributionRowsForMonth(month){
+  const svs = state.salaryVouchers.filter(sv=>sv.month===month);
+  return svs.map(sv=>{
+    const e = state.employees.find(x=>x.id===sv.employeeId) || {};
+    const gross = r2((sv.basic||0)+(sv.hra||0)+(sv.allowances||0)+(sv.bonus||0));
+    return {
+      employeeId: e.id, name: e.name||sv.employeeId, esiNumber: (e.esiNumber||'').trim() || 'FILL_ESI_NUMBER',
+      noOfDays: sv.payableDays||sv.totalDaysInMonth||0, totalWages: Math.round(gross),
+      employeeContrib: Math.round(sv.esi||0), reasonCode: (sv.esi||0)>0 ? '0' : '1',
+    };
+  });
+}
+function downloadEsiContributionFile(month){
+  const rows = esiContributionRowsForMonth(month);
+  if(!rows.length){ toast(`No payroll run found for ${month} yet — generate payroll first.`); return; }
+  const lines = rows.map(r=> [r.esiNumber, r.name, r.noOfDays, r.totalWages, r.reasonCode].join('#'));
+  const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
+  downloadTextFile(lines.join('\r\n'), `${safeName}_ESI_Contribution_${month}.txt`.replace(/\s+/g,'_'), 'text/plain;charset=utf-8;');
+  const missingEsi = rows.filter(r=>r.esiNumber==='FILL_ESI_NUMBER').length;
+  toast(`ESI contribution file downloaded for ${month} — ${rows.length} employee${rows.length===1?'':'s'}${missingEsi?`, ${missingEsi} missing ESI Number (search "FILL_ESI_NUMBER" before uploading)`:''}`, {type: missingEsi?'warning':'success'});
 }
 // Reverses exactly one employee's payroll entry for a month: deletes the Journal voucher it posted
 // and its salaryVoucher record, and restores any loan/advance EMI it had recovered -- so the books,
@@ -38462,6 +39468,14 @@ function attachHandlers(){
         render();
       });
     });
+    document.querySelectorAll('[data-dispose-asset]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+        disposeAssetDraft = { assetId: el.dataset.disposeAsset, disposalDate: new Date().toISOString().slice(0,10), saleProceeds: '', depositToLedgerId: '' };
+        modal = 'disposeAsset';
+        render();
+      });
+    });
     document.querySelectorAll('[data-delete-asset]').forEach(el=>{
       el.addEventListener('click', async ()=>{
         const a = state.fixedAssets.find(x=>x.id===el.dataset.deleteAsset);
@@ -38622,7 +39636,7 @@ function attachHandlers(){
     });
     document.getElementById('newEmployeeBtn')?.addEventListener('click', ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
-      employeeDraft = { name:'', designation:'', department:'', employmentType:'Full-time', joinDate: new Date().toISOString().slice(0,10), resignDate:'', pan:'', bankName:'', bankAccount:'', bankIFSC:'', basic:0, hra:0, allowances:0, bonus:0, pf:0, esi:0, pt:0, tds:0, otherDeductions:0, employerPF:0, employerESI:0 };
+      employeeDraft = { name:'', designation:'', department:'', employmentType:'Full-time', joinDate: new Date().toISOString().slice(0,10), resignDate:'', pan:'', uan:'', esiNumber:'', bankName:'', bankAccount:'', bankIFSC:'', basic:0, hra:0, allowances:0, bonus:0, pf:0, esi:0, pt:0, tds:0, otherDeductions:0, employerPF:0, employerESI:0 };
       render();
     });
     document.getElementById('cancelEmployeeBtn')?.addEventListener('click', ()=>{ employeeDraft = null; render(); });
@@ -38636,7 +39650,7 @@ function attachHandlers(){
         employeeDraft = {
           id:e.id, code:e.code||'', name:e.name, designation:e.designation||'', department:e.department||'', employmentType:e.employmentType||'Full-time',
           joinDate:e.joinDate||new Date().toISOString().slice(0,10), resignDate:e.resignDate||'',
-          pan:e.pan||'', bankName:e.bankName||'', bankAccount:e.bankAccount||'', bankIFSC:e.bankIFSC||'',
+          pan:e.pan||'', uan:e.uan||'', esiNumber:e.esiNumber||'', bankName:e.bankName||'', bankAccount:e.bankAccount||'', bankIFSC:e.bankIFSC||'',
           basic:s.basic||0, hra:s.hra||0, allowances:s.allowances||0, bonus:s.bonus||0,
           pf:ded.pf, esi:ded.esi, pt:ded.pt, tds:ded.tds, otherDeductions:ded.other,
           employerPF:ec.pf, employerESI:ec.esi,
@@ -38709,6 +39723,8 @@ function attachHandlers(){
       const employmentType = document.getElementById('empType').value;
       const joinDate = document.getElementById('empJoinDate').value;
       const pan = document.getElementById('empPAN').value.trim();
+      const uan = document.getElementById('empUAN').value.trim();
+      const esiNumber = document.getElementById('empESINumber').value.trim();
       const bankName = document.getElementById('empBankName').value.trim();
       const bankAccount = document.getElementById('empBankAccount').value.trim();
       const bankIFSC = document.getElementById('empBankIFSC').value.trim();
@@ -38732,11 +39748,11 @@ function attachHandlers(){
       const salary = {basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions, employerPF, employerESI};
       if(d.id){
         const e = state.employees.find(x=>x.id===d.id);
-        if(e){ if(!e.code) e.code = nextEmployeeCode(); e.name=name; e.designation=designation; e.department=department; e.employmentType=employmentType; e.joinDate=joinDate; e.pan=pan; e.bankName=bankName; e.bankAccount=bankAccount; e.bankIFSC=bankIFSC; e.salary=salary; }
+        if(e){ if(!e.code) e.code = nextEmployeeCode(); e.name=name; e.designation=designation; e.department=department; e.employmentType=employmentType; e.joinDate=joinDate; e.pan=pan; e.uan=uan; e.esiNumber=esiNumber; e.bankName=bankName; e.bankAccount=bankAccount; e.bankIFSC=bankIFSC; e.salary=salary; }
         await saveEmployees();
         toast('Employee updated');
       } else {
-        state.employees.push({ id: uid('emp'), code: nextEmployeeCode(), name, designation, department, employmentType, joinDate, resignDate:'', pan, bankName, bankAccount, bankIFSC, active:true, salary });
+        state.employees.push({ id: uid('emp'), code: nextEmployeeCode(), name, designation, department, employmentType, joinDate, resignDate:'', pan, uan, esiNumber, bankName, bankAccount, bankIFSC, active:true, salary });
         await saveEmployees();
         toast('Employee added');
       }
@@ -38865,6 +39881,15 @@ function attachHandlers(){
       const label = payslipYearFilter==='all' ? 'All_Years' : payslipYearFilter;
       const svs = state.salaryVouchers.filter(sv=> payslipYearFilter==='all' || sv.month.startsWith(payslipYearFilter));
       downloadPayrollTaxReport(svs, label);
+    });
+    document.getElementById('statutoryFileMonthInput')?.addEventListener('change', e=>{ statutoryFileMonth = e.target.value; render(); });
+    document.getElementById('downloadPfEcrBtn')?.addEventListener('click', ()=>{
+      const months = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
+      downloadPfEcrFile(statutoryFileMonth||months[0]);
+    });
+    document.getElementById('downloadEsiFileBtn')?.addEventListener('click', ()=>{
+      const months = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
+      downloadEsiContributionFile(statutoryFileMonth||months[0]);
     });
     document.getElementById('generatePayrollBtn')?.addEventListener('click', async ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
@@ -39197,6 +40222,12 @@ function attachHandlers(){
       render();
     });
     document.getElementById('narrativePrintBtn')?.addEventListener('click', ()=>{ window.print(); });
+  }
+  if(modal==='archivedFY'){
+    document.getElementById('archivedFYSearchInput')?.addEventListener('input', e=>{
+      archivedFYVoucherSearch = e.target.value;
+      render();
+    });
   }
   if(modal==='dashboardPersonalize'){
     document.querySelectorAll('[data-dashboard-section-toggle]').forEach(el=>{
@@ -40219,6 +41250,7 @@ function attachHandlers(){
   }
 
   if(view==='pos'){
+    document.getElementById('openCameraScanPosBtn')?.addEventListener('click', ()=> openCameraScanner('posSearch'));
     const searchInput = document.getElementById('posSearchInput');
     if(searchInput){
       searchInput.addEventListener('input', e=>{
@@ -41084,6 +42116,7 @@ function attachHandlers(){
       });
       barcodeInput.addEventListener('blur', e=>{ if(e.target.value.trim()!==barcodeScanQuery) { barcodeScanQuery = e.target.value; render(); } });
     }
+    document.getElementById('openCameraScanBarcodeBtn')?.addEventListener('click', ()=> openCameraScanner('barcodeScan'));
     document.querySelectorAll('[data-stock-detail]').forEach(el=>{
       el.addEventListener('click', ()=>{
         stockDetailItemId = el.dataset.stockDetail;
@@ -41615,6 +42648,21 @@ function attachHandlers(){
       for(const k in forexRateOverrides){ if(forexRateOverrides[k]!=='') overrideRates[k] = forexRateOverrides[k]; }
       await postForexRevaluation(overrideRates);
       render();
+    });
+    document.getElementById('postRealizedForexBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      await postRealizedForexGainLoss();
+      render();
+    });
+    document.getElementById('postECLProvisionBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const matrixOverride = {};
+      for(const b of ['0-30','31-60','61-90','90+']){ if(eclMatrixOverrides[b]!=null && eclMatrixOverrides[b]!=='') matrixOverride[b] = Number(eclMatrixOverrides[b])/100; }
+      await postECLProvision(matrixOverride);
+      render();
+    });
+    document.querySelectorAll('[data-ecl-rate]').forEach(el=>{
+      el.addEventListener('input', e=>{ eclMatrixOverrides[el.dataset.eclRate] = e.target.value; render(); });
     });
     document.getElementById('exportFinPerfPdfBtn')?.addEventListener('click', exportFinancialPerformanceToPdf);
     document.getElementById('exportFinPerfWordBtn')?.addEventListener('click', exportFinancialPerformanceToWord);
