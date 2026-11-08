@@ -7197,6 +7197,7 @@ let partyDetailLedgerId = null; // which party ledger's invoice-by-invoice agein
 let monthlyNarrativeMonth = null; // which 'YYYY-MM' the AI-Written Monthly Narrative Summary modal is showing -- null = current month
 let bookCloseMonth = null; // which 'YYYY-MM' the Month-End Close modal is targeting -- null = defaultBookCloseMonth() (the earliest unlocked month with activity, or the current month)
 let gstReadinessMonth = null; // which 'YYYY-MM' the GST Return Readiness card on the GST tab is showing -- null = current month
+let gstComplianceLookback = 6; // how many trailing months the GST / Compliance Watch Agent (AI) report scans -- see reportGstComplianceWatch()
 let archivedFYViewing = null; // FY label the read-only Archived Financial Year modal is open for -- see archivedFYModal()/loadArchivedFY()
 let archivedFYVoucherSearch = ''; // free-text filter typed into that modal's voucher list
 let pieChartLedgerId = null; // which ledger's pie chart to show
@@ -7321,6 +7322,7 @@ let orderConvertDraft = null; // null = not open | {docType, id, qtys:[...]} -- 
 let budgetReportFY = null; // which FY the Budget vs Actual report is showing; null = default to the current FY the first time it's opened
 let forexRateOverrides = {}; // {currencyId: rateString} -- per-currency revaluation rate typed into the Forex Revaluation report; empty/missing falls back to that currency's current rate under Accounts → Foreign Currencies
 let eclMatrixOverrides = {}; // {'0-30'|'31-60'|'61-90'|'90+': ratePercentString} -- per-bucket ECL provision rate typed into the Bad-Debt Risk & ECL report; empty/missing falls back to DEFAULT_ECL_MATRIX
+let auditAgentFY = null; // FY label (e.g. '2025-26') the Internal Audit Agent report is showing; null = default to the latest known FY the first time it's opened -- see reportInternalAudit()
 let employeeDraft = null; // null = not adding/editing an employee | {id?, code?, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions}
 let payrollMonth = new Date().toISOString().slice(0,7); // YYYY-MM the "Generate Payroll" panel is showing
 let payrollPayFromLedgerId = null; // which Bank/Cash ledger salary net pay is credited from, for the "Generate Payroll" panel
@@ -26529,6 +26531,19 @@ function dashboardExceptionQueue(){
     });
   }
 
+  // 9) GST / Compliance Watch Agent's most urgent finding -- a short, fixed lookback (3 months, not
+  // whatever gstComplianceLookback is currently set to on the report itself) so this queue stays a
+  // cheap glance, not a second full scan. Only the single worst finding surfaces here; the rest are
+  // one click away via the report itself.
+  const complianceTop = gstComplianceFindings(3).findings[0];
+  if(complianceTop){
+    items.push({
+      id:'gst-compliance-'+complianceTop.category+'-'+(complianceTop.monthKey||''), severity: complianceTop.severity==='critical'||complianceTop.severity==='high' ? 'warn' : 'info', icon:'🛡️',
+      text: complianceTop.message,
+      action: ()=>{ openPinnedReport('gstCompliance'); },
+    });
+  }
+
   return items;
 }
 // ---- GL anomaly / outlier detection -- three purely-statistical checks over the existing voucher
@@ -33881,6 +33896,8 @@ function viewReports(){
   if(reportsSelected==='eclProvision') return reportECLProvision();
   if(reportsSelected==='tdsTcs') return reportTdsTcs();
   if(reportsSelected==='dataIntegrity') return reportDataIntegrity();
+  if(reportsSelected==='internalAudit') return reportInternalAudit();
+  if(reportsSelected==='gstCompliance') return reportGstComplianceWatch();
   if(reportsSelected==='financialPerformance') return reportFinancialPerformance();
   if(reportsSelected==='stakeholderPresentation') return reportStakeholderPresentation();
   return reportsLanding();
@@ -33919,6 +33936,17 @@ const REPORT_CARDS = [
   // a relationship-health score). Its own group keeps it visually distinct as this app's one
   // genuinely predictive, locally-computed "AI" report rather than a plain wiring exercise.
   {id:'eclProvision', icon:'psychology', title:'Bad-Debt Risk & ECL Provisioning (AI)', desc:'Predicts the provision for doubtful debts your receivables actually need — an ageing-bucket provision matrix tuned by each customer\'s own payment-history reliability, with one-click Journal posting.', group:'AI & Predictive Insights'},
+  // Nov 2026 -- a year-wise automated internal audit: GL integrity, statutory compliance, internal
+  // controls and fraud/risk indicators, each check explainable from this company's own books (see
+  // internalAuditFindings() and its four auditChecks*() functions above reportInternalAudit()).
+  // Deliberately a report, not a chat agent -- same "AI" pattern as eclProvision just above.
+  {id:'internalAudit', icon:'gavel', title:'Internal Audit Agent (AI)', desc:'A year-wise automated internal audit — GL integrity, statutory compliance, internal controls and fraud/risk indicators, each check explainable from your own books, with a severity-ranked findings report and PDF/Word export.', group:'AI & Predictive Insights'},
+  // Nov 2026 -- the companion to the Internal Audit Agent above: that one looks back at a whole
+  // financial year once it's over, this one watches the last few months side by side, on a rolling
+  // basis, to catch a filing drifting toward late, a bank reconciliation that hasn't caught up with
+  // a "ready" GST period, and an open-issue count climbing instead of shrinking -- none of which a
+  // single month's point-in-time GST Return Readiness card (still on the GST tab) can show on its own.
+  {id:'gstCompliance', icon:'shield', title:'GST / Compliance Watch Agent (AI)', desc:'Watches the last several months of GST readiness side by side — a filing drifting toward late, bank reconciliation lagging behind a period marked ready, input credit at risk from a missing supplier GSTIN, and an open-issue count trending the wrong way — each finding explainable and clickable back to the voucher.', group:'AI & Predictive Insights'},
   // Oct 15, 2026 -- the Consolidation Report already existed (consolidatedFinancials()/consolidationModal(),
   // combining P&L and Balance Sheet across a chosen group of companies with intercompany balances
   // eliminated) but only ever lived on the Gateway screen, opened via a button beside the company list --
@@ -33955,7 +33983,8 @@ const REPORT_CARD_HUES = {
   costCenterPL:'#EA580C', budgetVsActual:'#CA8A04', forexRevaluation:'#059669',
   consolidated:'#9333EA', tdsTcs:'#B45309', dataIntegrity:'#2563EB', scenarios:'#7C3AED',
   cashFlowForecast:'#0369A1', esg:'#15803D',
-  forexRealized:'#0D9488', eclProvision:'#6D28D9',
+  forexRealized:'#0D9488', eclProvision:'#6D28D9', internalAudit:'#B91C1C',
+  gstCompliance:'#1D4ED8',
 };
 function reportCardArt(id){
   const hue = REPORT_CARD_HUES[id] || 'var(--accent1)';
@@ -34068,6 +34097,27 @@ function reportCardArt(id){
       <path d="M28 36 L28 41 L36 41 L36 36" style="fill:none;stroke:${hue};stroke-width:2;"/>
       <path d="M32 45 L22 49 C 22 56, 26 60, 32 62 C 38 60, 42 56, 42 49 Z" style="fill:${hue};"/>
       <path d="M27 54 L31 58 L38 50" style="fill:none;stroke:var(--surface);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"/>`,
+    // A clipboard/checklist with ruled lines and a magnifying glass inspecting a checkmark --
+    // "examine the records and confirm what's right", this app's internal-audit visual shorthand.
+    internalAudit: `
+      <rect x="16" y="10" width="32" height="44" rx="4" style="fill:color-mix(in srgb, ${hue} 14%, var(--surface));stroke:${hue};stroke-width:2;"/>
+      <rect x="24" y="6" width="16" height="8" rx="3" style="fill:${hue};"/>
+      <line x1="22" y1="22" x2="36" y2="22" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <line x1="22" y1="29" x2="36" y2="29" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <line x1="22" y1="36" x2="30" y2="36" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <circle cx="43" cy="42" r="10" style="fill:color-mix(in srgb, ${hue} 10%, var(--surface));stroke:${hue};stroke-width:2.5;"/>
+      <line x1="50" y1="49" x2="57" y2="56" style="stroke:${hue};stroke-width:3;stroke-linecap:round;"/>
+      <path d="M38 42 L41 45 L48 37" style="fill:none;stroke:${hue};stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"/>`,
+    // A shield (watching over the books) with a clock face inset -- this card's whole point is
+    // tracking deadlines and drift across periods, not a single point-in-time reading -- and a
+    // small checkmark underneath for "clear to file" once that watch comes back clean.
+    gstCompliance: `
+      <path d="M32 8 L50 15 C50 30, 46 44, 32 56 C18 44, 14 30, 14 15 Z" style="fill:color-mix(in srgb, ${hue} 16%, var(--surface));stroke:${hue};stroke-width:2.2;stroke-linejoin:round;"/>
+      <circle cx="32" cy="29" r="11" style="fill:var(--surface);stroke:${hue};stroke-width:2.2;"/>
+      <line x1="32" y1="29" x2="32" y2="21" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <line x1="32" y1="29" x2="38" y2="32" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <circle cx="32" cy="29" r="1.8" style="fill:${hue};"/>
+      <path d="M24 46 L29 51 L41 39" style="fill:none;stroke:${hue};stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;"/>`,
     // Three small company squares merging their connecting lines into one larger combined square --
     // the multi-entity consolidation this card deep-links to.
     consolidated: `
@@ -37160,6 +37210,481 @@ function reportDataIntegrity(){
   `;
 }
 
+/* =================================================================================================
+   INTERNAL AUDIT AGENT (AI) — Nov 2026. A year-wise automated internal audit: a deterministic,
+   fully-explainable checklist across four areas (GL & financial integrity, statutory compliance,
+   internal controls, fraud/risk indicators), run against one financial year's own vouchers, ledgers
+   and employee records at a time. Deliberately NOT a chat interface -- an FY picker, a full run of
+   the checklist, a severity-ranked findings report with drill-down and a narrative summary, same
+   shape as Data Integrity Checker (dataIntegrityChecks()/reportDataIntegrity() just above) just
+   scoped per FY and far broader in what it looks for. Every check is a plain function over this
+   company's own data -- no external AI call, same "AI" pattern as glAmountOutliers()/eclProvision/
+   the bank-reconciliation explainer elsewhere in this app.
+   FY scoping reuses the Financial Year Archiving primitives (fyBoundsForLabel()/allKnownFYs()/
+   loadArchivedFY()) so a closed-and-archived year audits exactly like a live one, just async --
+   see auditAgentVouchersForFY() below, the same loading-state dance as archivedFYModal(). */
+const AUDIT_SEVERITY_META = {
+  critical: { label:'Critical', color:'#D54141' }, // matches this app's --debit red
+  high:     { label:'High',     color:'#C2410C' }, // burnt orange, between critical and medium
+  medium:   { label:'Medium',   color:'#F2994A' }, // matches this app's --gold
+  low:      { label:'Low',      color:'#8B978F' }, // matches this app's --ink-faint
+};
+const AUDIT_SEVERITY_ORDER = {critical:0, high:1, medium:2, low:3};
+// Deliberately inline styles only (no var()/color-mix()) so this renders identically in the live
+// app, the print/PDF export and the Word .doc export -- Word's HTML engine resolves neither.
+function auditSeverityPill(sev){
+  const m = AUDIT_SEVERITY_META[sev] || AUDIT_SEVERITY_META.low;
+  return `<span style="display:inline-block;padding:2px 10px;border-radius:999px;border:1.5px solid ${m.color};color:${m.color};font-weight:700;font-size:11px;white-space:nowrap;">${m.label}</span>`;
+}
+// Resolves which vouchers this FY's audit should run against -- live (still in state.vouchers) or
+// archived (needs loadArchivedFY()'s async fetch, same pattern archivedFYModal() already uses: kick
+// off the load, return a "loading" flag, and let the next render() pick up the cached result).
+function auditAgentVouchersForFY(fy){
+  const archivedEntry = (currentCompany.archivedFYs||[]).find(a=>(a.fy||a)===fy);
+  if(archivedEntry){
+    const doc = archivedFYCache[fy];
+    if(!doc){
+      if(!archivedFYLoading) loadArchivedFY(fy);
+      return { ready:false, loading:true, vouchers:[], isArchived:true };
+    }
+    return { ready:true, loading:false, vouchers: doc.vouchers||[], isArchived:true };
+  }
+  const bounds = fyBoundsForLabel(fy);
+  return { ready:true, loading:false, vouchers: state.vouchers.filter(v=>v.date>=bounds.start && v.date<=bounds.end), isArchived:false };
+}
+
+// ---- Category 1: GL & Financial Integrity ----
+function auditChecksGLIntegrity(ctx){
+  const findings = [];
+  const group = 'GL & Financial Integrity';
+  for(const v of ctx.vouchers){
+    const dr = (v.entries||[]).reduce((s,e)=>s+(Number(e.dr)||0),0);
+    const cr = (v.entries||[]).reduce((s,e)=>s+(Number(e.cr)||0),0);
+    if(Math.abs(dr-cr) >= 0.01){
+      findings.push({ severity:'critical', group, category:'Unbalanced Voucher',
+        message:`${v.type} voucher dated ${v.date} ("${v.narration||'no narration'}") does not balance — Dr ₹${fmt(dr)} vs Cr ₹${fmt(cr)}.` });
+    }
+  }
+  // Round-sum manual journal entries -- restricted to Journal vouchers specifically (not Sales/
+  // Purchase/Payment, where round amounts are routinely genuine -- catalog pricing, fixed rent/
+  // salary) since manual adjusting entries landing on a perfectly round figure is the classic
+  // first-pass audit flag; it's an invitation to look closer, not proof of anything wrong.
+  const ROUND_THRESHOLD = 25000;
+  for(const v of ctx.vouchers){
+    if(v.type!=='Journal') continue;
+    const amt = voucherAmount(v);
+    if(amt >= ROUND_THRESHOLD && amt % 10000 === 0){
+      findings.push({ severity:'low', group, category:'Round-Sum Journal Entry',
+        message:`Journal voucher dated ${v.date} for a perfectly round ₹${fmt(amt)} ("${v.narration||'no narration'}") — manual journals landing on a round figure are worth a second look, though not necessarily wrong.` });
+    }
+  }
+  // Duplicate vouchers -- same type, date, amount and exact ledger set, posted more than once.
+  const dupSeen = {};
+  for(const v of ctx.vouchers){
+    const amt = r2(voucherAmount(v));
+    const ledgerKey = (v.entries||[]).map(e=>e.ledgerId).filter(Boolean).sort().join(',');
+    const key = `${v.type}|${v.date}|${amt}|${ledgerKey}`;
+    (dupSeen[key] = dupSeen[key]||[]).push(v);
+  }
+  for(const key in dupSeen){
+    if(dupSeen[key].length > 1){
+      const v0 = dupSeen[key][0];
+      findings.push({ severity:'high', group, category:'Duplicate Voucher',
+        message:`${dupSeen[key].length} ${v0.type} vouchers dated ${v0.date}, all for ₹${fmt(voucherAmount(v0))} on the exact same ledgers — check these weren't posted twice by mistake.` });
+    }
+  }
+  // Negative cash/bank balances as of this FY's closing date -- a cash or non-overdraft bank
+  // account cannot genuinely run negative. Only checkable for a live (not archived) FY, since
+  // ledgerBalanceAsOf() recomputes off state.vouchers, which an archived year's are no longer in.
+  if(!ctx.isArchived){
+    const asOf = ctx.bounds.end;
+    for(const l of state.ledgers){
+      const g = groupOf(l.group);
+      if(!g || !['cash','bank'].includes(g.bucket)) continue;
+      const bal = ledgerBalanceAsOf(l.id, asOf);
+      if(bal!=null && bal < -0.01){
+        findings.push({ severity:'critical', group, category:'Negative Cash/Bank Balance', ledgerId:l.id,
+          message:`"${l.name}" shows a negative balance of ₹${fmt(Math.abs(bal))} as of ${asOf} — a cash or bank account can't genuinely go below zero without an overdraft facility.` });
+      }
+    }
+  }
+  // Period-end cutoff: a voucher dated inside this FY but actually entered well after the FY
+  // closed -- a classic sign of a late or backdated adjustment slipping into an already-closed year.
+  const CUTOFF_GRACE_DAYS = 60;
+  for(const v of ctx.vouchers){
+    if(!v.createdAt) continue;
+    const created = new Date(v.createdAt);
+    const fyEnd = new Date(ctx.bounds.end+'T00:00:00');
+    const daysLate = Math.round((created-fyEnd)/86400000);
+    if(daysLate > CUTOFF_GRACE_DAYS){
+      findings.push({ severity:'medium', group, category:'Late/Backdated Entry',
+        message:`${v.type} voucher dated ${v.date} ("${v.narration||'no narration'}") was actually entered on ${created.toISOString().slice(0,10)} — ${daysLate} days after this financial year closed.` });
+    }
+  }
+  return findings;
+}
+
+// ---- Category 2: Statutory Compliance ----
+function auditChecksStatutory(ctx){
+  const findings = [];
+  const group = 'Statutory Compliance';
+  const cashLedgerIds = new Set(state.ledgers.filter(l=>{ const g=groupOf(l.group); return g && g.bucket==='cash'; }).map(l=>l.id));
+  // Income Tax Act Sec 40A(3): a single cash payment over ₹10,000 to one party in one day is
+  // disallowed as a deduction -- grouped by (party ledger, date) across Payment/Purchase vouchers
+  // whose other leg is a cash ledger.
+  const cashByPartyDay = {};
+  for(const v of ctx.vouchers){
+    if(!['Payment','Purchase'].includes(v.type)) continue;
+    const cashLeg = (v.entries||[]).find(e=> cashLedgerIds.has(e.ledgerId) && Number(e.cr)>0);
+    if(!cashLeg) continue;
+    const partyLeg = (v.entries||[]).find(e=> e.ledgerId!==cashLeg.ledgerId && Number(e.dr)>0);
+    if(!partyLeg) continue;
+    const key = `${partyLeg.ledgerId}|${v.date}`;
+    cashByPartyDay[key] = (cashByPartyDay[key]||0) + Number(partyLeg.dr);
+  }
+  for(const key in cashByPartyDay){
+    if(cashByPartyDay[key] > 10000){
+      const [ledgerId, date] = key.split('|');
+      const l = ledgerOf(ledgerId);
+      findings.push({ severity:'high', group, category:'Sec 40A(3) Cash Payment Limit', ledgerId,
+        message:`₹${fmt(cashByPartyDay[key])} paid in cash to "${l?l.name:'(deleted ledger)'}" on ${date} — cash payments over ₹10,000 to one party in a day are disallowed as a deduction under Income Tax Act Sec 40A(3).` });
+    }
+  }
+  // TDS non-deduction -- a HEURISTIC, clearly labeled as an estimate, same disclaimer discipline as
+  // the ESG report's spend-based estimate: payments/purchases to a Supplier-tagged ledger, crossing
+  // a common TDS threshold within the FY with no matching state.taxDeductions record at all.
+  const deductedVoucherIds = new Set(state.taxDeductions.filter(t=>t.kind==='TDS').map(t=>t.voucherId));
+  const supplierSpend = {};
+  for(const v of ctx.vouchers){
+    if(!['Payment','Purchase'].includes(v.type)) continue;
+    if(deductedVoucherIds.has(v.id)) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      // The supplier ledger is CREDITED on a Purchase (the payable going up) and DEBITED on a
+      // Payment (that payable being cleared) -- either side represents real spend with that
+      // supplier, so sum whichever leg is non-zero rather than assuming one direction.
+      const amt = Number(e.dr)||Number(e.cr)||0;
+      if(l && l.partyType==='supplier' && amt>0){
+        (supplierSpend[e.ledgerId] = supplierSpend[e.ledgerId]||{total:0, name:l.name}).total += amt;
+      }
+    }
+  }
+  const TDS_THRESHOLD = 30000; // a common 194C/194J-style annual trigger point, deliberately approximate
+  for(const id in supplierSpend){
+    if(supplierSpend[id].total > TDS_THRESHOLD){
+      findings.push({ severity:'medium', group, category:'Possible TDS Non-Deduction (Estimate)', ledgerId:id,
+        message:`⚠ Estimate, not a certified figure: ₹${fmt(supplierSpend[id].total)} paid/billed to "${supplierSpend[id].name}" this year with no TDS record on file — if this supplier's payments cross a TDS threshold, tax should have been withheld. Confirm against the actual applicable section and the supplier's PAN/lower-deduction status.` });
+    }
+  }
+  // GST possibly missed: a Sales/Purchase voucher against a GSTIN-registered party carrying no tax
+  // breakdown at all -- either genuinely exempt/nil-rated, or GST was simply missed.
+  for(const v of ctx.vouchers){
+    if(!['Sales','Purchase'].includes(v.type)) continue;
+    const partyLeg = (v.entries||[]).find(e=>{ const l=ledgerOf(e.ledgerId); return l && l.gstin; });
+    if(!partyLeg) continue;
+    const g = gstBreakdownForVoucher(v);
+    if(!g.totalTax){
+      findings.push({ severity:'low', group, category:'GST Possibly Missed',
+        message:`${v.type} voucher dated ${v.date} against a GSTIN-registered party carries no GST at all — confirm this was genuinely exempt or nil-rated.` });
+    }
+  }
+  // PF/ESI gaps -- reuses the exact field names this week's PF ECR/ESI statutory-file feature
+  // introduced. These come off today's employee master, not a historical snapshot for this FY, so
+  // the message says so plainly rather than implying the gap existed throughout the year.
+  for(const e of state.employees){
+    if(e.active===false) continue;
+    if(!(e.uan||'').trim()){
+      findings.push({ severity:'medium', group, category:'Missing PF UAN',
+        message:`Employee "${e.name}" has no UAN on file (based on today's employee records, not FY ${ctx.fy} specifically) — their PF ECR filing can't be completed correctly.` });
+    }
+    if(!(e.esiNumber||'').trim()){
+      findings.push({ severity:'medium', group, category:'Missing ESI Number',
+        message:`Employee "${e.name}" has no ESI (IP) Number on file (based on today's employee records, not FY ${ctx.fy} specifically) — their ESI filing can't be completed correctly.` });
+    }
+  }
+  return findings;
+}
+
+// ---- Category 3: Internal Controls ----
+function auditChecksInternalControls(ctx){
+  const findings = [];
+  const group = 'Internal Controls';
+  // Maker-checker: either it's switched off entirely, or Admin/Support bypassed it (they always
+  // can -- voucherNeedsApproval() only ever gates role==='user', a real segregation-of-duties gap
+  // in this app worth surfacing explicitly rather than leaving silent).
+  const s = currentCompany.approvalSettings;
+  if(s && s.enabled){
+    const threshold = Number(s.threshold)||0;
+    const bypassed = ctx.vouchers.filter(v=>{
+      if(s.types && s.types.length && !s.types.includes(v.type)) return false;
+      return voucherAmount(v) >= threshold && !v.submittedBy; // no submittedBy = posted directly, never through the pending-approval queue
+    });
+    if(bypassed.length){
+      findings.push({ severity:'medium', group, category:'Maker-Checker Bypass',
+        message:`${bypassed.length} voucher${bypassed.length===1?'':'s'} at or above the ₹${fmt(threshold)} approval threshold ${bypassed.length===1?'was':'were'} posted directly rather than through the approval queue — Admin/Support roles always bypass maker-checker in this app by design, itself a segregation-of-duties gap worth knowing about.` });
+    }
+  } else {
+    findings.push({ severity:'medium', group, category:'Maker-Checker Not Enabled',
+      message:`Maker-checker approval is switched off for this company — any user can post any voucher of any size with no second sign-off.` });
+  }
+  // Segregation of duties: the same person both submitted AND approved a voucher.
+  const sameMakerChecker = ctx.vouchers.filter(v=> v.submittedBy && v.approvedBy && v.submittedBy===v.approvedBy);
+  if(sameMakerChecker.length){
+    findings.push({ severity:'high', group, category:'Segregation of Duties Conflict',
+      message:`${sameMakerChecker.length} voucher${sameMakerChecker.length===1?'':'s'} ${sameMakerChecker.length===1?'was':'were'} submitted and approved by the same person — the maker-checker control existed on paper but didn't actually separate the two roles.` });
+  }
+  // Locked-period override: the voucher audit log shows a change to a voucher dated inside this FY
+  // made AFTER the company's lock date had already moved past this FY's end -- someone with access
+  // posted or edited behind an already-closed period.
+  const lockDate = currentCompany.lockDate;
+  if(lockDate && lockDate >= ctx.bounds.start){
+    const overrides = (state.voucherAuditLog||[]).filter(a=>{
+      if(a.action==='delete') return false;
+      const snap = a.after || a.before;
+      return snap && snap.date>=ctx.bounds.start && snap.date<=ctx.bounds.end && a.at && a.at.slice(0,10) > lockDate;
+    });
+    if(overrides.length){
+      findings.push({ severity:'critical', group, category:'Locked-Period Override',
+        message:`${overrides.length} change${overrides.length===1?'':'s'} to a voucher dated inside this financial year ${overrides.length===1?'was':'were'} made after the books were locked past that date — find out who had override access and why.` });
+    }
+  }
+  // Unapproved large transactions: still sitting in the pending-approval queue, dated within this FY.
+  const stalePending = (state.pendingVouchers||[]).filter(pv=> pv.date>=ctx.bounds.start && pv.date<=ctx.bounds.end);
+  if(stalePending.length){
+    findings.push({ severity:'medium', group, category:'Unapproved Large Transaction',
+      message:`${stalePending.length} voucher${stalePending.length===1?'':'s'} dated within this financial year ${stalePending.length===1?'is':'are'} still sitting unapproved in the queue, totalling ₹${fmt(stalePending.reduce((sum,pv)=>sum+voucherAmount(pv),0))}.` });
+  }
+  return findings;
+}
+
+// ---- Category 4: Fraud & Risk Indicators ----
+function auditChecksFraudRisk(ctx){
+  const findings = [];
+  const group = 'Fraud & Risk Indicators';
+  const cashLedgerIds = new Set(state.ledgers.filter(l=>{ const g=groupOf(l.group); return g && g.bucket==='cash'; }).map(l=>l.id));
+  // Unusual cash transactions -- the same IQR-outlier method glAmountOutliers() already uses
+  // app-wide, just FY-scoped and restricted to cash (the hardest-to-trace medium).
+  const cashAmounts = [];
+  for(const v of ctx.vouchers){
+    for(const e of (v.entries||[])){
+      if(cashLedgerIds.has(e.ledgerId)){
+        const amt = Number(e.dr)||Number(e.cr)||0;
+        if(amt>0) cashAmounts.push(amt);
+      }
+    }
+  }
+  if(cashAmounts.length >= 8){
+    const iqr = iqrBounds(cashAmounts);
+    if(iqr){
+      for(const v of ctx.vouchers){
+        for(const e of (v.entries||[])){
+          if(!cashLedgerIds.has(e.ledgerId)) continue;
+          const amt = Number(e.dr)||Number(e.cr)||0;
+          if(amt > iqr.upper){
+            findings.push({ severity:'medium', group, category:'Unusual Cash Transaction', ledgerId:e.ledgerId,
+              message:`${v.type} voucher dated ${v.date} moves ₹${fmt(amt)} in cash — well above the typical cash transaction size this year (upper bound ₹${fmt(iqr.upper)}).` });
+          }
+        }
+      }
+    }
+  }
+  // Sunday postings -- not wrong on its own (and deliberately NOT flagging Saturday too, since many
+  // Indian SMBs run a 6-day week), but worth a look in aggregate.
+  const sundayVouchers = ctx.vouchers.filter(v=> new Date(v.date+'T00:00:00').getDay()===0);
+  if(sundayVouchers.length){
+    const total = sundayVouchers.reduce((sum,v)=>sum+voucherAmount(v),0);
+    findings.push({ severity:'low', group, category:'Sunday Postings',
+      message:`${sundayVouchers.length} voucher${sundayVouchers.length===1?'':'s'} ${sundayVouchers.length===1?'was':'were'} posted on a Sunday this year, totalling ₹${fmt(total)} — unusual for a business that doesn't normally operate that day.` });
+  }
+  // Duplicate vendor/customer masters: two party ledgers sharing the same GSTIN or the same bank
+  // account number -- the same real-world party recorded (or re-recorded) more than once.
+  const partyLedgers = state.ledgers.filter(l=>l.partyType==='customer'||l.partyType==='supplier');
+  const byGstin = {}, byBank = {};
+  for(const l of partyLedgers){
+    if(l.gstin) (byGstin[l.gstin]=byGstin[l.gstin]||[]).push(l);
+    if(l.bankAccountNumber) (byBank[l.bankAccountNumber]=byBank[l.bankAccountNumber]||[]).push(l);
+  }
+  for(const key in byGstin){
+    if(byGstin[key].length>1){
+      findings.push({ severity:'medium', group, category:'Duplicate Party Master',
+        message:`${byGstin[key].length} ledgers share the GSTIN ${key}: ${byGstin[key].map(l=>'"'+l.name+'"').join(', ')} — likely the same party recorded more than once.` });
+    }
+  }
+  for(const key in byBank){
+    if(byBank[key].length>1){
+      findings.push({ severity:'medium', group, category:'Duplicate Party Master',
+        message:`${byBank[key].length} ledgers share the same bank account number: ${byBank[key].map(l=>'"'+l.name+'"').join(', ')} — confirm these aren't the same party (or, worse, a diverted payment route).` });
+    }
+  }
+  // Benford's Law first-digit check -- a classic fraud-screening heuristic (naturally occurring
+  // amounts skew toward a leading '1' far more than a uniform spread would), needs a reasonable
+  // sample to mean anything, and is a labeled INDICATOR, not proof -- same disclaimer discipline
+  // as the TDS estimate and the ESG report above.
+  const amounts = ctx.vouchers.map(v=>voucherAmount(v)).filter(a=>a>=10);
+  if(amounts.length >= 50){
+    const BENFORD = {1:30.1,2:17.6,3:12.5,4:9.7,5:7.9,6:6.7,7:5.8,8:5.1,9:4.6};
+    const counts = {1:0,2:0,3:0,4:0,5:0,6:0,7:0,8:0,9:0};
+    for(const a of amounts){
+      const digit = Number(String(Math.round(a)).replace(/^0+/,'')[0]);
+      if(digit>=1 && digit<=9) counts[digit]++;
+    }
+    let chiSq = 0;
+    for(let d=1; d<=9; d++){
+      const expected = amounts.length * BENFORD[d]/100;
+      chiSq += Math.pow(counts[d]-expected, 2) / expected;
+    }
+    // Critical value for 8 degrees of freedom at p=0.01 is ~20.09 -- a conventional cutoff for
+    // "this distribution doesn't look naturally occurring".
+    if(chiSq > 20.09){
+      findings.push({ severity:'low', group, category:"Benford's Law Deviation (Indicator)",
+        message:`⚠ Indicator, not proof: the leading digits of this year's ${amounts.length} voucher amounts deviate noticeably from the distribution naturally-occurring numbers tend to follow (χ²=${chiSq.toFixed(1)}). Worth a closer look at how these amounts were arrived at — this alone proves nothing.` });
+    }
+  }
+  return findings;
+}
+
+function internalAuditFindings(ctx){
+  return [
+    ...auditChecksGLIntegrity(ctx),
+    ...auditChecksStatutory(ctx),
+    ...auditChecksInternalControls(ctx),
+    ...auditChecksFraudRisk(ctx),
+  ];
+}
+function internalAuditNarrative(findings, fy){
+  const notes = [];
+  const counts = {critical:0,high:0,medium:0,low:0};
+  findings.forEach(f=>counts[f.severity]++);
+  if(!findings.length){
+    notes.push(`No issues surfaced for FY ${fy} across any of the four audit areas — a clean run, though this scan only catches what's checkable from the books themselves.`);
+    return notes;
+  }
+  if(counts.critical>0){
+    notes.push(`${counts.critical} critical finding${counts.critical===1?'':'s'} need${counts.critical===1?'s':''} attention before this year's books can be considered reliable — the kind of issue an external auditor would stop and ask about first.`);
+  } else if(counts.high>0){
+    notes.push(`No critical findings, but ${counts.high} high-severity issue${counts.high===1?'':'s'} worth resolving before FY ${fy} is finalized.`);
+  } else {
+    notes.push(`Nothing critical or high-severity this year — the ${counts.medium+counts.low} remaining finding${counts.medium+counts.low===1?'':'s'} are worth a look but don't point to a serious problem on their own.`);
+  }
+  const byCategory = {};
+  findings.forEach(f=>{ byCategory[f.group] = (byCategory[f.group]||0)+1; });
+  const topCategory = Object.keys(byCategory).sort((a,b)=>byCategory[b]-byCategory[a])[0];
+  if(topCategory){
+    notes.push(`Most of this year's findings (${byCategory[topCategory]} of ${findings.length}) fall under ${topCategory}.`);
+  }
+  return notes;
+}
+function reportInternalAudit(){
+  const fys = allKnownFYs();
+  if(!fys.length){
+    return `${reportHeader('Internal Audit Agent (AI)')}${emptyState({icon:'🧾', title:'Nothing to audit yet', text:'Post a few vouchers first — the audit agent runs its checklist against a financial year\'s actual transactions.'})}`;
+  }
+  if(!auditAgentFY || !fys.includes(auditAgentFY)) auditAgentFY = fys[fys.length-1];
+  const fy = auditAgentFY;
+  const vfy = auditAgentVouchersForFY(fy);
+  const fySelect = `
+    <div class="field" style="max-width:220px;margin-bottom:14px;">
+      <label>Financial Year</label>
+      <select id="auditAgentFYSelect">${fys.slice().reverse().map(f=>`<option value="${f}" ${f===fy?'selected':''}>FY ${f}</option>`).join('')}</select>
+    </div>`;
+  if(vfy.loading){
+    return `${reportHeader('Internal Audit Agent (AI)')}${fySelect}<div class="panel"><div class="panel-body"><div class="loading"></div><p class="muted" style="font-size:12px;text-align:center;">Loading FY ${fy} from the archive…</p></div></div>`;
+  }
+  const bounds = fyBoundsForLabel(fy);
+  const today = new Date().toISOString().slice(0,10);
+  const ctx = { vouchers: vfy.vouchers, bounds, fy, isArchived: vfy.isArchived, isCurrentFY: fy===fyLabelForDate(today) };
+  const findings = internalAuditFindings(ctx).sort((a,b)=> AUDIT_SEVERITY_ORDER[a.severity]-AUDIT_SEVERITY_ORDER[b.severity]);
+  const counts = {critical:0,high:0,medium:0,low:0};
+  findings.forEach(f=>counts[f.severity]++);
+  const groups = ['GL & Financial Integrity','Statutory Compliance','Internal Controls','Fraud & Risk Indicators'];
+  return `
+    ${reportHeader('Internal Audit Agent (AI)')}
+    <div id="internalAuditReportBody">
+    ${fySelect}
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">For FY ${fy} (${bounds.start} to ${bounds.end})${ctx.isArchived?' — archived year, read-only':''} · ${ctx.vouchers.length} voucher${ctx.vouchers.length===1?'':'s'} checked</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      ${['critical','high','medium','low'].map(sev=>`
+        <div class="panel" style="flex:1;min-width:140px;margin-bottom:0;"><div class="panel-body">
+          <div class="muted" style="font-size:11px;">${AUDIT_SEVERITY_META[sev].label}</div>
+          <div style="font-size:22px;font-weight:800;color:${counts[sev]?AUDIT_SEVERITY_META[sev].color:'inherit'};">${counts[sev]}</div>
+        </div></div>`).join('')}
+    </div>
+    ${narrativePanel(internalAuditNarrative(findings, fy))}
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0;">
+      <button class="btn secondary small" id="exportAuditPdfBtn" type="button">⬇ Download PDF</button>
+      <button class="btn secondary small" id="exportAuditWordBtn" type="button">⬇ Download Word</button>
+    </div>
+    ${findings.length===0 ? `<div class="panel"><div class="panel-body"><div class="empty">✓ No issues found across all four audit areas for FY ${fy}.</div></div></div>` : groups.map(g=>{
+      const inGroup = findings.filter(f=>f.group===g);
+      if(!inGroup.length) return '';
+      return `
+      <div class="section-title">${g} <span class="muted" style="font-size:11px;font-weight:400;">(${inGroup.length})</span></div>
+      <div class="panel"><div class="panel-body" style="padding:0;">
+        <table>
+          <tr><th>Severity</th><th>Category</th><th>Details</th></tr>
+          ${inGroup.map(f=>`<tr ${f.ledgerId?`data-ledger-detail="${f.ledgerId}" style="cursor:pointer;"`:''}>
+            <td>${auditSeverityPill(f.severity)}</td>
+            <td>${escapeHtml(f.category)}</td>
+            <td style="font-size:12.5px;">${escapeHtml(f.message)}</td>
+          </tr>`).join('')}
+        </table>
+      </div></div>`;
+    }).join('')}
+    </div>
+  `;
+}
+// ---- PDF/Word export -- same clone-the-live-DOM pattern as the Financial Performance Report
+// (buildFinPerfExportDom()/finPerfExportDocumentHtml() above), reusing its FIN_PERF_EXPORT_CSS
+// since the markup vocabulary (.panel/.panel-body/.section-title/table/.muted/.empty) is identical.
+async function buildInternalAuditExportDom(){
+  const src = document.getElementById('internalAuditReportBody');
+  if(!src) return null;
+  const clone = src.cloneNode(true);
+  clone.querySelectorAll('select').forEach(el=>{
+    const span = document.createElement('span');
+    span.textContent = el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+    span.style.fontWeight = '700';
+    el.replaceWith(span);
+  });
+  clone.querySelectorAll('.field label').forEach(el=>el.remove()); // bare "Financial Year" label left behind by the select swap above
+  clone.querySelectorAll('button').forEach(el=>el.remove());
+  return clone;
+}
+function internalAuditExportDocumentHtml(bodyHtml){
+  return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Internal Audit Report</title><style>${FIN_PERF_EXPORT_CSS}</style></head><body>
+    <h1>Internal Audit Report</h1>
+    <p class="muted" style="margin-top:-2px;">${escapeHtml(currentCompany?currentCompany.name:'')} · Generated ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</p>
+    ${bodyHtml}
+  </body></html>`;
+}
+async function exportInternalAuditToPdf(){
+  const btn = document.getElementById('exportAuditPdfBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const clone = await buildInternalAuditExportDom();
+    if(!clone){ toast('Could not prepare the report for export.'); return; }
+    printHTMLDocument(internalAuditExportDocumentHtml(clone.innerHTML));
+  } finally { if(btn) btn.disabled = false; }
+}
+async function exportInternalAuditToWord(){
+  const btn = document.getElementById('exportAuditWordBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const clone = await buildInternalAuditExportDom();
+    if(!clone){ toast('Could not prepare the report for export.'); return; }
+    const html = internalAuditExportDocumentHtml(clone.innerHTML);
+    const blob = new Blob(['﻿', html], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Internal Audit Report - ${((currentCompany&&currentCompany.name)||'Company').replace(/[^a-z0-9]+/gi,'_')} FY ${auditAgentFY}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  } finally { if(btn) btn.disabled = false; }
+}
+
 // Sums taxable value + tax collected/paid for one voucher type within a date range (inclusive),
 // for the Month-over-Month comparison panel below — same gstBreakdownForVoucher() the main GST
 // tables use, just bucketed by month instead of shown as an all-time ledger balance.
@@ -37367,6 +37892,246 @@ function viewGST(){
     </div></div>
     <p class="muted" style="font-size:11.5px;">Note: only Sales/Purchase vouchers where GST was applied via the GST Calculator appear here. Use the Voucher tab to record a taxable sale or purchase.</p>
   `;
+}
+
+// ---- GST / Compliance Watch Agent (AI) -- Nov 2026. Everything on the GST tab above (GST Return
+// Readiness, the month-over-month comparison) is point-in-time: open it on the right day and it
+// tells you about ONE month. This agent is the thing a real compliance function actually does --
+// watch the last several months side by side, catch a period quietly drifting toward a late filing,
+// and insist GST isn't treated as "final" for a month whose own bank activity is still unreconciled
+// (the same soft-sequencing idea monthEndCloseChecklistItems() already applies to the one month
+// being closed -- see its 'gst' item's dependsOn:['reconcile'] -- generalized here across a rolling
+// window instead of a single period). Like every other "AI" feature in this app, this is 100%
+// deterministic: it reasons over the company's own vouchers via the exact same functions the live
+// GST tab already uses (gstReturnReadinessData/gstBreakdownForVoucher), never an external API call,
+// and changes nothing on its own -- every finding just deep-links to where a person would go to act.
+//
+// Two honesty notes, matching companyGstFilingDue() above: this app has no e-filing integration and
+// stores no "filed" flag anywhere, so "due"/"overdue" below is a date-based reminder against the
+// standard GSTR-3B monthly due date (the 20th), not a confirmed filing status; and "ITC risk" below
+// is an internal data-quality signal (a purchase invoice whose supplier has no GSTIN on file can't
+// support an ITC claim), not a reconciliation against GSTN/GSTR-2B data this app was never given.
+
+// The trailing n calendar months ending at (and including) the current one, oldest first.
+function gstComplianceWatchMonths(n){
+  const months = [];
+  const now = new Date();
+  for(let i=n-1;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push(d.toISOString().slice(0,7));
+  }
+  return months;
+}
+// Which month's GSTR-3B is in its active filing window right now, and how many days are left in
+// that window (negative once the 20th has passed -- the "drifting into overdue" signal) -- the same
+// cadence companyGstFilingDue() already uses for the Gateway badge, generalized to name the actual
+// tax period instead of just counting down.
+function gstActiveFilingCycle(){
+  const now = new Date();
+  const day = now.getDate();
+  const periodDate = new Date(now.getFullYear(), now.getMonth()-1, 1); // the month whose return this cycle covers
+  return { monthKey: periodDate.toISOString().slice(0,7), daysLeft: 20-day, overdue: day>20 };
+}
+function gstMonthLabel(monthKey){
+  return new Date(monthKey+'-01T00:00:00').toLocaleDateString('en-IN', {month:'long', year:'numeric'});
+}
+// Core agent: scans the trailing window month by month and returns a flat list of findings using the
+// same {severity, category, message} shape (and AUDIT_SEVERITY_META/auditSeverityPill) as the
+// Internal Audit Agent, so the two reports read as one consistent system rather than two different ones.
+function gstComplianceFindings(lookback){
+  const findings = [];
+  const months = gstComplianceWatchMonths(lookback);
+  const cycle = gstActiveFilingCycle();
+  const today = new Date().toISOString().slice(0,10);
+  const bankLedgers = state.ledgers.filter(l=>bucketOf(l)==='bank');
+  const trend = []; // {monthKey, issueCount} for months with any GST activity, oldest first -- what the single-month readiness card can never show
+
+  for(const monthKey of months){
+    const readiness = gstReturnReadinessData(monthKey);
+    const hasActivity = (readiness.salesCount + readiness.purchaseCount) > 0;
+    if(!hasActivity) continue;
+    const issueCount = readiness.missingGstinVouchers.length + readiness.missingHsnVouchers.length;
+    trend.push({ monthKey, issueCount });
+    const label = gstMonthLabel(monthKey);
+
+    // 1) Filing deadline drift -- only meaningful for the one period whose GSTR-3B window is open
+    // right now; a month well past its own due date isn't "drifting", it's just history (and is
+    // better read via the Internal Audit Agent/the GST tab's own history if it matters at all).
+    if(monthKey === cycle.monthKey && issueCount>0){
+      if(cycle.overdue){
+        findings.push({ severity:'critical', category:'Filing Deadline', monthKey,
+          message:`GSTR-3B for ${label} was due on the 20th and still has ${issueCount} open issue${issueCount===1?'':'s'} (missing GSTIN/HSN) — this filing is now overdue.` });
+      } else {
+        const sev = cycle.daysLeft<=5 ? 'high' : cycle.daysLeft<=10 ? 'medium' : 'low';
+        findings.push({ severity:sev, category:'Filing Deadline', monthKey,
+          message:`GSTR-3B for ${label} is due in ${cycle.daysLeft} day${cycle.daysLeft===1?'':'s'} and still has ${issueCount} open issue${issueCount===1?'':'s'} — at risk of slipping past the 20th if left unresolved.` });
+      }
+    }
+
+    // 2) Sequencing -- don't treat a period's GST as final until that period's own bank activity is
+    // reconciled; otherwise a cleared bank entry discovered later can still change what that
+    // month's GST figures should have been. Checked across the whole window, not just the month
+    // currently being closed, since a stale entry from two months back is just as live a risk.
+    let staleInPeriod = 0;
+    for(const l of bankLedgers){
+      staleInPeriod += bankReconcileEntries(l.id, today).filter(r=>!r.cleared && (r.date||'').startsWith(monthKey)).length;
+    }
+    if(readiness.ready && staleInPeriod>0){
+      findings.push({ severity: (monthKey===cycle.monthKey && cycle.overdue) ? 'high' : 'medium', category:'Sequencing — Reconcile Before Filing', monthKey,
+        message:`GSTR-3B for ${label} looks clear on GSTIN/HSN, but ${staleInPeriod} bank entr${staleInPeriod===1?'y':'ies'} from that month ${staleInPeriod===1?'is':'are'} still unreconciled — reconcile the bank first so this period's GST figures don't change under you after filing.` });
+    }
+
+    // 3) ITC at risk -- a Purchase invoice with GST applied but no GSTIN on file for the supplier
+    // can't legitimately support an input-tax-credit claim under GST law. Internal signal only --
+    // see the honesty note above this block.
+    const itcRisk = readiness.missingGstinVouchers.filter(x=>x.type==='Purchase');
+    if(itcRisk.length){
+      let atRisk = 0;
+      for(const x of itcRisk){
+        const v = state.vouchers.find(vv=>vv.id===x.voucherId);
+        if(v){ try{ atRisk += gstBreakdownForVoucher(v).totalTax; }catch(e){} }
+      }
+      findings.push({ severity:'medium', category:'ITC Risk — Missing Supplier GSTIN', monthKey,
+        message:`₹${fmt(r2(atRisk))} of input tax credit across ${itcRisk.length} purchase invoice${itcRisk.length===1?'':'s'} in ${label} may not be valid for ITC — the supplier's GSTIN isn't on file.`,
+        voucherIds: itcRisk.map(x=>x.voucherId) });
+    }
+  }
+
+  // 4) Compliance drift -- the thing a single month's snapshot can never show: the open-issue count
+  // climbing for several months running instead of being worked down.
+  if(trend.length>=3){
+    const last3 = trend.slice(-3);
+    const nonDecreasing = last3.every((t,i)=> i===0 || t.issueCount >= last3[i-1].issueCount);
+    if(nonDecreasing && last3[2].issueCount > last3[0].issueCount){
+      findings.push({ severity:'medium', category:'Compliance Drift',
+        message:`Open GST issues have grown across the last ${last3.length} months with activity (${last3.map(t=>t.issueCount).join(' → ')}) — the compliance gap is widening rather than being worked down.` });
+    }
+  }
+
+  findings.sort((a,b)=> AUDIT_SEVERITY_ORDER[a.severity]-AUDIT_SEVERITY_ORDER[b.severity]);
+  return { findings, trend, cycle };
+}
+function gstComplianceNarrative(result, lookback){
+  const { findings, trend } = result;
+  const notes = [];
+  const counts = {critical:0,high:0,medium:0,low:0};
+  findings.forEach(f=>counts[f.severity]++);
+  if(!findings.length){
+    notes.push(trend.length ? `No compliance issues surfaced across the last ${lookback} months — filings look on track and bank activity is reconciled for every period checked.` : `No GST-applicable activity in the last ${lookback} months to watch yet.`);
+    return notes;
+  }
+  if(counts.critical>0){
+    notes.push(`${counts.critical} filing${counts.critical===1?' is':'s are'} already past due — worth resolving today, not at the next close.`);
+  } else if(counts.high>0){
+    notes.push(`Nothing overdue yet, but ${counts.high} finding${counts.high===1?'':'s'} ${counts.high===1?'is':'are'} close enough to the deadline to need attention this week.`);
+  } else {
+    notes.push(`Nothing urgent right now — the ${findings.length} finding${findings.length===1?'':'s'} here are worth clearing but none sit hard against a deadline.`);
+  }
+  if(trend.length>=2){
+    const first = trend[0], last = trend[trend.length-1];
+    if(last.issueCount < first.issueCount) notes.push(`Open issues have actually come down over the window (${first.issueCount} → ${last.issueCount}) — whatever's being done to clear them is working.`);
+  }
+  return notes;
+}
+function reportGstComplianceWatch(){
+  const lookback = [3,6,12].includes(gstComplianceLookback) ? gstComplianceLookback : 6;
+  const lookbackSelect = `
+    <div class="field" style="max-width:220px;margin-bottom:14px;">
+      <label>Look back</label>
+      <select id="gstComplianceLookbackSelect">${[3,6,12].map(n=>`<option value="${n}" ${n===lookback?'selected':''}>${n} months</option>`).join('')}</select>
+    </div>`;
+  const result = gstComplianceFindings(lookback);
+  const { findings, cycle } = result;
+  const counts = {critical:0,high:0,medium:0,low:0};
+  findings.forEach(f=>counts[f.severity]++);
+  const groups = ['Filing Deadline','Sequencing — Reconcile Before Filing','Compliance Drift','ITC Risk — Missing Supplier GSTIN'];
+  return `
+    ${reportHeader('GST / Compliance Watch Agent (AI)')}
+    <div id="gstComplianceReportBody">
+    ${lookbackSelect}
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">Watching ${lookback} months through ${gstMonthLabel(cycle.monthKey)} (the period currently in its GSTR-3B filing window) · a date-based due-date reminder, not a confirmed filing status</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      ${['critical','high','medium','low'].map(sev=>`
+        <div class="panel" style="flex:1;min-width:140px;margin-bottom:0;"><div class="panel-body">
+          <div class="muted" style="font-size:11px;">${AUDIT_SEVERITY_META[sev].label}</div>
+          <div style="font-size:22px;font-weight:800;color:${counts[sev]?AUDIT_SEVERITY_META[sev].color:'inherit'};">${counts[sev]}</div>
+        </div></div>`).join('')}
+    </div>
+    ${narrativePanel(gstComplianceNarrative(result, lookback))}
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0;">
+      <button class="btn secondary small" id="exportGstCompliancePdfBtn" type="button">⬇ Download PDF</button>
+      <button class="btn secondary small" id="exportGstComplianceWordBtn" type="button">⬇ Download Word</button>
+    </div>
+    ${findings.length===0 ? `<div class="panel"><div class="panel-body"><div class="empty">✓ No compliance issues found across the last ${lookback} months.</div></div></div>` : groups.map(g=>{
+      const inGroup = findings.filter(f=>f.category===g);
+      if(!inGroup.length) return '';
+      return `
+      <div class="section-title">${g} <span class="muted" style="font-size:11px;font-weight:400;">(${inGroup.length})</span></div>
+      <div class="panel"><div class="panel-body" style="padding:0;">
+        <table>
+          <tr><th>Severity</th><th>Period</th><th>Details</th></tr>
+          ${inGroup.map(f=>`<tr>
+            <td>${auditSeverityPill(f.severity)}</td>
+            <td class="muted" style="font-size:12px;white-space:nowrap;">${f.monthKey?gstMonthLabel(f.monthKey):'—'}</td>
+            <td style="font-size:12.5px;">${escapeHtml(f.message)}${f.voucherIds&&f.voucherIds.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${f.voucherIds.map(id=>`<span data-edit-voucher="${id}" style="cursor:pointer;padding:3px 9px;border-radius:999px;background:var(--surface-strong,#EEF3EF);font-size:11px;">Open voucher →</span>`).join('')}</div>` : ''}</td>
+          </tr>`).join('')}
+        </table>
+      </div></div>`;
+    }).join('')}
+    </div>
+  `;
+}
+// ---- PDF/Word export -- same clone-the-live-DOM pattern as the Internal Audit Agent
+// (buildInternalAuditExportDom()/internalAuditExportDocumentHtml() above), reusing FIN_PERF_EXPORT_CSS
+// since the markup vocabulary (.panel/.panel-body/.section-title/table/.muted/.empty) is identical.
+async function buildGstComplianceExportDom(){
+  const src = document.getElementById('gstComplianceReportBody');
+  if(!src) return null;
+  const clone = src.cloneNode(true);
+  clone.querySelectorAll('select').forEach(el=>{
+    const span = document.createElement('span');
+    span.textContent = el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+    span.style.fontWeight = '700';
+    el.replaceWith(span);
+  });
+  clone.querySelectorAll('.field label').forEach(el=>el.remove()); // bare "Look back" label left behind by the select swap above
+  clone.querySelectorAll('button').forEach(el=>el.remove());
+  clone.querySelectorAll('[data-edit-voucher]').forEach(el=>{ el.style.cssText = 'padding:3px 9px;border-radius:999px;background:#EEF3EF;font-size:11px;display:inline-block;margin-top:4px;'; });
+  return clone;
+}
+function gstComplianceExportDocumentHtml(bodyHtml){
+  return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>GST Compliance Watch Report</title><style>${FIN_PERF_EXPORT_CSS}</style></head><body>
+    <h1>GST / Compliance Watch Report</h1>
+    <p class="muted" style="margin-top:-2px;">${escapeHtml(currentCompany?currentCompany.name:'')} · Generated ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</p>
+    ${bodyHtml}
+  </body></html>`;
+}
+async function exportGstComplianceToPdf(){
+  const btn = document.getElementById('exportGstCompliancePdfBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const clone = await buildGstComplianceExportDom();
+    if(!clone){ toast('Could not prepare the report for export.'); return; }
+    printHTMLDocument(gstComplianceExportDocumentHtml(clone.innerHTML));
+  } finally { if(btn) btn.disabled = false; }
+}
+async function exportGstComplianceToWord(){
+  const btn = document.getElementById('exportGstComplianceWordBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const clone = await buildGstComplianceExportDom();
+    if(!clone){ toast('Could not prepare the report for export.'); return; }
+    const html = gstComplianceExportDocumentHtml(clone.innerHTML);
+    const blob = new Blob(['﻿', html], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `GST Compliance Watch Report - ${((currentCompany&&currentCompany.name)||'Company').replace(/[^a-z0-9]+/gi,'_')}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  } finally { if(btn) btn.disabled = false; }
 }
 
 // "GST Format" — a browsable, one-by-one reference for every active GST return form (GSTR-1 through
@@ -42666,6 +43431,12 @@ function attachHandlers(){
     });
     document.getElementById('exportFinPerfPdfBtn')?.addEventListener('click', exportFinancialPerformanceToPdf);
     document.getElementById('exportFinPerfWordBtn')?.addEventListener('click', exportFinancialPerformanceToWord);
+    document.getElementById('auditAgentFYSelect')?.addEventListener('change', e=>{ auditAgentFY = e.target.value; render(); });
+    document.getElementById('exportAuditPdfBtn')?.addEventListener('click', exportInternalAuditToPdf);
+    document.getElementById('exportAuditWordBtn')?.addEventListener('click', exportInternalAuditToWord);
+    document.getElementById('gstComplianceLookbackSelect')?.addEventListener('change', e=>{ gstComplianceLookback = Number(e.target.value)||6; render(); });
+    document.getElementById('exportGstCompliancePdfBtn')?.addEventListener('click', exportGstComplianceToPdf);
+    document.getElementById('exportGstComplianceWordBtn')?.addEventListener('click', exportGstComplianceToWord);
     document.getElementById('openShareSnapshotBtn')?.addEventListener('click', async ()=>{
       modal = 'shareSnapshot';
       shareSnapshotDataUrl = null;
