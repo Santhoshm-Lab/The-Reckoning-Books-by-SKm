@@ -26544,6 +26544,21 @@ function dashboardExceptionQueue(){
     });
   }
 
+  // 10) Nov 2026 -- cash-runway dip and overdue TDS deposits from the new agents. Each in its own
+  // try/catch: a surprise in one agent's data must never take the whole dashboard queue down.
+  try{
+    const cashTop = cashWorkingCapitalData().findings.find(f=>f.category==='Cash Runway');
+    if(cashTop && (cashTop.severity==='critical'||cashTop.severity==='high')){
+      items.push({ id:'cash-runway-'+cashTop.subject, severity:'warn', icon:'💧', text: cashTop.message, action: ()=>{ openPinnedReport('cashWorkingCapital'); } });
+    }
+  }catch(e){ console.warn('cash agent queue item failed', e); }
+  try{
+    const tdsTop = tdsAdvanceTaxData().findings.find(f=>f.category==='Withheld But Not Deposited' && (f.severity==='critical'||f.severity==='high'));
+    if(tdsTop){
+      items.push({ id:'tds-deposit-'+tdsTop.subject, severity:'warn', icon:'🧾', text: tdsTop.message, action: ()=>{ openPinnedReport('tdsAdvanceTax'); } });
+    }
+  }catch(e){ console.warn('tds agent queue item failed', e); }
+
   return items;
 }
 // ---- GL anomaly / outlier detection -- three purely-statistical checks over the existing voucher
@@ -33898,6 +33913,11 @@ function viewReports(){
   if(reportsSelected==='dataIntegrity') return reportDataIntegrity();
   if(reportsSelected==='internalAudit') return reportInternalAudit();
   if(reportsSelected==='gstCompliance') return reportGstComplianceWatch();
+  if(reportsSelected==='cashWorkingCapital') return reportCashWorkingCapital();
+  if(reportsSelected==='tdsAdvanceTax') return reportTdsAdvanceTax();
+  if(reportsSelected==='spendPolicy') return reportSpendPolicy();
+  if(reportsSelected==='collectionsPayRun') return reportCollectionsPayRun();
+  if(reportsSelected==='agentsHub') return reportAgentsHub();
   if(reportsSelected==='financialPerformance') return reportFinancialPerformance();
   if(reportsSelected==='stakeholderPresentation') return reportStakeholderPresentation();
   return reportsLanding();
@@ -33947,6 +33967,12 @@ const REPORT_CARDS = [
   // a "ready" GST period, and an open-issue count climbing instead of shrinking -- none of which a
   // single month's point-in-time GST Return Readiness card (still on the GST tab) can show on its own.
   {id:'gstCompliance', icon:'shield', title:'GST / Compliance Watch Agent (AI)', desc:'Watches the last several months of GST readiness side by side — a filing drifting toward late, bank reconciliation lagging behind a period marked ready, input credit at risk from a missing supplier GSTIN, and an open-issue count trending the wrong way — each finding explainable and clickable back to the voucher.', group:'AI & Predictive Insights'},
+  // Nov 2026 -- five more agents + a unified inbox over all of them (see the block above reportGstComplianceWatch's siblings).
+  {id:'agentsHub', icon:'hub', title:'AI Agents Hub', desc:'One ranked inbox over every AI agent — cash, TDS and advance tax, spend policy, collections, GST, audit and bad-debt risk — so you work a single queue. Open a finding to fix it, snooze it for a week or dismiss it.', group:'AI & Predictive Insights'},
+  {id:'cashWorkingCapital', icon:'account_balance_wallet', title:'Cash & Working-Capital Agent (AI)', desc:'Projects your cash 90 days ahead from open invoices, payables and recurring entries, finds the date cash would run out, stress-tests it against late payers, and suggests which collections to chase and which supplier payments can wait.', group:'AI & Predictive Insights'},
+  {id:'tdsAdvanceTax', icon:'receipt_long', title:'TDS & Advance-Tax Agent (AI)', desc:'Spots supplier payments that probably needed TDS but have none, deductions below the default rate, tax withheld but not deposited by the 7th, and projects each advance-tax instalment from year-to-date profit.', group:'AI & Predictive Insights'},
+  {id:'spendPolicy', icon:'policy', title:'Spend-Policy Agent (AI)', desc:'Set your own spending rules — single-payment cap, vendor monthly cap, category caps, weekend payments — and the agent flags every voucher that breaks one. One tap suggests starter caps from your own history.', group:'AI & Predictive Insights'},
+  {id:'collectionsPayRun', icon:'forward_to_inbox', title:'Collections & Payment-Run Agent (AI)', desc:'Drafts tone-aware reminders (friendly, firm, final notice) for every overdue customer — copy, WhatsApp or email, never auto-sent — and proposes this week\'s supplier payment run against the cash you actually have.', group:'AI & Predictive Insights'},
   // Oct 15, 2026 -- the Consolidation Report already existed (consolidatedFinancials()/consolidationModal(),
   // combining P&L and Balance Sheet across a chosen group of companies with intercompany balances
   // eliminated) but only ever lived on the Gateway screen, opened via a button beside the company list --
@@ -33985,6 +34011,7 @@ const REPORT_CARD_HUES = {
   cashFlowForecast:'#0369A1', esg:'#15803D',
   forexRealized:'#0D9488', eclProvision:'#6D28D9', internalAudit:'#B91C1C',
   gstCompliance:'#1D4ED8',
+  cashWorkingCapital:'#0E7490', tdsAdvanceTax:'#B45309', spendPolicy:'#7C3AED', collectionsPayRun:'#0F766E', agentsHub:'#4338CA',
 };
 function reportCardArt(id){
   const hue = REPORT_CARD_HUES[id] || 'var(--accent1)';
@@ -34111,6 +34138,37 @@ function reportCardArt(id){
     // A shield (watching over the books) with a clock face inset -- this card's whole point is
     // tracking deadlines and drift across periods, not a single point-in-time reading -- and a
     // small checkmark underneath for "clear to file" once that watch comes back clean.
+    cashWorkingCapital: `
+      <path d="M10 44 L20 36 L28 40 L38 24 L54 18" style="fill:none;stroke:${hue};stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;"/>
+      <path d="M10 44 L20 36 L28 40 L38 24 L54 18 L54 52 L10 52 Z" style="fill:color-mix(in srgb, ${hue} 16%, var(--surface));stroke:none;"/>
+      <line x1="10" y1="46" x2="54" y2="46" style="stroke:${hue};stroke-width:1.5;stroke-dasharray:3 3;"/>
+      <circle cx="38" cy="24" r="3.2" style="fill:${hue};"/>
+      <circle cx="54" cy="18" r="2.6" style="fill:var(--surface);stroke:${hue};stroke-width:2;"/>`,
+    tdsAdvanceTax: `
+      <rect x="14" y="10" width="30" height="40" rx="4" style="fill:color-mix(in srgb, ${hue} 16%, var(--surface));stroke:${hue};stroke-width:2;"/>
+      <line x1="20" y1="20" x2="38" y2="20" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <line x1="20" y1="27" x2="38" y2="27" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <line x1="20" y1="34" x2="30" y2="34" style="stroke:${hue};stroke-width:2;stroke-linecap:round;"/>
+      <circle cx="43" cy="42" r="11" style="fill:var(--surface);stroke:${hue};stroke-width:2.2;"/>
+      <text x="43" y="47" text-anchor="middle" style="font:700 13px sans-serif;fill:${hue};">%</text>`,
+    spendPolicy: `
+      <path d="M32 8 L50 15 C50 30, 46 44, 32 56 C18 44, 14 30, 14 15 Z" style="fill:color-mix(in srgb, ${hue} 14%, var(--surface));stroke:${hue};stroke-width:2.2;stroke-linejoin:round;"/>
+      <line x1="22" y1="36" x2="42" y2="36" style="stroke:${hue};stroke-width:2;stroke-dasharray:3 2;"/>
+      <rect x="22" y="26" width="5" height="10" style="fill:${hue};"/>
+      <rect x="30" y="20" width="5" height="16" style="fill:${hue};"/>
+      <rect x="38" y="30" width="5" height="6" style="fill:${hue};"/>`,
+    collectionsPayRun: `
+      <rect x="9" y="16" width="36" height="26" rx="4" style="fill:color-mix(in srgb, ${hue} 16%, var(--surface));stroke:${hue};stroke-width:2;"/>
+      <path d="M10 18 L27 31 L44 18" style="fill:none;stroke:${hue};stroke-width:2;stroke-linejoin:round;"/>
+      <circle cx="46" cy="42" r="10" style="fill:var(--surface);stroke:${hue};stroke-width:2.2;"/>
+      <path d="M41 42 H51 M47 38 L51 42 L47 46" style="fill:none;stroke:${hue};stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"/>`,
+    agentsHub: `
+      <circle cx="32" cy="32" r="8" style="fill:${hue};"/>
+      <circle cx="14" cy="16" r="5" style="fill:color-mix(in srgb, ${hue} 35%, var(--surface));stroke:${hue};stroke-width:1.8;"/>
+      <circle cx="50" cy="16" r="5" style="fill:color-mix(in srgb, ${hue} 35%, var(--surface));stroke:${hue};stroke-width:1.8;"/>
+      <circle cx="14" cy="48" r="5" style="fill:color-mix(in srgb, ${hue} 35%, var(--surface));stroke:${hue};stroke-width:1.8;"/>
+      <circle cx="50" cy="48" r="5" style="fill:color-mix(in srgb, ${hue} 35%, var(--surface));stroke:${hue};stroke-width:1.8;"/>
+      <path d="M18 19 L26 27 M46 19 L38 27 M18 45 L26 37 M46 45 L38 37" style="fill:none;stroke:${hue};stroke-width:2;stroke-linecap:round;"/>`,
     gstCompliance: `
       <path d="M32 8 L50 15 C50 30, 46 44, 32 56 C18 44, 14 30, 14 15 Z" style="fill:color-mix(in srgb, ${hue} 16%, var(--surface));stroke:${hue};stroke-width:2.2;stroke-linejoin:round;"/>
       <circle cx="32" cy="29" r="11" style="fill:var(--surface);stroke:${hue};stroke-width:2.2;"/>
@@ -38132,6 +38190,943 @@ async function exportGstComplianceToWord(){
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
   } finally { if(btn) btn.disabled = false; }
+}
+
+/* =====================================================================================
+   Nov 2026 -- five new AI agents, one round:
+     1. Cash & Working-Capital Agent        (reportsSelected==='cashWorkingCapital')
+     2. TDS & Advance-Tax Compliance Agent  (reportsSelected==='tdsAdvanceTax')
+     3. Spend-Policy Agent                  (reportsSelected==='spendPolicy')
+     4. Collections & Payment-Run Agent     (reportsSelected==='collectionsPayRun')
+     5. AI Agents Hub -- one ranked inbox over every agent (reportsSelected==='agentsHub')
+   Same house rules as the GST / Compliance Watch Agent and Internal Audit Agent above: 100%
+   deterministic JavaScript over the company's own books, no external API, nothing is posted, sent or
+   changed automatically, every number is explainable, and findings share the {severity, category,
+   message} shape plus auditSeverityPill()/AUDIT_SEVERITY_META so all of the agents read as one system.
+   ===================================================================================== */
+function agentToday(){ return new Date().toISOString().slice(0,10); }
+function agentDaysBetween(fromStr, toStr){
+  return Math.round((new Date(toStr+'T00:00:00') - new Date(fromStr+'T00:00:00'))/86400000);
+}
+function agentCashAndBankBalance(){
+  return r2(state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank').reduce((s,l)=>s+ledgerBalance(l.id),0));
+}
+function agentHashStr(s){
+  let h = 0;
+  for(let i=0;i<s.length;i++){ h = ((h<<5)-h+s.charCodeAt(i))|0; }
+  return Math.abs(h).toString(36);
+}
+// Stable identity for a finding across re-renders (so Snooze/Dismiss on the Hub survive a day
+// rolling over): built from the agent, the category and a "subject" (a ledger/month/rule id) -- never
+// from the message text, which carries day counts that change every day.
+function agentFindingKey(agentId, f){
+  return agentId+'|'+(f.category||'')+'|'+(f.subject || agentHashStr(f.message||''));
+}
+function agentSeverityTiles(findings){
+  const counts = {critical:0,high:0,medium:0,low:0};
+  findings.forEach(f=>counts[f.severity]++);
+  return `<div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+    ${['critical','high','medium','low'].map(sev=>`
+      <div class="panel" style="flex:1;min-width:120px;margin-bottom:0;"><div class="panel-body">
+        <div class="muted" style="font-size:11px;">${AUDIT_SEVERITY_META[sev].label}</div>
+        <div style="font-size:22px;font-weight:800;color:${counts[sev]?AUDIT_SEVERITY_META[sev].color:'inherit'};">${counts[sev]}</div>
+      </div></div>`).join('')}
+  </div>`;
+}
+function agentStatTile(label, value, sub){
+  return `<div class="panel" style="flex:1;min-width:150px;margin-bottom:0;"><div class="panel-body">
+    <div class="muted" style="font-size:11px;">${label}</div>
+    <div style="font-size:19px;font-weight:800;">${value}</div>
+    ${sub?`<div class="muted" style="font-size:10.5px;margin-top:2px;">${sub}</div>`:''}
+  </div></div>`;
+}
+// Findings grouped by category into the same severity/details table the GST Compliance Watch Agent uses.
+function agentFindingsTables(findings, categories){
+  if(!findings.length) return '';
+  const cats = categories || Array.from(new Set(findings.map(f=>f.category)));
+  return cats.map(g=>{
+    const inGroup = findings.filter(f=>f.category===g);
+    if(!inGroup.length) return '';
+    return `
+      <div class="section-title">${escapeHtml(g)} <span class="muted" style="font-size:11px;font-weight:400;">(${inGroup.length})</span></div>
+      <div class="panel"><div class="panel-body" style="padding:0;">
+        <table>
+          <tr><th>Severity</th><th>Details</th></tr>
+          ${inGroup.map(f=>`<tr>
+            <td>${auditSeverityPill(f.severity)}</td>
+            <td style="font-size:12.5px;">${escapeHtml(f.message)}${f.voucherIds&&f.voucherIds.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">${f.voucherIds.slice(0,8).map(id=>`<span data-edit-voucher="${id}" style="cursor:pointer;padding:3px 9px;border-radius:999px;background:var(--surface-strong,#EEF3EF);font-size:11px;">Open voucher →</span>`).join('')}${f.voucherIds.length>8?`<span class="muted" style="font-size:11px;padding:3px 4px;">+${f.voucherIds.length-8} more</span>`:''}</div>` : ''}</td>
+          </tr>`).join('')}
+        </table>
+      </div></div>`;
+  }).join('');
+}
+function agentExportButtons(bodyId, title){
+  return `<div style="display:flex;justify-content:flex-end;gap:8px;margin:14px 0;">
+    <button class="btn secondary small" type="button" data-agent-export="pdf" data-agent-body="${bodyId}" data-agent-title="${escapeAttr(title)}">⬇ Download PDF</button>
+    <button class="btn secondary small" type="button" data-agent-export="word" data-agent-body="${bodyId}" data-agent-title="${escapeAttr(title)}">⬇ Download Word</button>
+  </div>`;
+}
+// One generic PDF/Word exporter for every agent in this block -- same clone-the-live-DOM pattern as
+// buildGstComplianceExportDom()/gstComplianceExportDocumentHtml(), parameterised by body id + title.
+function buildAgentExportClone(bodyId){
+  const src = document.getElementById(bodyId);
+  if(!src) return null;
+  const clone = src.cloneNode(true);
+  clone.querySelectorAll('select').forEach(el=>{
+    const span = document.createElement('span');
+    span.textContent = el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+    span.style.fontWeight = '700';
+    el.replaceWith(span);
+  });
+  clone.querySelectorAll('input').forEach(el=>{
+    const span = document.createElement('span');
+    span.textContent = el.value;
+    span.style.fontWeight = '700';
+    el.replaceWith(span);
+  });
+  clone.querySelectorAll('button,details>summary,[data-agent-noexport]').forEach(el=>el.remove());
+  clone.querySelectorAll('details').forEach(d=>{ d.setAttribute('open',''); });
+  clone.querySelectorAll('[data-edit-voucher]').forEach(el=>{ el.style.cssText = 'padding:3px 9px;border-radius:999px;background:#EEF3EF;font-size:11px;display:inline-block;margin-top:4px;'; });
+  return clone;
+}
+function agentExportDocumentHtml(title, bodyHtml){
+  return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${FIN_PERF_EXPORT_CSS}</style></head><body>
+    <h1>${escapeHtml(title)}</h1>
+    <p class="muted" style="margin-top:-2px;">${escapeHtml(currentCompany?currentCompany.name:'')} · Generated ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</p>
+    ${bodyHtml}
+  </body></html>`;
+}
+function exportAgentReport(kind, bodyId, title){
+  const clone = buildAgentExportClone(bodyId);
+  if(!clone){ toast('Could not prepare the report for export.'); return; }
+  const html = agentExportDocumentHtml(title, clone.innerHTML);
+  if(kind==='pdf'){ printHTMLDocument(html); return; }
+  const blob = new Blob(['﻿', html], {type:'application/msword'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title} - ${((currentCompany&&currentCompany.name)||'Company').replace(/[^a-z0-9]+/gi,'_')}.doc`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
+
+/* ---------------------------------------------------------------------------------
+   1. CASH & WORKING-CAPITAL AGENT
+   Reads the same ingredients as the Dashboard's AI Cash-Flow Forecast (open invoices dated by each
+   party's Credit Period, plus active recurring templates) but keeps the party/voucher behind every
+   event so it can answer the questions a plain projection can't: WHEN does cash run out, what if
+   the customers who usually pay late do so again, which collections matter most, and which supplier
+   payments could move without hurting anyone.
+   --------------------------------------------------------------------------------- */
+function cashAgentEvents(){
+  const today = agentToday();
+  const horizonEnd = addDays(today, 90);
+  const events = [];
+  const DEFAULT_TERMS_DAYS = 30; // same default cashFlowForecastData() uses when a party has no Credit Period
+  state.ledgers.forEach(l=>{
+    if(l.partyType!=='customer' && l.partyType!=='supplier') return;
+    const terms = l.creditDays!=null ? l.creditDays : DEFAULT_TERMS_DAYS;
+    const isCustomer = l.partyType==='customer';
+    const chronicLate = isCustomer && eclReliabilityMultiplier(customerPaymentReliability(l.id))>=2;
+    partyOutstandingInvoices(l.id).forEach(inv=>{
+      const due = addDays(inv.date, terms);
+      const daysLate = due<today ? agentDaysBetween(due, today) : 0;
+      // An overdue supplier bill is assumed payable today; an overdue CUSTOMER invoice is assumed
+      // collected about two weeks out (i.e. if chased now) -- never "today", which would make cash
+      // look healthier than it is.
+      const eventDate = due>=today ? due : (isCustomer ? addDays(today, 14) : today);
+      events.push({
+        date: eventDate, dueDate: due, daysLate,
+        amount: isCustomer ? inv.remaining : -inv.remaining,
+        kind: isCustomer ? 'receipt' : 'payment',
+        ledgerId: l.id, name: l.name, voucherId: inv.voucherId,
+        // "risky" = a customer with a chronic late-payment history, or an invoice already 60+ days
+        // past due -- the stress scenario assumes these simply don't arrive inside the horizon.
+        risky: isCustomer && (chronicLate || daysLate>60),
+      });
+    });
+  });
+  (state.recurringTemplates||[]).filter(t=>t.active).forEach(t=>{
+    let d = t.nextDueDate, guard = 0;
+    while(d && d<=horizonEnd && guard<40){
+      const amt = Number(t.amount)||0;
+      if(amt) events.push({ date:d, dueDate:d, daysLate:0, amount: t.type==='Receipt'?amt:-amt, kind:'recurring', name: t.name||t.narration||'Recurring entry', risky:false });
+      d = advanceDate(d, t.frequency);
+      guard++;
+    }
+  });
+  return events.filter(e=>e.date<=horizonEnd).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+}
+// Walks the dated events forward from today's cash, returning the balance after every date that has
+// an event, the lowest balance reached, and the first date the balance goes below zero (if ever).
+function cashAgentProject(events, startCash, excludeRisky){
+  const today = agentToday();
+  const points = [{ date: today, balance: startCash }];
+  let running = startCash, minBalance = startCash, minDate = today, firstNegative = startCash<0 ? { date: today, balance: startCash } : null;
+  let i = 0;
+  const list = events.filter(e=>!(excludeRisky && e.risky));
+  while(i<list.length){
+    const d = list[i].date;
+    while(i<list.length && list[i].date===d){ running += list[i].amount; i++; }
+    running = r2(running);
+    points.push({ date:d, balance: running });
+    if(running<minBalance){ minBalance = running; minDate = d; }
+    if(running<0 && !firstNegative) firstNegative = { date:d, balance: running };
+  }
+  return { points, minBalance: r2(minBalance), minDate, firstNegative };
+}
+function cashAgentBalanceOn(points, date){
+  let bal = points[0].balance;
+  for(const p of points){ if(p.date<=date) bal = p.balance; else break; }
+  return bal;
+}
+function cashWorkingCapitalData(){
+  const today = agentToday();
+  const startCash = agentCashAndBankBalance();
+  const events = cashAgentEvents();
+  const base = cashAgentProject(events, startCash, false);
+  const stress = cashAgentProject(events, startCash, true);
+
+  // Working-capital days: how long money takes to come in vs go out, over the last 90 days.
+  const from = addDays(today, -90);
+  const sales90 = state.ledgers.filter(l=>bucketOf(l)==='sales').reduce((s,l)=>s-ledgerFlowBetween(l.id, from, today),0);
+  const purch90 = state.ledgers.filter(l=>bucketOf(l)==='purch').reduce((s,l)=>s+ledgerFlowBetween(l.id, from, today),0);
+  const receivables = r2(events.filter(e=>e.kind==='receipt').reduce((s,e)=>s+e.amount,0));
+  const payables = r2(-events.filter(e=>e.kind==='payment').reduce((s,e)=>s+e.amount,0));
+  const dso = sales90>0 ? Math.round(receivables/sales90*90) : null;
+  const dpo = purch90>0 ? Math.round(payables/purch90*90) : null;
+
+  const chase = events.filter(e=>e.kind==='receipt' && e.daysLate>0).sort((a,b)=>b.amount-a.amount);
+  const overdueTotal = r2(chase.reduce((s,e)=>s+e.amount,0));
+
+  // Greedy deferral plan: if the base case dips below zero, which not-yet-overdue supplier payments
+  // falling on or before the low point could move later (largest first) until the dip is covered?
+  let deferrals = [];
+  if(base.minBalance<0){
+    let need = -base.minBalance;
+    const cands = events.filter(e=>e.kind==='payment' && e.daysLate===0 && e.date<=base.minDate).sort((a,b)=>a.amount-b.amount); // amount is negative: most negative = largest
+    for(const e of cands){
+      if(need<=0.005) break;
+      deferrals.push(e);
+      need -= -e.amount;
+    }
+    if(need>0.005) deferrals = deferrals.concat([]); // plan can't fully close the gap -- surfaced via deferralShort below
+    var deferralShort = Math.max(0, r2(need));
+  } else { var deferralShort = 0; }
+
+  const findings = [];
+  const label = d => new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  if(startCash<0){
+    findings.push({ severity:'critical', category:'Cash Runway', subject:'negative-now',
+      message:`Cash and bank balances are already negative today (₹${fmt(startCash)}) — check for an overdraft or an unposted deposit.` });
+  }
+  if(base.firstNegative && startCash>=0){
+    const days = agentDaysBetween(today, base.firstNegative.date);
+    findings.push({ severity: days<=14?'high':days<=30?'medium':'low', category:'Cash Runway', subject:'dip',
+      message:`Projected cash goes negative on ${label(base.firstNegative.date)} (${days} day${days===1?'':'s'} away) and bottoms out at ₹${fmt(base.minBalance)} on ${label(base.minDate)}, after known receivables, payables and recurring entries.` });
+  } else if(!base.firstNegative && stress.firstNegative){
+    const names = Array.from(new Set(events.filter(e=>e.risky).map(e=>e.name))).slice(0,3).join(', ');
+    findings.push({ severity:'medium', category:'Cash Runway', subject:'stress',
+      message:`Cash holds in the base forecast, but if the late-paying customers (${names||'those with a late-payment history'}) don't pay inside 90 days, it goes negative on ${label(stress.firstNegative.date)} and bottoms at ₹${fmt(stress.minBalance)}.` });
+  }
+  if(deferrals.length){
+    const total = r2(deferrals.reduce((s,e)=>s-e.amount,0));
+    const top = deferrals.slice(0,3).map(e=>`${e.name} ₹${fmt(-e.amount)}`).join(', ');
+    findings.push({ severity:'medium', category:'Payments That Can Wait', subject:'defer',
+      message:`Moving ${deferrals.length} supplier payment${deferrals.length===1?'':'s'} worth ₹${fmt(total)} (${top}${deferrals.length>3?', …':''}) to after ${label(base.minDate)} would ${deferralShort>0?`close most of the gap, leaving ₹${fmt(deferralShort)} still to cover`:'keep the projection above zero'} — agree new dates with those suppliers first.` });
+  }
+  if(chase.length){
+    const names = Array.from(new Set(chase.slice(0,3).map(e=>`${e.name} ₹${fmt(e.amount)}`))).join(', ');
+    findings.push({ severity: base.firstNegative ? 'high' : overdueTotal>0 && stress.firstNegative ? 'medium' : 'low', category:'Collect First', subject:'chase',
+      message:`₹${fmt(overdueTotal)} is already past due across ${new Set(chase.map(e=>e.ledgerId)).size} customer${new Set(chase.map(e=>e.ledgerId)).size===1?'':'s'}. Chasing ${names} first has the biggest effect on your cash runway.` });
+  }
+  if(dso!=null && dpo!=null && dso>dpo+15){
+    findings.push({ severity: dso>75?'medium':'low', category:'Working-Capital Gap', subject:'dso-dpo',
+      message:`Customers take about ${dso} days to pay you, while you pay suppliers in about ${dpo} days — a ${dso-dpo}-day gap your cash has to fund. Tighter credit terms or earlier invoicing narrow it.` });
+  }
+  findings.sort((a,b)=> AUDIT_SEVERITY_ORDER[a.severity]-AUDIT_SEVERITY_ORDER[b.severity]);
+  return { findings, base, stress, startCash, dso, dpo, receivables, payables, chase, deferrals, deferralShort, overdueTotal, events };
+}
+function cashWorkingCapitalNarrative(d){
+  const notes = [];
+  if(d.base.firstNegative){
+    notes.push(`On today's numbers your cash is projected to run out on ${new Date(d.base.firstNegative.date+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short'})} — the plan below shows which collections and payments move that date.`);
+  } else if(d.stress.firstNegative){
+    notes.push('Cash looks safe on the base case, but it is exposed if the customers with a late-payment history slip again — worth chasing them before it matters.');
+  } else {
+    notes.push('Cash stays positive across the next 90 days even if the usual late payers slip — no action needed beyond routine collections.');
+  }
+  if(d.dso!=null && d.dpo!=null) notes.push(`You collect in about ${d.dso} days and pay in about ${d.dpo} days (last 90 days of sales and purchases).`);
+  return notes;
+}
+function reportCashWorkingCapital(){
+  const d = cashWorkingCapitalData();
+  const today = agentToday();
+  const label = dt => new Date(dt+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+  // Sampled projection chart: today then every 2 weeks out to 90 days, base case vs. stress case.
+  const sample = [0,14,28,42,56,70,84,90].map(n=>addDays(today,n));
+  const categories = sample.map((dt,i)=>({ key:'p'+i, label: i===0?'Today':'+'+[0,14,28,42,56,70,84,90][i]+'d' }));
+  const baseVals = {}, stressVals = {};
+  sample.forEach((dt,i)=>{ baseVals['p'+i] = i===0 ? d.startCash : cashAgentBalanceOn(d.base.points, dt); stressVals['p'+i] = i===0 ? d.startCash : cashAgentBalanceOn(d.stress.points, dt); });
+  const lines = [
+    { key:'base', label:'Base forecast', color:VIZ_COLORS[1], values:baseVals, fmt:v=>'₹'+fmt(v) },
+    { key:'stress', label:'If late payers slip', color:VIZ_COLORS[3]||'#D54141', values:stressVals, fmt:v=>'₹'+fmt(v) },
+  ];
+  const runway = d.base.firstNegative ? agentDaysBetween(today, d.base.firstNegative.date)+' days' : '90+ days';
+  return `
+    ${reportHeader('Cash & Working-Capital Agent (AI)')}
+    <div id="cashAgentBody">
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">A 90-day look-ahead built from your open invoices (dated by each party's Credit Period), recurring entries and each customer's own payment history — an estimate from your own books, nothing here posts or changes anything.</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      ${agentStatTile('Cash & Bank Today', '₹'+fmt(d.startCash))}
+      ${agentStatTile('Cash Runway', runway, d.base.firstNegative?'until projected cash < 0':'projected to stay positive')}
+      ${agentStatTile('Lowest Projected', '₹'+fmt(d.base.minBalance), 'on '+label(d.base.minDate))}
+      ${agentStatTile('Collect / Pay Days', (d.dso==null?'—':d.dso)+' / '+(d.dpo==null?'—':d.dpo), 'DSO / DPO, last 90 days')}
+    </div>
+    ${narrativePanel(cashWorkingCapitalNarrative(d))}
+    <div class="panel viz-panel" style="margin-top:14px;"><div class="panel-head"><h2>Projected cash, next 90 days</h2><span class="viz-sub">base vs. stress case</span></div><div class="panel-body">
+      ${svgMultiLineChart(categories, lines, {axisFmt:v=>'₹'+fmtShort(v)})}
+      <p class="muted" style="font-size:10.5px;margin:8px 0 0;">Stress case assumes customers with a chronic late-payment history, and invoices already 60+ days overdue, don't pay inside the window.</p>
+    </div></div>
+    ${agentExportButtons('cashAgentBody','Cash & Working-Capital Agent Report')}
+    ${d.findings.length ? agentFindingsTables(d.findings, ['Cash Runway','Collect First','Payments That Can Wait','Working-Capital Gap']) : `<div class="panel"><div class="panel-body"><div class="empty">✓ Cash looks comfortable across the next 90 days.</div></div></div>`}
+    ${d.chase.length ? `
+      <div class="section-title">Collect these first</div>
+      <div class="panel"><div class="panel-body" style="padding:0;"><table>
+        <tr><th>Customer</th><th>Overdue by</th><th class="num">Amount</th></tr>
+        ${d.chase.slice(0,8).map(e=>`<tr data-open-party="${e.ledgerId}" style="cursor:pointer;"><td>${escapeHtml(e.name)}${e.risky?' <span class="pill neg" style="font-size:9.5px;">LATE PAYER</span>':''}</td><td class="muted">${e.daysLate} days</td><td class="num">₹${fmt(e.amount)}</td></tr>`).join('')}
+      </table></div></div>` : ''}
+    ${d.deferrals.length ? `
+      <div class="section-title">Supplier payments that could move later</div>
+      <div class="panel"><div class="panel-body" style="padding:0;"><table>
+        <tr><th>Supplier</th><th>Currently due</th><th class="num">Amount</th></tr>
+        ${d.deferrals.map(e=>`<tr data-open-party="${e.ledgerId}" style="cursor:pointer;"><td>${escapeHtml(e.name)}</td><td class="muted">${e.dueDate}</td><td class="num">₹${fmt(-e.amount)}</td></tr>`).join('')}
+      </table></div></div>` : ''}
+    </div>`;
+}
+
+/* ---------------------------------------------------------------------------------
+   2. TDS & ADVANCE-TAX COMPLIANCE AGENT
+   The app records TDS/TCS (state.taxDeductions) but nothing watched it. This agent checks three
+   things against the company's own books: supplier spend that probably needed TDS but has no record,
+   deductions at a rate below the section's default, and tax withheld but not yet deposited by the
+   statutory due date (tdsDueDateForDeductionMonth()) -- plus a straight-line advance-tax projection.
+   Heuristics, clearly labeled as estimates: the app doesn't track PAN status, lower-deduction
+   certificates or the payee's exact section.
+   --------------------------------------------------------------------------------- */
+const TDS_SECTION_KEYWORDS = [
+  { code:'194I', words:['rent','lease'] },
+  { code:'194J', words:['professional','consult','legal','audit','advisory','technical','software','design'] },
+  { code:'194H', words:['commission','brokerage','agent'] },
+  { code:'194C', words:['contract','labour','labor','transport','freight','courier','repair','maintenance','catering','security','housekeeping'] },
+];
+function tdsGuessSection(ledgerName){
+  const n = (ledgerName||'').toLowerCase();
+  const hit = TDS_SECTION_KEYWORDS.find(k=>k.words.some(w=>n.includes(w)));
+  const code = hit ? hit.code : '194C';
+  return { sec: TDS_TCS_SECTIONS.find(s=>s.code===code), guessed: !hit };
+}
+function advanceTaxInstalments(fyLabel){
+  const b = fyBoundsForLabel(fyLabel);
+  const y0 = Number(b.start.slice(0,4));
+  return [{md:'06-15',cum:15},{md:'09-15',cum:45},{md:'12-15',cum:75},{md:'03-15',cum:100}].map(i=>{
+    let due = `${y0}-${i.md}`;
+    if(due<b.start) due = `${y0+1}-${i.md}`;
+    return { due, cum:i.cum };
+  });
+}
+function tdsAdvanceTaxData(){
+  const today = agentToday();
+  const fy = fyLabelForDate(today);
+  const b = fyBoundsForLabel(fy);
+  const findings = [];
+  const monthLabel = k => new Date(k+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+
+  // (a) Supplier spend this FY with no TDS record -- the larger of billed vs paid, so a purchase later
+  // paid isn't counted twice.
+  const deducted = new Set(state.taxDeductions.filter(t=>t.kind==='TDS').map(t=>t.voucherId));
+  const spend = {};
+  for(const v of state.vouchers){
+    if(v.date<b.start || v.date>b.end) continue;
+    if(!['Payment','Purchase'].includes(v.type) || deducted.has(v.id)) continue;
+    for(const e of (v.entries||[])){
+      const l = ledgerOf(e.ledgerId);
+      if(!l || l.partyType!=='supplier') continue;
+      const s = (spend[l.id] = spend[l.id] || { name:l.name, billed:0, paid:0, goods:0, voucherIds:[] });
+      // A purchase booked against a Purchase Accounts ledger is goods, which 194C/194J/194I/194H don't
+      // cover (194Q only bites above ₹50 lakh) -- so it neither counts as billed spend nor, via the
+      // supplier's later payments, as a missed deduction.
+      const isGoods = v.type==='Purchase' && (v.entries||[]).some(x=>Number(x.dr)>0 && bucketOf(ledgerOf(x.ledgerId))==='purch');
+      if(isGoods){ if(Number(e.cr)>0) s.goods += Number(e.cr); continue; }
+      if(Number(e.cr)>0) s.billed += Number(e.cr);
+      if(Number(e.dr)>0) s.paid += Number(e.dr);
+      s.voucherIds.push(v.id);
+    }
+  }
+  const TDS_THRESHOLD = 30000; // same approximate annual trigger the Internal Audit Agent uses
+  for(const id in spend){
+    const s = spend[id];
+    if(s.goods>0 && s.billed===0) continue; // goods-only supplier: its payments settle goods bills
+    const total = Math.max(s.billed, s.paid);
+    if(total<=TDS_THRESHOLD) continue;
+    const g = tdsGuessSection(s.name);
+    const est = r2(total*g.sec.rate/100);
+    findings.push({ severity: total>100000?'high':'medium', category:'Possible Missed TDS (Estimate)', subject:'miss-'+id, voucherIds: Array.from(new Set(s.voucherIds)),
+      message:`₹${fmt(total)} billed/paid to "${s.name}" in FY ${fy} with no TDS record. Looks like ${g.sec.label}${g.guessed?' (a default guess — the ledger name gives no clue)':''}; at ${g.sec.rate}% that is about ₹${fmt(est)} that may need to have been withheld. Estimate only — confirm the section, the supplier's PAN and any lower-deduction certificate.` });
+  }
+
+  // (b) Deductions booked below the section's default rate.
+  for(const t of state.taxDeductions){
+    if(t.kind!=='TDS' || t.date<b.start || t.date>b.end) continue;
+    const sec = TDS_TCS_SECTIONS.find(s=>s.code===t.sectionCode);
+    if(!sec || sec.code.endsWith('Other') || !(Number(t.rate)<sec.rate)) continue;
+    const shortBy = r2((Number(t.baseAmount)||0)*(sec.rate-Number(t.rate))/100);
+    const p = ledgerOf(t.partyLedgerId);
+    findings.push({ severity: shortBy>1000?'medium':'low', category:'Deducted Below Default Rate', subject:'rate-'+t.id, voucherIds: t.voucherId?[t.voucherId]:[],
+      message:`${sec.code} on ${p?p.name:'a party'} (${t.date}) was deducted at ${t.rate}% vs the ${sec.rate}% default — ₹${fmt(shortBy)} lower. Fine with a lower-deduction certificate; otherwise it is a short deduction.` });
+  }
+
+  // (c) Withheld but not deposited. Deposits = debits to the TDS/TCS Payable ledger; matched oldest-month-first.
+  let pendingDepositTotal = 0, withheldFY = 0;
+  ['TDS','TCS'].forEach(kind=>{
+    const ledger = state.ledgers.find(l=>l.name===kind+' Payable');
+    const byMonth = {};
+    state.taxDeductions.filter(t=>t.kind===kind).forEach(t=>{ const k=(t.date||'').slice(0,7); if(k) byMonth[k]=(byMonth[k]||0)+(Number(t.taxAmount)||0); if(kind==='TDS' && t.date>=b.start && t.date<=b.end) withheldFY += Number(t.taxAmount)||0; });
+    let pool = 0;
+    if(ledger){
+      for(const v of state.vouchers) for(const e of (v.entries||[])) if(e.ledgerId===ledger.id && Number(e.dr)>0) pool += Number(e.dr);
+    }
+    Object.keys(byMonth).sort().forEach(k=>{
+      const amt = r2(byMonth[k]);
+      const applied = Math.min(pool, amt);
+      pool = r2(pool-applied);
+      const rem = r2(amt-applied);
+      if(rem<0.5) return;
+      const [yy,mm] = k.split('-').map(Number);
+      const due = tdsDueDateForDeductionMonth(yy, mm-1);
+      pendingDepositTotal += rem;
+      if(due<today){
+        const daysLate = agentDaysBetween(due, today);
+        const interest = r2(rem*0.015*Math.max(1, Math.ceil(daysLate/30)));
+        findings.push({ severity: daysLate>30?'critical':'high', category:'Withheld But Not Deposited', subject:`dep-${kind}-${k}`,
+          message:`₹${fmt(rem)} of ${kind} withheld in ${monthLabel(k)} was due for deposit by ${due} and still shows unpaid in your ${kind} Payable ledger — ${daysLate} day${daysLate===1?'':'s'} late. Interest at 1.5%/month would be about ₹${fmt(interest)} (estimate).` });
+      } else if(agentDaysBetween(today, due)<=7){
+        findings.push({ severity:'medium', category:'Withheld But Not Deposited', subject:`dep-${kind}-${k}`,
+          message:`₹${fmt(rem)} of ${kind} withheld in ${monthLabel(k)} is due for deposit by ${due} (${agentDaysBetween(today,due)} day${agentDaysBetween(today,due)===1?'':'s'} left) and is not yet paid.` });
+      }
+    });
+  });
+
+  // (d) Advance tax -- straight-line projection from year-to-date profit. Tax rate is a company-level
+  // assumption (default 25%, the new-regime domestic-company rate) editable on the report.
+  const rate = Number(currentCompany && currentCompany.advanceTaxRate) || 25;
+  const ytd = incomeStatementDataForPeriod(b.start, today).profitBeforeTax;
+  const elapsed = Math.max(1, agentDaysBetween(b.start, today)+1);
+  const totalDays = agentDaysBetween(b.start, b.end)+1;
+  const projectedProfit = r2(ytd/(elapsed/totalDays));
+  const estTax = projectedProfit>0 ? r2(projectedProfit*rate/100) : 0;
+  const advLedgers = state.ledgers.filter(l=>/advance\s*tax/i.test(l.name));
+  const advPaid = r2(advLedgers.reduce((s,l)=>s+ledgerFlowBetween(l.id, b.start, today),0));
+  const inst = advanceTaxInstalments(fy);
+  let nextInst = null;
+  if(estTax>=10000){ // advance tax only applies once the estimated liability reaches ₹10,000
+    const passed = inst.filter(i=>i.due<today);
+    const lastPassed = passed[passed.length-1];
+    if(lastPassed){
+      const req = r2(estTax*lastPassed.cum/100), short = r2(req-advPaid);
+      if(short>0.5){
+        const mLate = Math.max(1, Math.ceil(agentDaysBetween(lastPassed.due, today)/30));
+        findings.push({ severity:'high', category:'Advance Tax', subject:'adv-missed-'+lastPassed.due,
+          message:`The ${lastPassed.cum}% advance-tax instalment (₹${fmt(req)}) was due ${lastPassed.due}; only ₹${fmt(advPaid)} is booked in an "Advance Tax" ledger — ₹${fmt(short)} short. Interest under Sec 234C at 1%/month would be about ₹${fmt(r2(short*0.01*mLate))} (estimate).` });
+      }
+    }
+    nextInst = inst.find(i=>i.due>=today) || null;
+    if(nextInst){
+      const req = r2(estTax*nextInst.cum/100), short = r2(req-advPaid), days = agentDaysBetween(today, nextInst.due);
+      if(short>0.5 && days<=45){
+        findings.push({ severity: days<=7?'high':days<=30?'medium':'low', category:'Advance Tax', subject:'adv-next-'+nextInst.due,
+          message:`${nextInst.cum}% of estimated FY ${fy} tax (₹${fmt(req)}) is due by ${nextInst.due} (${days} day${days===1?'':'s'}). ₹${fmt(advPaid)} is booked so far — about ₹${fmt(short)} still to pay.` });
+      }
+    }
+  }
+  findings.sort((a,b2)=> AUDIT_SEVERITY_ORDER[a.severity]-AUDIT_SEVERITY_ORDER[b2.severity]);
+  return { findings, fy, bounds:b, withheldFY:r2(withheldFY), pendingDepositTotal:r2(pendingDepositTotal), ytd:r2(ytd), projectedProfit, estTax, advPaid, rate, nextInst, instalments:inst };
+}
+function reportTdsAdvanceTax(){
+  const d = tdsAdvanceTaxData();
+  return `
+    ${reportHeader('TDS & Advance-Tax Compliance Agent (AI)')}
+    <div id="tdsAgentBody">
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">FY ${d.fy} · heuristic checks over your own books — the app doesn't track PAN status, lower-deduction certificates or challan numbers, so treat every amount below as an estimate to confirm, not a filing figure.</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      ${agentStatTile('TDS Withheld (FY)', '₹'+fmt(d.withheldFY))}
+      ${agentStatTile('Not Yet Deposited', '₹'+fmt(d.pendingDepositTotal), 'TDS + TCS Payable')}
+      ${agentStatTile('Projected Profit', '₹'+fmt(d.projectedProfit), 'straight-line from YTD ₹'+fmt(d.ytd))}
+      ${agentStatTile('Est. Advance Tax', '₹'+fmt(d.estTax), 'paid so far ₹'+fmt(d.advPaid))}
+    </div>
+    <div class="field" style="max-width:260px;margin-bottom:14px;" data-agent-noexport="1">
+      <label>Assumed tax rate (%)</label>
+      <input type="number" id="advanceTaxRateInput" min="0" max="60" step="0.5" value="${d.rate}">
+    </div>
+    ${narrativePanel(tdsAdvanceTaxNarrative(d))}
+    ${agentExportButtons('tdsAgentBody','TDS and Advance-Tax Compliance Report')}
+    ${d.findings.length ? agentFindingsTables(d.findings, ['Withheld But Not Deposited','Advance Tax','Possible Missed TDS (Estimate)','Deducted Below Default Rate']) : `<div class="panel"><div class="panel-body"><div class="empty">✓ No TDS or advance-tax issues found for FY ${d.fy}.</div></div></div>`}
+    <div class="section-title">Advance-tax schedule — FY ${d.fy}</div>
+    <div class="panel"><div class="panel-body" style="padding:0;"><table>
+      <tr><th>Due date</th><th class="num">Cumulative</th><th class="num">Required</th><th class="num">Booked</th></tr>
+      ${d.instalments.map(i=>`<tr><td>${i.due}</td><td class="num">${i.cum}%</td><td class="num">${d.estTax>=10000?'₹'+fmt(r2(d.estTax*i.cum/100)):'—'}</td><td class="num">₹${fmt(d.advPaid)}</td></tr>`).join('')}
+    </table></div></div>
+    <p class="muted" style="font-size:11px;">Advance tax applies once the estimated liability reaches ₹10,000. Payments are read from any ledger whose name contains "Advance Tax".</p>
+    </div>`;
+}
+function tdsAdvanceTaxNarrative(d){
+  const notes = [];
+  const late = d.findings.filter(f=>f.category==='Withheld But Not Deposited' && (f.severity==='critical'||f.severity==='high')).length;
+  if(late) notes.push(`${late} month${late===1?'':'s'} of withheld tax ${late===1?'is':'are'} past the 7th-of-next-month deposit date — depositing now stops further interest building up.`);
+  const miss = d.findings.filter(f=>f.category==='Possible Missed TDS (Estimate)').length;
+  if(miss) notes.push(`${miss} supplier${miss===1?'':'s'} crossed the TDS threshold without any deduction on record — worth checking each against the right section.`);
+  if(d.estTax>=10000) notes.push(`At ${d.rate}%, the projected profit of ₹${fmt(d.projectedProfit)} implies about ₹${fmt(d.estTax)} of tax for FY ${d.fy}.`);
+  if(!notes.length) notes.push('Nothing urgent: withheld tax is deposited on time and no advance-tax instalment is at risk.');
+  return notes;
+}
+
+/* ---------------------------------------------------------------------------------
+   3. SPEND-POLICY AGENT
+   The owner sets plain-language rules once (stored on the company as currentCompany.spendPolicy);
+   the agent flags every Payment/Purchase that breaks one. "Suggest from my history" fills starter
+   numbers from the company's own spending so nobody has to guess a cap.
+   --------------------------------------------------------------------------------- */
+let spendPolicyDraft = null; // null = showing the saved policy; object = unsaved edits
+let spendPolicyLookback = 3; // months scanned
+function spendPolicyCurrent(){
+  const saved = (currentCompany && currentCompany.spendPolicy) || {};
+  return spendPolicyDraft || { singleCap: saved.singleCap||0, vendorMonthlyCap: saved.vendorMonthlyCap||0, weekendCap: saved.weekendCap||0, categoryCaps: (saved.categoryCaps||[]).map(c=>({...c})) };
+}
+function spendVoucherAmount(v){ return r2((v.entries||[]).reduce((s,e)=>s+(Number(e.dr)||0),0)); }
+function spendPolicyScanFrom(months){
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth()-(months-1), 1).toISOString().slice(0,10);
+}
+function spendPolicyData(){
+  const p = (currentCompany && currentCompany.spendPolicy) || {};
+  const today = agentToday();
+  const from = spendPolicyScanFrom(spendPolicyLookback);
+  const vs = state.vouchers.filter(v=>v.date>=from && v.date<=today && ['Payment','Purchase'].includes(v.type));
+  const findings = [];
+  const ratioSev = r => r>=2?'high':'medium';
+  const active = !!(p.singleCap || p.vendorMonthlyCap || p.weekendCap || (p.categoryCaps||[]).length);
+
+  if(p.singleCap>0){
+    vs.forEach(v=>{
+      const amt = spendVoucherAmount(v);
+      if(amt>p.singleCap) findings.push({ severity:ratioSev(amt/p.singleCap), category:'Single Payment Cap', subject:'single-'+v.id, voucherIds:[v.id],
+        message:`${v.type} on ${v.date} for ₹${fmt(amt)} exceeds the ₹${fmt(p.singleCap)} single-payment cap${v.narration?` — "${v.narration}"`:''}.` });
+    });
+  }
+  if(p.vendorMonthlyCap>0){
+    const byVM = {};
+    vs.forEach(v=> (v.entries||[]).forEach(e=>{
+      const l = ledgerOf(e.ledgerId);
+      if(!l || l.partyType!=='supplier') return;
+      const amt = Number(e.dr)>0 ? Number(e.dr) : (v.type==='Purchase' ? Number(e.cr)||0 : 0);
+      if(!amt) return;
+      const k = l.id+'|'+v.date.slice(0,7);
+      (byVM[k] = byVM[k] || {name:l.name, month:v.date.slice(0,7), total:0, ids:[]}).total += amt;
+      byVM[k].ids.push(v.id);
+    }));
+    Object.keys(byVM).forEach(k=>{
+      const x = byVM[k];
+      if(x.total>p.vendorMonthlyCap) findings.push({ severity:ratioSev(x.total/p.vendorMonthlyCap), category:'Vendor Monthly Cap', subject:'vendor-'+k, voucherIds:Array.from(new Set(x.ids)),
+        message:`₹${fmt(r2(x.total))} paid/billed to "${x.name}" in ${x.month} exceeds the ₹${fmt(p.vendorMonthlyCap)} monthly cap for one vendor.` });
+    });
+  }
+  if(p.weekendCap>0){
+    vs.filter(v=>v.type==='Payment').forEach(v=>{
+      const dow = new Date(v.date+'T00:00:00').getDay();
+      const amt = spendVoucherAmount(v);
+      if((dow===0||dow===6) && amt>p.weekendCap) findings.push({ severity:'medium', category:'Weekend Payment', subject:'weekend-'+v.id, voucherIds:[v.id],
+        message:`₹${fmt(amt)} paid on ${v.date} (a ${dow===0?'Sunday':'Saturday'}) — over the ₹${fmt(p.weekendCap)} limit for weekend payments.` });
+    });
+  }
+  (p.categoryCaps||[]).forEach(c=>{
+    const l = ledgerOf(c.ledgerId);
+    if(!l || !(c.cap>0)) return;
+    const months = new Set(vs.map(v=>v.date.slice(0,7)));
+    months.forEach(m=>{
+      const lastDay = new Date(Number(m.slice(0,4)), Number(m.slice(5,7)), 0).getDate();
+      const flow = r2(ledgerFlowBetween(l.id, m+'-01', m+'-'+String(lastDay).padStart(2,'0')));
+      if(flow>c.cap){
+        const ids = state.vouchers.filter(v=>v.date.startsWith(m) && (v.entries||[]).some(e=>e.ledgerId===l.id && Number(e.dr)>0)).map(v=>v.id);
+        findings.push({ severity:ratioSev(flow/c.cap), category:'Category Cap', subject:`cat-${l.id}-${m}`, voucherIds:ids,
+          message:`"${l.name}" reached ₹${fmt(flow)} in ${m}, over its ₹${fmt(c.cap)} monthly cap.` });
+      }
+    });
+  });
+  findings.sort((a,b)=> AUDIT_SEVERITY_ORDER[a.severity]-AUDIT_SEVERITY_ORDER[b.severity]);
+  return { findings, policy:p, active, from, scanned: vs.length };
+}
+// Starter caps from the company's own history: the 90th percentile of what it normally spends, so the
+// caps flag the unusual few rather than everything.
+function suggestSpendPolicyFromHistory(){
+  const from = spendPolicyScanFrom(6), today = agentToday();
+  const vs = state.vouchers.filter(v=>v.date>=from && v.date<=today && ['Payment','Purchase'].includes(v.type));
+  const pct = (arr, q) => { const s = arr.slice().sort((a,b)=>a-b); return s.length ? s[Math.min(s.length-1, Math.floor(s.length*q))] : 0; };
+  const nice = n => { if(n<=0) return 0; const mag = Math.pow(10, Math.floor(Math.log10(n))-1); return Math.ceil(n/mag)*mag; };
+  const amts = vs.map(spendVoucherAmount).filter(a=>a>0);
+  const single = nice(pct(amts, 0.9));
+  const byVM = {};
+  vs.forEach(v=> (v.entries||[]).forEach(e=>{ const l = ledgerOf(e.ledgerId); if(l && l.partyType==='supplier' && Number(e.dr)>0){ const k=l.id+'|'+v.date.slice(0,7); byVM[k]=(byVM[k]||0)+Number(e.dr); } }));
+  const vendor = nice(pct(Object.values(byVM), 0.9));
+  return { singleCap: single, vendorMonthlyCap: vendor, weekendCap: nice(single/2), categoryCaps: (spendPolicyCurrent().categoryCaps||[]), basedOn: amts.length };
+}
+function reportSpendPolicy(){
+  const d = spendPolicyData();
+  const draft = spendPolicyCurrent();
+  const expenseLedgers = state.ledgers.filter(l=>['purch','dexp','iexp'].includes(bucketOf(l))).sort((a,b)=>a.name.localeCompare(b.name));
+  const numInput = (field, label, hint) => `
+    <div class="field" style="flex:1;min-width:200px;"><label>${label}</label>
+      <input type="number" min="0" step="100" data-sp-field="${field}" value="${draft[field]||''}" placeholder="0 = off">
+      <div class="muted" style="font-size:10.5px;margin-top:3px;">${hint}</div></div>`;
+  return `
+    ${reportHeader('Spend-Policy Agent (AI)')}
+    <div id="spendAgentBody">
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">Set your own spending rules once — the agent then flags every Payment or Purchase that breaks one. It only reports; nothing is blocked or changed.</p>
+    <div class="panel" data-agent-noexport="1"><div class="panel-head"><h2>Policy rules</h2><span class="viz-sub">${spendPolicyDraft?'unsaved changes':'saved'}</span></div><div class="panel-body">
+      <div class="row" style="gap:14px;flex-wrap:wrap;">
+        ${numInput('singleCap','Single payment cap (₹)','Flag any one Payment/Purchase above this.')}
+        ${numInput('vendorMonthlyCap','Vendor monthly cap (₹)','Flag a supplier whose total in one month passes this.')}
+        ${numInput('weekendCap','Weekend payment limit (₹)','Flag Saturday/Sunday payments above this.')}
+      </div>
+      <div style="margin-top:12px;"><strong style="font-size:12.5px;">Category caps (per month)</strong>
+        ${(draft.categoryCaps||[]).map((c,i)=>{ const l=ledgerOf(c.ledgerId); return `<div style="display:flex;gap:10px;align-items:center;margin-top:6px;font-size:12.5px;"><span style="flex:1;">${l?escapeHtml(l.name):'(deleted ledger)'}</span><span>₹${fmt(c.cap)}</span><button type="button" class="btn secondary small" data-sp-remove="${i}">Remove</button></div>`; }).join('') || '<div class="muted" style="font-size:11.5px;margin-top:4px;">None yet.</div>'}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:flex-end;">
+          <div class="field" style="min-width:200px;margin:0;"><label>Expense ledger</label><select id="spCatLedger">${expenseLedgers.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('')}</select></div>
+          <div class="field" style="width:140px;margin:0;"><label>Monthly cap (₹)</label><input type="number" id="spCatCap" min="0" step="100"></div>
+          <button type="button" class="btn secondary small" id="spAddCategoryBtn">+ Add</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        <button type="button" class="btn small" id="saveSpendPolicyBtn">Save policy</button>
+        <button type="button" class="btn secondary small" id="suggestSpendPolicyBtn">✨ Suggest from my history</button>
+        ${spendPolicyDraft?'<button type="button" class="btn secondary small" id="discardSpendPolicyBtn">Discard changes</button>':''}
+      </div>
+    </div></div>
+    <div class="field" style="max-width:220px;margin-bottom:14px;"><label>Scan the last</label>
+      <select id="spendLookbackSelect">${[1,3,6].map(n=>`<option value="${n}" ${n===spendPolicyLookback?'selected':''}>${n} month${n===1?'':'s'}</option>`).join('')}</select></div>
+    ${!d.active ? `<div class="panel"><div class="panel-body"><div class="empty">No rules set yet — enter a cap above, or tap “Suggest from my history” for starter numbers based on what you normally spend.</div></div></div>` : `
+      <p class="muted" style="font-size:11.5px;">Checked ${d.scanned} payment${d.scanned===1?'':'s'}/purchase${d.scanned===1?'':'s'} since ${d.from}.</p>
+      ${agentSeverityTiles(d.findings)}
+      ${agentExportButtons('spendAgentBody','Spend-Policy Report')}
+      ${d.findings.length ? agentFindingsTables(d.findings, ['Single Payment Cap','Vendor Monthly Cap','Category Cap','Weekend Payment']) : `<div class="panel"><div class="panel-body"><div class="empty">✓ Every payment in this window is within your policy.</div></div></div>`}`}
+    </div>`;
+}
+
+/* ---------------------------------------------------------------------------------
+   4. COLLECTIONS & PAYMENT-RUN AGENT
+   Receivables side: groups every overdue customer invoice by customer, picks a tone from how late the
+   oldest one is, and drafts a ready-to-copy reminder (copy, WhatsApp or email -- the app never sends
+   anything itself). Payables side: proposes this week's supplier payment run in due-date order and
+   checks it against the cash actually available.
+   --------------------------------------------------------------------------------- */
+let payRunWindowDays = 7;
+function collectionsTone(maxDaysOverdue){
+  return maxDaysOverdue<=15 ? 'friendly' : maxDaysOverdue<=45 ? 'firm' : 'final';
+}
+function collectionsToneLabel(t){ return ({friendly:'Friendly nudge', firm:'Firm reminder', final:'Final notice'})[t]; }
+function draftCollectionsReminderByTone(group){
+  const company = (currentCompany && currentCompany.name) || '';
+  const lines = group.invoices.map(r=>{
+    const no = salesVoucherInvoiceNumber({ id:r.invoice.voucherId, date:r.invoice.date });
+    return `  • Invoice ${no} dated ${r.invoice.date} — ₹${fmt(r.invoice.remaining)} (due ${r.dueDate}, ${r.daysOverdue} days overdue)`;
+  }).join('\n');
+  const total = '₹'+fmt(group.total);
+  const intro = {
+    friendly: `I hope you're doing well. A quick reminder that the following invoice${group.invoices.length===1?' is':'s are'} now past due:`,
+    firm: `Our records show the following invoice${group.invoices.length===1?' remains':'s remain'} unpaid well past the agreed credit period:`,
+    final: `This is a final reminder. The following invoice${group.invoices.length===1?' has':'s have'} been outstanding for ${group.maxDays} days despite earlier requests:`,
+  }[group.tone];
+  const close = {
+    friendly: `If you've already arranged payment, please ignore this note — otherwise we'd appreciate it at your earliest convenience.`,
+    firm: `Please arrange payment of ${total} within the next 7 days, or let us know the expected date so we can plan accordingly.`,
+    final: `Please clear ${total} within 3 working days. If there is a dispute on any invoice, tell us today so it can be resolved — otherwise we will have to review further credit and next steps.`,
+  }[group.tone];
+  return `Subject: ${group.tone==='final'?'Final notice':'Payment reminder'} — ${total} outstanding
+
+Dear ${group.ledger.name},
+
+${intro}
+${lines}
+
+${close}
+
+Thank you,
+${company}`;
+}
+function collectionsPayRunData(){
+  const today = agentToday();
+  // Collections: group the existing ranked overdue list by customer.
+  const groups = {};
+  collectionsPriorityList().forEach(r=>{
+    const g = (groups[r.ledger.id] = groups[r.ledger.id] || { ledger:r.ledger, invoices:[], total:0, maxDays:0, score:0 });
+    g.invoices.push(r); g.total = r2(g.total + r.invoice.remaining); g.maxDays = Math.max(g.maxDays, r.daysOverdue); g.score += r.score;
+  });
+  const collections = Object.values(groups).sort((a,b)=>b.score-a.score);
+  collections.forEach(g=>{ g.tone = collectionsTone(g.maxDays); g.draft = draftCollectionsReminderByTone(g); });
+
+  // Payment run: supplier invoices due inside the window (or already overdue).
+  const horizon = addDays(today, payRunWindowDays);
+  const items = [];
+  state.ledgers.forEach(l=>{
+    if(l.partyType!=='supplier') return;
+    const terms = l.creditDays!=null ? l.creditDays : 30;
+    partyOutstandingInvoices(l.id).forEach(inv=>{
+      const due = addDays(inv.date, terms);
+      if(due<=horizon) items.push({ ledger:l, invoice:inv, dueDate:due, overdue: due<today, daysOverdue: due<today ? agentDaysBetween(due,today) : 0 });
+    });
+  });
+  items.sort((a,b)=> (b.overdue-a.overdue) || (a.dueDate<b.dueDate?-1:a.dueDate>b.dueDate?1:0) || (b.invoice.remaining-a.invoice.remaining));
+  const cash = Math.max(0, agentCashAndBankBalance());
+  let committed = 0;
+  items.forEach(it=>{
+    if(committed + it.invoice.remaining <= cash+0.005){ it.decision='pay'; committed = r2(committed + it.invoice.remaining); }
+    else it.decision='defer';
+  });
+  const total = r2(items.reduce((s,i)=>s+i.invoice.remaining,0));
+  const deferTotal = r2(items.filter(i=>i.decision==='defer').reduce((s,i)=>s+i.invoice.remaining,0));
+
+  const findings = [];
+  const finalGroups = collections.filter(g=>g.tone==='final');
+  if(finalGroups.length){
+    const names = finalGroups.slice(0,3).map(g=>`${g.ledger.name} ₹${fmt(g.total)}`).join(', ');
+    findings.push({ severity:'high', category:'Collections', subject:'final',
+      message:`${finalGroups.length} customer${finalGroups.length===1?'':'s'} ${finalGroups.length===1?'is':'are'} 45+ days overdue and ready for a final notice: ${names}${finalGroups.length>3?', …':''}.` });
+  }
+  const firmGroups = collections.filter(g=>g.tone==='firm');
+  if(firmGroups.length) findings.push({ severity:'medium', category:'Collections', subject:'firm',
+    message:`${firmGroups.length} customer${firmGroups.length===1?'':'s'} (₹${fmt(r2(firmGroups.reduce((s,g)=>s+g.total,0)))}) ${firmGroups.length===1?'is':'are'} 16–45 days overdue — a firm reminder is due.` });
+  const friendly = collections.filter(g=>g.tone==='friendly');
+  if(friendly.length) findings.push({ severity:'low', category:'Collections', subject:'friendly',
+    message:`${friendly.length} customer${friendly.length===1?'':'s'} (₹${fmt(r2(friendly.reduce((s,g)=>s+g.total,0)))}) just slipped past due — a friendly nudge usually does it.` });
+  const overdueSup = items.filter(i=>i.overdue);
+  if(overdueSup.length) findings.push({ severity:'medium', category:'Payment Run', subject:'overdue-suppliers',
+    message:`${overdueSup.length} supplier invoice${overdueSup.length===1?' is':'s are'} already past due (₹${fmt(r2(overdueSup.reduce((s,i)=>s+i.invoice.remaining,0)))}) — pay these first to protect supplier relationships.` });
+  if(deferTotal>0) findings.push({ severity:'high', category:'Payment Run', subject:'cash-short',
+    message:`This ${payRunWindowDays}-day payment run totals ₹${fmt(total)} but cash and bank hold ₹${fmt(cash)} — ₹${fmt(deferTotal)} can't be paid without new collections, so the plan defers the least urgent.` });
+  findings.sort((a,b)=> AUDIT_SEVERITY_ORDER[a.severity]-AUDIT_SEVERITY_ORDER[b.severity]);
+  return { findings, collections, payRun:{ items, total, cash, committed, deferTotal, window: payRunWindowDays } };
+}
+function reportCollectionsPayRun(){
+  const d = collectionsPayRunData();
+  const toneColor = {friendly:'#2CA01C', firm:'#F2994A', final:'#D54141'};
+  return `
+    ${reportHeader('Collections & Payment-Run Agent (AI)')}
+    <div id="collectionsAgentBody">
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">Drafts reminders for review and proposes a payment run — the app never sends a message or pays anyone itself.</p>
+    ${agentSeverityTiles(d.findings)}
+    ${agentExportButtons('collectionsAgentBody','Collections and Payment-Run Report')}
+    <div class="section-title">Reminders to send <span class="muted" style="font-size:11px;font-weight:400;">(${d.collections.length} customer${d.collections.length===1?'':'s'})</span></div>
+    ${d.collections.length ? d.collections.map(g=>`
+      <div class="panel"><div class="panel-body">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <strong style="font-size:13.5px;flex:1;min-width:160px;">${escapeHtml(g.ledger.name)}</strong>
+          <span style="padding:2px 10px;border-radius:999px;border:1.5px solid ${toneColor[g.tone]};color:${toneColor[g.tone]};font-weight:700;font-size:11px;">${collectionsToneLabel(g.tone)}</span>
+          <span class="muted" style="font-size:12px;">${g.invoices.length} invoice${g.invoices.length===1?'':'s'} · up to ${g.maxDays}d overdue</span>
+          <strong style="font-size:13.5px;">₹${fmt(g.total)}</strong>
+        </div>
+        <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;">View draft message</summary>
+          <pre style="white-space:pre-wrap;font-family:inherit;font-size:12px;line-height:1.55;background:var(--surface-strong,#EEF3EF);padding:10px 12px;border-radius:8px;margin:8px 0;">${escapeHtml(g.draft)}</pre>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" data-agent-noexport="1">
+            <button type="button" class="btn secondary small" data-copy-collection="${g.ledger.id}">📋 Copy</button>
+            <a class="btn secondary small" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(g.draft)}" style="text-decoration:none;">💬 WhatsApp</a>
+            <a class="btn secondary small" href="mailto:?subject=${encodeURIComponent(g.draft.split('\n')[0].replace('Subject: ',''))}&body=${encodeURIComponent(g.draft.split('\n').slice(2).join('\n'))}" style="text-decoration:none;">✉ Email</a>
+          </div>
+        </details>
+      </div></div>`).join('') : `<div class="panel"><div class="panel-body"><div class="empty">✓ No overdue customer invoices to chase.</div></div></div>`}
+    <div class="section-title" style="margin-top:18px;">This week's payment run</div>
+    <div class="field" style="max-width:220px;margin-bottom:10px;" data-agent-noexport="1"><label>Window</label>
+      <select id="payRunWindowSelect">${[7,14,30].map(n=>`<option value="${n}" ${n===d.payRun.window?'selected':''}>Next ${n} days</option>`).join('')}</select></div>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+      ${agentStatTile('Due in window', '₹'+fmt(d.payRun.total), d.payRun.items.length+' invoice'+(d.payRun.items.length===1?'':'s'))}
+      ${agentStatTile('Cash & Bank', '₹'+fmt(d.payRun.cash))}
+      ${agentStatTile('Can pay now', '₹'+fmt(d.payRun.committed))}
+      ${agentStatTile('Defer', '₹'+fmt(d.payRun.deferTotal), 'until cash comes in')}
+    </div>
+    ${d.payRun.items.length ? `<div class="panel"><div class="panel-body" style="padding:0;"><table>
+      <tr><th>Supplier</th><th>Due</th><th>Plan</th><th class="num">Amount</th></tr>
+      ${d.payRun.items.map(i=>`<tr data-open-party="${i.ledger.id}" style="cursor:pointer;"><td>${escapeHtml(i.ledger.name)}</td><td class="muted">${i.dueDate}${i.overdue?` <span class="pill neg" style="font-size:9.5px;">${i.daysOverdue}d OVERDUE</span>`:''}</td><td>${i.decision==='pay'?'<span style="color:#2CA01C;font-weight:700;">Pay now</span>':'<span style="color:#D54141;font-weight:700;">Defer</span>'}</td><td class="num">₹${fmt(i.invoice.remaining)}</td></tr>`).join('')}
+    </table></div></div>` : `<div class="panel"><div class="panel-body"><div class="empty">✓ No supplier invoices fall due in the next ${d.payRun.window} days.</div></div></div>`}
+    ${d.findings.length ? agentFindingsTables(d.findings, ['Collections','Payment Run']) : ''}
+    </div>`;
+}
+
+/* ---------------------------------------------------------------------------------
+   5. AI AGENTS HUB -- one ranked inbox over every agent
+   Pulls the findings of all agents into a single list, ordered by severity, so the owner works one
+   queue instead of opening seven reports. Snooze (7 days) and Dismiss are stored on the company
+   (currentCompany.agentHubState) keyed by agentFindingKey(), and a dismissed finding stays hidden
+   until it's restored from the "Show hidden" list.
+   --------------------------------------------------------------------------------- */
+let agentHubFilter = 'all';
+let agentHubShowHidden = false;
+function agentHubErrorGuard(fn){ try{ return fn() || []; }catch(e){ console.warn('agent hub source failed', e); return []; } }
+const AGENT_HUB_AGENTS = [
+  { id:'cashWorkingCapital', name:'Cash & Working Capital', icon:'💧', reportId:'cashWorkingCapital', run:()=>cashWorkingCapitalData().findings },
+  { id:'tdsAdvanceTax', name:'TDS & Advance Tax', icon:'🧾', reportId:'tdsAdvanceTax', run:()=>tdsAdvanceTaxData().findings },
+  { id:'spendPolicy', name:'Spend Policy', icon:'📏', reportId:'spendPolicy', run:()=>spendPolicyData().findings },
+  { id:'collectionsPayRun', name:'Collections & Payment Run', icon:'📬', reportId:'collectionsPayRun', run:()=>collectionsPayRunData().findings },
+  { id:'gstCompliance', name:'GST Compliance Watch', icon:'🛡️', reportId:'gstCompliance', run:()=>gstComplianceFindings(3).findings },
+  { id:'internalAudit', name:'Internal Audit', icon:'🕵️', reportId:'internalAudit', run:()=>{
+      const fy = fyLabelForDate(agentToday());
+      const vfy = auditAgentVouchersForFY(fy);
+      if(vfy.loading) return [];
+      const ctx = { vouchers: vfy.vouchers, bounds: fyBoundsForLabel(fy), fy, isArchived: vfy.isArchived, isCurrentFY:true };
+      // The hub shows only what needs a decision soon; the low-severity tail stays in the full report.
+      return internalAuditFindings(ctx).filter(f=>f.severity!=='low' && !/TDS/i.test(f.category||'')).map(f=>({...f, subject: f.subject || (f.ledgerId||'')+(f.voucherId||'')}));
+    } },
+  { id:'eclProvision', name:'Bad-Debt Risk & ECL', icon:'🧮', reportId:'eclProvision', run:()=>{
+      const r = eclProvisionReport();
+      if(!r.rows.length) return [];
+      const led = state.ledgers.find(l=>l.name===ECL_PROVISION_LEDGER_NAME);
+      const booked = led ? r2(-ledgerBalance(led.id)) : 0;
+      if(r.totalProvision<=0.5 || booked >= r.totalProvision*0.9) return [];
+      return [{ severity: booked<=0.5 ? 'high' : 'medium', category:'Provision Gap', subject:'ecl-gap',
+        message:`Computed bad-debt provision is ₹${fmt(r.totalProvision)} against ₹${fmt(booked)} booked — post the provision journal to true it up (${fmt(r2(100*r.totalProvision/(r.totalOutstanding||1)))}% of ₹${fmt(r.totalOutstanding)} receivables).` }];
+    } },
+];
+function agentHubState(){
+  if(!currentCompany) return {};
+  if(!currentCompany.agentHubState) currentCompany.agentHubState = {};
+  return currentCompany.agentHubState;
+}
+function agentHubIsHidden(key){
+  const s = agentHubState()[key];
+  if(!s) return false;
+  if(s.dismissed) return true;
+  return !!(s.until && s.until>agentToday());
+}
+function agentHubCollect(){
+  const items = [];
+  AGENT_HUB_AGENTS.forEach(a=>{
+    agentHubErrorGuard(a.run).forEach(f=>{
+      items.push({ agent:a, finding:f, key: agentFindingKey(a.id, f) });
+    });
+  });
+  items.sort((x,y)=> AUDIT_SEVERITY_ORDER[x.finding.severity]-AUDIT_SEVERITY_ORDER[y.finding.severity]);
+  return items;
+}
+function agentHubOpenCount(){
+  try{ return agentHubCollect().filter(i=>!agentHubIsHidden(i.key) && (i.finding.severity==='critical'||i.finding.severity==='high')).length; }catch(e){ return 0; }
+}
+function reportAgentsHub(){
+  const all = agentHubCollect();
+  const open = all.filter(i=>!agentHubIsHidden(i.key));
+  const hidden = all.filter(i=>agentHubIsHidden(i.key));
+  const shown = (agentHubShowHidden ? hidden : open).filter(i=> agentHubFilter==='all' || i.agent.id===agentHubFilter);
+  const countFor = id => open.filter(i=>i.agent.id===id).length;
+  const worstFor = id => { const xs = open.filter(i=>i.agent.id===id).map(i=>i.finding.severity); return ['critical','high','medium','low'].find(s=>xs.includes(s)); };
+  const urgent = open.filter(i=>i.finding.severity==='critical'||i.finding.severity==='high').length;
+  return `
+    ${reportHeader('AI Agents Hub')}
+    <div id="agentsHubBody">
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">One inbox for ${AGENT_HUB_AGENTS.length} AI agents — every finding ranked by urgency. Open one to fix it at the source, snooze it for a week, or dismiss it.</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      ${agentStatTile('Open findings', String(open.length), urgent+' urgent (critical / high)')}
+      ${agentStatTile('Hidden', String(hidden.length), 'snoozed or dismissed')}
+      ${agentStatTile('Agents watching', String(AGENT_HUB_AGENTS.length), 'all run on your own books')}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" data-agent-noexport="1">
+      <button type="button" class="btn ${agentHubFilter==='all'?'':'secondary'} small" data-hub-filter="all">All (${open.length})</button>
+      ${AGENT_HUB_AGENTS.map(a=>{ const n = countFor(a.id); const w = worstFor(a.id); return `<button type="button" class="btn ${agentHubFilter===a.id?'':'secondary'} small" data-hub-filter="${a.id}">${a.icon} ${escapeHtml(a.name)} (${n})${w?` <span style="color:${AUDIT_SEVERITY_META[w].color};">●</span>`:''}</button>`; }).join('')}
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;" data-agent-noexport="1">
+      <button type="button" class="btn secondary small" id="hubToggleHiddenBtn">${agentHubShowHidden?'← Back to open findings':`Show hidden (${hidden.length})`}</button>
+    </div>
+    ${agentExportButtons('agentsHubBody','AI Agents Hub Report')}
+    ${shown.length ? `<div class="panel"><div class="panel-body" style="padding:0;"><table>
+      <tr><th>Severity</th><th>Agent</th><th>Finding</th><th data-agent-noexport="1"></th></tr>
+      ${shown.map(i=>`<tr>
+        <td>${auditSeverityPill(i.finding.severity)}</td>
+        <td style="white-space:nowrap;font-size:12px;">${i.agent.icon} ${escapeHtml(i.agent.name)}<div class="muted" style="font-size:10.5px;">${escapeHtml(i.finding.category||'')}</div></td>
+        <td style="font-size:12.5px;">${escapeHtml(i.finding.message)}</td>
+        <td data-agent-noexport="1" style="white-space:nowrap;">
+          <button type="button" class="btn secondary small" data-hub-open="${i.agent.reportId}">Open →</button>
+          ${agentHubShowHidden ? `<button type="button" class="btn secondary small" data-hub-restore="${escapeAttr(i.key)}">Restore</button>` : `<button type="button" class="btn secondary small" data-hub-snooze="${escapeAttr(i.key)}">Snooze 7d</button> <button type="button" class="btn secondary small" data-hub-dismiss="${escapeAttr(i.key)}">Dismiss</button>`}
+        </td>
+      </tr>`).join('')}
+    </table></div></div>` : `<div class="panel"><div class="panel-body"><div class="empty">${agentHubShowHidden?'Nothing hidden.':'✓ All clear — none of the agents has anything for you right now.'}</div></div></div>`}
+    </div>`;
+}
+async function agentHubSetState(key, patch){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  const st = agentHubState();
+  if(patch===null) delete st[key]; else st[key] = patch;
+  const ok = await saveCompanyMeta(currentCompany);
+  if(ok===false) toast('Could not save — try again');
+  render();
+}
+// Wires every control this block adds. Called once per render from the reports wiring section.
+function wireNewAgentReports(){
+  document.querySelectorAll('[data-agent-export]').forEach(b=>{
+    b.addEventListener('click', ()=> exportAgentReport(b.dataset.agentExport, b.dataset.agentBody, b.dataset.agentTitle));
+  });
+  document.querySelectorAll('[data-open-party]').forEach(()=>{}); // party rows reuse the app's existing delegated handler
+  // Advance-tax rate
+  document.getElementById('advanceTaxRateInput')?.addEventListener('change', async e=>{
+    if(isReadOnlyMode()){ toast(readOnlyToastMessage()); render(); return; }
+    currentCompany.advanceTaxRate = Math.max(0, Math.min(60, Number(e.target.value)||25));
+    await saveCompanyMeta(currentCompany);
+    render();
+  });
+  // Spend policy
+  document.querySelectorAll('[data-sp-field]').forEach(el=>{
+    el.addEventListener('input', e=>{ spendPolicyDraft = spendPolicyCurrent(); spendPolicyDraft[el.dataset.spField] = Number(e.target.value)||0; });
+  });
+  document.getElementById('spAddCategoryBtn')?.addEventListener('click', ()=>{
+    const ledgerId = document.getElementById('spCatLedger')?.value;
+    const cap = Number(document.getElementById('spCatCap')?.value)||0;
+    if(!ledgerId || !(cap>0)){ toast('Pick a ledger and enter a monthly cap'); return; }
+    spendPolicyDraft = spendPolicyCurrent();
+    spendPolicyDraft.categoryCaps = spendPolicyDraft.categoryCaps.filter(c=>c.ledgerId!==ledgerId).concat([{ledgerId, cap}]);
+    render();
+  });
+  document.querySelectorAll('[data-sp-remove]').forEach(b=>{
+    b.addEventListener('click', ()=>{ spendPolicyDraft = spendPolicyCurrent(); spendPolicyDraft.categoryCaps.splice(Number(b.dataset.spRemove),1); render(); });
+  });
+  document.getElementById('suggestSpendPolicyBtn')?.addEventListener('click', ()=>{
+    const s = suggestSpendPolicyFromHistory();
+    if(!s.basedOn){ toast('Not enough payment history yet to suggest caps'); return; }
+    spendPolicyDraft = { singleCap:s.singleCap, vendorMonthlyCap:s.vendorMonthlyCap, weekendCap:s.weekendCap, categoryCaps:s.categoryCaps };
+    toast(`Suggested from ${s.basedOn} payments — review, then Save`, {type:'success'});
+    render();
+  });
+  document.getElementById('discardSpendPolicyBtn')?.addEventListener('click', ()=>{ spendPolicyDraft = null; render(); });
+  document.getElementById('saveSpendPolicyBtn')?.addEventListener('click', async ()=>{
+    if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+    const d = spendPolicyCurrent();
+    currentCompany.spendPolicy = { singleCap:d.singleCap||0, vendorMonthlyCap:d.vendorMonthlyCap||0, weekendCap:d.weekendCap||0, categoryCaps:d.categoryCaps||[] };
+    spendPolicyDraft = null;
+    const ok = await saveCompanyMeta(currentCompany);
+    if(ok!==false) toast('Spend policy saved', {type:'success'});
+    render();
+  });
+  document.getElementById('spendLookbackSelect')?.addEventListener('change', e=>{ spendPolicyLookback = Number(e.target.value)||3; render(); });
+  // Collections & payment run
+  document.getElementById('payRunWindowSelect')?.addEventListener('change', e=>{ payRunWindowDays = Number(e.target.value)||7; render(); });
+  document.querySelectorAll('[data-copy-collection]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const g = collectionsPayRunData().collections.find(x=>x.ledger.id===b.dataset.copyCollection);
+      if(!g) return;
+      try{ await navigator.clipboard.writeText(g.draft); toast('Reminder copied — paste it into WhatsApp or email', {type:'success'}); }
+      catch(e){ toast('Could not copy automatically — select the text and copy it'); }
+    });
+  });
+  // Hub
+  document.querySelectorAll('[data-hub-filter]').forEach(b=> b.addEventListener('click', ()=>{ agentHubFilter = b.dataset.hubFilter; render(); }));
+  document.getElementById('hubToggleHiddenBtn')?.addEventListener('click', ()=>{ agentHubShowHidden = !agentHubShowHidden; render(); });
+  document.querySelectorAll('[data-hub-open]').forEach(b=> b.addEventListener('click', ()=> openPinnedReport(b.dataset.hubOpen)));
+  document.querySelectorAll('[data-hub-snooze]').forEach(b=> b.addEventListener('click', ()=> agentHubSetState(b.dataset.hubSnooze, { until: addDays(agentToday(), 7) })));
+  document.querySelectorAll('[data-hub-dismiss]').forEach(b=> b.addEventListener('click', ()=> agentHubSetState(b.dataset.hubDismiss, { dismissed:true })));
+  document.querySelectorAll('[data-hub-restore]').forEach(b=> b.addEventListener('click', ()=> agentHubSetState(b.dataset.hubRestore, null)));
 }
 
 // "GST Format" — a browsable, one-by-one reference for every active GST return form (GSTR-1 through
@@ -43437,6 +44432,7 @@ function attachHandlers(){
     document.getElementById('gstComplianceLookbackSelect')?.addEventListener('change', e=>{ gstComplianceLookback = Number(e.target.value)||6; render(); });
     document.getElementById('exportGstCompliancePdfBtn')?.addEventListener('click', exportGstComplianceToPdf);
     document.getElementById('exportGstComplianceWordBtn')?.addEventListener('click', exportGstComplianceToWord);
+    wireNewAgentReports();
     document.getElementById('openShareSnapshotBtn')?.addEventListener('click', async ()=>{
       modal = 'shareSnapshot';
       shareSnapshotDataUrl = null;
