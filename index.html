@@ -2,6 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com https://www.gstatic.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; frame-src 'self' blob: https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://content.googleapis.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<!-- Security hardening (Nov 2026): the Content-Security-Policy above allows scripts only from this site
+     and the three CDNs the app really uses, blocks plugins/<base> hijacking, and limits where data can be
+     sent. A <meta> CSP cannot carry frame-ancestors, so the tiny guard below stops the app being framed
+     inside another site (clickjacking). For header-level protection too, see the _headers file shipped
+     alongside this page. -->
+<script>
+(function(){
+  if(window.top !== window.self){
+    try{ window.top.location.replace(window.self.location.href); }catch(e){}
+    document.documentElement.style.display = 'none';
+    throw new Error('The Reckoning Books cannot be displayed inside another site.');
+  }
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Reckoning Books by SKm</title>
 <link rel="manifest" href="manifest.json">
@@ -2778,8 +2794,8 @@
 <div id="srAnnouncer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js" integrity="sha384-qb0Xhi7LLYpvW1HCK6oMrmDLSY9sy7vwm6ZlV6KjtrlL9yg30+YN4neTwnmX+Kp8" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -6482,7 +6498,9 @@ let state = {
   deliveryChallans: [],
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
   docVaultSalt: null,      // base64 random salt for the Employee Documents encryption vault (set once, on first use)
-  docVaultVerifier: null,  // base64 SHA-256(passphrase+salt) -- lets the app confirm a re-entered passphrase is correct WITHOUT ever storing the passphrase or the derived AES key anywhere persistent
+  docVaultIter: null,      // PBKDF2 rounds used for this vault's key (absent on vaults made before Nov 2026 = 150000)
+  docVaultCheck: null,     // {iv, ct} AES-GCM encryption of a known string under the vault key -- replaces the old SHA-256 verifier
+  docVaultVerifier: null,  // LEGACY base64 SHA-256(passphrase+salt) -- lets the app confirm a re-entered passphrase is correct WITHOUT ever storing the passphrase or the derived AES key anywhere persistent
   // [{id, at (ISO timestamp), icon, text, kind}] -- a chronological log of everything the app itself
   // did automatically (reconciliation auto-match, "pre-filled with your usual ledgers", etc.), newest
   // first, capped at 200. Deliberately separate from the Admin Panel's Audit Log: that one is
@@ -10258,6 +10276,8 @@ async function loadState(){
     state.pendingVouchers = Array.isArray(data.pendingVouchers) ? data.pendingVouchers : [];
     state.docVaultSalt = data.docVaultSalt || null;
     state.docVaultVerifier = data.docVaultVerifier || null;
+    state.docVaultIter = data.docVaultIter || null;
+    state.docVaultCheck = data.docVaultCheck || null;
     state.automationLog = Array.isArray(data.automationLog) ? data.automationLog : [];
   }catch(e){
     console.error(e);
@@ -10293,6 +10313,8 @@ async function loadState(){
     state.pendingVouchers = [];
     state.docVaultSalt = null;
     state.docVaultVerifier = null;
+    state.docVaultIter = null;
+    state.docVaultCheck = null;
     state.automationLog = [];
     toast('Could not load company data');
   }
@@ -10534,7 +10556,7 @@ function logVoucherAudit(action, voucherId, before, after){
   };
   state.voucherAuditLog.unshift(entry);
   if(state.voucherAuditLog.length>1000) state.voucherAuditLog.length = 1000;
-  saveVoucherAuditLog();
+  sealAuditEntryAndSave(entry); // hash-chains this entry to the one before it, then saves (Nov 2026)
   return entry.id;
 }
 // Every audit-log entry for one voucher id, newest first -- drives the "History" button on each
@@ -10718,7 +10740,7 @@ async function saveTaxDeductions(){
 async function saveDocVault(){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
   markSyncSaving();
-  try{ await db.collection('companies').doc(currentCompany.id).set({ docVaultSalt: state.docVaultSalt, docVaultVerifier: state.docVaultVerifier }, {merge:true}); markSyncSaved(); }
+  try{ await db.collection('companies').doc(currentCompany.id).set({ docVaultSalt: state.docVaultSalt, docVaultVerifier: state.docVaultVerifier||null, docVaultIter: state.docVaultIter||null, docVaultCheck: state.docVaultCheck||null }, {merge:true}); markSyncSaved(); }
   catch(e){ toast('Could not save the document vault setup'); markSyncError(); }
 }
 
@@ -11143,10 +11165,10 @@ async function sha256B64(str){
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return b64FromBuf(digest);
 }
-async function deriveVaultKey(passphrase, saltB64){
+async function deriveVaultKey(passphrase, saltB64, iterations){
   const baseKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt: bufFromB64(saltB64), iterations: 150000, hash:'SHA-256' },
+    { name:'PBKDF2', salt: bufFromB64(saltB64), iterations: iterations || 150000, hash:'SHA-256' },
     baseKey,
     { name:'AES-GCM', length:256 },
     false,
@@ -11155,25 +11177,50 @@ async function deriveVaultKey(passphrase, saltB64){
 }
 async function setupDocVault(passphrase){
   if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; }
-  if(!passphrase || passphrase.length<6){ toast('Choose a passphrase of at least 6 characters'); return false; }
+  const problem = vaultPassphraseProblem(passphrase);
+  if(problem){ toast(problem); return false; }
   const salt = b64FromBuf(crypto.getRandomValues(new Uint8Array(16)).buffer);
-  const verifier = await sha256B64(passphrase+':'+salt);
+  // Nov 2026: 600k PBKDF2 rounds (iteration count stored with the vault) and an AES-GCM key-check
+  // instead of the old fast SHA-256 verifier, which let anyone who could read the company record
+  // test passphrase guesses offline at billions per second.
+  const key = await deriveVaultKey(passphrase, salt, VAULT_ITER_NEW);
   state.docVaultSalt = salt;
-  state.docVaultVerifier = verifier;
+  state.docVaultIter = VAULT_ITER_NEW;
+  state.docVaultCheck = await vaultMakeCheck(key);
+  state.docVaultVerifier = null;
   await saveDocVault();
-  docVaultKey = await deriveVaultKey(passphrase, salt);
+  docVaultKey = key;
   docVaultUnlockError = '';
   toast('Documents vault created for this company');
   return true;
 }
 async function unlockDocVault(passphrase){
-  if(!state.docVaultSalt || !state.docVaultVerifier) return false;
-  const verifier = await sha256B64(passphrase+':'+state.docVaultSalt);
-  if(verifier !== state.docVaultVerifier){
+  if(!state.docVaultSalt || !(state.docVaultCheck || state.docVaultVerifier)) return false;
+  const tkey = 'vault:' + (currentCompany ? currentCompany.id : '');
+  const wait = loginThrottleRemainingSec(tkey);
+  if(wait > 0){ docVaultUnlockError = throttleMessage(wait); return false; }
+  const iter = state.docVaultIter || VAULT_ITER_LEGACY;
+  const key = await deriveVaultKey(passphrase, state.docVaultSalt, iter);
+  let ok = false;
+  if(state.docVaultCheck){
+    ok = await vaultVerifyCheck(key, state.docVaultCheck);
+  }else{
+    ok = (await sha256B64(passphrase+':'+state.docVaultSalt)) === state.docVaultVerifier;
+    if(ok && !isReadOnlyMode()){
+      // Legacy vault: retire the fast verifier now that the passphrase is known to be right.
+      state.docVaultCheck = await vaultMakeCheck(key);
+      state.docVaultIter = iter;
+      state.docVaultVerifier = null;
+      await saveDocVault();
+    }
+  }
+  if(!ok){
+    loginThrottleRecordFailure(tkey);
     docVaultUnlockError = 'Incorrect passphrase.';
     return false;
   }
-  docVaultKey = await deriveVaultKey(passphrase, state.docVaultSalt);
+  loginThrottleClear(tkey);
+  docVaultKey = key;
   docVaultUnlockError = '';
   return true;
 }
@@ -11239,14 +11286,7 @@ async function viewEmployeeDocument(employeeId, docId){
   if(!docVaultKey){ toast('Unlock the documents vault first'); return; }
   try{
     const blob = await decryptDocForView(doc);
-    const url = URL.createObjectURL(blob);
-    const w = window.open('');
-    if(w){
-      w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(doc.filename||'Document')}</title><meta charset="UTF-8"></head><body style="margin:0;">${doc.mimeType.startsWith('image/') ? `<img src="${url}" style="max-width:100%;">` : `<iframe src="${url}" style="width:100%;height:100vh;border:0;"></iframe>`}</body></html>`);
-      w.document.close();
-    } else {
-      toast('Please allow pop-ups to view this document.');
-    }
+    await openSafeFilePreview(doc.filename, doc.mimeType, blob);
   }catch(e){
     toast('Could not decrypt this document — is the vault passphrase correct?');
   }
@@ -11263,7 +11303,7 @@ function employeeDocumentsModal(){
         <div style="padding:0 20px 20px;">
           ${needsSetup ? `
             <p class="muted" style="font-size:12px;">Set a passphrase to create an encrypted document vault for this company. ID proofs, tax forms, and increment letters will be encrypted (AES-256-GCM) with a key derived from this passphrase before they ever leave this browser — even someone with direct database access can't read them without it. <strong>There is no password reset</strong>: if this passphrase is lost, any documents stored under it can't be recovered.</p>
-            <div class="field"><label>New Vault Passphrase (min. 6 characters)</label><input type="password" id="docVaultSetupInput" autocomplete="new-password"></div>
+            <div class="field"><label>New Vault Passphrase (min. 10 characters)</label><input type="password" id="docVaultSetupInput" autocomplete="new-password"></div>
             <button class="btn small" id="docVaultSetupBtn" type="button">Create Vault &amp; Continue</button>
           ` : needsUnlock ? `
             <p class="muted" style="font-size:12px;">Enter this company's Documents Vault passphrase to view or add encrypted employee documents. The passphrase itself is never stored — only used right here, in this tab, to derive the decryption key for this session.</p>
@@ -12299,6 +12339,8 @@ function buildCompanyBackup(){
     taxDeductions: state.taxDeductions,
     docVaultSalt: state.docVaultSalt,
     docVaultVerifier: state.docVaultVerifier,
+    docVaultIter: state.docVaultIter,
+    docVaultCheck: state.docVaultCheck,
     automationLog: state.automationLog,
   };
 }
@@ -12469,9 +12511,18 @@ function downloadTextFile(content, filename, mimeType){
 // Generic CSV download -- used for the bank transfer file, which needs a plain, universally-
 // importable .csv rather than the .xlsx workbooks the rest of the app's exports use, since bank
 // portals' bulk-upload tools almost always expect CSV.
+// A cell that begins with = + - @ (or a tab/CR) is read by Excel/Sheets as a FORMULA when the CSV is
+// opened -- "CSV injection": a ledger or narration called =HYPERLINK(...) would run on whoever opens the
+// bank file. A leading apostrophe makes the spreadsheet treat the cell as plain text. Genuine numbers
+// and phone numbers (+91..., -1500.00) are left untouched.
+function csvNeutralizeFormula(v){
+  const s = String(v==null?'':v);
+  if(/^[=@\t\r]/.test(s) || /^[+\-][^0-9.\s]/.test(s)) return "'" + s;
+  return s;
+}
 function downloadCSV(headerRow, dataRows, filename){
   const esc = v=>{
-    const s = String(v==null?'':v);
+    const s = csvNeutralizeFormula(v);
     return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
   };
   const lines = [headerRow, ...dataRows].map(r=>r.map(esc).join(','));
@@ -12533,6 +12584,8 @@ async function restoreCompanyBackup(data){
   state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
   state.docVaultSalt = data.docVaultSalt || null;
   state.docVaultVerifier = data.docVaultVerifier || null;
+  state.docVaultIter = data.docVaultIter || null;
+  state.docVaultCheck = data.docVaultCheck || null;
   state.automationLog = Array.isArray(data.automationLog) ? data.automationLog : [];
   await Promise.all([
     saveLedgers(), saveVouchers(), saveItems(), saveStockAdjustments(),
@@ -15129,10 +15182,14 @@ function diFabIconSvg(){
 }
 function diAttachmentHtml(att){
   if(!att) return '';
-  if((att.mimeType||'').startsWith('image/')){
-    return `<a href="${att.dataUrl}" target="_blank" rel="noopener"><img src="${att.dataUrl}" alt="${escapeAttr(att.name)}" style="max-width:100%;max-height:160px;border-radius:6px;display:block;"></a>`;
+  // Only a well-formed base64 data URL is ever placed in href/src (anything else -- a crafted value with a
+  // quote or a javascript: scheme -- is dropped), and only raster image types are rendered inline.
+  const safeData = /^data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+\/=]+$/i.test(att.dataUrl||'') ? att.dataUrl : '';
+  if(!safeData) return `<span class="muted" style="font-size:12px;">📄 ${escapeHtml(att.name||'Attachment')} (unavailable)</span>`;
+  if(/^image\/(png|jpe?g|gif|webp)$/i.test(att.mimeType||'')){
+    return `<a href="${safeData}" target="_blank" rel="noopener"><img src="${safeData}" alt="${escapeAttr(att.name)}" style="max-width:100%;max-height:160px;border-radius:6px;display:block;"></a>`;
   }
-  return `<a href="${att.dataUrl}" download="${escapeAttr(att.name)}" style="color:inherit;text-decoration:underline;font-size:12px;display:inline-flex;align-items:center;gap:4px;">📄 ${escapeHtml(att.name)} <span style="opacity:.75;">(${fmt((att.size||0)/1024)} KB)</span></a>`;
+  return `<a href="${safeData}" download="${escapeAttr(att.name)}" rel="noopener" style="color:inherit;text-decoration:underline;font-size:12px;display:inline-flex;align-items:center;gap:4px;">📄 ${escapeHtml(att.name)} <span style="opacity:.75;">(${fmt((att.size||0)/1024)} KB)</span></a>`;
 }
 // One message's attachments, old shape or new -- `m.attachments` (an array) is what every message
 // sent after the richer-attachments update carries; `m.attachment` (singular) is what every message
@@ -16239,7 +16296,7 @@ function render(){
       fractionUnit: currentCompany.fractionUnit||'Paisa',
       suffixSymbol: !!currentCompany.suffixSymbol,
       lockDate: currentCompany.lockDate||'',
-      payrollOverridePassword: currentCompany.payrollOverridePassword||'',
+      payrollOverridePassword: '', payrollOverrideClear: false, // never pre-filled: stored only as a hash (Nov 2026)
     };
     modal = 'editCompany';
     render();
@@ -16482,6 +16539,7 @@ function render(){
     document.getElementById('editCoSuffixSymbol').addEventListener('change', e=> editCoDraft.suffixSymbol = e.target.checked);
     document.getElementById('editCoLockDate').addEventListener('change', e=> editCoDraft.lockDate = e.target.value);
     document.getElementById('editCoPayrollOverridePassword')?.addEventListener('input', e=> editCoDraft.payrollOverridePassword = e.target.value);
+    document.getElementById('editCoPayrollOverrideClear')?.addEventListener('change', e=> editCoDraft.payrollOverrideClear = e.target.checked);
     document.querySelectorAll('[data-close-fy]').forEach(el=>{
       el.addEventListener('click', async ()=>{
         if(!confirm(`Close FY ${el.dataset.closeFy}? This locks every voucher dated on or before that year's end — you can reopen it again later if needed.`)) return;
@@ -16534,8 +16592,20 @@ function render(){
         fractionUnit: editCoDraft.fractionUnit.trim() || 'Paisa',
         suffixSymbol: editCoDraft.suffixSymbol,
         lockDate: editCoDraft.lockDate || '',
-        payrollOverridePassword: editCoDraft.payrollOverridePassword.trim(),
       });
+      // Payroll override password: stored as a salted hash only. Blank = keep what's there (and convert
+      // an older plaintext value to a hash); typing a new one replaces it; the checkbox removes it.
+      try{
+        const typed = (editCoDraft.payrollOverridePassword||'').trim();
+        if(editCoDraft.payrollOverrideClear){ currentCompany.payrollOverrideHash = null; currentCompany.payrollOverridePassword = ''; }
+        else if(typed){
+          const pm = passwordPolicyCheck(typed, {});
+          if(typed.length < 6){ toast('The override password needs at least 6 characters.'); return; }
+          currentCompany.payrollOverrideHash = await makeOverrideHash(typed); currentCompany.payrollOverridePassword = '';
+        }else if(!currentCompany.payrollOverrideHash && currentCompany.payrollOverridePassword){
+          currentCompany.payrollOverrideHash = await makeOverrideHash(currentCompany.payrollOverridePassword); currentCompany.payrollOverridePassword = '';
+        }
+      }catch(e){ console.warn('override hash failed', e); }
       const idx = companies.findIndex(c=>c.id===currentCompany.id);
       if(idx>-1) companies[idx] = currentCompany;
       await saveCompanyMeta(currentCompany);
@@ -17358,6 +17428,8 @@ function sidebarUserMenu(){
 // here so both triggers land on the exact same full teardown rather than two copies drifting apart.
 async function performFullLogout(){
   const wasDemo = isDemoUser;
+  try{ localStorage.removeItem(IDLE_STORE_KEY); }catch(e){}
+  idleHideWarning();
   stopForceLogoutPoll();
   stopTicketUpdatePoll();
   stopInterchangePoll();
@@ -18150,7 +18222,8 @@ function editCompanyModal(){
           <p class="muted" style="font-size:11px;margin:-4px 0 0;">No new voucher can be created or edited to fall on or before this date — use it once a financial year is closed and filed, so nothing already reported gets changed by accident. Leave blank for no lock. Year-End Close above sets this for you automatically.</p>
 
           <div class="section-title" style="margin-top:14px;">Payroll Security</div>
-          <div class="field"><label>Payroll Override Password (optional)</label><input type="password" id="editCoPayrollOverridePassword" value="${escapeAttr(editCoDraft.payrollOverridePassword)}" placeholder="Set a password to authorize overrides" autocomplete="new-password"></div>
+          <div class="field"><label>Payroll Override Password (optional)</label><input type="password" id="editCoPayrollOverridePassword" value="" placeholder="${(currentCompany.payrollOverrideHash||currentCompany.payrollOverridePassword)?'A password is set — type a new one to replace it':'Set a password to authorize overrides'}" autocomplete="new-password"></div>
+          ${(currentCompany.payrollOverrideHash||currentCompany.payrollOverridePassword)?`<label style="display:flex;gap:6px;align-items:center;font-size:11.5px;margin:-2px 0 6px;"><input type="checkbox" id="editCoPayrollOverrideClear"> Remove the override password</label>`:''}
           <p class="muted" style="font-size:11px;margin:-4px 0 0;">Deleting an employee who already has payroll, loan, or settlement history is blocked by default to protect that history. Set a password here so a supervisor or group admin can authorize it anyway when it's genuinely needed — the Administrator password always works too. Leave blank to allow only the Administrator password.</p>
 
           <button class="btn" id="saveCoEditBtn" type="button" style="width:100%;margin-top:8px;">Save Changes</button>
@@ -19018,9 +19091,20 @@ function backupModal(){
           </p>
           <button class="btn" id="downloadBackupBtn" type="button" style="margin-top:6px;">⬇ Download Backup (.json)</button>
 
+          <div style="margin-top:16px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-strong);">
+            <strong style="font-size:12.5px;">🔒 Encrypted backup <span class="muted" style="font-weight:400;">(recommended for email or cloud storage)</span></strong>
+            <p class="muted" style="font-size:11.5px;margin:4px 0 8px;">Locked with a passphrase in your browser (AES-256). Without the passphrase the file can't be opened — by anyone, including us — so keep the passphrase safe.</p>
+            <div class="row" style="gap:8px;flex-wrap:wrap;">
+              <input type="password" id="encBackupPass" placeholder="Passphrase (10+ characters)" autocomplete="new-password" style="flex:1;min-width:170px;">
+              <input type="password" id="encBackupPass2" placeholder="Repeat passphrase" autocomplete="new-password" style="flex:1;min-width:170px;">
+            </div>
+            <button class="btn small" id="downloadEncBackupBtn" type="button" style="margin-top:8px;">🔒 Download Encrypted Backup</button>
+          </div>
+
           <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
             <label>Restore from a backup file</label>
-            <input type="file" id="restoreFileInput" accept="application/json,.json" style="margin-top:6px;">
+            <input type="file" id="restoreFileInput" accept="application/json,.json,.rbenc" style="margin-top:6px;">
+            <div id="restoreEncRow" style="display:none;gap:8px;margin-top:8px;"><input type="password" id="restoreEncPass" placeholder="Backup passphrase" autocomplete="off" style="flex:1;"><button class="btn small" id="restoreEncUnlockBtn" type="button">Unlock</button></div>
             <p id="restorePreview" class="muted" style="font-size:12px;margin-top:8px;min-height:16px;"></p>
             <button class="btn" id="restoreConfirmBtn" type="button" style="margin-top:4px;" disabled>⚠ Restore — Replace Current Data</button>
             <p class="muted" style="font-size:11px;margin-top:8px;">Restoring REPLACES everything currently in this company with what's in the file. Use it to undo a mistake or move data between browsers — not casually, and not without a recent backup of what's here now.</p>
@@ -20282,15 +20366,17 @@ function renderPasswordResetCard(){
 }
 // ---- Login page 2026: password strength meter + inline field hints. Both are purely visual/
 // informational -- they never block a submit, and the actual validation rules (isValidUsername /
-// isValidMobile / isValidEmail, and the 6-character password minimum enforced in submitAuth /
+// isValidMobile / isValidEmail, and the password policy (passwordPolicyCheck, 10+ characters) enforced in submitAuth /
 // submitPasswordReset) are completely untouched. ----
 function computePasswordStrength(pw){
+  // Policy-aware (Nov 2026): anything that fails passwordPolicyCheck() is "Weak" no matter how it
+  // scores on length/mix alone, so the meter can never call a rejected password "Strong".
   if(!pw) return 0;
-  let score = 0;
-  if(pw.length>=6) score++;
-  if(pw.length>=10) score++;
-  if(/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
-  if(/[0-9]/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+  const c = passwordPolicyCheck(pw, passwordContext());
+  if(!c.ok) return 1;
+  let score = 2;
+  if(pw.length>=14) score++;
+  if(pw.length>=18 || (c.classes>=4 && pw.length>=14)) score++;
   return Math.max(1, Math.min(4, score));
 }
 function wirePasswordStrengthField(inputId, wrapId, labelId){
@@ -20302,7 +20388,12 @@ function wirePasswordStrengthField(inputId, wrapId, labelId){
   const update = ()=>{
     const level = input.value ? computePasswordStrength(input.value) : 0;
     wrap.dataset.level = String(level);
-    label.textContent = input.value ? labels[level] : '';
+    let text = input.value ? labels[level] : '';
+    if(input.value && level===1){
+      const pc = passwordPolicyCheck(input.value, passwordContext());
+      if(pc.problems[0]){ text += ' — ' + pc.problems[0].replace(/\.$/,''); label.title = pc.problems.join(' '); }
+    }else label.title = '';
+    label.textContent = text;
   };
   input.addEventListener('input', update);
   update();
@@ -20785,7 +20876,7 @@ function renderLogin(){
         effectivePassword = generateStrongPassword(32);
       }else{
         if(!password){ authError = 'Please create a password.'; renderLogin(); return; }
-        if(password.length<6){ authError = 'Password must be at least 6 characters.'; renderLogin(); return; }
+        { const pwProblem = passwordProblemMessage(password, { username, name, email }); if(pwProblem){ authError = pwProblem; renderLogin(); return; } }
         if(password!==confirm){ authError = 'Passwords do not match.'; renderLogin(); return; }
       }
       submitBtn.disabled = true;
@@ -20841,6 +20932,7 @@ function renderLogin(){
       const username = (document.getElementById('authUsername').value||'').trim();
       authDraft.username = username;
       if(!username || !password){ authError = 'Enter your username and password.'; renderLogin(); return; }
+      { const wait = loginThrottleRemainingSec(username); if(wait > 0){ authError = throttleMessage(wait); renderLogin(); return; } }
       submitBtn.disabled = true;
       submitBtn.classList.add('btn-busy');
       // The Administrator account logs in exactly like any other account, below — by username
@@ -20849,6 +20941,7 @@ function renderLogin(){
       try{
         const lookupDoc = await db.collection('usernames').doc(username.toLowerCase()).get();
         if(!lookupDoc.exists){
+          loginThrottleRecordFailure(username);
           authError = 'No account found with that username.';
           submitBtn.disabled = false; renderLogin();
           logAudit('login_failed', `No account found for username "${username}"`, null, username);
@@ -20860,6 +20953,7 @@ function renderLogin(){
         // call so it applies to the session about to be created, not the one just ending.
         try{ await fbAuth.setPersistence(rememberMeChecked ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION); }catch(e){}
         const cred = await fbAuth.signInWithEmailAndPassword(email, password);
+        loginThrottleClear(username);
         const profDoc = await db.collection('users').doc(cred.user.uid).get();
         const profile = profDoc.exists ? profDoc.data() : { name: username, username, role:'user' };
         if(profile.blocked){
@@ -20885,6 +20979,8 @@ function renderLogin(){
         await loadAnnouncementForUser();
         await loadFeatureFlags();
         logAudit('login', '', cred.user.uid, currentUser.name);
+        idleMark(true);
+        securityLoginNotices(profile, password, username);
         startForceLogoutPoll();
         startTicketUpdatePoll();
         startInterchangePoll();
@@ -20892,6 +20988,7 @@ function renderLogin(){
         renderGateway();
         pushHistory();
       }catch(err){
+        if(err && /wrong-password|invalid-credential|user-not-found|invalid-login/.test(String(err.code||''))) loginThrottleRecordFailure(username);
         authError = authErrorMessage(err, false);
         logAudit('login_failed', `Failed login attempt for username "${username}" (${err && err.code ? err.code : 'error'})`, null, username);
         submitBtn.disabled = false;
@@ -21210,7 +21307,7 @@ function renderLogin(){
     const pw = (document.getElementById('resetNewPassword').value||'');
     const confirm = (document.getElementById('resetConfirmPassword').value||'');
     if(!pw){ passwordResetError = 'Please enter a new password.'; renderLogin(); return; }
-    if(pw.length<6){ passwordResetError = 'Password must be at least 6 characters.'; renderLogin(); return; }
+    { const pwProblem = passwordProblemMessage(pw); if(pwProblem){ passwordResetError = pwProblem; renderLogin(); return; } }
     if(pw!==confirm){ passwordResetError = 'Passwords do not match.'; renderLogin(); return; }
     passwordResetBusy = true;
     renderLogin();
@@ -23325,7 +23422,7 @@ function renderGateway(){
       if(!isValidUsername(draft.username)){ adminAddUserError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; renderGateway(); return; }
       if(!isValidEmail(draft.email)){ adminAddUserError = 'Please enter a valid email address.'; renderGateway(); return; }
       if(!isValidMobile(draft.mobile)){ adminAddUserError = 'Please enter a valid 10-digit phone number.'; renderGateway(); return; }
-      if(!draft.password || draft.password.length < 6){ adminAddUserError = 'Password must be at least 6 characters.'; renderGateway(); return; }
+      if(!draft.password || passwordProblemMessage(draft.password, { username: draft.username, name: draft.name, email: draft.email })){ adminAddUserError = passwordProblemMessage(draft.password || '', { username: draft.username, name: draft.name, email: draft.email }) || 'Please enter a password.'; renderGateway(); return; }
       // Check email uniqueness against the accounts already loaded in the Admin Panel first — this
       // is what makes the error message specific ("already used by @username") instead of the generic
       // "email already in use" Firebase's own check would otherwise be the only source of, which read
@@ -23734,7 +23831,7 @@ function renderGateway(){
           currencySymbol: currentCompany.currencySymbol||'₹', currencyFormalName: currentCompany.currencyFormalName||'INR',
           decimalPlaces: currentCompany.decimalPlaces!=null ? currentCompany.decimalPlaces : 2, fractionUnit: currentCompany.fractionUnit||'Paisa',
           suffixSymbol: !!currentCompany.suffixSymbol, lockDate: currentCompany.lockDate||'',
-          payrollOverridePassword: currentCompany.payrollOverridePassword||'',
+          payrollOverridePassword: '', payrollOverrideClear: false,
         };
         modal = 'editCompany';
         render();
@@ -24032,7 +24129,7 @@ function renderGateway(){
       if(!isValidUsername(draft.username)){ groupAddUserError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; renderGateway(); return; }
       if(!isValidEmail(draft.email)){ groupAddUserError = 'Please enter a valid email address.'; renderGateway(); return; }
       if(!isValidMobile(draft.mobile)){ groupAddUserError = 'Please enter a valid 10-digit phone number.'; renderGateway(); return; }
-      if(!draft.password || draft.password.length < 6){ groupAddUserError = 'Password must be at least 6 characters.'; renderGateway(); return; }
+      if(!draft.password || passwordProblemMessage(draft.password, { username: draft.username, name: draft.name, email: draft.email })){ groupAddUserError = passwordProblemMessage(draft.password || '', { username: draft.username, name: draft.name, email: draft.email }) || 'Please enter a password.'; renderGateway(); return; }
       groupAddUserBusy = true;
       groupAddUserError = '';
       renderGateway();
@@ -24649,6 +24746,8 @@ function adminSupportTab(){
 // carry a user's uid (ownerId / userId / targetUid), not a groupOwnerId of their own, so the rule
 // has to look up THAT uid's own groupOwnerId to decide whether it's inside the requesting Support
 // user's group. A full Administrator (role=='admin') still sees everything, same as before.
+// Nov 2026 security round: Team Access teammates are server-side read-only; company ownerId/groupId are immutable for
+// non-administrators. Everything else is unchanged from the previous rules.
 const RECOMMENDED_FIRESTORE_RULES = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24804,16 +24903,19 @@ service cloud.firestore {
         (request.resource.data.ownerId == request.auth.uid &&
          (request.resource.data.groupId == null || request.resource.data.groupId == myGroupId()))
       );
-      // A Company Team Access teammate gets full read-write here too (exactly like a Support group
-      // member above) — per-module Full/View/Hidden is enforced client-side by isReadOnlyMode()/
-      // isModuleHidden(), the same trust model the groupId feature already relies on, since this
-      // app embeds a company's entire books as fields on one document rather than per-module
-      // subcollections a security rule could gate individually.
+      // Nov 2026 hardening: a Company Team Access teammate is READ-ONLY on the server, not just in the
+      // app -- they appear in isTeamMember() for get/list above but are deliberately absent here, so a
+      // modified client or a direct API call can no longer write to the company's books. (Team Access
+      // has been view-only in the app since the view-only cap; this makes the database agree.)
+      // Non-administrators can also never re-assign a company: ownerId and groupId are immutable for
+      // them, so a group member or owner can't hand a company to another account or plant it in a
+      // group it doesn't belong to. Only an Administrator can move a company.
       allow update: if isSignedIn() && (
-        resource.data.ownerId == request.auth.uid ||
         isAdmin() ||
-        (resource.data.groupId != null && resource.data.groupId == myGroupId()) ||
-        isTeamMember()
+        ((resource.data.ownerId == request.auth.uid ||
+          (resource.data.groupId != null && resource.data.groupId == myGroupId())) &&
+         request.resource.data.ownerId == resource.data.ownerId &&
+         request.resource.data.get('groupId', null) == resource.data.get('groupId', null))
       );
       // Deletion is deliberately narrower than read/write: only an Administrator, the Support user
       // who administers this group, or a fully independent (ungrouped) owner may delete a company —
@@ -24842,10 +24944,10 @@ service cloud.firestore {
         (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
         isTeamMember()
       );
+      // Writes exclude Company Team Access teammates (view-only since Nov 2026 -- see /companies above).
       allow create, update, delete: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
-        (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
-        isTeamMember()
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
       );
     }
     match /companies/{companyId}/archives/{fyId} {
@@ -24862,10 +24964,10 @@ service cloud.firestore {
         (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
         isTeamMember()
       );
+      // Writes exclude Company Team Access teammates (view-only since Nov 2026 -- see /companies above).
       allow create, update, delete: if isSignedIn() && (
         companyDoc().ownerId == request.auth.uid || isAdmin() ||
-        (companyDoc().groupId != null && companyDoc().groupId == myGroupId()) ||
-        isTeamMember()
+        (companyDoc().groupId != null && companyDoc().groupId == myGroupId())
       );
     }
     match /settings/{docId} {
@@ -28490,7 +28592,7 @@ function parseImportFile(file){
           rows = importParseCSVText(String(e.target.result));
         } else {
           if(typeof XLSX === 'undefined'){ reject(new Error('Spreadsheet reader unavailable')); return; }
-          const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+          const wb = safeXlsxRead(new Uint8Array(e.target.result), {type:'array', cellDates:true});
           const sheet = wb.Sheets[wb.SheetNames[0]];
           rows = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:''});
         }
@@ -30506,8 +30608,11 @@ function wireTrustedDevicesModal(){
     });
   });
 }
-function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
-function escapeHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// Nov 2026: both now escape every character that can end an HTML text node or attribute value (& < > " '),
+// and accept non-string input -- previously escapeAttr left & < > ' alone and escapeHtml left quotes alone,
+// so text from the database placed inside a quoted attribute could break out of it.
+function escapeAttr(s){ return (s ? String(s) : '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeHtml(s){ return (s ? String(s) : '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ---------------- Shared tax-invoice HTML builder ----------------
 // Both the live "Generate & Print Bill" button (mid-entry, off the still-unsaved GST Calculator draft)
@@ -33918,6 +34023,7 @@ function viewReports(){
   if(reportsSelected==='spendPolicy') return reportSpendPolicy();
   if(reportsSelected==='collectionsPayRun') return reportCollectionsPayRun();
   if(reportsSelected==='agentsHub') return reportAgentsHub();
+  if(reportsSelected==='securityCentre') return reportSecurityCentre();
   if(reportsSelected==='financialPerformance') return reportFinancialPerformance();
   if(reportsSelected==='stakeholderPresentation') return reportStakeholderPresentation();
   return reportsLanding();
@@ -33968,6 +34074,7 @@ const REPORT_CARDS = [
   // single month's point-in-time GST Return Readiness card (still on the GST tab) can show on its own.
   {id:'gstCompliance', icon:'shield', title:'GST / Compliance Watch Agent (AI)', desc:'Watches the last several months of GST readiness side by side — a filing drifting toward late, bank reconciliation lagging behind a period marked ready, input credit at risk from a missing supplier GSTIN, and an open-issue count trending the wrong way — each finding explainable and clickable back to the voucher.', group:'AI & Predictive Insights'},
   // Nov 2026 -- five more agents + a unified inbox over all of them (see the block above reportGstComplianceWatch's siblings).
+  {id:'securityCentre', icon:'shield_lock', title:'Security Centre', desc:'A plain-language check of how this company\'s books are protected — sign-in rules, automatic sign-out, the sealed edit history, the encrypted documents vault, backups and browser protections — each with what to do next. Includes the stricter database rules to paste into Firebase.', group:'Compliance & Data Quality'},
   {id:'agentsHub', icon:'hub', title:'AI Agents Hub', desc:'One ranked inbox over every AI agent — cash, TDS and advance tax, spend policy, collections, GST, audit and bad-debt risk — so you work a single queue. Open a finding to fix it, snooze it for a week or dismiss it.', group:'AI & Predictive Insights'},
   {id:'cashWorkingCapital', icon:'account_balance_wallet', title:'Cash & Working-Capital Agent (AI)', desc:'Projects your cash 90 days ahead from open invoices, payables and recurring entries, finds the date cash would run out, stress-tests it against late payers, and suggests which collections to chase and which supplier payments can wait.', group:'AI & Predictive Insights'},
   {id:'tdsAdvanceTax', icon:'receipt_long', title:'TDS & Advance-Tax Agent (AI)', desc:'Spots supplier payments that probably needed TDS but have none, deductions below the default rate, tax withheld but not deposited by the 7th, and projects each advance-tax instalment from year-to-date profit.', group:'AI & Predictive Insights'},
@@ -34011,7 +34118,7 @@ const REPORT_CARD_HUES = {
   cashFlowForecast:'#0369A1', esg:'#15803D',
   forexRealized:'#0D9488', eclProvision:'#6D28D9', internalAudit:'#B91C1C',
   gstCompliance:'#1D4ED8',
-  cashWorkingCapital:'#0E7490', tdsAdvanceTax:'#B45309', spendPolicy:'#7C3AED', collectionsPayRun:'#0F766E', agentsHub:'#4338CA',
+  cashWorkingCapital:'#0E7490', tdsAdvanceTax:'#B45309', spendPolicy:'#7C3AED', collectionsPayRun:'#0F766E', agentsHub:'#4338CA', securityCentre:'#0F5132',
 };
 function reportCardArt(id){
   const hue = REPORT_CARD_HUES[id] || 'var(--accent1)';
@@ -34162,6 +34269,11 @@ function reportCardArt(id){
       <path d="M10 18 L27 31 L44 18" style="fill:none;stroke:${hue};stroke-width:2;stroke-linejoin:round;"/>
       <circle cx="46" cy="42" r="10" style="fill:var(--surface);stroke:${hue};stroke-width:2.2;"/>
       <path d="M41 42 H51 M47 38 L51 42 L47 46" style="fill:none;stroke:${hue};stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;"/>`,
+    securityCentre: `
+      <path d="M32 7 L51 14 C51 30, 46 45, 32 57 C18 45, 13 30, 13 14 Z" style="fill:color-mix(in srgb, ${hue} 14%, var(--surface));stroke:${hue};stroke-width:2.2;stroke-linejoin:round;"/>
+      <rect x="23" y="29" width="18" height="14" rx="3" style="fill:${hue};"/>
+      <path d="M26.5 29 V25 a5.5 5.5 0 0 1 11 0 V29" style="fill:none;stroke:${hue};stroke-width:2.4;stroke-linecap:round;"/>
+      <circle cx="32" cy="36" r="2" style="fill:var(--surface);"/>`,
     agentsHub: `
       <circle cx="32" cy="32" r="8" style="fill:${hue};"/>
       <circle cx="14" cy="16" r="5" style="fill:color-mix(in srgb, ${hue} 35%, var(--surface));stroke:${hue};stroke-width:1.8;"/>
@@ -39129,6 +39241,613 @@ function wireNewAgentReports(){
   document.querySelectorAll('[data-hub-restore]').forEach(b=> b.addEventListener('click', ()=> agentHubSetState(b.dataset.hubRestore, null)));
 }
 
+/* =====================================================================================================
+   Nov 2026 -- SECURITY HARDENING ROUND
+   Everything here is client-side, deterministic and dependency-free. It sits on top of (never instead
+   of) Firebase Auth + Firestore Security Rules, which remain the real enforcement layer -- see the
+   Security Centre report for the stricter rules to paste into the Firebase console.
+
+   1. safeXlsxRead      -- size-capped spreadsheet reader that undoes Object.prototype pollution
+   2. Password policy   -- passwordPolicyCheck(): 10+ chars, common-password blocklist, contextual checks
+   3. Sign-in slow-down -- loginThrottle*(): exponential back-off after repeated failures (also used by the vault)
+   4. Idle auto-logout  -- 15 min, 1-minute warning, shared across tabs, enforced again on page reload
+   5. Vault helpers     -- 10+ char passphrases, 600k PBKDF2 for new vaults, AES-GCM key-check (no fast verifier)
+   6. Override password -- payroll override password is stored as a salted PBKDF2 hash, never plaintext
+   7. Encrypted backup  -- optional passphrase-protected backup (AES-256-GCM, PBKDF2-SHA256 600k)
+   8. Audit chain       -- hash-chained voucher audit log + verifier (tamper-EVIDENT, not tamper-proof)
+   9. Security Centre   -- an explainable report card of every check above plus browser/hosting checks
+   ===================================================================================================== */
+
+// ---------- 1. Spreadsheet import guard ----------
+const XLSX_IMPORT_MAX_BYTES = 12 * 1024 * 1024;
+function safeXlsxRead(data, opts){
+  const size = data && (data.byteLength != null ? data.byteLength : data.length);
+  if(size > XLSX_IMPORT_MAX_BYTES) throw new Error('That spreadsheet is larger than ' + (XLSX_IMPORT_MAX_BYTES/1048576|0) + ' MB — split it into smaller files.');
+  // SheetJS releases before 0.19.3 could be tricked by a crafted file into adding keys to
+  // Object.prototype (prototype pollution). Snapshot the prototype, read, then remove anything new.
+  const before = new Set(Object.getOwnPropertyNames(Object.prototype));
+  let wb;
+  try{ wb = XLSX.read(data, opts); }
+  finally{
+    Object.getOwnPropertyNames(Object.prototype).forEach(k=>{
+      if(!before.has(k)){ try{ delete Object.prototype[k]; }catch(e){} }
+    });
+  }
+  return wb;
+}
+
+// ---------- 2. Password policy ----------
+const PW_MIN_LEN = 10;
+const COMMON_PASSWORDS = new Set((
+  'password,passw0rd,p@ssword,p@ssw0rd,password1,password12,password123,passwordpassword,123456,1234567,12345678,123456789,1234567890,' +
+  '0123456789,111111,000000,123123,654321,666666,121212,qwerty,qwertyuiop,qwerty123,qwertyui,asdfgh,asdfghjkl,zxcvbnm,1q2w3e4r,1qaz2wsx,' +
+  'abc123,abcd1234,abcdef,letmein,welcome,welcome1,welcome123,admin,admin123,administrator,root,toor,login,master,hello,hello123,' +
+  'iloveyou,sunshine,princess,monkey,dragon,football,baseball,superman,batman,trustno1,shadow,michael,jennifer,charlie,whatever,' +
+  'freedom,secret,changeme,default,guest,test,test123,testing,temp,temp123,india,india123,bharat,mumbai,delhi,chennai,bangalore,' +
+  'krishna,ganesh,sairam,jaishreeram,omnamahshivaya,iloveindia,cricket,sachin,dhoni,virat,ranbir,tendulkar,ramesh,suresh,' +
+  'accounts,accounting,tally,tally123,ledger,reckoning,reckoningbooks,books,finance,company,business,gst,gst123,invoice,' +
+  'google,gmail,facebook,whatsapp,instagram,amazon,flipkart,paytm,phonepe,sbi,hdfc,icici,axis,' +
+  'january,february,march,april,may,june,july,august,september,october,november,december,summer,winter,spring,autumn,' +
+  '2020,2021,2022,2023,2024,2025,2026'
+).split(','));
+function _pwIsSequential(s){
+  if(s.length < 6) return false;
+  let up = 0, down = 0;
+  for(let i=1;i<s.length;i++){
+    const d = s.charCodeAt(i) - s.charCodeAt(i-1);
+    if(d === 1) up++; else if(d === -1) down++;
+  }
+  return up >= s.length-1 || down >= s.length-1;
+}
+function passwordPolicyCheck(pw, ctx){
+  pw = String(pw == null ? '' : pw);
+  ctx = ctx || {};
+  const problems = [];
+  const lower = pw.toLowerCase();
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r=>r.test(pw)).length;
+  if(pw.length < PW_MIN_LEN) problems.push('Use at least ' + PW_MIN_LEN + ' characters.');
+  const lettersOnly = lower.replace(/[^a-z]/g,'');
+  const trimmedTail = lower.replace(/[0-9\W_]+$/,'');
+  const leetFixed = lower.replace(/@/g,'a').replace(/0/g,'o').replace(/\$/g,'s').replace(/1/g,'i').replace(/3/g,'e').replace(/!/g,'i');
+  const leetLetters = leetFixed.replace(/[^a-z]/g,'');
+  if(pw && (COMMON_PASSWORDS.has(lower) || COMMON_PASSWORDS.has(trimmedTail) || COMMON_PASSWORDS.has(lettersOnly) || COMMON_PASSWORDS.has(leetLetters))){
+    problems.push('That is one of the most commonly guessed passwords — pick something less predictable.');
+  }
+  if(pw.length >= 4 && new Set(pw.split('')).size < 4) problems.push('Too repetitive — mix in more different characters.');
+  if(_pwIsSequential(lower)) problems.push('A run like 12345678 or abcdefgh is easy to guess.');
+  if(pw.length < 16 && classes < 3 && pw.length >= PW_MIN_LEN){
+    problems.push('Mix at least three of: lowercase, UPPERCASE, numbers, symbols — or use a passphrase of 16+ characters.');
+  }
+  const tokens = [];
+  [ctx.username, ctx.company].forEach(v=>{ if(v) tokens.push(String(v)); });
+  if(ctx.email) tokens.push(String(ctx.email).split('@')[0]);
+  if(ctx.name) String(ctx.name).split(/\s+/).forEach(t=>tokens.push(t));
+  const hit = tokens.map(t=>t.toLowerCase().replace(/[^a-z0-9]/g,'')).find(t=>t.length >= 4 && lower.replace(/[^a-z0-9]/g,'').includes(t));
+  if(hit) problems.push('Don\'t include your name, username or email in the password.');
+  return { ok: problems.length === 0, problems, classes };
+}
+function passwordContext(){
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  return {
+    username: (typeof authDraft !== 'undefined' && authDraft && authDraft.username) || val('authUsername'),
+    email: (typeof authDraft !== 'undefined' && authDraft && authDraft.email) || '',
+    name: (typeof authDraft !== 'undefined' && authDraft && authDraft.name) || val('authName'),
+  };
+}
+function passwordProblemMessage(pw, ctx){
+  const r = passwordPolicyCheck(pw, ctx || passwordContext());
+  return r.ok ? '' : ('Password not strong enough. ' + r.problems[0]);
+}
+// Passphrases (vault, encrypted backup) follow the same rules minus the personal-info checks.
+function vaultPassphraseProblem(p){
+  const r = passwordPolicyCheck(p, {});
+  return r.ok ? '' : ('Passphrase not strong enough. ' + r.problems[0]);
+}
+
+// ---------- 3. Sign-in slow-down (client side; Firebase also rate-limits on its servers) ----------
+const THROTTLE_KEY = 'rb_loginThrottle';
+function _throttleLoad(){ try{ return JSON.parse(localStorage.getItem(THROTTLE_KEY) || '{}') || {}; }catch(e){ return {}; } }
+function _throttleSave(o){ try{ localStorage.setItem(THROTTLE_KEY, JSON.stringify(o)); }catch(e){} }
+function _throttleKey(name){ return String(name || '').trim().toLowerCase().slice(0, 80); }
+function loginThrottleRemainingSec(name){
+  const o = _throttleLoad();
+  const now = Date.now();
+  let worst = 0;
+  [_throttleKey(name), '*'].forEach(k=>{
+    const rec = o[k];
+    if(rec && rec.until > now) worst = Math.max(worst, Math.ceil((rec.until - now) / 1000));
+  });
+  return worst;
+}
+function loginThrottleRecordFailure(name){
+  const o = _throttleLoad();
+  const now = Date.now();
+  Object.keys(o).forEach(k=>{ if(now - (o[k].last || 0) > 30*60*1000) delete o[k]; });
+  const bump = (k, start) => {
+    const rec = o[k] || { count: 0, until: 0, last: 0 };
+    rec.count += 1; rec.last = now;
+    if(rec.count >= start){
+      const delaySec = Math.min(900, 5 * Math.pow(2, rec.count - start));
+      rec.until = now + delaySec * 1000;
+    }
+    o[k] = rec;
+  };
+  bump(_throttleKey(name), 3);   // per account name: slows from the 3rd miss
+  bump('*', 8);                  // across all names (password spraying): slows from the 8th miss
+  _throttleSave(o);
+}
+function loginThrottleClear(name){
+  const o = _throttleLoad();
+  delete o[_throttleKey(name)];
+  _throttleSave(o);
+}
+function throttleMessage(sec){
+  const w = sec >= 90 ? Math.ceil(sec / 60) + ' minutes' : sec + ' seconds';
+  return 'Too many failed attempts. Please wait ' + w + ' before trying again.';
+}
+
+// ---------- 4. Idle auto-logout ----------
+let IDLE_LIMIT_MS = 15 * 60 * 1000;
+let IDLE_WARN_MS = 60 * 1000;
+const IDLE_STORE_KEY = 'rb_lastActivity';
+let idleLast = Date.now();
+let idleLastWrite = 0;
+let idleWarnOpen = false;
+let idleWasSignedIn = false;
+function _idleStored(){ try{ return Number(localStorage.getItem(IDLE_STORE_KEY)) || 0; }catch(e){ return 0; } }
+function idleMark(force){
+  if(idleWarnOpen && !force) return; // while the warning is up, only the button counts
+  const now = Date.now();
+  idleLast = now;
+  if(force || now - idleLastWrite > 4000){
+    idleLastWrite = now;
+    try{ localStorage.setItem(IDLE_STORE_KEY, String(now)); }catch(e){}
+  }
+}
+function idleBootExpired(){
+  const s = _idleStored();
+  return !!s && (Date.now() - s) >= IDLE_LIMIT_MS;
+}
+function idleHideWarning(){
+  idleWarnOpen = false;
+  const el = document.getElementById('idleWarnBar');
+  if(el) el.remove();
+}
+function idleShowWarning(secsLeft){
+  let el = document.getElementById('idleWarnBar');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'idleWarnBar';
+    el.setAttribute('role', 'alertdialog');
+    el.setAttribute('aria-live', 'assertive');
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100000;max-width:min(520px,92vw);background:var(--surface);color:var(--ink);border:1px solid var(--debit);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.28);padding:14px 16px;display:flex;gap:14px;align-items:center;font-size:13px;';
+    el.innerHTML = '<div style="flex:1;"><strong>Still there?</strong><div class="muted" style="font-size:12px;margin-top:2px;" id="idleWarnText"></div></div><button class="btn small" id="idleStayBtn" type="button">Stay signed in</button>';
+    document.body.appendChild(el);
+    el.querySelector('#idleStayBtn').addEventListener('click', ()=>{ idleHideWarning(); idleMark(true); });
+  }
+  idleWarnOpen = true;
+  const t = el.querySelector('#idleWarnText');
+  if(t) t.textContent = 'For your security you\'ll be signed out in ' + secsLeft + ' second' + (secsLeft === 1 ? '' : 's') + ' because there has been no activity.';
+}
+async function idleSignOut(){
+  idleHideWarning();
+  if(!currentUser) return;
+  try{ await logAudit('session_timeout', 'Signed out after ' + Math.round(IDLE_LIMIT_MS/60000) + ' minutes of inactivity', currentUser.id, currentUser.name); }catch(e){}
+  await performFullLogout();
+  authError = 'You were signed out after ' + Math.round(IDLE_LIMIT_MS/60000) + ' minutes of inactivity to keep your books safe. Please sign in again.';
+  renderLogin();
+}
+function idleTick(){
+  const signedIn = !!(typeof currentUser !== 'undefined' && currentUser);
+  if(!signedIn){ idleWasSignedIn = false; idleHideWarning(); return; }
+  if(!idleWasSignedIn){ idleWasSignedIn = true; idleMark(true); return; }
+  if(typeof isDemoUser !== 'undefined' && isDemoUser) return; // the public sample company holds no client data
+  const last = Math.max(idleLast, _idleStored());
+  const idle = Date.now() - last;
+  if(idle >= IDLE_LIMIT_MS){ idleSignOut(); }
+  else if(idle >= IDLE_LIMIT_MS - IDLE_WARN_MS){ idleShowWarning(Math.max(1, Math.ceil((IDLE_LIMIT_MS - idle) / 1000))); }
+  else if(idleWarnOpen){ idleHideWarning(); } // another tab was used
+}
+(function installIdleWatch(){
+  ['pointerdown','keydown','wheel','touchstart','scroll','mousemove'].forEach(evt=>{
+    window.addEventListener(evt, ()=>idleMark(false), { passive: true, capture: true });
+  });
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) idleTick(); });
+  setInterval(idleTick, 1000);
+})();
+
+// ---------- 5. Vault helpers ----------
+const VAULT_ITER_LEGACY = 150000;
+const VAULT_ITER_NEW = 600000;
+async function vaultMakeCheck(key){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode('RB-VAULT-CHECK-v1'));
+  return { iv: b64FromBuf(iv.buffer), ct: b64FromBuf(ct) };
+}
+async function vaultVerifyCheck(key, chk){
+  try{
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: new Uint8Array(bufFromB64(chk.iv)) }, key, bufFromB64(chk.ct));
+    return new TextDecoder().decode(pt) === 'RB-VAULT-CHECK-v1';
+  }catch(e){ return false; }
+}
+
+// ---------- 6. Payroll override password: salted hash instead of plaintext ----------
+async function pbkdf2Hash(secret, saltB64, iterations){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name:'PBKDF2', salt: bufFromB64(saltB64), iterations: iterations || 210000, hash:'SHA-256' }, base, 256);
+  return b64FromBuf(bits);
+}
+async function makeOverrideHash(secret){
+  const salt = b64FromBuf(crypto.getRandomValues(new Uint8Array(16)).buffer);
+  return { salt, iter: 210000, hash: await pbkdf2Hash(secret, salt, 210000) };
+}
+async function verifyOverridePassword(entered, company){
+  const c = company || currentCompany;
+  if(!c || !entered) return false;
+  const h = c.payrollOverrideHash;
+  if(h && h.hash){
+    const calc = await pbkdf2Hash(entered, h.salt, h.iter || 210000);
+    return calc === h.hash;
+  }
+  return !!(c.payrollOverridePassword && entered === c.payrollOverridePassword); // legacy plaintext, until next save of Edit Company
+}
+
+// ---------- 7. Encrypted backup ----------
+const ENC_BACKUP_MAGIC = 'reckoning-books-encrypted-backup';
+const ENC_BACKUP_ITER = 600000;
+async function _encKey(pass, saltB64, iter){
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt: bufFromB64(saltB64), iterations: iter, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+async function encryptBackupEnvelope(obj, pass){
+  const salt = b64FromBuf(crypto.getRandomValues(new Uint8Array(16)).buffer);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await _encKey(pass, salt, ENC_BACKUP_ITER);
+  const aad = new TextEncoder().encode(ENC_BACKUP_MAGIC + ':1');
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv, additionalData: aad }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return { format: ENC_BACKUP_MAGIC, version: 1, kdf: 'PBKDF2-SHA256', iterations: ENC_BACKUP_ITER, cipher: 'AES-256-GCM',
+           createdAt: new Date().toISOString(), salt, iv: b64FromBuf(iv.buffer), data: b64FromBuf(ct) };
+}
+async function decryptBackupEnvelope(env, pass){
+  if(!env || env.format !== ENC_BACKUP_MAGIC || env.version !== 1) throw new Error('Not an encrypted backup');
+  const iter = Math.min(Math.max(Number(env.iterations) || ENC_BACKUP_ITER, 100000), 5000000);
+  const key = await _encKey(pass, env.salt, iter);
+  const aad = new TextEncoder().encode(ENC_BACKUP_MAGIC + ':1');
+  const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv: new Uint8Array(bufFromB64(env.iv)), additionalData: aad }, key, bufFromB64(env.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function downloadEncryptedBackup(){
+  const p1 = (document.getElementById('encBackupPass') || {}).value || '';
+  const p2 = (document.getElementById('encBackupPass2') || {}).value || '';
+  const problem = vaultPassphraseProblem(p1);
+  if(problem){ toast(problem); return; }
+  if(p1 !== p2){ toast('The two passphrases do not match.'); return; }
+  const btn = document.getElementById('downloadEncBackupBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Encrypting…'; }
+  try{
+    const env = await encryptBackupEnvelope(buildCompanyBackup(), p1);
+    const blob = new Blob([JSON.stringify(env)], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = (currentCompany.name || 'company').replace(/[^a-z0-9]+/gi, '_');
+    a.href = url;
+    a.download = safeName + '_EncryptedBackup_' + new Date().toISOString().slice(0,10) + '.rbenc';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    try{ localStorage.setItem('rb_lastEncBackup_' + currentCompany.id, new Date().toISOString()); }catch(e){}
+    toast('Encrypted backup downloaded — keep the passphrase safe; without it the file cannot be opened.', { type:'success' });
+  }catch(e){
+    toast('Could not create the encrypted backup.');
+  }
+  if(btn){ btn.disabled = false; btn.textContent = '🔒 Download Encrypted Backup'; }
+}
+// Restore helper used by the backup modal's file picker: accepts a plain backup (.json) or an
+// encrypted one (.rbenc) -- an encrypted file reveals a passphrase box and is decrypted on demand.
+let restoreEnvelope = null;
+function restoreOfferData(data){
+  const preview = document.getElementById('restorePreview');
+  const confirmBtn = document.getElementById('restoreConfirmBtn');
+  if(!data || !Array.isArray(data.ledgers) || !Array.isArray(data.vouchers)){
+    if(preview) preview.textContent = "This doesn't look like a valid backup file.";
+    return false;
+  }
+  restoreFile = data;
+  if(preview) preview.textContent = 'Backup from "' + (data.companyName || 'unknown company') + '", exported ' + (data._exportedAt ? fmtTimestamp(data._exportedAt) : 'unknown date') + ' — ' + data.ledgers.length + ' ledgers, ' + data.vouchers.length + ' vouchers.';
+  if(confirmBtn) confirmBtn.disabled = false;
+  return true;
+}
+function restoreInspectText(text){
+  const preview = document.getElementById('restorePreview');
+  const row = document.getElementById('restoreEncRow');
+  restoreEnvelope = null;
+  if(row) row.style.display = 'none';
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(err){ if(preview) preview.textContent = "Could not read this file — make sure it's a backup exported from this app."; return; }
+  if(data && data.format === ENC_BACKUP_MAGIC){
+    restoreEnvelope = data;
+    if(row) row.style.display = 'flex';
+    if(preview) preview.textContent = 'This is an encrypted backup (made ' + (data.createdAt ? fmtTimestamp(data.createdAt) : 'on an unknown date') + '). Enter its passphrase and press Unlock.';
+    return;
+  }
+  restoreOfferData(data);
+}
+async function restoreUnlockEnvelope(){
+  const pass = (document.getElementById('restoreEncPass') || {}).value || '';
+  const preview = document.getElementById('restorePreview');
+  if(!restoreEnvelope || !pass) return;
+  const wait = loginThrottleRemainingSec('backup:' + (currentCompany ? currentCompany.id : ''));
+  if(wait > 0){ if(preview) preview.textContent = throttleMessage(wait); return; }
+  try{
+    const data = await decryptBackupEnvelope(restoreEnvelope, pass);
+    loginThrottleClear('backup:' + (currentCompany ? currentCompany.id : ''));
+    restoreOfferData(data);
+  }catch(e){
+    loginThrottleRecordFailure('backup:' + (currentCompany ? currentCompany.id : ''));
+    if(preview) preview.textContent = 'Wrong passphrase, or the file has been changed — it could not be decrypted.';
+  }
+}
+
+// ---------- 8. Hash-chained voucher audit trail ----------
+function canonicalJSON(v){
+  if(v === null || v === undefined) return 'null';
+  if(Array.isArray(v)) return '[' + v.map(canonicalJSON).join(',') + ']';
+  if(typeof v === 'object') return '{' + Object.keys(v).sort().filter(k=>v[k] !== undefined).map(k=>JSON.stringify(k) + ':' + canonicalJSON(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+async function sha256Hex(str){
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(d)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function auditEntryHash(e){
+  return sha256Hex(canonicalJSON({ id:e.id, at:e.at, action:e.action, voucherId:e.voucherId, by:e.by, byName:e.byName, before:e.before, after:e.after, prev:e.prev }));
+}
+let auditSealQueue = Promise.resolve();
+function sealAuditEntryAndSave(entry){
+  auditSealQueue = auditSealQueue.then(async ()=>{
+    try{
+      const log = state.voucherAuditLog || [];
+      const idx = log.indexOf(entry);
+      if(idx >= 0){
+        const older = log[idx + 1];
+        entry.prev = older ? (older.hash || 'LEGACY') : 'GENESIS';
+        entry.hash = await auditEntryHash(entry);
+      }
+    }catch(e){ console.warn('audit seal failed', e); }
+    await saveVoucherAuditLog();
+  });
+  return auditSealQueue;
+}
+async function verifyAuditChain(){
+  const log = (state.voucherAuditLog || []).slice().reverse(); // oldest first
+  const issues = [];
+  let sealed = 0, legacy = 0, head = null;
+  for(let i = 0; i < log.length; i++){
+    const e = log[i];
+    if(!e.hash){
+      legacy++;
+      if(sealed > 0) issues.push({ id:e.id, at:e.at, reason:'An entry without a seal appears after sealed entries — it was added outside the app.' });
+      continue;
+    }
+    sealed++;
+    head = e.hash;
+    const calc = await auditEntryHash(e);
+    if(calc !== e.hash) issues.push({ id:e.id, at:e.at, reason:'This entry\'s contents no longer match its seal — it was changed after it was recorded.' });
+    if(i > 0){
+      const p = log[i-1];
+      if(p.hash){ if(e.prev !== p.hash) issues.push({ id:e.id, at:e.at, reason:'The chain is broken here — an earlier entry was removed or altered.' }); }
+      else if(e.prev !== 'LEGACY') issues.push({ id:e.id, at:e.at, reason:'The chain is broken here — an earlier entry was removed or altered.' });
+    }
+  }
+  return { total: log.length, sealed, legacy, issues, head, checkedAt: new Date().toISOString(), companyId: currentCompany ? currentCompany.id : null };
+}
+
+// ---------- 9. Security Centre ----------
+let securityAuditResult = null;
+let securityAuditBusy = false;
+function securityRunAudit(){
+  if(securityAuditBusy) return;
+  securityAuditBusy = true;
+  verifyAuditChain().then(r=>{ securityAuditResult = r; }).catch(()=>{ securityAuditResult = { companyId: currentCompany ? currentCompany.id : null, total:0, sealed:0, legacy:0, issues:[], head:null, error:true }; }).finally(()=>{
+    securityAuditBusy = false;
+    if(typeof reportsSelected !== 'undefined' && reportsSelected === 'securityCentre') render();
+  });
+}
+function securityExternalScripts(){
+  const list = Array.from(document.scripts).filter(s=>s.src && !s.src.startsWith(location.origin));
+  const pinned = list.filter(s=>s.integrity);
+  const unpinned = list.filter(s=>!s.integrity).map(s=>{ try{ return new URL(s.src).hostname; }catch(e){ return s.src; } });
+  return { total: list.length, pinned: pinned.length, unpinnedHosts: Array.from(new Set(unpinned)) };
+}
+function securityChecks(){
+  const c = currentCompany || {};
+  const out = [];
+  const add = (group, status, title, detail, fix) => out.push({ group, status, title, detail, fix: fix || '' });
+  const demo = typeof isDemoUser !== 'undefined' && isDemoUser;
+  // --- Sign-in & sessions
+  add('Sign-in & sessions', demo ? 'info' : 'pass', 'Automatic sign-out',
+    demo ? 'Switched off for the public sample company, which holds no client data.'
+         : 'You are signed out after ' + Math.round(IDLE_LIMIT_MS/60000) + ' minutes without activity (with a ' + Math.round(IDLE_WARN_MS/1000) + '-second warning), in every open tab, and again if the page is reopened after that time.');
+  add('Sign-in & sessions', 'pass', 'Password rules',
+    'New passwords need ' + PW_MIN_LEN + '+ characters, can\'t be a commonly guessed password, a simple run like 12345678, or contain your name or username. Repeated wrong attempts slow the sign-in down (5 seconds, doubling up to 15 minutes).');
+  add('Sign-in & sessions', 'warn', 'Second sign-in step',
+    'Two-step codes are not enforced for accounts yet. Passkey sign-in is available as a stronger alternative to a password.',
+    'Use a passkey where you can, and turn on 2-step verification on the email account used here — password reset goes through that inbox.');
+  // --- This company's data
+  const ap = c.approvalSettings;
+  add('This company\'s data', ap && ap.enabled ? 'pass' : 'warn', 'Approval for large vouchers',
+    ap && ap.enabled ? 'Maker-checker approval is on — vouchers above your threshold wait for a second person.' : 'Maker-checker approval is off, so one person can post any voucher alone.',
+    ap && ap.enabled ? '' : 'Turn it on in the company\'s approval settings if more than one person posts entries.');
+  const a = securityAuditResult && securityAuditResult.companyId === c.id ? securityAuditResult : null;
+  if(!a){
+    add('This company\'s data', 'info', 'Edit-history seal', securityAuditBusy ? 'Checking the voucher edit history…' : 'Not checked yet.');
+  }else if(a.issues.length){
+    add('This company\'s data', 'fail', 'Edit-history seal', a.issues.length + ' problem' + (a.issues.length===1?'':'s') + ' found in the voucher edit history — ' + a.issues[0].reason, 'Review the entries listed below and compare with a fingerprint or backup you saved earlier.');
+  }else if(!a.sealed){
+    add('This company\'s data', 'info', 'Edit-history seal', a.total ? 'The ' + a.total + ' existing history entries pre-date sealing. New edits are sealed automatically from now on.' : 'No voucher edits recorded yet. Every new create / edit / delete is sealed into a chain.');
+  }else{
+    add('This company\'s data', 'pass', 'Edit-history seal', a.sealed + ' sealed entr' + (a.sealed===1?'y':'ies') + ' verified — none changed or removed' + (a.legacy ? ' (' + a.legacy + ' older entries pre-date sealing)' : '') + '.');
+  }
+  if(!state.docVaultSalt){
+    add('This company\'s data', 'info', 'Employee documents vault', 'Not set up. When you add one, documents are encrypted in your browser with a ' + VAULT_ITER_NEW.toLocaleString('en-IN') + '-round key derivation.');
+  }else if((state.docVaultIter || VAULT_ITER_LEGACY) < VAULT_ITER_NEW){
+    add('This company\'s data', 'warn', 'Employee documents vault',
+      'Encrypted, but created with the older ' + (state.docVaultIter || VAULT_ITER_LEGACY).toLocaleString('en-IN') + '-round setting' + (state.docVaultVerifier ? ' and a fast passphrase check' : '') + '. It still works; new vaults use ' + VAULT_ITER_NEW.toLocaleString('en-IN') + ' rounds.',
+      'To upgrade: download the documents you need, then re-create the vault with a 10+ character passphrase.');
+  }else{
+    add('This company\'s data', 'pass', 'Employee documents vault', 'Encrypted with a ' + state.docVaultIter.toLocaleString('en-IN') + '-round key and an authenticated key-check — the passphrase can\'t be guessed offline from stored data.');
+  }
+  if(c.payrollOverrideHash && c.payrollOverrideHash.hash) add('This company\'s data', 'pass', 'Payroll override password', 'Stored only as a salted hash.');
+  else if(c.payrollOverridePassword) add('This company\'s data', 'warn', 'Payroll override password', 'Saved in readable form on this company\'s record.', 'Open Edit Company and save once — it will be converted to a hash automatically.');
+  else add('This company\'s data', 'info', 'Payroll override password', 'Not set — only an Administrator can delete an employee who has payroll history.');
+  let lastEnc = null; try{ lastEnc = localStorage.getItem('rb_lastEncBackup_' + c.id); }catch(e){}
+  add('This company\'s data', lastEnc ? 'pass' : 'warn', 'Encrypted backup',
+    lastEnc ? 'Last encrypted backup made from this browser: ' + fmtTimestamp(lastEnc) + '.' : 'No encrypted backup has been made from this browser yet.',
+    lastEnc ? '' : 'Use Backup & Restore → Encrypted Backup, then store the file somewhere other than this computer.');
+  const teamN = Object.keys(c.teamMembers || {}).length;
+  add('This company\'s data', 'info', 'Team access', teamN ? teamN + ' teammate' + (teamN===1?'':'s') + ' with view-only access. The app enforces view-only; the database rules below enforce it on the server too.' : 'No teammates invited.');
+  // --- This browser & hosting
+  const https = location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  add('This browser & hosting', https ? 'pass' : 'fail', 'Encrypted connection', https ? 'The app is loaded over HTTPS.' : 'The app is not loaded over HTTPS — data could be read in transit.', https ? '' : 'Open the app from its https:// address.');
+  const hasCsp = !!document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+  add('This browser & hosting', hasCsp ? 'pass' : 'warn', 'Script & connection allow-list', hasCsp ? 'A Content-Security-Policy limits which scripts, frames and servers this page may use.' : 'No Content-Security-Policy found on this page.');
+  let framed = false; try{ framed = window.top !== window.self; }catch(e){ framed = true; }
+  add('This browser & hosting', framed ? 'fail' : 'pass', 'Not inside another website', framed ? 'This page is running inside a frame on another site (clickjacking risk).' : 'The page is not embedded in another site.');
+  const ext = securityExternalScripts();
+  add('This browser & hosting', ext.unpinnedHosts.length ? 'warn' : 'pass', 'Third-party script integrity',
+    ext.pinned + ' of ' + ext.total + ' external scripts are integrity-pinned' + (ext.unpinnedHosts.length ? ' — not pinned: ' + ext.unpinnedHosts.join(', ') + '.' : '.'),
+    ext.unpinnedHosts.length ? 'Self-host those libraries (or add hashes) so a compromised CDN can\'t alter the app.' : '');
+  add('This browser & hosting', 'pass', 'Spreadsheet import safety', 'Excel / CSV imports are size-capped (' + (XLSX_IMPORT_MAX_BYTES/1048576|0) + ' MB), cleaned for prototype tampering, and exports neutralise formula-injection cells.');
+  add('Database rules', 'warn', 'Server-side rules', 'The app can\'t see your Firebase rules from the browser. The stricter set below blocks view-only teammates from writing at the database level and stops owners/ids being rewritten.', 'Paste the rules below in Firebase console → Firestore → Rules → Publish.');
+  return out;
+}
+const SEC_STATUS_META = {
+  pass: { label:'OK', color:'var(--credit)', bg:'var(--credit-bg)', icon:'✓' },
+  info: { label:'Info', color:'var(--ink-soft)', bg:'var(--surface-strong)', icon:'i' },
+  warn: { label:'Action', color:'var(--gold-ink)', bg:'rgba(242,153,74,0.14)', icon:'!' },
+  fail: { label:'Problem', color:'var(--debit)', bg:'var(--debit-bg)', icon:'✕' },
+};
+function reportSecurityCentre(){
+  if((!securityAuditResult || securityAuditResult.companyId !== (currentCompany && currentCompany.id)) && !securityAuditBusy) setTimeout(securityRunAudit, 0);
+  const checks = securityChecks();
+  const count = s => checks.filter(x=>x.status === s).length;
+  const scored = checks.filter(x=>x.status !== 'info');
+  const pct = scored.length ? Math.round(count('pass') / scored.length * 100) : 100;
+  const groups = Array.from(new Set(checks.map(x=>x.group)));
+  const a = securityAuditResult && securityAuditResult.companyId === (currentCompany && currentCompany.id) ? securityAuditResult : null;
+  return `
+    ${reportHeader('Security Centre')}
+    <div id="securityBody">
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">Plain-language checks of how this company's books are protected. Nothing here changes your data — each line says what it found and what to do. No security setup is ever "unbreakable"; this shows where yours stands.</p>
+    <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      ${agentStatTile('Protection score', pct + '%', count('pass') + ' of ' + scored.length + ' checks OK')}
+      ${agentStatTile('Needs action', String(count('warn')), 'worth fixing')}
+      ${agentStatTile('Problems', String(count('fail')), count('fail') ? 'fix first' : 'none found')}
+    </div>
+    ${groups.map(g=>`
+      <div class="panel"><div class="panel-head"><h2>${escapeHtml(g)}</h2></div><div class="panel-body" style="padding-top:4px;">
+        ${checks.filter(x=>x.group===g).map(x=>{ const m = SEC_STATUS_META[x.status]; return `
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+            <span style="flex:0 0 auto;width:62px;"><span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;background:${m.bg};color:${m.color};">${m.icon} ${m.label}</span></span>
+            <div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:12.5px;">${escapeHtml(x.title)}</div>
+              <div class="muted" style="font-size:12px;line-height:1.55;">${escapeHtml(x.detail)}</div>
+              ${x.fix ? `<div style="font-size:11.5px;margin-top:3px;"><strong>What to do:</strong> ${escapeHtml(x.fix)}</div>` : ''}</div>
+          </div>`; }).join('')}
+      </div></div>`).join('')}
+    ${a && a.issues.length ? `<div class="panel"><div class="panel-head"><h2>Edit-history problems</h2></div><div class="panel-body"><table>
+      <tr><th>Entry</th><th>Recorded</th><th>What was found</th></tr>
+      ${a.issues.slice(0, 50).map(i=>`<tr><td class="muted">${escapeHtml(String(i.id).slice(0,14))}</td><td>${i.at?fmtTimestamp(i.at):'—'}</td><td>${escapeHtml(i.reason)}</td></tr>`).join('')}
+    </table></div></div>` : ''}
+    ${agentExportButtons('securityBody', 'Security Centre Report')}
+    <div class="panel" data-agent-noexport="1"><div class="panel-head"><h2>Edit-history fingerprint</h2></div><div class="panel-body">
+      <p class="muted" style="font-size:12px;margin-top:0;">A short code that stands for the whole sealed history. Save it somewhere outside this app (an email to yourself, a note). Later, paste it back to prove that history still contains exactly what it did when you saved it — this is what catches someone rewriting the whole trail.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <code style="font-size:13px;padding:6px 10px;background:var(--surface-strong);border-radius:8px;">${a && a.head ? escapeHtml(a.head.slice(0,16)) : '— nothing sealed yet —'}</code>
+        ${a && a.head ? '<button class="btn secondary small" id="copyAuditFingerprintBtn" type="button">Copy</button>' : ''}
+        <button class="btn secondary small" id="securityReverifyBtn" type="button">↻ Re-check now</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="auditFingerprintInput" placeholder="Paste a fingerprint you saved earlier" style="flex:1;min-width:220px;">
+        <button class="btn small" id="checkAuditFingerprintBtn" type="button">Check it</button>
+      </div>
+    </div></div>
+    <div class="panel" data-agent-noexport="1"><div class="panel-head"><h2>Stricter database rules</h2></div><div class="panel-body">
+      <p class="muted" style="font-size:12px;margin-top:0;">These replace your current Firestore rules. They add: view-only teammates can no longer write to the company or its attachments; a company's owner and group can't be rewritten by non-administrators. Copy, then Firebase console → Firestore Database → Rules → paste → Publish. Test one teammate login afterwards; to undo, re-publish your previous rules.</p>
+      <button class="btn small" id="copyStrictRulesBtn" type="button">Copy the rules</button>
+      <details style="margin-top:10px;"><summary style="cursor:pointer;font-size:12px;">Show the rules</summary>
+        <pre style="font-size:10.5px;max-height:320px;overflow:auto;background:var(--surface-strong);padding:10px;border-radius:8px;white-space:pre-wrap;">${escapeHtml(RECOMMENDED_FIRESTORE_RULES)}</pre></details>
+    </div></div>
+    <div class="panel" data-agent-noexport="1"><div class="panel-head"><h2>Also do these in your Firebase / hosting accounts</h2></div><div class="panel-body">
+      <ol style="font-size:12.5px;line-height:1.8;padding-left:20px;margin:0;">
+        <li>Google Cloud console → Credentials → restrict the Web API key to your website's address only.</li>
+        <li>Firebase console → App Check → turn on enforcement for Firestore and Authentication.</li>
+        <li>Firebase console → Authentication → Settings → Password policy → require 10+ characters, so the server enforces what this app already checks.</li>
+        <li>Host on a service that can send security headers (Netlify, Cloudflare Pages) and upload the included <code>_headers</code> file. GitHub Pages cannot send them.</li>
+        <li>Turn on 2-step verification for every Administrator's email account and Google account.</li>
+      </ol>
+    </div></div>
+    </div>`;
+}
+function wireSecurityCentre(){
+  document.getElementById('securityReverifyBtn')?.addEventListener('click', ()=>{ securityAuditResult = null; securityRunAudit(); render(); });
+  document.getElementById('copyStrictRulesBtn')?.addEventListener('click', async ()=>{
+    try{ await navigator.clipboard.writeText(RECOMMENDED_FIRESTORE_RULES); toast('Rules copied — paste them in the Firebase console.', { type:'success' }); }
+    catch(e){ toast('Could not copy — use "Show the rules" and copy by hand.'); }
+  });
+  document.getElementById('copyAuditFingerprintBtn')?.addEventListener('click', async ()=>{
+    const a = securityAuditResult; if(!a || !a.head) return;
+    try{ await navigator.clipboard.writeText(a.head.slice(0,16)); toast('Fingerprint copied — save it somewhere outside this app.', { type:'success' }); }
+    catch(e){ toast('Could not copy: ' + a.head.slice(0,16)); }
+  });
+  document.getElementById('checkAuditFingerprintBtn')?.addEventListener('click', ()=>{
+    const v = ((document.getElementById('auditFingerprintInput') || {}).value || '').trim().toLowerCase();
+    if(v.length < 12){ toast('Paste the full fingerprint (at least 12 characters).'); return; }
+    const idx = (state.voucherAuditLog || []).findIndex(e=>e.hash && e.hash.startsWith(v));
+    if(idx < 0) toast('NOT FOUND — that entry is not in the current history. Entries may have been removed or rewritten.');
+    else toast('Found — that entry is still in the history, unchanged (' + idx + ' newer entr' + (idx===1?'y':'ies') + ' since).', { type:'success' });
+  });
+}
+// Called after a successful sign-in.
+function securityLoginNotices(profile, password, username){
+  try{
+    const pc = passwordPolicyCheck(password, { username, name: profile && profile.name, email: profile && profile.email });
+    if(!pc.ok) setTimeout(()=>toast('Your password is below the new security standard (' + pc.problems[0].replace(/\.$/,'') + '). Use "Forgot password?" to set a stronger one.'), 2500);
+    let known = null; try{ known = localStorage.getItem('rb_deviceId'); }catch(e){}
+    if(!known){
+      try{ localStorage.setItem('rb_deviceId', 'd_' + Math.random().toString(36).slice(2) + Date.now().toString(36)); }catch(e){}
+      if(profile && profile.lastLoginAt){
+        logAudit('new_device_login', 'Sign-in from a browser not used before (' + (navigator.userAgent || '').slice(0,80) + ')', currentUser && currentUser.id, currentUser && currentUser.name);
+        setTimeout(()=>toast('Signed in from a new browser. Your previous sign-in was ' + fmtTimestamp(profile.lastLoginAt) + ' — if that wasn\'t you, change your password.'), 1200);
+      }
+    }
+  }catch(e){}
+}
+
+
+// ---------- Safe file preview (attachments + vault documents) ----------
+// Replaces window.open('') + document.write(<img/iframe with unescaped data from the database>), which
+// let a hostile attachment record inject script into a page running on THIS app's origin. Now only
+// images and PDFs are previewed, always from a typed Blob URL opened directly (no HTML is written);
+// any other file type is downloaded instead of rendered.
+async function openSafeFilePreview(filename, mimeType, source){
+  try{
+    let blob = source;
+    if(typeof source === 'string'){
+      if(!/^data:[a-z0-9.+\/-]+;base64,[A-Za-z0-9+\/=]+$/i.test(source)){ toast('This attachment looks damaged and can\'t be opened.'); return; }
+      blob = await (await fetch(source)).blob();
+    }
+    const mt = String(mimeType || blob.type || '').toLowerCase();
+    const previewable = /^(image\/(png|jpe?g|gif|webp)|application\/pdf)$/.test(mt);
+    const typed = new Blob([blob], { type: previewable ? mt : 'application/octet-stream' });
+    const url = URL.createObjectURL(typed);
+    const a = document.createElement('a');
+    a.href = url; a.rel = 'noopener noreferrer';
+    if(previewable){ a.target = '_blank'; } else { a.download = String(filename || 'attachment').replace(/[\\/:*?"<>|]+/g, '_'); toast('This file type can\'t be previewed safely, so it was downloaded instead.'); }
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  }catch(e){ toast('Could not open this file.'); }
+}
+
 // "GST Format" — a browsable, one-by-one reference for every active GST return form (GSTR-1 through
 // GSTR-11, plus CMP-08), each individually downloadable. Data lives in GST_FORMS above.
 function gstFormatsModal(){
@@ -40654,7 +41373,7 @@ function wireApprovalsAccessTeamHandlers(){
       if(!isValidUsername(draft.username)){ companyTeamInviteError = 'Username can only contain letters, numbers, dots, dashes and underscores.'; renderCurrentScreen(); return; }
       if(!isValidEmail(draft.email)){ companyTeamInviteError = 'Please enter a valid email address.'; renderCurrentScreen(); return; }
       if(!isValidMobile(draft.mobile)){ companyTeamInviteError = 'Please enter a valid 10-digit phone number.'; renderCurrentScreen(); return; }
-      if(!draft.password || draft.password.length < 6){ companyTeamInviteError = 'Password must be at least 6 characters.'; renderCurrentScreen(); return; }
+      if(!draft.password || passwordProblemMessage(draft.password, { username: draft.username, name: draft.name, email: draft.email })){ companyTeamInviteError = passwordProblemMessage(draft.password || '', { username: draft.username, name: draft.name, email: draft.email }) || 'Please enter a password.'; renderCurrentScreen(); return; }
       companyTeamInviteBusy = true;
       companyTeamInviteError = '';
       renderCurrentScreen();
@@ -41101,28 +41820,17 @@ function attachHandlers(){
 
   if(modal==='backup'){
     document.getElementById('downloadBackupBtn')?.addEventListener('click', downloadCompanyBackup);
+    document.getElementById('downloadEncBackupBtn')?.addEventListener('click', downloadEncryptedBackup);
+    document.getElementById('restoreEncUnlockBtn')?.addEventListener('click', restoreUnlockEnvelope);
     document.getElementById('restoreFileInput')?.addEventListener('change', e=>{
       const file = e.target.files[0];
-      const preview = document.getElementById('restorePreview');
       const confirmBtn = document.getElementById('restoreConfirmBtn');
-      restoreFile = null;
+      restoreFile = null; restoreEnvelope = null;
       if(confirmBtn) confirmBtn.disabled = true;
       if(!file) return;
+      if(file.size > 60*1024*1024){ const pv = document.getElementById('restorePreview'); if(pv) pv.textContent = 'That file is too large to be one of this app\'s backups.'; return; }
       const reader = new FileReader();
-      reader.onload = ev=>{
-        try{
-          const data = JSON.parse(ev.target.result);
-          if(!data || !Array.isArray(data.ledgers) || !Array.isArray(data.vouchers)){
-            if(preview) preview.textContent = "This doesn't look like a valid backup file.";
-            return;
-          }
-          restoreFile = data;
-          if(preview) preview.textContent = `Backup from "${data.companyName||'unknown company'}", exported ${data._exportedAt?fmtTimestamp(data._exportedAt):'unknown date'} — ${data.ledgers.length} ledgers, ${data.vouchers.length} vouchers, ${(data.items||[]).length} items.`;
-          if(confirmBtn) confirmBtn.disabled = false;
-        }catch(err){
-          if(preview) preview.textContent = "Could not read this file — make sure it's a backup .json exported from this app.";
-        }
-      };
+      reader.onload = ev=> restoreInspectText(ev.target.result);
       reader.readAsText(file);
     });
     document.getElementById('restoreConfirmBtn')?.addEventListener('click', async ()=>{
@@ -41457,7 +42165,7 @@ function attachHandlers(){
           if(!authorized){
             const entered = window.prompt(`"${e.name}" has payroll, loan, or settlement history, so deleting them needs authorization.\n\nEnter this company's Payroll Override Password (set in Edit Company):`);
             if(entered===null) return; // cancelled
-            authorized = !!(currentCompany.payrollOverridePassword && entered===currentCompany.payrollOverridePassword);
+            authorized = await verifyOverridePassword(entered);
             if(!authorized){ toast('Incorrect password — employee not deleted.'); return; }
           }
           if(!window.confirm(`Delete employee "${e.name}"? Their existing payslips, loans, and settlements will remain on record and show as "Former employee". This cannot be undone.`)) return;
@@ -41929,13 +42637,7 @@ function attachHandlers(){
       el.addEventListener('click', ()=>{
         const a = (attachmentsCache[attachmentsVoucherId]||[]).find(x=>x.id===el.dataset.viewAttachment);
         if(!a) return;
-        const w = window.open('');
-        if(w){
-          w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(a.filename||'Attachment')}</title><meta charset="UTF-8"></head><body style="margin:0;">${a.mimeType.startsWith('image/') ? `<img src="${a.dataUrl}" style="max-width:100%;">` : `<iframe src="${a.dataUrl}" style="width:100%;height:100vh;border:0;"></iframe>`}</body></html>`);
-          w.document.close();
-        } else {
-          toast('Please allow pop-ups to view this attachment.');
-        }
+        openSafeFilePreview(a.filename, a.mimeType, a.dataUrl);
       });
     });
     document.querySelectorAll('[data-delete-attachment]').forEach(el=>{
@@ -44433,6 +45135,7 @@ function attachHandlers(){
     document.getElementById('exportGstCompliancePdfBtn')?.addEventListener('click', exportGstComplianceToPdf);
     document.getElementById('exportGstComplianceWordBtn')?.addEventListener('click', exportGstComplianceToWord);
     wireNewAgentReports();
+    wireSecurityCentre();
     document.getElementById('openShareSnapshotBtn')?.addEventListener('click', async ()=>{
       modal = 'shareSnapshot';
       shareSnapshotDataUrl = null;
@@ -45186,6 +45889,14 @@ function renderQuickUnlock(){
 // Support user made since this tab was last open is picked up automatically on reload, not lost.
 async function restoreSessionFor(fbUser){
   try{
+    if(idleBootExpired()){
+      // The page was closed/left idle past the auto-logout window -- a still-valid Firebase session
+      // must not silently resume after that long.
+      try{ await fbAuth.signOut(); }catch(e){}
+      authError = 'Your session ended after ' + Math.round(IDLE_LIMIT_MS/60000) + ' minutes of inactivity. Please sign in again.';
+      authMode = 'login'; screen = 'login'; renderLogin();
+      return;
+    }
     const doc = await db.collection('users').doc(fbUser.uid).get();
     if(!doc.exists){
       // No matching profile (a stale/half-created auth account) -- nothing to restore into, so fall
@@ -45214,6 +45925,7 @@ async function restoreSessionFor(fbUser){
       teamOwnerId: profile.teamOwnerId || null,
     };
     isDemoUser = profile.username === DEMO_ACCOUNT_USERNAME;
+    idleMark(true);
     lastUsername = profile.username || lastUsername;
     await loadFeatureFlags();
     await loadCompanies();
