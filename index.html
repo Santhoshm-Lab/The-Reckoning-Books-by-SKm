@@ -991,6 +991,62 @@
     .totals-line.sticky-balance{gap:14px;font-size:12px;padding:10px 14px;bottom:8px;}
   }
 
+  /* ---- Voucher entry UX round (Nov 2026): searchable ledger picker, inline checklist, balancing hints ---- */
+  .lp{position:relative;min-width:0;}
+  .lp .lp-input{padding-right:30px;text-overflow:ellipsis;}
+  .lp-chev{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink-faint);pointer-events:none;}
+  .lp select.lp-native{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;}
+  .lp-list{position:fixed;z-index:9000;background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);border-radius:var(--radius-sm);box-shadow:0 14px 36px rgba(20,30,25,0.24);overflow:auto;padding:4px 4px 0;font-size:12.5px;}
+  .lp-sec{font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;color:var(--ink-faint);padding:7px 10px 3px;}
+  .lp-opt{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 10px;border-radius:7px;cursor:pointer;}
+  .lp-opt:hover{background:var(--surface-strong);}
+  .lp-opt.active{background:color-mix(in srgb, var(--accent1) 16%, var(--surface));}
+  .lp-name{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lp-name mark{background:color-mix(in srgb, var(--gold) 38%, transparent);color:inherit;border-radius:2px;}
+  .lp-meta{font-size:11px;color:var(--ink-soft);white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0;}
+  .lp-create .lp-name{color:var(--credit);}
+  .lp-empty{padding:10px;color:var(--ink-soft);}
+  .lp-foot{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);margin-top:4px;padding:6px 10px;font-size:10.5px;color:var(--ink-faint);}
+  .lp-foot kbd, .v-keys kbd, .v-issues-keys kbd{font-family:inherit;font-size:10px;font-weight:700;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface-strong);color:var(--ink-soft);margin:0 2px;}
+  input.invalid, .lp .lp-input.invalid{border-color:var(--debit);box-shadow:0 0 0 3px var(--debit-bg);}
+  .v-date-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .v-date-row input[type=date]{width:190px;}
+  .chip-btn{font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--ink-soft);cursor:pointer;}
+  .chip-btn:hover{background:var(--surface-strong);color:var(--ink);}
+  .field-msg{font-size:11.5px;font-weight:600;}
+  .field-msg.error{color:var(--debit);}
+  .field-msg.warn{color:var(--gold-ink);}
+  .field-msg.muted{color:var(--ink-soft);font-weight:500;}
+  .row-error-msg{color:var(--debit);}
+  .ledger-entries-table .entry-row.row-error, .ledger-entries-table .entry-row.row-error:hover{background:var(--debit-bg);}
+  .v-issues{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:16px;font-size:12px;}
+  .v-issues:empty{display:none;}
+  .v-issues-lead{font-weight:700;color:var(--ink-soft);margin-right:2px;}
+  .v-issue{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid var(--border);background:var(--surface-strong);color:var(--ink);cursor:pointer;text-align:left;}
+  .v-issue .vi-ico{font-weight:800;color:var(--ink-faint);}
+  .v-issue.error{border-color:color-mix(in srgb, var(--debit) 50%, var(--border));background:var(--debit-bg);}
+  .v-issue.error .vi-ico{color:var(--debit);}
+  .v-issue.warn{border-color:color-mix(in srgb, var(--gold) 55%, var(--border));background:color-mix(in srgb, var(--gold) 14%, var(--surface));}
+  .v-issue.warn .vi-ico{color:var(--gold-ink);}
+  .v-issues-ok{font-weight:700;color:var(--credit);}
+  .v-keys{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:11px;color:var(--ink-faint);}
+  .totals-line{align-items:center;}
+  .totals-line.idle{color:var(--ink-soft);}
+  .totals-line.sticky-balance.idle{border-color:var(--border);}
+  .totals-line .tl-fix{font-family:inherit;margin-left:8px;border:1px solid currentColor;background:transparent;color:inherit;border-radius:999px;padding:3px 12px;font-size:11.5px;font-weight:700;cursor:pointer;}
+  .totals-line .tl-fix:hover{background:var(--debit-bg);}
+  .v-issue:focus-visible, .chip-btn:focus-visible, .totals-line .tl-fix:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+  @media (pointer:coarse){
+    .lp-opt{padding:12px 10px;}
+    .lp-foot, .v-keys, .v-issues-keys{display:none;}
+    .chip-btn, .v-issue{padding:8px 14px;}
+  }
+  @media (max-width:560px){
+    .totals-line.sticky-balance{flex-wrap:wrap;justify-content:flex-start;}
+    .v-date-row input[type=date]{width:100%;}
+    .v-keys{display:none;}
+  }
+
   /* ---------------- POS / Quick Sale (viewPOS()) -- a free-flowing item-browse column plus a
      fixed-width cart/checkout pane, so browsing/searching items and watching the running total stay
      visually separate instead of interleaved. Below the tablet breakpoint a 380px pane no longer fits
@@ -2322,6 +2378,91 @@
   .dash-insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start;}
   .dash-insights-grid .insights-card,.dash-insights-grid .exception-card,.dash-insights-grid .panel{margin-bottom:0;}
   .dash-actions-row{display:flex;gap:10px;flex-wrap:wrap;}
+
+  /* Module 3 (Nov 2026): Day Book & Ledgers table upgrades -- sticky headers inside a capped
+     scroll area, paged rendering, a column chooser, and small per-row attention flags. Colours
+     come only from existing tokens, so dark mode follows automatically. */
+  .table-scroll{max-height:68vh;overflow:auto;}
+  .table-scroll table th{position:sticky;top:0;background:var(--surface);z-index:4;box-shadow:0 1px 0 var(--border-strong);}
+  .table-more{display:flex;justify-content:center;padding:10px;}
+  .results-line{font-size:11.5px;color:var(--ink-faint);font-weight:600;}
+  .chip-divider{width:1px;align-self:stretch;background:var(--border-strong);margin:0 4px;}
+  .attn-pill{display:inline-block;font-size:9.5px;font-weight:800;padding:1.5px 7px;border-radius:999px;margin-left:6px;vertical-align:1px;white-space:nowrap;}
+  .attn-pill.neg{background:var(--debit-bg);color:var(--debit);}
+  .attn-pill.warn{background:color-mix(in srgb, var(--gold) 20%, transparent);color:var(--gold-ink);}
+  .ledger-row .attn-pill{margin:3px 4px 0 0;}
+  .col-picker{position:relative;}
+  .col-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:40;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 10px 28px rgba(20,30,25,0.16);padding:10px 14px;min-width:210px;}
+  .col-menu label{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 0;cursor:pointer;white-space:nowrap;}
+  .stmt-toolbar{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-top:12px;padding-bottom:12px;}
+  .stmt-toolbar .module-search{max-width:240px;}
+  .stmt-totals td{font-weight:800;border-top:2px solid var(--border-strong);background:color-mix(in srgb, var(--accent1) 5%, var(--surface));}
+  @media (min-width:761px){
+    .ledgers-left{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto;}
+  }
+  @media (max-width:760px){
+    .table-scroll{max-height:none;overflow:visible;}
+    .table-scroll table th{position:static;box-shadow:none;}
+    .ledgers-layout{flex-direction:column;}
+    .ledgers-left{flex:1 1 auto !important;width:100%;}
+    .stmt-toolbar .module-search{max-width:none;width:100%;}
+  }
+  /* Module 2 (Nov 2026): Dashboard "Today" panel -- three lanes (Cash / Money owed to you / Compliance),
+     most urgent first. Colours come only from the existing tokens, so dark mode follows automatically. */
+  .today{margin-bottom:26px;}
+  .today-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 20px;flex-wrap:wrap;margin-bottom:12px;}
+  .today h2{font-size:19px;font-weight:800;letter-spacing:-.01em;margin:0 0 3px;color:var(--ink);}
+  .today-line{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.45;}
+  .today-line strong{color:var(--ink);}
+  .today-date{color:var(--ink-faint);margin-right:6px;}
+  .today-ok{color:var(--credit);font-weight:800;}
+  .today-urgent{color:var(--debit);font-weight:800;}
+  .today-quick{display:flex;gap:8px;flex-wrap:wrap;}
+  .today-lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;align-items:start;}
+  .tlane{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 16px 14px;box-shadow:0 2px 10px rgba(20,30,25,0.05);min-width:0;}
+  .tlane.tl-danger{border-color:color-mix(in srgb, var(--debit) 45%, var(--border));}
+  .tlane.tl-warn{border-color:color-mix(in srgb, var(--gold) 55%, var(--border));}
+  .tlane-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+  .tlane-head h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);font-weight:800;margin:0;}
+  .tlane-status{font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;white-space:nowrap;}
+  .tlane-status.ok{background:color-mix(in srgb, var(--credit) 16%, transparent);color:var(--credit);}
+  .tlane-status.danger{background:var(--debit-bg);color:var(--debit);}
+  .tlane-status.warn{background:color-mix(in srgb, var(--gold) 20%, transparent);color:var(--gold-ink);}
+  .tlane-status.info{background:var(--surface-strong);color:var(--ink-soft);}
+  .tlane-metric{display:flex;flex-direction:column;gap:2px;margin-bottom:12px;}
+  .tlane-num{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.015em;color:var(--ink);line-height:1.15;}
+  .tlane-num.neg{color:var(--debit);}
+  .tlane-cap{font-size:12px;color:var(--ink-faint);line-height:1.4;}
+  .titems{list-style:none;margin:0;padding:0;}
+  .titem{padding:11px 0 12px;border-top:1px solid var(--border);}
+  .titem-title{font-size:13px;font-weight:700;color:var(--ink);line-height:1.4;overflow-wrap:anywhere;}
+  .titem-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.45;overflow-wrap:anywhere;}
+  .titem-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
+  .tchip{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:4px;margin-right:7px;vertical-align:1px;}
+  .tchip.t-danger{background:var(--debit-bg);color:var(--debit);}
+  .tchip.t-warn{background:color-mix(in srgb, var(--gold) 20%, transparent);color:var(--gold-ink);}
+  .tchip.t-info{background:var(--surface-strong);color:var(--ink-soft);}
+  .tlane-clear{font-size:12.5px;color:var(--ink-soft);padding:11px 0 2px;border-top:1px solid var(--border);}
+  .tlane-more summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--ink-soft);padding:9px 0 3px;border-top:1px solid var(--border);list-style:none;}
+  .tlane-more summary::-webkit-details-marker{display:none;}
+  .tlane-more summary::before{content:'+ ';}
+  .tlane-more[open] summary::before{content:'– ';}
+  .tlane-more summary:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;border-radius:4px;}
+  .tlane-foot{margin-top:8px;padding-top:10px;border-top:1px solid var(--border);}
+  .stat-note{font-size:12px;color:var(--ink-faint);margin-top:6px;}
+  .stat-note .pos{color:var(--credit);}
+  .stat-note .neg{color:var(--debit);}
+  .stat .stat-spark{margin-top:8px;}
+  @media (max-width:560px){
+    .today-lanes{grid-template-columns:1fr;}
+    .today-quick{width:100%;}
+    .today-quick .btn{flex:1;text-align:center;}
+    .tlane-num{font-size:24px;}
+  }
+  @media (pointer:coarse){
+    .titem-actions .btn, .today-quick .btn, .tlane-foot .btn{min-height:40px;padding:9px 14px;font-size:12.5px;}
+    .tlane-more summary{padding:13px 0 7px;}
+  }
   @media (max-width:760px){
     .dash-insights-grid{grid-template-columns:1fr;}
   }
@@ -17623,8 +17764,7 @@ document.addEventListener('keydown', (e)=>{
   const key = e.key.toLowerCase();
   if(key==='s'){
     e.preventDefault();
-    const btn = document.getElementById('saveVoucher');
-    if(btn && !btn.disabled) btn.click();
+    voucherTrySave(); // saves, or says what is still missing and puts the cursor there
   } else if(key==='r'){
     e.preventDefault();
     document.getElementById('resetVoucher')?.click();
@@ -26886,12 +27026,16 @@ function financialHealthCard(){
 }
 function dashboardExceptionQueueCard(){
   const items = dashboardExceptionQueue();
-  if(!items.length) return '';
+  // Cash runway, TDS, GST filing and stale-reconcile items already sit in the Dashboard's "Today" panel,
+  // so they are not repeated here. Original indices are kept for the click handler below.
+  const SHOWN_IN_TODAY = /^(cash-runway-|tds-deposit-|stale-reconcile|gst-compliance-)/;
+  const rows = items.map((it,i)=>({it,i})).filter(r=>!SHOWN_IN_TODAY.test(r.it.id||''));
+  if(!rows.length) return '';
   return `
     <div class="exception-card">
-      <div class="exception-head">🔔 Needs Your Attention <span class="exception-count">${items.length}</span></div>
+      <div class="exception-head">🔍 Worth a Second Look <span class="exception-count">${rows.length}</span></div>
       <div class="exception-list">
-        ${items.map((it,i)=>`
+        ${rows.map(({it,i})=>`
           <div class="exception-row ${it.severity}" data-exception-idx="${i}" tabindex="0" role="button">
             <span class="exception-icon">${it.icon}</span>
             <span class="exception-text">${it.text}</span>
@@ -27075,6 +27219,231 @@ function pinnedTilesSection(){
     </div>
   `;
 }
+/* ============================================================================================
+   Module 2 (Nov 2026) -- Dashboard "Today" briefing.
+   Answers "what needs my attention today?" in one glance: three lanes (Cash / Money owed to you /
+   Compliance), most urgent first, each row carrying the one-click action that deals with it. Every
+   figure comes from functions the rest of the app already uses (cashWorkingCapitalData,
+   collectionsPriorityList, partyOutstandingInvoices, gstReturnReadinessData, tdsAdvanceTaxData,
+   reorderSuggestions, bankReconcileEntries) -- no new accounting maths lives here.
+   ============================================================================================ */
+const DASH_TONE_RANK = { danger:0, warn:1, info:2 };
+const DASH_TONE_LABEL = { danger:'Urgent', warn:'Soon', info:'FYI' };
+// Supplier bills that are overdue or fall due within `days` days, soonest first. A supplier with no
+// Credit Period set is treated as 30-day terms -- the same default cashFlowForecastData() uses.
+function dashSupplierBillsDue(days){
+  const today = new Date().toISOString().slice(0,10);
+  const horizon = addDays(today, days);
+  const rows = [];
+  for(const l of state.ledgers){
+    if(l.partyType!=='supplier') continue;
+    const terms = l.creditDays!=null ? l.creditDays : 30;
+    for(const inv of partyOutstandingInvoices(l.id)){
+      const dueDate = addDays(inv.date, terms);
+      if(dueDate > horizon) continue;
+      const daysLate = Math.max(0, Math.round((new Date(today+'T00:00:00') - new Date(dueDate+'T00:00:00'))/86400000));
+      rows.push({ ledger:l, invoice:inv, dueDate, daysLate });
+    }
+  }
+  return rows.sort((a,b)=> a.dueDate<b.dueDate ? -1 : a.dueDate>b.dueDate ? 1 : b.invoice.remaining-a.invoice.remaining);
+}
+function dashShortDate(ds){
+  return new Date(ds+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+}
+function dashAttention(){
+  const today = new Date().toISOString().slice(0,10);
+  const lanes = [];
+
+  // ---- Lane 1: Cash ----
+  const cash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank').reduce((s,l)=>s+ledgerBalance(l.id),0);
+  const cashItems = [];
+  let proj30 = null, projMin = null;
+  try{ const f = cashFlowForecastData(); proj30 = f.results[0].projected; projMin = Math.min(f.startCash, ...f.results.map(r=>r.projected)); }catch(e){}
+  try{
+    const cw = cashWorkingCapitalData();
+    if(cw.startCash<0){
+      cashItems.push({ tone:'danger', title:'Cash and bank are negative today', sub:'Check for an overdraft or a deposit that has not been posted yet.',
+        actions:[{label:'See cash plan', act:'report:cashWorkingCapital', primary:true}] });
+    } else if(cw.base.firstNegative){
+      const days = agentDaysBetween(today, cw.base.firstNegative.date);
+      cashItems.push({ tone: days<=14?'danger':'warn',
+        title:`Cash could run out ${days===0?'today':days===1?'tomorrow':`in ${days} days`} (${dashShortDate(cw.base.firstNegative.date)})`,
+        sub:`Lowest point ₹${fmt(cw.base.minBalance)} on ${dashShortDate(cw.base.minDate)}, after known receipts, payments and recurring entries.`,
+        actions:[{label:'See cash plan', act:'report:cashWorkingCapital', primary:true}] });
+    }
+  }catch(e){ console.warn('dashboard cash lane failed', e); }
+  const bills = dashSupplierBillsDue(7);
+  if(bills.length){
+    const total = r2(bills.reduce((s,b)=>s+b.invoice.remaining,0));
+    const late = bills.filter(b=>b.daysLate>0).length;
+    const top = bills[0];
+    cashItems.push({ tone: late?'danger':'warn',
+      title:`₹${fmt(total)} to pay suppliers this week`,
+      sub:`${bills.length} bill${bills.length===1?'':'s'}${late?` (${late} already late)`:''}. First: ${top.ledger.name}, ₹${fmt(top.invoice.remaining)}, ${top.daysLate>0?`${top.daysLate} day${top.daysLate===1?'':'s'} late`:`due ${dashShortDate(top.dueDate)}`}.`,
+      actions:[{label:`Pay ${shortenLabel(top.ledger.name,16)}`, act:`payment:${top.ledger.id}|${top.invoice.voucherId}`, primary:true},{label:'All suppliers', act:'tab:parties'}] });
+  }
+  lanes.push({ id:'cash', name:'Cash', metric:`₹${fmt(cash)}`, metricTone: cash<0?'neg':'', cap: proj30!=null ? `in bank and cash now · ₹${fmt(proj30)} expected in 30 days` : 'in bank and cash now',
+    items:cashItems, drill:{label:'Cash & bank detail', act:'kpi:cash'} });
+
+  // ---- Lane 2: Money owed to you (overdue invoices) ----
+  const owed = collectionsPriorityList();
+  const owedTotal = r2(owed.reduce((s,r)=>s+r.invoice.remaining,0));
+  const owedItems = owed.slice(0,3).map(r=>({
+    tone: r.daysOverdue>30 ? 'danger' : 'warn',
+    title:`${r.ledger.name} · ₹${fmt(r.invoice.remaining)}`,
+    sub:`${r.daysOverdue} day${r.daysOverdue===1?'':'s'} overdue (due ${dashShortDate(r.dueDate)})${r.overLimit?' · over credit limit':''}`,
+    remindKey:`${r.ledger.id}|${r.invoice.voucherId}`,
+    actions:[{label:'Receipt', act:`receipt:${r.ledger.id}|${r.invoice.voucherId}`, primary:true}],
+  }));
+  lanes.push({ id:'owed', name:'Money owed to you', metric:`₹${fmt(owedTotal)}`, metricTone: owedTotal>0?'neg':'',
+    cap: owed.length ? `overdue across ${new Set(owed.map(r=>r.ledger.id)).size} customer${new Set(owed.map(r=>r.ledger.id)).size===1?'':'s'} (${owed.length} invoice${owed.length===1?'':'s'})` : 'overdue — every customer is within terms',
+    items:owedItems, more: owed.length>3 ? owed.length-3 : 0, drill: owed.length ? {label:`All ${owed.length} overdue invoices`, act:'kpi:overdue'} : null });
+
+  // ---- Lane 3: Compliance ----
+  const compItems = [];
+  if(currentCompany && currentCompany.gstin){
+    try{
+      const cyc = gstActiveFilingCycle();
+      const g = gstReturnReadinessData(cyc.monthKey);
+      const issues = (g.missingGstinVouchers||[]).length + (g.missingHsnVouchers||[]).length;
+      const label = gstMonthLabel(cyc.monthKey);
+      if(cyc.overdue && issues>0){
+        compItems.push({ tone:'danger', title:`GSTR-3B for ${label}: past the 20th, ${issues} issue${issues===1?'':'s'} still open`,
+          sub:'Missing GSTIN or HSN on some invoices. Date-based reminder: this app cannot tell whether you have filed.',
+          actions:[{label:'Fix GST issues', act:'tab:gst', primary:true}] });
+      } else if(!cyc.overdue && (issues>0 || cyc.daysLeft<=7)){
+        compItems.push({ tone: issues>0 && cyc.daysLeft<=5 ? 'danger' : (issues>0 || cyc.daysLeft<=3) ? 'warn' : 'info',
+          title:`GSTR-3B for ${label} is due ${cyc.daysLeft===0?'today':cyc.daysLeft===1?'tomorrow':`in ${cyc.daysLeft} days`}`,
+          sub: issues>0 ? `${issues} invoice field${issues===1?'':'s'} missing GSTIN or HSN. Fix before filing. Date-based reminder.` : 'No missing GSTIN or HSN found. Date-based reminder: this app cannot tell whether you have filed.',
+          actions:[{label: issues>0?'Fix GST issues':'Open GST', act:'tab:gst', primary:true}] });
+      }
+    }catch(e){ console.warn('dashboard GST item failed', e); }
+  }
+  try{
+    const tds = tdsAdvanceTaxData().findings.find(f=>f.category==='Withheld But Not Deposited' && (f.severity==='critical'||f.severity==='high'));
+    if(tds) compItems.push({ tone:'danger', title:'TDS withheld but not yet deposited', sub:tds.message, actions:[{label:'Open TDS report', act:'report:tdsAdvanceTax', primary:true}] });
+  }catch(e){ console.warn('dashboard TDS item failed', e); }
+  const pend = (state.pendingVouchers||[]).length;
+  if(pend && canApproveVouchers()){
+    compItems.push({ tone:'warn', title:`${pend} voucher${pend===1?'':'s'} waiting for your approval`, sub:'They are not in the books until you approve them.',
+      actions:[{label:'Review', act:'modal:approvals', primary:true}] });
+  }
+  let stale = 0, staleLedger = null;
+  for(const l of state.ledgers.filter(l=>bucketOf(l)==='bank')){
+    const n = bankReconcileEntries(l.id, today).filter(r=>!r.cleared && Math.floor((new Date(today+'T00:00:00') - new Date(r.date+'T00:00:00'))/86400000) >= 21).length;
+    if(n){ stale += n; if(!staleLedger) staleLedger = l.id; }
+  }
+  if(stale) compItems.push({ tone:'info', title:`${stale} bank entr${stale===1?'y':'ies'} unreconciled for 21+ days`, sub:'Tick them off against your bank statement.',
+    actions:[{label:'Reconcile', act:`reconcile:${staleLedger}`, primary:true}] });
+  const low = reorderSuggestions().length;
+  if(low) compItems.push({ tone:'info', title:`${low} stock item${low===1?'':'s'} at or below reorder level`, sub:'Raise a purchase before you run out.',
+    actions:[{label:'Reorder', act:'tab:inventory', primary:true}] });
+  compItems.sort((a,b)=>DASH_TONE_RANK[a.tone]-DASH_TONE_RANK[b.tone]);
+  lanes.push({ id:'comp', name:'Compliance', metric:String(compItems.length), metricTone: compItems.some(i=>i.tone==='danger')?'neg':'',
+    cap: compItems.length ? `item${compItems.length===1?'':'s'} to clear` : 'items to clear — you are up to date',
+    items:compItems });
+
+  lanes.forEach(l=>{
+    l.items.sort((a,b)=>DASH_TONE_RANK[a.tone]-DASH_TONE_RANK[b.tone]);
+    l.tone = l.items.some(i=>i.tone==='danger') ? 'danger' : l.items.some(i=>i.tone==='warn') ? 'warn' : l.items.length ? 'info' : 'ok';
+  });
+  const urgent = lanes.reduce((s,l)=>s+l.items.filter(i=>i.tone==='danger').length,0);
+  const total = lanes.reduce((s,l)=>s+l.items.length,0);
+  return { lanes, urgent, total, today };
+}
+function dashItemHtml(it){
+  const btn = (a)=>`<button type="button" class="btn ${a.primary?'':'secondary'} small" data-dash-act="${escapeAttr(a.act)}">${escapeHtml(a.label)}</button>`;
+  const remind = it.remindKey ? `<button type="button" class="btn secondary small" data-draft-reminder="${escapeAttr(it.remindKey)}" title="Draft a payment reminder you can copy">Remind</button>` : '';
+  return `<li class="titem t-${it.tone}">
+    <div class="titem-body">
+      <div class="titem-title"><span class="tchip t-${it.tone}">${DASH_TONE_LABEL[it.tone]}</span>${escapeHtml(it.title)}</div>
+      <div class="titem-sub">${escapeHtml(it.sub)}</div>
+    </div>
+    <div class="titem-actions">${remind}${it.actions.map(btn).join('')}</div>
+  </li>`;
+}
+function dashLaneHtml(l){
+  const shown = l.items.slice(0, l.id==='comp' ? 3 : 3);
+  const rest = l.items.slice(shown.length);
+  const status = l.tone==='ok' ? `<span class="tlane-status ok">All clear</span>`
+    : `<span class="tlane-status ${l.tone}">${l.items.length} to do</span>`;
+  return `<section class="tlane tl-${l.tone}" aria-label="${escapeAttr(l.name)}">
+    <div class="tlane-head"><h3>${escapeHtml(l.name)}</h3>${status}</div>
+    <div class="tlane-metric"><span class="tlane-num ${l.metricTone||''}">${escapeHtml(l.metric)}</span><span class="tlane-cap">${escapeHtml(l.cap)}</span></div>
+    ${l.items.length ? `<ul class="titems">${shown.map(dashItemHtml).join('')}</ul>` : `<div class="tlane-clear">Nothing needs you here today.</div>`}
+    ${rest.length ? `<details class="tlane-more"><summary>${rest.length} more</summary><ul class="titems">${rest.map(dashItemHtml).join('')}</ul></details>` : ''}
+    ${l.more ? `<div class="tlane-foot"><button type="button" class="btn secondary small" data-dash-act="${escapeAttr(l.drill.act)}">${l.more} more overdue, view all</button></div>`
+      : (l.drill ? `<div class="tlane-foot"><button type="button" class="btn secondary small" data-dash-act="${escapeAttr(l.drill.act)}">${escapeHtml(l.drill.label)}</button></div>` : '')}
+  </section>`;
+}
+function dashTodayHtml(){
+  const hasData = state.vouchers.length>0;
+  const dateLabel = new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long'});
+  const quick = `<div class="today-quick">
+      <button type="button" class="btn small" data-dash-act="new:Receipt">+ Receipt</button>
+      <button type="button" class="btn secondary small" data-dash-act="new:Payment">+ Payment</button>
+      <button type="button" class="btn secondary small" data-dash-act="new:Sales">+ Sales invoice</button>
+    </div>`;
+  if(!hasData){
+    return `<section class="today" aria-label="Today">
+      <div class="today-head"><div><h2>Today</h2><p class="today-line">${dateLabel}. Nothing to review yet. Post your first voucher and this panel will show what needs you each day.</p></div>${quick}</div>
+    </section>`;
+  }
+  const a = dashAttention();
+  const line = a.total===0
+    ? `<span class="today-ok">All clear.</span> Nothing needs you today.`
+    : `<strong>${a.total} thing${a.total===1?'':'s'} need${a.total===1?'s':''} you today</strong>${a.urgent?`, <span class="today-urgent">${a.urgent} urgent</span>`:''}.`;
+  return `<section class="today" aria-label="Today">
+    <div class="today-head"><div><h2>Today</h2><p class="today-line"><span class="today-date">${dateLabel}</span> ${line}</p></div>${quick}</div>
+    <div class="today-lanes">${a.lanes.map(dashLaneHtml).join('')}</div>
+  </section>`;
+}
+// Opens the Voucher screen pre-filled for a one-click Receipt/Payment against a specific open invoice or
+// bill (same shape the Calendar's "Record Receipt/Payment" button builds), or a clean new voucher of `type`.
+function dashOpenVoucher(type, ledgerId, voucherId){
+  const today = new Date().toISOString().slice(0,10);
+  const gst = {party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]};
+  const blankEntry = ()=>({ledgerId:'',dr:0,cr:0,side:'dr'});
+  if(ledgerId && voucherId && (type==='Receipt'||type==='Payment')){
+    const rows = type==='Receipt' ? collectionsPriorityList() : dashSupplierBillsDue(3650);
+    const row = rows.find(r=> r.ledger.id===ledgerId && r.invoice.voucherId===voucherId);
+    if(row){
+      const amount = row.invoice.remaining, party = row.ledger.name, invDate = row.invoice.date;
+      vform = type==='Receipt'
+        ? { type:'Receipt', date:today, narration:`Receipt from ${party} against invoice dated ${invDate}`,
+            entries:[{ledgerId:'',dr:amount,cr:0,side:'dr'},{ledgerId,dr:0,cr:amount,side:'cr'}], gst }
+        : { type:'Payment', date:today, narration:`Payment to ${party} against bill dated ${invDate}`,
+            entries:[{ledgerId,dr:amount,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:amount,side:'cr'}], gst };
+      voucherAutofocusPending = true;
+      goToTab('voucher');
+      return;
+    }
+  }
+  vform = { type:'Payment', date:today, narration:'', entries:[blankEntry(),{ledgerId:'',dr:0,cr:0,side:'cr'}], gst };
+  vform.single = { ledgerA:'', ledgerB:'', amount:'' };
+  const rm = voucherRememberedMode(); if(rm) vform.mode = rm;
+  voucherAutofocusPending = true;
+  switchVoucherType(type);
+  goToTab('voucher');
+}
+function wireDashboardToday(){
+  const KPI = { cash:'cashBankDetail', overdue:'overdueInvoicesDetail' };
+  document.querySelectorAll('[data-dash-act]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const act = el.dataset.dashAct;
+      const i = act.indexOf(':');
+      const kind = act.slice(0,i), arg = act.slice(i+1);
+      if(kind==='new') dashOpenVoucher(arg);
+      else if(kind==='receipt' || kind==='payment'){ const [lid, vid] = arg.split('|'); dashOpenVoucher(kind==='receipt'?'Receipt':'Payment', lid, vid); }
+      else if(kind==='tab') goToTab(arg);
+      else if(kind==='report') openPinnedReport(arg);
+      else if(kind==='kpi'){ modal = KPI[arg] || null; if(modal) render(); }
+      else if(kind==='modal'){ modal = arg; render(); }
+      else if(kind==='reconcile'){ reconcileLedgerId = arg; goToTab('reconcile'); }
+    });
+  });
+}
+
 function viewDashboard(){
   const cash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank')
     .reduce((s,l)=>s+ledgerBalance(l.id),0);
@@ -27082,8 +27451,7 @@ function viewDashboard(){
   const liab = -totalsByCategory('Liabilities') - totalsByCategory('Capital');
   const profit = netProfit();
   const overdue = overdueInvoices();
-  const overdueTotal = overdue.reduce((s,r)=>s+r.invoice.remaining,0);
-  const lowStockCount = reorderSuggestions().length;
+  let cashFc = null; try{ cashFc = cashFlowForecastData(); }catch(e){}
 
   const kpiVisible = dashboardVisibleSections.some(id=>['profit','cash','assets','liab','overdue'].includes(id));
   const overviewVisible = kpiVisible || isDashboardSectionVisible('monthCompare');
@@ -27091,39 +27459,27 @@ function viewDashboard(){
 
   return `
     ${masthead('Dashboard','Overview of the books')}
+    ${dashTodayHtml()}
     ${aiBarHtml()}
-
-    ${(overdue.length || lowStockCount) ? `
-    <div class="dash-alerts">
-      ${overdue.length ? `
-      <div class="dash-alert dash-alert-danger" data-open-kpi="overdue">
-        <span class="dash-alert-text">⚠ ${overdue.length} invoice${overdue.length===1?'':'s'} overdue, ₹${fmt(overdueTotal)} outstanding past due date</span>
-        <button class="btn secondary small" data-open-kpi="overdue" type="button">View Overdue Invoices</button>
-      </div>` : ''}
-      ${lowStockCount ? `
-      <div class="dash-alert dash-alert-warn" data-dashboard-goto-inventory>
-        <span class="dash-alert-text">📦 ${lowStockCount} item${lowStockCount===1?'':'s'} at or below reorder level</span>
-        <button class="btn secondary small" data-dashboard-goto-inventory type="button">View Reorder Suggestions</button>
-      </div>` : ''}
-    </div>` : ''}
 
     ${overviewVisible ? `
     <div class="dash-section">
       <div class="section-title">Overview</div>
       ${kpiVisible ? `
       <div class="bento-grid">
-        ${isDashboardSectionVisible('profit') ? `
-        <div class="stat bento-hero" data-open-kpi="profit">
+        ${isDashboardSectionVisible('cash') ? `
+        <div class="stat bento-hero" data-open-kpi="cash">
           <div>
-            <div class="label">${profit>=0?'Net Profit':'Net Loss'}</div>
-            <div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div>
+            <div class="label">Cash &amp; Bank</div>
+            <div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div>
+            ${cashFc ? `<div class="stat-note">Expected in 30 days: <strong class="${cashFc.results[0].projected>=0?'pos':'neg'}">₹${fmt(cashFc.results[0].projected)}</strong></div>` : ''}
           </div>
-          ${dashboardProfitSparkline()}
+          ${cashFc ? `<div class="stat-spark" title="Projected cash: today, +30, +60, +90 days">${sparklineSvg([cashFc.startCash, ...cashFc.results.map(r=>r.projected)], {color: Math.min(cashFc.startCash, ...cashFc.results.map(r=>r.projected))>=0 ? 'var(--credit)' : 'var(--debit)'})}</div>` : ''}
         </div>` : ''}
-        ${isDashboardSectionVisible('cash') ? `<div class="stat" data-open-kpi="cash"><div class="label">Cash &amp; Bank</div><div class="val ${cash>=0?'pos':'neg'}" data-count="${cash}" data-prefix="₹">₹${fmt(cash)}</div></div>` : ''}
+        ${isDashboardSectionVisible('overdue') ? `<div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>` : ''}
+        ${isDashboardSectionVisible('profit') ? `<div class="stat" data-open-kpi="profit"><div class="label">${profit>=0?'Net Profit':'Net Loss'}</div><div class="val ${profit>=0?'pos':'neg'}" data-count="${profit}" data-prefix="₹">₹${fmt(profit)}</div>${dashboardProfitSparkline()}</div>` : ''}
         ${isDashboardSectionVisible('assets') ? `<div class="stat" data-open-kpi="assets"><div class="label">Total Assets</div><div class="val ${assets>=0?'pos':'neg'}" data-count="${assets}" data-prefix="₹">₹${fmt(assets)}</div></div>` : ''}
         ${isDashboardSectionVisible('liab') ? `<div class="stat" data-open-kpi="liab"><div class="label">Liabilities + Capital</div><div class="val ${liab>=0?'pos':'neg'}" data-count="${liab}" data-prefix="₹">₹${fmt(liab)}</div></div>` : ''}
-        ${isDashboardSectionVisible('overdue') ? `<div class="stat" data-open-kpi="overdue"><div class="label">Overdue Invoices</div><div class="val ${overdue.length>0?'neg':''}" data-count="${overdue.length}">${overdue.length}</div></div>` : ''}
       </div>` : ''}
       ${isDashboardSectionVisible('monthCompare') ? monthComparisonStrip() : ''}
     </div>` : ''}
@@ -29597,9 +29953,648 @@ function voucherTodayStatChip(){
   const total = todaysVouchers.reduce((s,v)=>s+voucherAmount(v),0);
   return `<div class="voucher-today-chip"><span class="tab-msym" translate="no">today</span>${todaysVouchers.length} voucher${todaysVouchers.length===1?'':'s'} posted today <span class="voucher-today-chip-amt">₹${fmt(total)}</span></div>`;
 }
+/* =====================================================================================================
+   Nov 2026 -- VOUCHER ENTRY UX ROUND (presentation + keyboard flow only)
+   Nothing in this block computes, posts or changes an accounting figure. It adds:
+     1. A type-to-search ledger picker layered over the existing <select> elements (the selects stay
+        in the page and keep every existing change handler -- the picker only sets select.value and
+        fires the same 'change' event a mouse pick would).
+     2. voucherFormIssues(): one plain-language list of what still stops this voucher from saving,
+        shown as a checklist beside Save, as field-level messages, and in the totals bar.
+     3. Keyboard flow: Enter walks ledger -> amount -> next line -> narration -> save, Enter on an
+        empty amount fills the balancing figure, "=" balances the current line, Ctrl+Enter saves.
+     4. Small defaults: remembers Single/Double per company, focuses the first field on a new voucher.
+   ===================================================================================================== */
+
+// ---------- 1. Searchable ledger picker ----------
+const LP_SELECTOR = 'select.e-ledger, #singleA, #singleB, #gstParty, #gstTaxable';
+let lpState = null; // { key, input, list, items, shown, active, query }
+function lpKeyFor(sel){ return sel.id ? '#' + sel.id : '.e-ledger[data-i="' + sel.dataset.i + '"]'; }
+function lpLabelFor(sel){
+  const o = sel.options[sel.selectedIndex];
+  return (o && o.value) ? o.textContent.trim() : '';
+}
+function lpItemsFor(sel){
+  const seen = new Set(), out = [];
+  Array.from(sel.options).forEach(o=>{
+    if(!o.value || seen.has(o.value)) return;
+    seen.add(o.value);
+    const l = ledgerOf(o.value);
+    const g = l ? groupOf(l.group) : null;
+    const og = o.parentElement;
+    out.push({
+      id: o.value, label: o.textContent.trim(), group: g ? g.name : '',
+      recent: !!(og && og.tagName === 'OPTGROUP' && /recent/i.test(og.label || '')),
+    });
+  });
+  return out;
+}
+function lpFilter(items, q){
+  q = String(q || '').trim().toLowerCase();
+  if(!q) return items.slice(0, 80);
+  const toks = q.split(/\s+/);
+  const scored = [];
+  items.forEach((it, idx)=>{
+    const n = it.label.toLowerCase();
+    const words = n.split(/[^a-z0-9]+/).filter(Boolean);
+    const initials = words.map(w=>w[0]).join('');
+    let s = -1;
+    if(toks.every(t=>n.includes(t))){
+      if(n.startsWith(q)) s = 0;
+      else if(toks.every(t=>words.some(w=>w.startsWith(t)))) s = 1;
+      else s = 2;
+    }else if(q.length >= 2 && !/\s/.test(q) && initials.startsWith(q)) s = 3; // "hb" finds HDFC Bank
+    if(s >= 0) scored.push({ it, s, idx });
+  });
+  scored.sort((a,b)=> a.s - b.s || a.idx - b.idx);
+  return scored.slice(0, 80).map(x=>x.it);
+}
+function lpHighlight(label, q){
+  const tok = String(q || '').trim().toLowerCase().split(/\s+/)[0];
+  if(!tok) return escapeHtml(label);
+  const at = label.toLowerCase().indexOf(tok);
+  if(at < 0) return escapeHtml(label);
+  return escapeHtml(label.slice(0, at)) + '<mark>' + escapeHtml(label.slice(at, at + tok.length)) + '</mark>' + escapeHtml(label.slice(at + tok.length));
+}
+function lpBalanceText(id){
+  const cache = lpState ? (lpState.bal || (lpState.bal = {})) : {};
+  if(cache[id] != null) return cache[id];
+  let t = '';
+  try{ const b = ledgerBalance(id); t = '₹' + fmt(Math.abs(b)) + ' ' + balanceLabel(b); }catch(e){}
+  return (cache[id] = t);
+}
+function lpClose(restoreText){
+  if(!lpState) return;
+  const st = lpState; lpState = null;
+  if(st.list && st.list.parentNode) st.list.parentNode.removeChild(st.list);
+  if(st.input){
+    st.input.setAttribute('aria-expanded', 'false');
+    st.input.removeAttribute('aria-activedescendant');
+    if(restoreText){
+      const sel = document.querySelector(st.key);
+      if(sel) st.input.value = lpLabelFor(sel);
+    }
+  }
+}
+function lpPosition(){
+  if(!lpState) return;
+  const r = lpState.input.getBoundingClientRect();
+  const list = lpState.list;
+  const below = window.innerHeight - r.bottom - 12, above = r.top - 12;
+  const openUp = below < 200 && above > below;
+  const maxH = Math.max(140, Math.min(340, openUp ? above : below));
+  const width = Math.min(Math.max(r.width, 300), window.innerWidth - 16);
+  const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
+  list.style.left = left + 'px';
+  list.style.width = width + 'px';
+  list.style.maxHeight = maxH + 'px';
+  if(openUp){ list.style.top = 'auto'; list.style.bottom = (window.innerHeight - r.top + 4) + 'px'; }
+  else{ list.style.bottom = 'auto'; list.style.top = (r.bottom + 4) + 'px'; }
+}
+function lpRenderList(){
+  const st = lpState; if(!st) return;
+  const q = st.query;
+  st.shown = lpFilter(st.items, q);
+  const exact = st.items.some(it=>it.label.toLowerCase() === q.trim().toLowerCase());
+  st.canCreate = !!q.trim() && !exact && !isReadOnlyMode();
+  const total = st.shown.length + (st.canCreate ? 1 : 0);
+  if(st.active >= total) st.active = total - 1;
+  if(st.active < 0) st.active = 0;
+  let html = '';
+  let lastRecent = null;
+  st.shown.forEach((it, i)=>{
+    if(!q.trim() && it.recent !== lastRecent){
+      html += '<div class="lp-sec">' + (it.recent ? 'Recently used' : 'All ledgers') + '</div>';
+      lastRecent = it.recent;
+    }
+    html += '<div class="lp-opt' + (i === st.active ? ' active' : '') + '" role="option" id="lpOpt' + i + '" data-lp-i="' + i + '" aria-selected="' + (i === st.active) + '">'
+      + '<span class="lp-name">' + lpHighlight(it.label, q) + '</span>'
+      + '<span class="lp-meta">' + escapeHtml(it.group) + (it.group ? ' · ' : '') + lpBalanceText(it.id) + '</span></div>';
+  });
+  if(!st.shown.length) html += '<div class="lp-empty">No ledger matches “' + escapeHtml(q.trim()) + '”.</div>';
+  if(st.canCreate){
+    const i = st.shown.length;
+    html += '<div class="lp-opt lp-create' + (i === st.active ? ' active' : '') + '" role="option" id="lpOpt' + i + '" data-lp-i="' + i + '" aria-selected="' + (i === st.active) + '">'
+      + '<span class="lp-name">+ Create ledger “' + escapeHtml(q.trim()) + '”</span></div>';
+  }
+  html += '<div class="lp-foot"><kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> choose <kbd>Esc</kbd> close</div>';
+  st.list.innerHTML = html;
+  st.input.setAttribute('aria-activedescendant', total ? 'lpOpt' + st.active : '');
+  const act = st.list.querySelector('.lp-opt.active');
+  if(act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+  lpPosition();
+}
+function lpOpen(sel, input, query){
+  const key = lpKeyFor(sel);
+  if(lpState && lpState.key !== key) lpClose(true);
+  if(!lpState){
+    const list = document.createElement('div');
+    list.className = 'lp-list';
+    list.id = 'lpList';
+    list.setAttribute('role', 'listbox');
+    document.body.appendChild(list);
+    // pointerdown keeps focus in the text box; the pick itself happens on click
+    list.addEventListener('pointerdown', e=> e.preventDefault());
+    list.addEventListener('mousedown', e=> e.preventDefault());
+    list.addEventListener('click', e=>{
+      const row = e.target.closest('[data-lp-i]');
+      if(!row || !lpState) return;
+      lpState.active = Number(row.dataset.lpI);
+      lpCommitActive(true);
+    });
+    lpState = { key, input, list, items: lpItemsFor(sel), shown: [], active: 0, query: '' };
+    input.setAttribute('aria-expanded', 'true');
+    input.setAttribute('aria-controls', 'lpList');
+  }
+  lpState.query = query || '';
+  lpState.active = 0;
+  // opening with no query: start on the currently chosen ledger, if any
+  if(!lpState.query.trim() && sel.value){
+    const at = lpFilter(lpState.items, '').findIndex(it=>it.id === sel.value);
+    if(at >= 0) lpState.active = at;
+  }
+  lpRenderList();
+}
+function lpQuickFocusFor(key){
+  if(key === '#singleA') return { type:'single', which:'A' };
+  if(key === '#singleB') return { type:'single', which:'B' };
+  if(key === '#gstParty') return { type:'gst', which:'party' };
+  if(key === '#gstTaxable') return { type:'gst', which:'taxable' };
+  const m = /data-i="(\d+)"/.exec(key);
+  return m ? { type:'entry', index: Number(m[1]) } : null;
+}
+// Where the cursor goes after a ledger is chosen -- always looked up fresh, because picking a ledger
+// can re-render the form (e.g. a Payment row switching the Items panel on or off).
+function lpAdvance(key){
+  let target = null;
+  if(key === '#singleA') target = lpInputFor('#singleB');
+  else if(key === '#singleB') target = document.getElementById('singleAmount');
+  else if(key === '#gstParty') target = lpInputFor('#gstTaxable');
+  else if(key === '#gstTaxable') target = document.querySelector('.item-select') || document.getElementById('addItemRow');
+  else{
+    const m = /data-i="(\d+)"/.exec(key);
+    if(m && vform && vform.entries[Number(m[1])]){
+      const side = entrySide(vform.entries[Number(m[1])]);
+      target = document.querySelector('.' + (side === 'dr' ? 'e-dr' : 'e-cr') + '[data-i="' + m[1] + '"]');
+    }
+  }
+  if(target){ target.focus(); if(target.select && target.type !== 'number') { try{ target.select(); }catch(e){} } }
+  else{ const own = lpInputFor(key); if(own) own.focus(); }
+}
+function lpInputFor(key){
+  const sel = document.querySelector(key);
+  return sel && sel.parentNode ? sel.parentNode.querySelector('.lp-input') : null;
+}
+function lpSetValue(key, id, advance){
+  const sel = document.querySelector(key);
+  lpClose(false);
+  if(!sel) return;
+  if(sel.value !== id){
+    sel.value = id;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const live = document.querySelector(key);
+  const liveInput = lpInputFor(key);
+  if(live && liveInput) liveInput.value = lpLabelFor(live);
+  if(advance) lpAdvance(key);
+  refreshVoucherInlineState();
+}
+function lpCommitActive(advance){
+  const st = lpState; if(!st) return false;
+  if(st.canCreate && st.active === st.shown.length){
+    const name = st.query.trim(), key = st.key;
+    lpClose(true);
+    quickLedgerFocus = lpQuickFocusFor(key);
+    modal = 'quickAddLedger';
+    render();
+    const nameEl = document.getElementById('quickLedgerName');
+    if(nameEl){ nameEl.value = name; nameEl.dispatchEvent(new Event('input', { bubbles: true })); nameEl.focus(); }
+    return true;
+  }
+  const it = st.shown[st.active];
+  if(!it) return false;
+  lpSetValue(st.key, it.id, advance);
+  return true;
+}
+function enhanceLedgerPickers(){
+  lpClose(false);
+  document.querySelectorAll(LP_SELECTOR).forEach(sel=>{
+    if(sel.dataset.lp) return;
+    sel.dataset.lp = '1';
+    const key = lpKeyFor(sel);
+    const wrap = document.createElement('div');
+    wrap.className = 'lp';
+    if(sel.style.flex) wrap.style.flex = sel.style.flex;
+    sel.parentNode.insertBefore(wrap, sel);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'lp-input';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = 'Type to search ledger…';
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-haspopup', 'listbox');
+    input.setAttribute('aria-expanded', 'false');
+    const field = sel.closest('.field');
+    const lab = field ? field.querySelector('label') : null;
+    input.setAttribute('aria-label', lab ? lab.textContent.trim() : 'Ledger');
+    input.value = lpLabelFor(sel);
+    const chev = document.createElement('span');
+    chev.className = 'lp-chev';
+    chev.setAttribute('aria-hidden', 'true');
+    chev.textContent = '▾';
+    wrap.appendChild(input);
+    wrap.appendChild(chev);
+    wrap.appendChild(sel);
+    sel.classList.add('lp-native');
+    sel.tabIndex = -1;
+    sel.setAttribute('aria-hidden', 'true');
+    // Anything in the app that calls select.focus() lands in the search box instead.
+    sel.addEventListener('focus', ()=>{ if(document.activeElement === sel) input.focus(); });
+    input.addEventListener('focus', ()=>{
+      const qf = lpQuickFocusFor(key);
+      if(qf && qf.type !== 'gst') quickLedgerFocus = qf; // "+ New Ledger" drops the new ledger into this field
+      try{ input.select(); }catch(e){}
+    });
+    input.addEventListener('click', ()=>{ if(!lpState || lpState.key !== key) lpOpen(sel, input, ''); });
+    input.addEventListener('input', ()=> lpOpen(sel, input, input.value));
+    input.addEventListener('keydown', e=>{
+      const open = !!(lpState && lpState.key === key);
+      if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+        e.preventDefault();
+        if(!open){ lpOpen(sel, input, ''); return; }
+        const total = lpState.shown.length + (lpState.canCreate ? 1 : 0);
+        if(!total) return;
+        lpState.active = (lpState.active + (e.key === 'ArrowDown' ? 1 : -1) + total) % total;
+        lpRenderList();
+      }else if(e.key === 'Enter'){
+        if(e.ctrlKey || e.metaKey) return; // Ctrl+Enter = save, handled globally
+        e.preventDefault();
+        if(open){ if(!lpCommitActive(true)) lpClose(true); }
+        else if(document.querySelector(key) && document.querySelector(key).value) lpAdvance(key);
+        else lpOpen(sel, input, '');
+      }else if(e.key === 'Escape'){
+        if(open){ e.preventDefault(); e.stopPropagation(); lpClose(true); try{ input.select(); }catch(err){} }
+        else input.blur(); // hand the keyboard back to the app's letter shortcuts
+      }else if(e.key === 'Tab' && !e.shiftKey && open && input.value.trim() && input.value !== lpLabelFor(sel)){
+        // a half-typed search: Tab takes the highlighted match and moves on, like Enter
+        if(lpState.shown[lpState.active]){ e.preventDefault(); lpCommitActive(true); }
+      }
+    });
+    input.addEventListener('blur', e=>{
+      const live = document.querySelector(key);
+      const typed = input.value.trim();
+      if(lpState && lpState.key === key) lpClose(false);
+      if(!live || !input.isConnected) return;
+      if(!typed && live.value){
+        // the box was emptied on purpose: clear the ledger. That can re-render the form, so put the
+        // cursor back where it was heading.
+        const next = voucherElKey(e.relatedTarget);
+        live.value = '';
+        live.dispatchEvent(new Event('change', { bubbles: true }));
+        refreshVoucherInlineState();
+        if(next && document.activeElement === document.body){ const el = voucherFocusSelector(next); if(el) el.focus(); }
+      }else input.value = lpLabelFor(live);
+    });
+  });
+}
+function voucherElKey(el){
+  if(!el || !el.classList) return null;
+  if(el.id) return '#' + el.id;
+  if(el.classList.contains('lp-input')){ const sel = el.parentNode && el.parentNode.querySelector('select'); return sel ? lpKeyFor(sel) : null; }
+  if(el.dataset && el.dataset.i != null){
+    if(el.classList.contains('e-dr')) return '.e-dr[data-i="' + el.dataset.i + '"]';
+    if(el.classList.contains('e-cr')) return '.e-cr[data-i="' + el.dataset.i + '"]';
+  }
+  return null;
+}
+window.addEventListener('scroll', ()=>{ if(lpState) lpPosition(); }, true);
+window.addEventListener('resize', ()=>{ if(lpState) lpPosition(); });
+
+// ---------- 2. What still stops this voucher from saving ----------
+// Each issue: { tone:'todo'|'error'|'warn', blocking, msg, focus (selector or picker key), row }
+// 'todo' = simply not filled in yet (shown calmly); 'error' = filled in wrongly (shown in red);
+// 'warn' = allowed, but worth a second look. Mirrors the checks the Save handler already makes, plus
+// two it did not: a missing date, and a line that has an amount but no ledger (which the Save
+// handler would otherwise silently leave out of the voucher).
+function voucherEntryMode(){
+  return ['Payment','Receipt','Contra'].includes(vform.type) ? (vform.mode || 'double') : 'double';
+}
+function voucherFormIssues(){
+  const out = [];
+  if(!vform) return out;
+  const add = (tone, msg, focus, extra) => out.push(Object.assign({ tone, blocking: tone !== 'warn', msg, focus: focus || null }, extra || {}));
+  const today = new Date().toISOString().slice(0,10);
+  const d = vform.date;
+  if(!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) add('error', 'Choose a date', '#vdate', { field:'date' });
+  else if(currentCompany && currentCompany.lockDate && d <= currentCompany.lockDate) add('error', 'Books are locked up to ' + formatDateDDMMYYYY(currentCompany.lockDate) + ' — use a later date', '#vdate', { field:'date' });
+  else if(d > today) add('warn', 'This date is in the future', '#vdate', { field:'date' });
+  else if(currentCompany && currentCompany.booksFrom && d < currentCompany.booksFrom) add('warn', 'This date is before your books begin (' + formatDateDDMMYYYY(currentCompany.booksFrom) + ')', '#vdate', { field:'date' });
+
+  if(voucherEntryMode() === 'single'){
+    const s = vform.single || {};
+    const amt = Number(s.amount) || 0;
+    const nameA = vform.type === 'Contra' ? 'From account' : 'Cash/Bank account';
+    const nameB = vform.type === 'Payment' ? 'account you are paying' : vform.type === 'Receipt' ? 'account you received from' : 'To account';
+    if(!s.ledgerA) add('todo', 'Pick the ' + nameA, '#singleA');
+    if(!s.ledgerB) add('todo', 'Pick the ' + nameB, '#singleB');
+    if(s.ledgerA && s.ledgerB && s.ledgerA === s.ledgerB) add('error', 'Both sides are the same ledger — pick two different ones', '#singleB', { field:'singleB' });
+    if(amt < 0) add('error', 'The amount can’t be negative', '#singleAmount', { field:'singleAmount' });
+    else if(!(amt > 0)) add('todo', 'Enter the amount', '#singleAmount');
+    return out;
+  }
+  const entries = vform.entries || [];
+  const gstType = ['Sales','Purchase','Credit Note','Debit Note'].includes(vform.type);
+  let dr = 0, cr = 0, posted = 0;
+  entries.forEach((e, i)=>{
+    const a = Number(e.dr) || 0, b = Number(e.cr) || 0;
+    dr += a; cr += b;
+    if(a < 0 || b < 0) add('error', 'Line ' + (i + 1) + ': amounts can’t be negative', '.' + (a < 0 ? 'e-dr' : 'e-cr') + '[data-i="' + i + '"]', { row: i });
+    if((a + b) > 0 && !e.ledgerId) add('error', 'A line has an amount but no ledger', '.e-ledger[data-i="' + i + '"]', { row: i, field:'rowLedger' });
+    if(e.ledgerId && (a + b) > 0) posted++;
+  });
+  const diff = Math.abs(dr - cr);
+  if(dr === 0 && cr === 0){
+    add('todo', gstType ? 'Use the GST Calculator above, then “Add to Voucher”' : 'Pick the ledgers and enter the amounts', gstType ? '#gstParty' : null);
+  }else if(diff >= 0.005){
+    const shortSide = dr > cr ? 'cr' : 'dr';
+    add('error', (shortSide === 'cr' ? 'Credit' : 'Debit') + ' side is short by ₹' + fmt(diff), null, { field:'balance', shortSide, diff });
+  }else if(posted < 2){
+    add('todo', 'Add at least two lines', null);
+  }
+  return out;
+}
+function voucherBlockingIssues(){ return voucherFormIssues().filter(x=>x.blocking); }
+function voucherFocusSelector(focus){
+  if(!focus) return null;
+  const picker = /^(#singleA|#singleB|#gstParty|#gstTaxable|\.e-ledger)/.test(focus) ? lpInputFor(focus) : null;
+  return picker || document.querySelector(focus);
+}
+function voucherFocusIssue(issue){
+  let el = issue ? voucherFocusSelector(issue.focus) : null;
+  if(!el && issue && issue.field === 'balance'){
+    // first empty amount on the short side, otherwise the last amount on that side
+    const cls = issue.shortSide === 'cr' ? 'e-cr' : 'e-dr';
+    const all = Array.from(document.querySelectorAll('.' + cls));
+    el = all.find(x=>!x.value) || all[all.length - 1] || null;
+  }
+  if(!el){
+    const firstPicker = document.querySelector('.lp-input');
+    el = firstPicker || null;
+  }
+  if(el){ el.focus(); if(el.scrollIntoView) el.scrollIntoView({ block:'nearest' }); }
+}
+// Used by Alt+S / Ctrl+Enter / Enter-on-narration when Save is not available yet.
+function voucherExplainBlocked(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  const b = voucherBlockingIssues();
+  if(!b.length) return;
+  toast('Can’t save yet — ' + b[0].msg.charAt(0).toLowerCase() + b[0].msg.slice(1) + (b.length > 1 ? ' (+' + (b.length - 1) + ' more)' : ''));
+  voucherFocusIssue(b[0]);
+}
+function voucherTrySave(){
+  const btn = document.getElementById('saveVoucher');
+  if(btn && !btn.disabled && !voucherBlockingIssues().length) btn.click();
+  else voucherExplainBlocked();
+}
+function voucherIssuesHtml(issues){
+  if(isReadOnlyMode()) return '';
+  const blocking = issues.filter(x=>x.blocking), warns = issues.filter(x=>!x.blocking);
+  const chip = (x, i) => '<button type="button" class="v-issue ' + x.tone + '" data-v-issue="' + i + '"><span class="vi-ico" aria-hidden="true">' + (x.tone === 'error' ? '✕' : x.tone === 'warn' ? '!' : '○') + '</span>' + escapeHtml(x.msg) + '</button>';
+  let html = '';
+  if(blocking.length){
+    html += '<span class="v-issues-lead">Before you can save:</span>' + issues.map((x, i)=> x.blocking ? chip(x, i) : '').join('');
+  }else{
+    html += '<span class="v-issues-ok">✓ Ready to save</span><span class="v-issues-keys"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span>';
+  }
+  if(warns.length) html += issues.map((x, i)=> x.blocking ? '' : chip(x, i)).join('');
+  return html;
+}
+function voucherTotalsInnerHtml(dr, cr, justBalanced){
+  const diff = Math.abs(dr - cr);
+  const balanced = diff < 0.005 && dr > 0;
+  let status;
+  if(balanced) status = (justBalanced ? '<span class="balanced-tick">✓</span>' : '✓') + ' Balanced';
+  else if(dr === 0 && cr === 0) status = 'Enter amounts';
+  else{
+    const shortCr = dr > cr;
+    status = 'Not balanced — ' + (shortCr ? 'Credit' : 'Debit') + ' short by ₹' + fmt(diff)
+      + (isReadOnlyMode() ? '' : ' <button type="button" class="tl-fix" data-v-balance="1" title="Puts ₹' + fmt(diff) + ' on the ' + (shortCr ? 'Credit' : 'Debit') + ' side (shortcut: press = in an amount box)">Balance it</button>');
+  }
+  return '<span>Dr ₹' + fmt(dr) + '</span><span>Cr ₹' + fmt(cr) + '</span><span class="tl-status">' + status + '</span>';
+}
+function voucherTotalsClass(dr, cr){
+  const balanced = Math.abs(dr - cr) < 0.005 && dr > 0;
+  return balanced ? 'balanced' : (dr === 0 && cr === 0 ? 'idle' : 'unbalanced');
+}
+function voucherDateMetaHtml(issues){
+  const d = vform.date;
+  const iss = issues.find(x=>x.field === 'date');
+  if(iss) return '<span class="field-msg ' + iss.tone + '">' + escapeHtml(iss.msg) + '</span>';
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return '';
+  const today = new Date().toISOString().slice(0,10);
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const rel = d === today ? 'Today' : d === y.toISOString().slice(0,10) ? 'Yesterday' : '';
+  return '<span class="field-msg muted">' + (rel ? rel + ' · ' : '') + dt.toLocaleDateString('en-IN', { weekday:'long' }) + '</span>';
+}
+// Repaints everything that explains the form's current state, without a full render() -- safe to
+// call on every keystroke. Never changes vform.
+function refreshVoucherInlineState(){
+  if(typeof view === 'undefined' || view !== 'voucher' || !vform) return;
+  const issues = voucherFormIssues();
+  const blocking = issues.filter(x=>x.blocking);
+  const holder = document.getElementById('vIssues');
+  if(holder){ holder.innerHTML = voucherIssuesHtml(issues); holder._issues = issues; }
+  const saveBtn = document.getElementById('saveVoucher');
+  if(saveBtn && !/…$/.test(saveBtn.textContent) && !/Saved/.test(saveBtn.textContent)){
+    saveBtn.disabled = blocking.length > 0 || isReadOnlyMode();
+  }
+  const dateEl = document.getElementById('vdate');
+  const dateIssue = issues.find(x=>x.field === 'date');
+  if(dateEl){ dateEl.classList.toggle('invalid', !!(dateIssue && dateIssue.tone === 'error')); dateEl.setAttribute('aria-invalid', String(!!(dateIssue && dateIssue.tone === 'error'))); }
+  const dm = document.getElementById('vdateMeta');
+  if(dm) dm.innerHTML = voucherDateMetaHtml(issues);
+  // line-level: an amount with no ledger
+  document.querySelectorAll('#entryRows .entry-row[data-idx]').forEach(row=>{
+    const i = Number(row.dataset.idx);
+    const bad = issues.some(x=>x.row === i && x.field === 'rowLedger');
+    row.classList.toggle('row-error', bad);
+    const inp = row.querySelector('.lp-input');
+    if(inp){ inp.classList.toggle('invalid', bad); inp.setAttribute('aria-invalid', String(bad)); }
+    const meta = row.querySelector('.entry-bal-meta');
+    if(meta && bad) meta.innerHTML = '<span class="row-error-msg">Pick a ledger for this amount</span>';
+  });
+  const sameB = issues.some(x=>x.field === 'singleB');
+  const bInp = lpInputFor('#singleB');
+  if(bInp){ bInp.classList.toggle('invalid', sameB); bInp.setAttribute('aria-invalid', String(sameB)); }
+  voucherRefreshBalanceHints();
+}
+// In Double Entry, the one empty amount box on the short side shows the balancing figure as a hint;
+// pressing Enter (or =) in that box fills it in.
+function voucherBalanceNeed(i){
+  const e = vform && vform.entries ? vform.entries[i] : null;
+  if(!e) return 0;
+  const side = entrySide(e);
+  let dr = 0, cr = 0;
+  vform.entries.forEach((x, k)=>{ if(k !== i){ dr += Number(x.dr) || 0; cr += Number(x.cr) || 0; } });
+  const need = side === 'dr' ? cr - dr : dr - cr;
+  return need > 0.004 ? r2(need) : 0;
+}
+function voucherRefreshBalanceHints(){
+  if(!vform || voucherEntryMode() !== 'double' || !Array.isArray(vform.entries)) return;
+  let dr = 0, cr = 0;
+  vform.entries.forEach(x=>{ dr += Number(x.dr) || 0; cr += Number(x.cr) || 0; });
+  const shortSide = Math.abs(dr - cr) < 0.005 ? null : (dr > cr ? 'cr' : 'dr');
+  const empties = vform.entries.map((e, i)=>({ e, i })).filter(x=> entrySide(x.e) === shortSide && !(Number(x.e.dr) || 0) && !(Number(x.e.cr) || 0));
+  document.querySelectorAll('.e-dr[data-bal-hint], .e-cr[data-bal-hint]').forEach(inp=>{
+    inp.removeAttribute('data-bal-hint');
+    const isDr = inp.classList.contains('e-dr');
+    const g = document.querySelector('.entry-ghost-suggest[data-i="' + inp.dataset.i + '"][data-side="' + (isDr ? 'dr' : 'cr') + '"]');
+    inp.placeholder = (g && g.dataset.value) ? '' : (isDr ? 'Debit amount' : 'Credit amount');
+  });
+  if(!shortSide || empties.length !== 1) return;
+  const i = empties[0].i;
+  const inp = document.querySelector('.' + (shortSide === 'dr' ? 'e-dr' : 'e-cr') + '[data-i="' + i + '"]');
+  if(!inp) return;
+  const ghost = document.querySelector('.entry-ghost-suggest[data-i="' + i + '"][data-side="' + shortSide + '"]');
+  if(ghost){ ghost.innerHTML = ''; ghost.dataset.value = ''; } // the balancing figure beats a guess from history
+  inp.setAttribute('data-bal-hint', '1');
+  inp.placeholder = fmt(Math.abs(dr - cr)) + '  ↵';
+}
+function voucherFillBalanceOnRow(i){
+  const need = voucherBalanceNeed(i);
+  if(!need) return false;
+  const e = vform.entries[i], side = entrySide(e);
+  if(side === 'dr'){ e.dr = need; e.cr = 0; } else { e.cr = need; e.dr = 0; }
+  const inp = document.querySelector('.' + (side === 'dr' ? 'e-dr' : 'e-cr') + '[data-i="' + i + '"]');
+  if(inp) inp.value = need;
+  renderTotalsOnly();
+  return true;
+}
+// "Balance it" (totals bar): puts the difference on the last empty line of the short side, adding
+// a line if there is none. Same effect as typing the figure by hand.
+function voucherAutoBalance(){
+  if(!vform || isReadOnlyMode()) return;
+  let dr = 0, cr = 0;
+  vform.entries.forEach(x=>{ dr += Number(x.dr) || 0; cr += Number(x.cr) || 0; });
+  const diff = r2(Math.abs(dr - cr));
+  if(diff < 0.005) return;
+  const side = dr > cr ? 'cr' : 'dr';
+  let idx = -1;
+  for(let i = vform.entries.length - 1; i >= 0; i--){
+    const e = vform.entries[i];
+    if(entrySide(e) === side && !(Number(e.dr) || 0) && !(Number(e.cr) || 0)){ idx = i; break; }
+  }
+  if(idx < 0){ vform.entries.push({ ledgerId:'', dr:0, cr:0, side }); idx = vform.entries.length - 1; }
+  if(side === 'dr'){ vform.entries[idx].dr = diff; vform.entries[idx].cr = 0; } else { vform.entries[idx].cr = diff; vform.entries[idx].dr = 0; }
+  render();
+  const e = vform.entries[idx];
+  const target = e.ledgerId ? document.getElementById('vnarr') : lpInputFor('.e-ledger[data-i="' + idx + '"]');
+  if(target) target.focus();
+}
+// Enter in an amount box. Returns true when it handled the key.
+function voucherAmountEnter(i){
+  const entry = vform.entries[i];
+  if(!entry) return false;
+  const side = entrySide(entry);
+  const has = (Number(entry.dr) || 0) + (Number(entry.cr) || 0) > 0;
+  if(!has) voucherFillBalanceOnRow(i); // empty box on the short side: take the balancing figure
+  const idxs = side2 => vform.entries.map((e, k)=>k).filter(k=>entrySide(vform.entries[k]) === side2);
+  const mine = idxs(side), pos = mine.indexOf(i);
+  const focusRow = k => {
+    const e = vform.entries[k];
+    const el = e.ledgerId ? document.querySelector('.' + (entrySide(e) === 'dr' ? 'e-dr' : 'e-cr') + '[data-i="' + k + '"]') : lpInputFor('.e-ledger[data-i="' + k + '"]');
+    if(el) el.focus();
+  };
+  if(pos < mine.length - 1){ focusRow(mine[pos + 1]); return true; }
+  let dr = 0, cr = 0;
+  vform.entries.forEach(x=>{ dr += Number(x.dr) || 0; cr += Number(x.cr) || 0; });
+  if(Math.abs(dr - cr) < 0.005 && dr > 0){ const n = document.getElementById('vnarr'); if(n) n.focus(); return true; }
+  const incomplete = side2 => idxs(side2).find(k=>{ const e = vform.entries[k]; return !e.ledgerId || !((Number(e.dr) || 0) + (Number(e.cr) || 0)); });
+  const other = side === 'dr' ? 'cr' : 'dr';
+  const shortSide = dr > cr ? 'cr' : (cr > dr ? 'dr' : other);
+  let k = incomplete(shortSide);
+  if(k === undefined || k === i) k = incomplete(other);
+  if(k !== undefined && k !== i){ focusRow(k); return true; }
+  return false; // nothing left to fill: caller adds a new line
+}
+function wireVoucherUx(){
+  if(!vform) return;
+  enhanceLedgerPickers();
+  const issuesEl = document.getElementById('vIssues');
+  if(issuesEl) issuesEl.addEventListener('click', e=>{
+    const b = e.target.closest('[data-v-issue]');
+    if(!b) return;
+    const list = issuesEl._issues || voucherFormIssues();
+    voucherFocusIssue(list[Number(b.dataset.vIssue)]);
+  });
+  const totals = document.querySelector('.totals-line');
+  if(totals) totals.addEventListener('click', e=>{ if(e.target.closest('[data-v-balance]')) voucherAutoBalance(); });
+  document.querySelectorAll('[data-v-date]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const d = new Date(); d.setDate(d.getDate() + Number(b.dataset.vDate));
+      vform.date = d.toISOString().slice(0,10);
+      const el = document.getElementById('vdate');
+      if(el){ el.value = vform.date; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    });
+  });
+  document.getElementById('vdate')?.addEventListener('input', refreshVoucherInlineState);
+  document.getElementById('vdate')?.addEventListener('keydown', e=>{
+    if(e.key !== 'Enter' || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    const first = document.querySelector('#gstParty, #singleA, .e-ledger');
+    const inp = first ? lpInputFor(lpKeyFor(first)) : null;
+    if(inp) inp.focus();
+  });
+  document.getElementById('vnarr')?.addEventListener('keydown', e=>{
+    if(e.key !== 'Enter' || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    voucherTrySave();
+  });
+  document.querySelectorAll('.e-dr, .e-cr').forEach(inp=>{
+    inp.addEventListener('keydown', e=>{
+      if(e.key !== '=') return;
+      e.preventDefault();
+      voucherFillBalanceOnRow(Number(inp.dataset.i));
+    });
+  });
+  document.querySelectorAll('[data-mode]').forEach(b=>{
+    b.addEventListener('click', ()=>{ try{ localStorage.setItem('rb_vmode_' + currentCompany.id, b.dataset.mode); }catch(e){} });
+  });
+  document.getElementById('singleAmount')?.addEventListener('input', refreshVoucherInlineState);
+  refreshVoucherInlineState();
+  // A brand-new voucher starts with the cursor in the first field (not on phones/tablets, where
+  // that would pop the on-screen keyboard open before anything has been tapped).
+  if(voucherAutofocusPending){
+    voucherAutofocusPending = false;
+    const fine = !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    if(fine && !modal && !isReadOnlyMode()){
+      const first = document.querySelector('#gstParty, #singleA, .e-ledger');
+      const inp = first ? lpInputFor(lpKeyFor(first)) : null;
+      if(inp) inp.focus({ preventScroll: true });
+    }
+  }
+}
+let voucherAutofocusPending = false;
+function voucherRememberedMode(){
+  try{ const m = localStorage.getItem('rb_vmode_' + (currentCompany ? currentCompany.id : '')); return m === 'single' || m === 'double' ? m : null; }catch(e){ return null; }
+}
+document.addEventListener('keydown', e=>{
+  if(typeof screen === 'undefined' || screen !== 'app' || view !== 'voucher' || !vform || modal) return;
+  if(e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+  e.preventDefault();
+  lpClose(true);
+  voucherTrySave();
+});
+
 function viewVoucher(){
   if(!vform){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
+    voucherAutofocusPending = true; // cursor starts in the first field of a brand-new voucher (see wireVoucherUx())
+    { const rememberedMode = voucherRememberedMode(); if(rememberedMode) vform.mode = rememberedMode; }
     if(reorderPrefillItemId){
       const item = state.items.find(i=>i.id===reorderPrefillItemId);
       if(item){
@@ -29652,6 +30647,10 @@ function viewVoucher(){
     cr = vform.entries.reduce((s,e)=>s+(Number(e.cr)||0),0);
     balanced = Math.abs(dr-cr) < 0.005 && dr > 0;
   }
+  // Presentation only: the same plain-language list drives the checklist beside Save, the date
+  // message and whether Save is switched on (see voucherFormIssues()).
+  const vIssues = voucherFormIssues();
+  const canSave = balanced && !vIssues.some(x=>x.blocking) && !isReadOnlyMode();
 
   return `
     ${masthead(editing?'Edit Voucher':'New Voucher', editing?`Editing voucher dated ${vform.date}`:'Choose Single Entry for a quick Cash/Bank line, or Double Entry for full control')}
@@ -29699,7 +30698,14 @@ function viewVoucher(){
     ${vform.type==='Sales' ? liveInvoicePreviewPanel() : ''}
     <div class="panel">
       <div class="panel-body">
-        <div class="field" style="max-width:220px;"><label>Date</label><input type="date" id="vdate" value="${vform.date}"></div>
+        <div class="field"><label for="vdate">Date</label>
+          <div class="v-date-row">
+            <input type="date" id="vdate" value="${escapeAttr(vform.date)}">
+            <button type="button" class="chip-btn" data-v-date="0">Today</button>
+            <button type="button" class="chip-btn" data-v-date="-1">Yesterday</button>
+            <span id="vdateMeta" aria-live="polite">${voucherDateMetaHtml(vIssues)}</span>
+          </div>
+        </div>
 
         ${effectiveMode==='single' ? singleEntryFields() + (['Payment','Receipt'].includes(vform.type) ? taxDeductionPanel() : '') + (showSinglePaymentItems ? paymentPurchaseItemsPanel() : '') : showGST ? `
         <div class="section-title">Voucher Entries</div>
@@ -29781,19 +30787,26 @@ function viewVoucher(){
           </div>` : ''}
         </div>`}
 
-        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn" id="saveVoucher" title="Shortcut: Alt+S" ${(balanced && !isReadOnlyMode())?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
+        <div class="v-issues" id="vIssues" role="status" aria-live="polite">${voucherIssuesHtml(vIssues)}</div>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" id="saveVoucher" title="Shortcut: Ctrl+Enter or Alt+S" ${canSave?'':'disabled'}>${editing?'Update Voucher':'Save Voucher'}</button>
           ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;width:100%;margin-top:2px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
           <button class="btn secondary" id="resetVoucher" type="button" title="Shortcut: Alt+R">${editing?'Cancel Edit':'Clear'}</button>
           ${vform.type==='Sales' ? `<button class="btn secondary" id="printBillBtn" type="button">🖨️ Generate &amp; Print Bill</button>
           <button class="btn" id="downloadBillPdfBtn" type="button">⬇ Download PDF</button>` : ''}
         </div>
+        <div class="v-keys" aria-hidden="true">
+          <span><kbd>Enter</kbd> next field</span>
+          ${effectiveMode!=='single' && !showGST ? `<span><kbd>=</kbd> fill the balancing amount</span>` : ''}
+          <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> save</span>
+          <span><kbd>Alt</kbd>+<kbd>R</kbd> ${editing?'cancel':'clear'}</span>
+          <span><kbd>Esc</kbd> leave a field</span>
+        </div>
       </div>
     </div>
     ${effectiveMode!=='single' ? `
-    <div class="totals-line sticky-balance ${balanced?'balanced':'unbalanced'}">
-      <span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span>
-      <span>${balanced?'Balanced ✓':'Not balanced'}</span>
+    <div class="totals-line sticky-balance ${voucherTotalsClass(dr, cr)}" role="status" aria-live="polite">
+      ${voucherTotalsInnerHtml(dr, cr, false)}
     </div>` : ''}
   `;
 }
@@ -31662,7 +32675,7 @@ function gstCalculator(){
             <div style="display:flex;gap:6px;">
               <select id="gstParty" style="flex:1;">
                 <option value="">Select ledger…</option>
-                ${state.ledgers.map(l=>`<option value="${l.id}" ${g.party===l.id?'selected':''}>${l.name}</option>`).join('')}
+                ${state.ledgers.map(l=>`<option value="${l.id}" ${g.party===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}
               </select>
               <button class="btn secondary small" type="button" data-quick-ledger-for="party" title="Create a new ledger for this field">+ New</button>
             </div>
@@ -31672,7 +32685,7 @@ function gstCalculator(){
             <div style="display:flex;gap:6px;">
               <select id="gstTaxable" style="flex:1;">
                 <option value="">Select ledger…</option>
-                ${state.ledgers.map(l=>`<option value="${l.id}" ${g.taxableLedger===l.id?'selected':''}>${l.name}${l.gstRate!=null?' ('+l.gstRate+'%)':''}</option>`).join('')}
+                ${state.ledgers.map(l=>`<option value="${l.id}" ${g.taxableLedger===l.id?'selected':''}>${escapeHtml(l.name)}${l.gstRate!=null?' ('+l.gstRate+'%)':''}</option>`).join('')}
               </select>
               <button class="btn secondary small" type="button" data-quick-ledger-for="taxable" title="Create a new ledger for this field">+ New</button>
             </div>
@@ -32206,6 +33219,64 @@ function moduleSearchBox(id, placeholder, value){
   return `<div class="module-search">${landingFeatureIcon('search')}<input type="text" id="${id}" placeholder="${escapeAttr(placeholder)}" value="${escapeAttr(value||'')}"></div>`;
 }
 
+/* ============================================================================================
+   Module 3 (Nov 2026) -- Day Book & Ledgers table upgrades.
+   Sticky headers, date + type filters, a column chooser, paged rendering for big books,
+   per-row attention flags (overdue invoices, over credit limit), and a filterable ledger
+   statement with brought-forward and totals rows. Display-only: every figure comes from the
+   same functions as before (overdueInvoices, ledgerBalance, partyOutstandingInvoices) and no
+   accounting calculation is touched.
+   ============================================================================================ */
+const DAYBOOK_PAGE = 50;           // rows rendered per "Show more" click -- keeps huge books fast
+const LEDGER_STMT_PAGE = 100;      // statement rows shown initially (most recent first)
+const DAYBOOK_OPTIONAL_COLS = { entries:'Entries (Dr/Cr legs)', meta:'Entered / updated time' };
+let daybookDateFilter = '';        // '' | 'today' | 'week' | 'month'
+let daybookLimit = DAYBOOK_PAGE;
+let daybookColsOpen = false;
+let daybookHiddenCols = new Set();
+try{ daybookHiddenCols = new Set(JSON.parse(localStorage.getItem('rb_daybook_hidden_cols')||'[]')); }catch(e){}
+function daybookColVisible(c){ return !daybookHiddenCols.has(c); }
+let ledgerListSort = 'name';       // 'name' | 'balance'
+let ledgerStmtRange = 'all';       // 'all' | 'month' | '90'
+let ledgerStmtQuery = '';
+let ledgerStmtLimit = LEDGER_STMT_PAGE;
+// One cheap map per render: voucherId -> days overdue (for the Day Book row flag) and
+// ledgerId -> {count, amt} (for the Ledgers list flag), both from the same overdueInvoices()
+// the Dashboard already uses.
+function daybookOverdueMaps(){
+  const byVoucher = {}, byLedger = {};
+  try{
+    for(const r of overdueInvoices()){
+      byVoucher[r.invoice.voucherId] = r.daysOverdue;
+      const o = byLedger[r.ledger.id] = byLedger[r.ledger.id] || {count:0, amt:0};
+      o.count++; o.amt = r2(o.amt + r.invoice.remaining);
+    }
+  }catch(e){ console.warn('overdue flags failed', e); }
+  return { byVoucher, byLedger };
+}
+function daybookDateChipHtml(){
+  const chips = [['','All dates'],['today','Today'],['week','Last 7 days'],['month','This month']];
+  return chips.map(([k,lab])=>`<button type="button" class="filter-chip ${daybookDateFilter===k?'active':''}" data-daybook-date-chip="${k}">${lab}</button>`).join('');
+}
+function daybookApplyDateFilter(rows){
+  if(!daybookDateFilter) return rows;
+  const today = new Date().toISOString().slice(0,10);
+  if(daybookDateFilter==='today') return rows.filter(v=>v.date===today);
+  if(daybookDateFilter==='week'){ const from = addDays(today,-6); return rows.filter(v=>v.date>=from && v.date<=today); }
+  if(daybookDateFilter==='month'){ const m = today.slice(0,7); return rows.filter(v=>v.date.startsWith(m)); }
+  return rows;
+}
+function daybookColPickerHtml(){
+  return `<div class="col-picker">
+    <button type="button" class="btn secondary small" id="daybookColsBtn" aria-expanded="${daybookColsOpen?'true':'false'}">⚙ Columns</button>
+    ${daybookColsOpen ? `<div class="col-menu" role="menu">
+      ${Object.entries(DAYBOOK_OPTIONAL_COLS).map(([k,lab])=>`
+        <label><input type="checkbox" data-daybook-col="${k}" ${daybookColVisible(k)?'checked':''}> ${escapeHtml(lab)}</label>`).join('')}
+      <p class="muted" style="font-size:10.5px;margin:6px 0 0;">Saved in this browser only.</p>
+    </div>` : ''}
+  </div>`;
+}
+
 function viewDaybook(){
   let rows = state.vouchers.slice().reverse();
   if(activeFY){
@@ -32221,13 +33292,21 @@ function viewDaybook(){
 
   let filtered = rows;
   if(daybookTypeFilter) filtered = filtered.filter(v=>v.type===daybookTypeFilter);
+  filtered = daybookApplyDateFilter(filtered);
   if(daybookSearchQuery.trim()){
     const q = daybookSearchQuery.trim().toLowerCase();
     filtered = filtered.filter(v=>{
       if((v.narration||'').toLowerCase().includes(q)) return true;
+      if((v.date||'').includes(q)) return true;
       return v.entries.some(e=>{ const l=ledgerOf(e.ledgerId); return l && l.name.toLowerCase().includes(q); });
     });
   }
+  const filteredDr = filtered.reduce((s,v)=>s+(voucherAmount(v)||0),0);
+  const shown = filtered.slice(0, daybookLimit);
+  const remaining = filtered.length - shown.length;
+  const { byVoucher: odMap } = daybookOverdueMaps();
+  const showEntries = daybookColVisible('entries');
+  const showMeta = daybookColVisible('meta');
 
   return `
     ${masthead('Day Book', activeFY ? `Vouchers for FY ${activeFY}, most recent first` : 'All vouchers, most recent first')}
@@ -32240,14 +33319,18 @@ function viewDaybook(){
     <div class="panel">
       <div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
         <div class="module-toolbar">
-          ${moduleSearchBox('daybookSearchInput','Search narration or ledger…',daybookSearchQuery)}
+          ${moduleSearchBox('daybookSearchInput','Search narration, ledger or date…',daybookSearchQuery)}
+          ${daybookColPickerHtml()}
           <button class="btn secondary small" id="openRecurringBtn" type="button">🔁 Recurring Vouchers${dueRecurringCount?` — ${dueRecurringCount} due`:''}</button>
           <button class="btn secondary small" id="openPrepaidDueBtn" type="button">🗓 Prepaid Amortization${duePrepaidCount?` — ${duePrepaidCount} due`:''}</button>
         </div>
         <div class="filter-chips">
           <button type="button" class="filter-chip ${daybookTypeFilter===''?'active':''}" data-daybook-type-chip="">All types</button>
           ${voucherTypes.map(t=>`<button type="button" class="filter-chip ${daybookTypeFilter===t?'active':''}" data-daybook-type-chip="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join('')}
+          <span class="chip-divider" aria-hidden="true"></span>
+          ${daybookDateChipHtml()}
         </div>
+        <div class="results-line" aria-live="polite">Showing ${shown.length} of ${filtered.length} voucher${filtered.length===1?'':'s'}${filtered.length!==rows.length?` (filtered from ${rows.length})`:''} · ₹${fmt(filteredDr)} total</div>
       </div>
     </div>
     ${bulkActionBar('voucher', bulkVoucherSelection.size, [
@@ -32255,22 +33338,23 @@ function viewDaybook(){
     ])}
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${filtered.length ? `<table class="rb-card-table">
-          <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="voucher-all" aria-label="Select all vouchers"></th><th>Date</th><th>Type</th><th>Narration</th><th>Entries</th><th class="num">Amount</th><th>Action</th></tr>
-          ${filtered.map(v=>`<tr>
+        ${shown.length ? `<div class="table-scroll"><table class="rb-card-table">
+          <tr><th style="width:30px;"><input type="checkbox" data-bulk-select-all="voucher-all" aria-label="Select all vouchers"></th><th>Date</th><th>Type</th><th>Narration</th>${showEntries?'<th>Entries</th>':''}<th class="num">Amount</th><th>Action</th></tr>
+          ${shown.map(v=>`<tr>
             <td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-voucher="${v.id}" data-bulk-cat="voucher-all" ${bulkVoucherSelection.has(v.id)?'checked':''} aria-label="Select voucher dated ${v.date}"></td>
             <td class="muted ccard-title" data-label="Date">${v.date}</td>
-            <td class="ccard-title" data-label="Type">${vtypeBadge(v.type)}</td>
-            <td data-label="Narration">${v.narration||'—'}${itemsSummary(v)}${currencyNote(v)}${v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
-            <td class="muted" style="font-size:12px;" data-label="Entries">${v.entries.map(e=>{
+            <td class="ccard-title" data-label="Type">${vtypeBadge(v.type)}${odMap[v.id]?`<span class="attn-pill neg" title="This invoice is still unpaid, ${odMap[v.id]} day${odMap[v.id]===1?'':'s'} past its due date">${odMap[v.id]}d overdue</span>`:''}</td>
+            <td data-label="Narration">${escapeHtml(v.narration)||'—'}${itemsSummary(v)}${currencyNote(v)}${showMeta && v.createdAt?`<div class="muted" style="font-size:10.5px;margin-top:3px;">Entered: ${fmtTimestamp(v.createdAt)}${v.updatedAt?` · Updated: ${fmtTimestamp(v.updatedAt)}`:''}</div>`:''}</td>
+            ${showEntries?`<td class="muted" style="font-size:12px;" data-label="Entries">${v.entries.map(e=>{
               const l = ledgerOf(e.ledgerId);
-              const name = l?l.name:'?';
+              const name = l?escapeHtml(l.name):'?';
               return e.dr ? `${name} Dr` : `${name} Cr`;
-            }).join(', ')}</td>
+            }).join(', ')}</td>`:''}
             <td class="num ccard-amount" data-label="Amount">₹${fmt(voucherAmount(v))}</td>
             <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''}${v.type==='Purchase' && v.items && v.items.length?` <button class="btn small secondary" data-landed-cost="${v.id}" type="button" title="Allocate freight/customs/insurance across this purchase's items, folded into their FIFO/Weighted-Average cost">🚚 Landed Cost</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}${voucherHistoryFor(v.id).length?` <button class="btn small secondary" data-voucher-history="${v.id}" type="button" title="${voucherHistoryFor(v.id).length} edit${voucherHistoryFor(v.id).length===1?'':'s'} recorded">🕘 History</button>`:''}</td>
           </tr>`).join('')}
-        </table>` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
+        </table></div>
+        ${remaining>0 ? `<div class="table-more"><button class="btn secondary small" id="daybookShowMoreBtn" type="button">Show ${Math.min(DAYBOOK_PAGE, remaining)} more (${remaining} remaining)</button></div>` : ''}` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
       </div>
     </div>
   `;
@@ -33024,25 +34108,37 @@ function viewLedgers(){
   const wantedSel = view==='ledgers' && window._selectedLedger ? window._selectedLedger : null;
   const sel = (wantedSel && allowedLedgers.some(l=>l.id===wantedSel)) ? wantedSel : (allowedLedgers[0] && allowedLedgers[0].id);
   const q = ledgerSearchQuery.trim().toLowerCase();
-  const visible = q ? allowedLedgers.filter(l=> l.name.toLowerCase().includes(q) || groupOf(l.group)?.name.toLowerCase().includes(q)) : allowedLedgers;
+  let visible = q ? allowedLedgers.filter(l=> l.name.toLowerCase().includes(q) || groupOf(l.group)?.name.toLowerCase().includes(q)) : allowedLedgers.slice();
+  const { byLedger: odLedger } = daybookOverdueMaps();
+  if(ledgerListSort==='balance') visible.sort((a,b)=> Math.abs(ledgerBalance(b.id)) - Math.abs(ledgerBalance(a.id)));
+  else if(ledgerListSort==='attention') visible.sort((a,b)=> ((odLedger[b.id]?odLedger[b.id].amt:0) - (odLedger[a.id]?odLedger[a.id].amt:0)) || a.name.localeCompare(b.name));
+  else visible.sort((a,b)=> a.name.localeCompare(b.name));
   return `
     ${masthead('Ledgers','Account-wise statements')}
-    <div class="row" style="align-items:flex-start;gap:20px;">
-      <div style="flex:0 0 240px;">
-        <div class="panel">
+    <div class="row ledgers-layout" style="align-items:flex-start;gap:20px;">
+      <div class="ledgers-left" style="flex:0 0 250px;">
+        <div class="panel" style="margin-bottom:0;">
           <div class="panel-body" style="padding:8px;">
             ${moduleSearchBox('ledgerSearchInput','Search ledgers…',ledgerSearchQuery)}
+            <div class="filter-chips" style="margin-top:6px;">
+              <button type="button" class="filter-chip ${ledgerListSort==='name'?'active':''}" data-ledger-sort="name" title="Sort alphabetically">A–Z</button>
+              <button type="button" class="filter-chip ${ledgerListSort==='balance'?'active':''}" data-ledger-sort="balance" title="Largest balances first">₹ Balance</button>
+              <button type="button" class="filter-chip ${ledgerListSort==='attention'?'active':''}" data-ledger-sort="attention" title="Ledgers with overdue invoices first">⚑ Attention</button>
+            </div>
             <button class="btn small secondary" id="newLedgerFromLedgersTabBtn" type="button" style="width:100%;margin-top:6px;">+ New Ledger</button>
           </div>
           <div class="panel-body" style="padding:0 6px 6px;">
             ${visible.map(l=>{
               const b = ledgerBalance(l.id);
+              const od = odLedger[l.id];
+              const overLimit = l.creditLimit && b > l.creditLimit;
               return `<div class="linklike ledger-row ${sel===l.id?'selected':''}" data-select-ledger="${l.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px 9px 8px;border-radius:3px;${sel===l.id?'background:var(--surface-strong);':''}text-decoration:none;cursor:pointer;">
-                <span style="display:flex;align-items:flex-start;gap:7px;">
+                <span style="display:flex;align-items:flex-start;gap:7px;min-width:0;">
                   <span style="width:7px;height:7px;border-radius:50%;background:${ledgerCategoryColor(l)};flex-shrink:0;margin-top:5px;"></span>
-                  <span>
-                    <div>${l.name}</div>
-                    <div class="muted" style="font-size:10.5px;">${groupOf(l.group)?groupOf(l.group).name:l.group}</div>
+                  <span style="min-width:0;">
+                    <div style="overflow-wrap:anywhere;">${escapeHtml(l.name)}</div>
+                    <div class="muted" style="font-size:10.5px;">${groupOf(l.group)?escapeHtml(groupOf(l.group).name):escapeHtml(l.group||'')}</div>
+                    ${od?`<span class="attn-pill neg" title="₹${fmt(od.amt)} overdue">${od.count} overdue</span>`:''}${overLimit?`<span class="attn-pill warn" title="Balance ₹${fmt(b)} is above the credit limit of ₹${fmt(l.creditLimit)}">over limit</span>`:''}
                   </span>
                 </span>
                 <span class="num ${b>=0?'pos':'neg'}" style="font-size:12px;white-space:nowrap;">${fmt(b)} ${balanceLabel(b)}</span>
@@ -33051,7 +34147,7 @@ function viewLedgers(){
           </div>
         </div>
       </div>
-      <div style="flex:1;">
+      <div style="flex:1;min-width:0;">
         ${sel ? ledgerStatement(sel) : emptyState({icon:'📒', title:'Select a ledger', text:'Choose a ledger from the list to see its statement.'})}
       </div>
     </div>
@@ -33066,45 +34162,76 @@ function ledgerStatement(ledgerId){
   // restricted ledger's figures just because something upstream still points at its id.
   if(!isLedgerVisibleToCurrentUser(l)) return moduleAccessDeniedView('This ledger');
   let running = l.opening || 0;
-  const rows = [];
+  const all = [];
   const sorted = state.vouchers.slice().sort((a,b)=> a.date.localeCompare(b.date));
   for(const v of sorted){
     for(const e of v.entries){
       if(e.ledgerId === ledgerId){
         running += (e.dr||0) - (e.cr||0);
-        rows.push({date:v.date, particulars:v.narration||v.type, dr:e.dr, cr:e.cr, running});
+        all.push({date:v.date, particulars:v.narration||v.type, dr:e.dr, cr:e.cr, running});
       }
     }
   }
   const bal = ledgerBalance(ledgerId);
   const g = groupOf(l.group);
+  // ---- Display filters (never change the running balance, which is always computed over the
+  // whole ledger above): a date-range chip, a text search, and "last N rows" paging for long books.
+  const today = new Date().toISOString().slice(0,10);
+  let rows = all;
+  if(ledgerStmtRange==='month'){ const m = today.slice(0,7); rows = all.filter(r=>r.date.startsWith(m)); }
+  else if(ledgerStmtRange==='90'){ const from = addDays(today,-90); rows = all.filter(r=>r.date>=from); }
+  const sq = ledgerStmtQuery.trim().toLowerCase();
+  if(sq) rows = rows.filter(r=> (r.particulars||'').toLowerCase().includes(sq) || (r.date||'').includes(sq));
+  const shown = rows.length>ledgerStmtLimit ? rows.slice(rows.length-ledgerStmtLimit) : rows;
+  const earlier = rows.length - shown.length;
+  const totDr = r2(rows.reduce((s,r)=>s+(r.dr||0),0));
+  const totCr = r2(rows.reduce((s,r)=>s+(r.cr||0),0));
+  // Brought-forward: the true running balance just before the first displayed row (equals the
+  // opening balance when the display starts at the very first entry). Hidden while searching,
+  // where a "balance before this point" line would be misleading.
+  let bfLabel = 'Opening Balance', bfVal = l.opening||0;
+  if(shown.length){
+    const idx = all.indexOf(shown[0]);
+    if(idx>0){ bfLabel = 'Balance brought forward'; bfVal = all[idx-1].running; }
+  } else if(ledgerStmtRange!=='all' && all.length){
+    bfLabel = 'Balance brought forward'; bfVal = all[all.length-1].running;
+  }
+  const closing = shown.length ? shown[shown.length-1].running : bfVal;
+  const rangeChip = (k,lab)=>`<button type="button" class="filter-chip ${ledgerStmtRange===k?'active':''}" data-stmt-range="${k}">${lab}</button>`;
   return `
     <div class="panel">
       <div class="panel-head">
         <div>
-          <h2>${l.name}</h2>
-          <div class="muted" style="font-size:11.5px;margin-top:2px;">${g?`${g.name} — ${g.cat}`:(l.group||'Ungrouped')}${l.partyType?` · ${l.partyType==='customer'?'Customer':'Supplier'}`:''}${l.isMSME?' · MSME':''}</div>
+          <h2>${escapeHtml(l.name)}</h2>
+          <div class="muted" style="font-size:11.5px;margin-top:2px;">${g?`${escapeHtml(g.name)} — ${escapeHtml(g.cat)}`:escapeHtml(l.group||'Ungrouped')}${l.partyType?` · ${l.partyType==='customer'?'Customer':'Supplier'}`:''}${l.isMSME?' · MSME':''}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <button class="btn small secondary" data-open-pie="${ledgerId}" type="button">📊 Pie Chart</button>
           <button class="btn small secondary" data-open-alter-ledger="${ledgerId}" type="button">✎ Alter</button>
           ${currentUser && currentUser.isAdmin ? `<button class="btn small danger" data-delete-ledger="${ledgerId}" type="button" title="Admin/Support only — asks for your login password">Delete</button>` : ''}
           <span class="pill ${bal>=0?'pos':'neg'}">${fmt(bal)} ${balanceLabel(bal)}</span>
         </div>
       </div>
+      <div class="panel-body stmt-toolbar">
+        ${moduleSearchBox('stmtSearchInput','Search this statement…',ledgerStmtQuery)}
+        <div class="filter-chips">${rangeChip('all','All')}${rangeChip('90','Last 90 days')}${rangeChip('month','This month')}</div>
+        <span class="results-line">${rows.length} entr${rows.length===1?'y':'ies'}${rows.length!==all.length?` of ${all.length}`:''}</span>
+      </div>
       <div class="panel-body" style="padding:0;">
-        <table class="rb-card-table">
+        ${earlier>0 ? `<div class="table-more" style="border-bottom:1px solid var(--border);"><button class="btn secondary small" id="stmtShowEarlierBtn" type="button">Show earlier entries (${earlier} more)</button></div>` : ''}
+        <div class="table-scroll"><table class="rb-card-table">
           <tr><th>Date</th><th>Particulars</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr>
-          <tr><td class="muted ccard-title" data-label="Date">—</td><td class="muted ccard-title" data-label="Particulars">Opening Balance</td><td class="num" data-label="Debit">${l.opening>0?fmt(l.opening):''}</td><td class="num" data-label="Credit">${l.opening<0?fmt(l.opening):''}</td><td class="num ccard-amount ${l.opening>=0?'pos':'neg'}" data-label="Balance">${fmt(l.opening)} ${balanceLabel(l.opening)}</td></tr>
-          ${rows.map(r=>`<tr>
+          ${!sq ? `<tr><td class="muted ccard-title" data-label="Date">—</td><td class="muted ccard-title" data-label="Particulars">${bfLabel}</td><td class="num" data-label="Debit">${bfLabel==='Opening Balance' && bfVal>0?fmt(bfVal):''}</td><td class="num" data-label="Credit">${bfLabel==='Opening Balance' && bfVal<0?fmt(bfVal):''}</td><td class="num ccard-amount ${bfVal>=0?'pos':'neg'}" data-label="Balance">${fmt(bfVal)} ${balanceLabel(bfVal)}</td></tr>` : ''}
+          ${shown.map(r=>`<tr>
             <td class="muted ccard-title" data-label="Date">${r.date}</td>
-            <td class="ccard-title" data-label="Particulars">${r.particulars}</td>
+            <td class="ccard-title" data-label="Particulars">${escapeHtml(r.particulars)}</td>
             <td class="num" data-label="Debit">${r.dr?fmt(r.dr):''}</td>
             <td class="num" data-label="Credit">${r.cr?fmt(r.cr):''}</td>
             <td class="num ccard-amount ${r.running>=0?'pos':'neg'}" data-label="Balance">${fmt(r.running)} ${balanceLabel(r.running)}</td>
           </tr>`).join('')}
-          ${!rows.length ? `<tr><td colspan="5" class="empty">No transactions on this ledger yet.</td></tr>`:''}
-        </table>
+          ${shown.length ? `<tr class="stmt-totals"><td class="ccard-title" data-label="Date">—</td><td class="ccard-title" data-label="Particulars">Totals (shown entries)</td><td class="num" data-label="Debit">${fmt(totDr)}</td><td class="num" data-label="Credit">${fmt(totCr)}</td><td class="num ccard-amount ${closing>=0?'pos':'neg'}" data-label="Balance">${fmt(closing)} ${balanceLabel(closing)}</td></tr>` : ''}
+          ${!shown.length ? `<tr><td colspan="5" class="empty">${all.length ? 'No entries match this filter.' : 'No transactions on this ledger yet.'}</td></tr>`:''}
+        </table></div>
       </div>
     </div>
   `;
@@ -41763,6 +42890,7 @@ function attachHandlers(){
 
   document.getElementById('daybookSearchInput')?.addEventListener('input', (e)=>{
     daybookSearchQuery = e.target.value;
+    daybookLimit = DAYBOOK_PAGE;
     const caret = e.target.selectionStart;
     render();
     const el = document.getElementById('daybookSearchInput');
@@ -41771,8 +42899,32 @@ function attachHandlers(){
   document.querySelectorAll('[data-daybook-type-chip]').forEach(el=>{
     el.addEventListener('click', ()=>{
       daybookTypeFilter = el.dataset.daybookTypeChip;
+      daybookLimit = DAYBOOK_PAGE;
       render();
     });
+  });
+  document.querySelectorAll('[data-daybook-date-chip]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      daybookDateFilter = el.dataset.daybookDateChip;
+      daybookLimit = DAYBOOK_PAGE;
+      render();
+    });
+  });
+  document.getElementById('daybookColsBtn')?.addEventListener('click', ()=>{
+    daybookColsOpen = !daybookColsOpen;
+    render();
+  });
+  document.querySelectorAll('[data-daybook-col]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const c = cb.dataset.daybookCol;
+      if(cb.checked) daybookHiddenCols.delete(c); else daybookHiddenCols.add(c);
+      try{ localStorage.setItem('rb_daybook_hidden_cols', JSON.stringify([...daybookHiddenCols])); }catch(e){}
+      render();
+    });
+  });
+  document.getElementById('daybookShowMoreBtn')?.addEventListener('click', ()=>{
+    daybookLimit += DAYBOOK_PAGE;
+    render();
   });
   document.getElementById('itemMasterSearchInput')?.addEventListener('input', (e)=>{
     itemMasterSearchQuery = e.target.value;
@@ -42938,6 +44090,7 @@ function attachHandlers(){
       el.addEventListener('click', run);
       el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); run(); } });
     });
+    wireDashboardToday();
     wireVizInteractivity();
     animateDashboardCounters();
   }
@@ -42947,7 +44100,7 @@ function attachHandlers(){
       b.addEventListener('click',()=>{ switchVoucherType(b.dataset.vtype); render(); });
     });
     document.getElementById('vdate').addEventListener('input', e=>{ vform.date = e.target.value; refreshLiveInvoicePreview(); });
-    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); updateEntryAmountGhosts(); refreshLiveInvoicePreview(); });
+    document.getElementById('vnarr').addEventListener('input', e=>{ vform.narration = e.target.value; updateNarrationSuggestion(); updateAmountGhostSuggestion(); updateEntryAmountGhosts(); refreshVoucherInlineState(); refreshLiveInvoicePreview(); });
     document.getElementById('vchannel')?.addEventListener('change', e=>{ vform.channel = e.target.value; });
     // Attachments during entry (before the voucher has an id): stage the file as a dataURL on the
     // draft itself, same size cap and read path as uploadAttachment(), then actually write them to
@@ -43063,10 +44216,9 @@ function attachHandlers(){
       document.getElementById('singleAmount')?.focus();
     });
     document.getElementById('singleAmount')?.addEventListener('keydown', e=>{
-      if(e.key!=='Enter') return;
+      if(e.key!=='Enter' || e.ctrlKey || e.metaKey) return;
       e.preventDefault();
-      const btn = document.getElementById('saveVoucher');
-      if(btn && !btn.disabled) btn.click();
+      voucherTrySave();
     });
     document.getElementById('taxEnabled')?.addEventListener('change', e=>{
       vform.tax.enabled = e.target.checked;
@@ -43196,19 +44348,19 @@ function attachHandlers(){
     // through an entire multi-line voucher (ledger → amount → ledger → amount → …) without the mouse.
     document.querySelectorAll('.e-dr, .e-cr').forEach(inp=>{
       inp.addEventListener('keydown', e=>{
-        if(e.key!=='Enter') return;
+        if(e.key!=='Enter' || e.ctrlKey || e.metaKey) return;
         e.preventDefault();
         const i = +inp.dataset.i;
         const entry = vform.entries[i];
         if(!entry) return;
-        const side = entrySide(entry);
-        const sideIdxs = vform.entries.map((e2,i2)=>i2).filter(i2=>entrySide(vform.entries[i2])===side);
-        const pos = sideIdxs.indexOf(i);
-        if(pos < sideIdxs.length-1){
-          document.querySelector(`.e-ledger[data-i="${sideIdxs[pos+1]}"]`)?.focus();
-          return;
-        }
-        addEntrySideRow(side);
+        // Nov 2026 flow: an empty box on the short side takes the balancing figure; then Enter moves
+        // to the next unfinished line (on either side), or to Narration once Debit equals Credit.
+        // Only when every line is filled and the voucher still doesn't balance is a new line added
+        // -- on whichever side is short.
+        if(voucherAmountEnter(i)) return;
+        let tdr = 0, tcr = 0;
+        vform.entries.forEach(x=>{ tdr += Number(x.dr)||0; tcr += Number(x.cr)||0; });
+        addEntrySideRow(tdr > tcr ? 'cr' : (tcr > tdr ? 'dr' : entrySide(entry)));
       });
     });
     document.querySelectorAll('[data-rm]').forEach(b=>{
@@ -43484,6 +44636,10 @@ function attachHandlers(){
     const saveBtn = document.getElementById('saveVoucher');
     if(saveBtn) saveBtn.addEventListener('click', async ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      // Nov 2026: stop here, with the reason and the cursor on the problem, if the form still has a
+      // blocking issue -- notably a missing date, or a line with an amount but no ledger (which the
+      // filter just below would otherwise drop silently, saving a voucher whose sides don't match).
+      if(voucherBlockingIssues().length){ voucherExplainBlocked(); return; }
       const singleEligible = ['Payment','Receipt','Contra'].includes(vform.type);
       const effectiveMode = singleEligible ? vform.mode : 'double';
       let entries;
@@ -43709,6 +44865,7 @@ function attachHandlers(){
     // render(), e.g. switching voucher type/mode, replaces it the same way) -- fill it in now rather
     // than waiting for the next keystroke, so the preview is already showing on first paint.
     refreshLiveInvoicePreview();
+    wireVoucherUx(); // searchable ledger pickers, checklist beside Save, balancing hints, first-field focus
   }
 
   if(view==='pos'){
@@ -43834,7 +44991,29 @@ function attachHandlers(){
 
   if(view==='ledgers'){
     document.querySelectorAll('[data-select-ledger]').forEach(el=>{
-      el.addEventListener('click',()=>{ window._selectedLedger = el.dataset.selectLedger; render(); });
+      el.addEventListener('click',()=>{
+        window._selectedLedger = el.dataset.selectLedger;
+        ledgerStmtQuery = ''; ledgerStmtLimit = LEDGER_STMT_PAGE; // fresh statement view per ledger (range choice is kept)
+        render();
+      });
+    });
+    document.querySelectorAll('[data-ledger-sort]').forEach(el=>{
+      el.addEventListener('click', ()=>{ ledgerListSort = el.dataset.ledgerSort; render(); });
+    });
+    document.querySelectorAll('[data-stmt-range]').forEach(el=>{
+      el.addEventListener('click', ()=>{ ledgerStmtRange = el.dataset.stmtRange; ledgerStmtLimit = LEDGER_STMT_PAGE; render(); });
+    });
+    document.getElementById('stmtSearchInput')?.addEventListener('input', (e)=>{
+      ledgerStmtQuery = e.target.value;
+      ledgerStmtLimit = LEDGER_STMT_PAGE;
+      const caret = e.target.selectionStart;
+      render();
+      const el2 = document.getElementById('stmtSearchInput');
+      if(el2){ el2.focus(); try{ el2.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.getElementById('stmtShowEarlierBtn')?.addEventListener('click', ()=>{
+      ledgerStmtLimit += 200;
+      render();
     });
     document.getElementById('ledgerSearchInput')?.addEventListener('input', (e)=>{
       ledgerSearchQuery = e.target.value;
@@ -45406,6 +46585,7 @@ function updateSingleEntryPreview(){
   const saveBtn = document.getElementById('saveVoucher');
   if(saveBtn) saveBtn.disabled = !ok || isReadOnlyMode();
   updateAmountGhostSuggestion();
+  refreshVoucherInlineState();
 }
 
 function renderTotalsOnly(){
@@ -45425,12 +46605,12 @@ function renderTotalsOnly(){
     // can float while scrolling — see the .totals-line.sticky-balance CSS comment) instead of
     // clobbering it with a plain className overwrite.
     const wasSticky = el.classList.contains('sticky-balance');
-    el.className = 'totals-line ' + (wasSticky?'sticky-balance ':'') + (balanced?'balanced':'unbalanced');
-    const balancedLabel = balanced ? `${justBalanced?'<span class="balanced-tick">✓</span>':'✓'} Balanced` : 'Not balanced';
-    el.innerHTML = `<span>Dr ₹${fmt(dr)}</span><span>Cr ₹${fmt(cr)}</span><span>${balancedLabel}</span>`;
+    el.className = 'totals-line ' + (wasSticky?'sticky-balance ':'') + voucherTotalsClass(dr, cr);
+    el.innerHTML = voucherTotalsInnerHtml(dr, cr, justBalanced);
   }
   const saveBtn = document.getElementById('saveVoucher');
   if(saveBtn) saveBtn.disabled = !balanced || isReadOnlyMode();
+  refreshVoucherInlineState(); // checklist beside Save, line messages, balancing hint
 }
 
 /* ---------------- init ----------------
