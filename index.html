@@ -62,6 +62,7 @@
        (surfaces are dark enough that the original light-on-dark pairings clear 4.5:1+), so only
        --ink-faint needed the equivalent lightening there -- see the dark root block below. */
     --ink-faint:#6D7971;
+    --on-fill:#FFFFFF; /* text on bright accent / gold / red fills; dark mode flips it to near-black so the contrast holds */
     --accent1:#268818;
     --accent2:#1E7A12;
     --accent-grad:#268818;
@@ -127,18 +128,18 @@
      that slides between tabs -- see positionSidebarIndicator()/animateSidebarIndicatorFrom()) so
      .navtab.active itself now only carries the text/icon color change; the colored pill underneath
      it is what actually glides from the old active tab to the new one. */
-  .navtab.active{background:transparent;color:#fff;border-color:transparent;}
+  .navtab.active{background:transparent;color:var(--on-fill);border-color:transparent;}
   .navtab-indicator{position:absolute;left:0;top:0;z-index:0;border-radius:var(--radius-sm);
     background:linear-gradient(135deg,var(--sidebar-accent, var(--accent1)),var(--sidebar-accent, var(--accent2)));
     box-shadow:0 3px 10px rgba(44,160,28,0.28);
     opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.3,.9,.4,1);will-change:transform;}
   @media (prefers-reduced-motion: reduce){ .navtab-indicator{transition:none;} }
-  .btn.secondary.active{background:var(--accent1);color:#fff;border-color:var(--accent1);}
+  .btn.secondary.active{background:var(--accent1);color:var(--on-fill);border-color:var(--accent1);}
   /* ---- Sidebar brand header (pinned above Dashboard) -- same gold→green badge language as the
      login screen's .login-logo, just smaller, so the sidebar reads as this product's own workspace
      rather than starting cold into a list of tabs. ---- */
   .sidebar-brand{display:flex;align-items:center;gap:9px;padding:1px 9px 13px;margin-bottom:5px;border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent);}
-  .sidebar-brand-mark{width:27px;height:27px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11.5px;letter-spacing:-.02em;color:#fff;background:linear-gradient(135deg, #F2A900, var(--accent1));box-shadow:0 3px 9px rgba(44,160,28,0.3);}
+  .sidebar-brand-mark{width:27px;height:27px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11.5px;letter-spacing:-.02em;color:var(--on-fill);background:linear-gradient(135deg, #F2A900, var(--accent1));box-shadow:0 3px 9px rgba(44,160,28,0.3);}
   .sidebar-brand-text{min-width:0;overflow:hidden;}
   .sidebar-brand-name{font-size:12px;font-weight:800;color:var(--ink);letter-spacing:-.008em;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .sidebar-brand-tag{font-size:9px;font-weight:700;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -153,7 +154,7 @@
   .sidebar-company-card:hover{background:color-mix(in srgb, var(--accent1) 8%, var(--surface-strong));border-color:var(--border-strong);}
   .sidebar-company-card:active{transform:scale(0.98);}
   .sidebar-company-avatar{width:26px;height:26px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:10.5px;letter-spacing:-.01em;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));}
+    font-weight:800;font-size:10.5px;letter-spacing:-.01em;color:var(--on-fill);background:linear-gradient(135deg,var(--accent1),var(--accent2));}
   .sidebar-company-info{min-width:0;overflow:hidden;display:flex;flex-direction:column;}
   .sidebar-company-name{font-size:11.5px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .sidebar-company-sub{font-size:9.5px;font-weight:600;color:var(--ink-faint);}
@@ -259,7 +260,7 @@
      dot for "needs a look", pushed to the row's right edge by margin-left:auto. Sits inside .navtab
      itself (ahead of the pin star, which is absolutely positioned above it) so it still reads
      correctly if the star is hidden (collapsed rail, or a gated tab with no star at all). */
-  .navtab-badge.count{margin-left:auto;margin-right:20px;background:var(--gold,#F2A900);color:#fff;font-size:10px;font-weight:800;line-height:1;padding:2px 6px;border-radius:999px;flex-shrink:0;}
+  .navtab-badge.count{margin-left:auto;margin-right:20px;background:var(--gold,#F2A900);color:var(--on-fill);font-size:10px;font-weight:800;line-height:1;padding:2px 6px;border-radius:999px;flex-shrink:0;}
   .navtab.active .navtab-badge.count{background:rgba(255,255,255,0.32);}
   .navtab-badge.dot{margin-left:auto;margin-right:22px;width:7px;height:7px;border-radius:50%;background:var(--debit);flex-shrink:0;}
   .navtab.active .navtab-badge.dot{background:#fff;}
@@ -436,7 +437,7 @@
   .tabstrip:not(.collapsed) .sidebar-sync-status{margin-top:6px;}
   .sidebar-bell-count{position:absolute;top:-4px;right:calc(50% - 20px);min-width:14px;height:14px;padding:0 3px;
     display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--gold,#F2A900);
-    color:#fff;font-size:8.5px;font-weight:800;line-height:1;}
+    color:var(--on-fill);font-size:8.5px;font-weight:800;line-height:1;}
   .sidebar-bell-panel{position:absolute;bottom:calc(100% + 6px);left:0;z-index:150;
     min-width:200px;padding:10px;border-radius:11px;background:var(--surface-strong);border:1px solid var(--border-strong);
     box-shadow:0 12px 28px -6px color-mix(in srgb, var(--ink) 30%, transparent);}
@@ -453,7 +454,7 @@
   .sidebar-quicknew-wrap{position:relative;margin:2px 0 10px;}
   .sidebar-quicknew-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;
     padding:8px 0;border:1px solid transparent;border-radius:9px;cursor:pointer;font-family:inherit;
-    font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:12px;font-weight:800;color:var(--on-fill);background:linear-gradient(135deg,var(--accent1),var(--accent2));
     box-shadow:0 3px 10px -3px color-mix(in srgb, var(--accent1) 55%, transparent);
     transition:box-shadow .15s ease,transform .1s ease;}
   .sidebar-quicknew-btn:hover{box-shadow:0 5px 14px -3px color-mix(in srgb, var(--accent1) 65%, transparent);}
@@ -507,7 +508,7 @@
   .sidebar-user-card:hover{background:color-mix(in srgb, var(--accent1) 8%, var(--surface-strong));border-color:var(--border-strong);}
   .sidebar-user-card:active{transform:scale(0.98);}
   .sidebar-user-avatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:10.5px;letter-spacing:-.01em;color:#fff;background:linear-gradient(135deg,var(--gold),#C9701A);}
+    font-weight:800;font-size:10.5px;letter-spacing:-.01em;color:var(--on-fill);background:linear-gradient(135deg,var(--gold),#C9701A);}
   .sidebar-user-info{min-width:0;overflow:hidden;display:flex;flex-direction:column;flex:1;}
   .sidebar-user-name{font-size:11.5px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .sidebar-user-role{font-size:9.5px;font-weight:600;color:var(--ink-faint);}
@@ -520,7 +521,7 @@
   .tabstrip.collapsed .sidebar-user-panel{left:0;width:220px;}
   .sidebar-user-panel-head{display:flex;align-items:center;gap:9px;padding:4px 6px 10px;border-bottom:1px solid var(--border);margin-bottom:6px;}
   .sidebar-user-panel-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:12px;color:#fff;background:linear-gradient(135deg,var(--gold),#C9701A);}
+    font-weight:800;font-size:12px;color:var(--on-fill);background:linear-gradient(135deg,var(--gold),#C9701A);}
   .sidebar-user-panel-name{font-size:12.5px;font-weight:800;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;}
   .sidebar-user-panel-role{font-size:10px;font-weight:600;color:var(--ink-faint);}
   .sidebar-user-panel-item{display:block;width:100%;padding:7px 7px;border:none;background:transparent;
@@ -535,10 +536,10 @@
   .modern-tab{display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--ink-soft);border:1px solid transparent;padding:8px 15px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:-.005em;transition:all .15s ease;white-space:nowrap;}
   .modern-tab .tab-icon{width:14px;height:14px;}
   .modern-tab:hover:not(.active){background:var(--surface-strong);color:var(--ink);}
-  .modern-tab.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:var(--accent2);box-shadow:0 3px 10px rgba(44,160,28,0.32);}
+  .modern-tab.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:var(--on-fill);border-color:var(--accent2);box-shadow:0 3px 10px rgba(44,160,28,0.32);}
   .modern-tab .tab-count{background:rgba(0,0,0,0.15);padding:1px 7px;border-radius:999px;font-size:10px;margin-left:2px;}
   .modern-tab.active .tab-count{background:rgba(255,255,255,0.28);}
-  .modern-tab:not(.active) .tab-count{background:var(--gold);color:#fff;}
+  .modern-tab:not(.active) .tab-count{background:var(--gold);color:var(--on-fill);}
 
   /* ---------------- Modal header with gradient accent (Admin / Group Admin panels) ---------------- */
   .admin-modal-head{position:relative;display:flex;justify-content:space-between;align-items:center;padding:20px 24px;background:linear-gradient(120deg,#173B1E 0%,#1E7A12 55%,#2CA01C 100%);color:#fff;overflow:hidden;}
@@ -852,12 +853,18 @@
      where useful, a row of filter chips (replacing a plain <select> for a handful of options). */
   .module-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .module-search{position:relative;flex:1;min-width:200px;}
-  .module-search input{width:100%;padding-left:33px;}
-  .module-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--ink-faint);pointer-events:none;}
+  /* input[type=text] (not a bare `input`) deliberately matches the specificity of the global
+     `input[type=text]{padding:9px 12px;...}` base style further down (around line 896) -- the same
+     fix the sidebar search needed above: with a bare `input` here, that base rule (same specificity,
+     later in the cascade) always won and silently squashed this left padding back to 12px, parking
+     the magnifier icon on top of the placeholder's first letters on every module search box
+     (Day Book, Ledgers, statement, Parties, Inventory, Item Master). */
+  .module-search input[type=text]{width:100%;padding-left:35px;}
+  .module-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--ink-faint);pointer-events:none;}
   .filter-chips{display:flex;gap:6px;flex-wrap:wrap;}
   .filter-chip{padding:6.5px 14px;border-radius:999px;font-size:11.5px;font-weight:700;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:border-color .15s ease, color .15s ease, background .15s ease, box-shadow .15s ease;}
   .filter-chip:hover{border-color:var(--accent1);color:var(--ink);}
-  .filter-chip.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:var(--accent2);box-shadow:0 2px 7px rgba(44,160,28,.28);}
+  .filter-chip.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:var(--on-fill);border-color:var(--accent2);box-shadow:0 2px 7px rgba(44,160,28,.28);}
 
   /* Single-value progress bar -- stock level vs reorder point, depreciation-elapsed vs useful
      life -- a lighter-weight alternative to a full SVG chart for one number per table row. */
@@ -881,7 +888,7 @@
   .empty{padding:28px;text-align:center;color:var(--ink-faint);font-size:12.5px;}
 
   button{font-family:'Inter',sans-serif;cursor:pointer;}
-  .btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border:1px solid var(--accent2);padding:9px 19px;border-radius:var(--radius-btn);font-size:12.5px;font-weight:700;letter-spacing:-.005em;box-shadow:0 2px 8px rgba(44,160,28,0.3);transition:box-shadow .15s ease, transform .15s ease;}
+  .btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:var(--on-fill);border:1px solid var(--accent2);padding:9px 19px;border-radius:var(--radius-btn);font-size:12.5px;font-weight:700;letter-spacing:-.005em;box-shadow:0 2px 8px rgba(44,160,28,0.3);transition:box-shadow .15s ease, transform .15s ease;}
   .btn:hover:not(:disabled){box-shadow:0 5px 16px rgba(44,160,28,0.4);transform:translateY(-1px);}
   .btn:active:not(:disabled){transform:translateY(0);box-shadow:0 2px 6px rgba(44,160,28,0.3);}
   .btn.secondary{background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);box-shadow:none;}
@@ -927,8 +934,8 @@
   .row > *{flex:1;}
 
   .vtype-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
-  .vtype-tabs button{padding:7px 16px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--ink-soft);transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}
-  .vtype-tabs button.active{background:var(--accent1);color:#fff;border-color:var(--accent1);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
+  .vtype-tabs button{padding:7px 16px;border-radius:999px;border:1px solid var(--border);background:var(--surface);font-size:12px;font-weight:600;color:var(--ink-soft);transition:background .15s ease,color .15s ease,border-color .15s ease,box-shadow .15s ease;}
+  .vtype-tabs button.active{background:var(--accent1);color:var(--on-fill);border-color:var(--accent1);box-shadow:0 3px 10px rgba(44,160,28,0.28);}
   /* Voucher-type tabs only (the ones carrying VOUCHER_TYPE_META's data-hue) -- restrained to 4 hue
      families so this reads as "color-coded" rather than "rainbow": inactive tabs stay the plain
      neutral style above, and only the active tab picks up its family's existing token. Higher
@@ -936,9 +943,9 @@
      a class) so these win without !important. */
   .vtype-tabs button[data-hue]{display:inline-flex;align-items:center;gap:5px;}
   .vtype-tabs button[data-hue] .tab-msym{font-size:15px;color:inherit;}
-  .vtype-tabs button[data-hue="debit"].active{background:var(--debit);border-color:var(--debit);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--debit) 35%, transparent);}
-  .vtype-tabs button[data-hue="credit"].active{background:var(--credit);border-color:var(--credit);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--credit) 35%, transparent);}
-  .vtype-tabs button[data-hue="gold"].active{background:var(--gold);border-color:var(--gold);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--gold) 35%, transparent);}
+  .vtype-tabs button[data-hue="debit"].active{background:var(--debit);border-color:var(--debit);color:var(--on-fill);box-shadow:0 3px 10px color-mix(in srgb, var(--debit) 35%, transparent);}
+  .vtype-tabs button[data-hue="credit"].active{background:var(--credit);border-color:var(--credit);color:var(--on-fill);box-shadow:0 3px 10px color-mix(in srgb, var(--credit) 35%, transparent);}
+  .vtype-tabs button[data-hue="gold"].active{background:var(--gold);border-color:var(--gold);color:var(--on-fill);box-shadow:0 3px 10px color-mix(in srgb, var(--gold) 35%, transparent);}
   .vtype-tabs button[data-hue="neutral"].active{background:var(--ink-soft);border-color:var(--ink-soft);color:#fff;box-shadow:0 3px 10px color-mix(in srgb, var(--ink-soft) 30%, transparent);}
 
   /* voucherTodayStatChip() -- sits between the masthead and the type-tab strip on the Voucher
@@ -949,8 +956,8 @@
   .voucher-today-chip-amt{font-weight:800;}
 
   .entry-row{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;}
-  .entry-row .rm{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--debit);font-size:14px;padding:6px 10px;font-weight:700;}
-  .entry-row .add-side{background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--credit);font-size:14px;padding:6px 10px;font-weight:700;}
+  .entry-row .rm{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--debit);font-size:14px;padding:6px 10px;font-weight:700;}
+  .entry-row .add-side{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--credit);font-size:14px;padding:6px 10px;font-weight:700;}
   .entry-row .rm:hover{background:var(--debit-bg);border-color:var(--debit);}
   .entry-amt-wrap{position:relative;}
   .entry-amt-wrap input{padding-right:32px;}
@@ -1155,11 +1162,11 @@
   .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;}
   .calendar-grid .dow{min-width:0;font-size:10px;font-weight:700;text-align:center;padding:6px 0;color:var(--ink-faint);text-transform:uppercase;overflow:hidden;}
   .calendar-grid .dow.weekend{color:var(--accent2);background:color-mix(in srgb, var(--accent1) 7%, transparent);border-radius:6px;}
-  .calendar-day{position:relative;min-width:0;min-height:64px;background:#fff;border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;display:flex;flex-direction:column;overflow:hidden;}
+  .calendar-day{position:relative;min-width:0;min-height:64px;background:var(--surface);border:1px solid transparent;border-radius:8px;padding:6px 8px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:12px;transition:all .12s;display:flex;flex-direction:column;overflow:hidden;}
   .calendar-day:hover{background:var(--surface-strong);border-color:var(--border-strong);transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
   .calendar-day.empty{background:transparent;border-color:transparent;cursor:default;}
   .calendar-day.empty:hover{background:transparent;border-color:transparent;transform:none;box-shadow:none;}
-  .calendar-day.weekend{background:color-mix(in srgb, var(--accent1) 3%, #fff);}
+  .calendar-day.weekend{background:color-mix(in srgb, var(--accent1) 3%, var(--surface));}
   /* `opacity` on the whole white "paper" card looked fine in light mode but turned past days into a
      dull grey smudge against the dark page in dark mode (the opacity lets the dark background show
      through the white card). Swapping to --surface-strong for the background + --ink-faint for the
@@ -1168,13 +1175,13 @@
   .calendar-day.past:not(.has-overdue):not(.selected){background:var(--surface-strong);}
   .calendar-day.past:not(.has-overdue):not(.selected) .daynum{color:var(--ink-faint);}
   .calendar-day.has-overdue{border-color:color-mix(in srgb, var(--debit) 45%, transparent);box-shadow:0 0 0 1px color-mix(in srgb, var(--debit) 35%, transparent);}
-  .calendar-day.selected{opacity:1;background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, #fff), color-mix(in srgb, var(--accent1) 4%, #fff));border-color:color-mix(in srgb, var(--accent1) 30%, transparent);box-shadow:0 2px 8px -3px color-mix(in srgb, var(--accent1) 40%, transparent);}
+  .calendar-day.selected{opacity:1;background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, var(--surface)), color-mix(in srgb, var(--accent1) 4%, var(--surface)));border-color:color-mix(in srgb, var(--accent1) 30%, transparent);box-shadow:0 2px 8px -3px color-mix(in srgb, var(--accent1) 40%, transparent);}
   .calendar-day.selected.has-overdue{border-color:color-mix(in srgb, var(--debit) 55%, transparent);}
   .calendar-day .daynum{font-weight:700;width:21px;height:21px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:background .15s ease,color .15s ease,box-shadow .15s ease;}
   .calendar-day.today .daynum{color:var(--accent1);box-shadow:inset 0 0 0 1.5px var(--accent1);}
-  .calendar-day.selected .daynum{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 2px 5px -1px color-mix(in srgb, var(--accent1) 55%, transparent);}
+  .calendar-day.selected .daynum{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:var(--on-fill);box-shadow:0 2px 5px -1px color-mix(in srgb, var(--accent1) 55%, transparent);}
   .calendar-day .count{position:absolute;bottom:5px;right:5px;font-size:9px;background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border-strong);padding:1px 5px;border-radius:999px;font-weight:700;}
-  .calendar-day.selected .count{background:color-mix(in srgb, var(--accent1) 14%, #fff);color:var(--accent2);border-color:transparent;}
+  .calendar-day.selected .count{background:color-mix(in srgb, var(--accent1) 14%, var(--surface));color:var(--accent2);border-color:transparent;}
   .calendar-day .evt-dots{display:flex;gap:3px;margin-top:auto;padding-top:4px;flex-wrap:wrap;}
   .calendar-day .evt-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.6);}
   .calendar-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
@@ -1184,7 +1191,7 @@
   .calendar-jump select{font-size:12px;font-weight:700;padding:6px 9px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer;font-family:inherit;}
   .cal-view-toggle{display:flex;gap:2px;background:var(--surface-strong);border:1px solid var(--border);border-radius:9px;padding:3px;flex-shrink:0;}
   .cal-view-toggle button{border:none;background:transparent;font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer;color:var(--ink-soft);font-family:inherit;}
-  .cal-view-toggle button.active{background:var(--accent1);color:#fff;}
+  .cal-view-toggle button.active{background:var(--accent1);color:var(--on-fill);}
   .cal-view-toggle button .tab-msym{font-size:14px;vertical-align:-3px;margin-right:2px;}
   /* Oct 15, 2026 -- the toolbar had grown to 8 buttons in one undifferentiated row (Prev/Today/Next,
      the jump dropdowns, Month/Week/Agenda, Show Dismissed, Export, Print). Navigation (left) and view
@@ -1218,7 +1225,7 @@
      scrolling strip of small cards. A card has room for the title to wrap onto a second line instead
      of being cut off, and the dismiss × is hover-only (was always visible before) so the strip reads
      as a clean set of upcoming items rather than a row of close buttons. */
-  .cal-upnext{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;}
+  .cal-upnext{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:18px;}
   .cal-upnext-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
   .cal-upnext-items{display:flex;gap:10px;overflow-x:auto;padding-bottom:2px;}
   .cal-upnext-item{position:relative;display:flex;flex-direction:column;gap:3px;background:var(--surface-strong);border:1px solid var(--border);border-left:3px solid var(--item-accent, var(--border));border-radius:9px;padding:8px 24px 8px 11px;font-size:11.5px;min-width:172px;max-width:210px;flex-shrink:0;}
@@ -1242,20 +1249,20 @@
      day-selection click handler just works; event titles render inline (space allows it, unlike the
      dot-only Month grid) since a week has far fewer events competing for the same cell. */
   .cal-week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;}
-  .cal-week-day{position:relative;min-width:0;min-height:120px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:all .12s;overflow:hidden;}
+  .cal-week-day{position:relative;min-width:0;min-height:120px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:all .12s;overflow:hidden;}
   .cal-week-day:hover{border-color:var(--border-strong);box-shadow:0 3px 8px rgba(20,30,25,0.08);}
-  .cal-week-day.weekend{background:color-mix(in srgb, var(--accent1) 3%, #fff);}
+  .cal-week-day.weekend{background:color-mix(in srgb, var(--accent1) 3%, var(--surface));}
   .cal-week-day.past:not(.has-overdue):not(.selected){background:var(--surface-strong);}
   .cal-week-day.past:not(.has-overdue):not(.selected) .dow,
   .cal-week-day.past:not(.has-overdue):not(.selected) .daynum{color:var(--ink-faint);}
   .cal-week-day.has-overdue{border-color:color-mix(in srgb, var(--debit) 45%, transparent);box-shadow:0 0 0 1px color-mix(in srgb, var(--debit) 35%, transparent);}
-  .cal-week-day.selected{opacity:1;background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, #fff), color-mix(in srgb, var(--accent1) 4%, #fff));border-color:color-mix(in srgb, var(--accent1) 30%, transparent);box-shadow:0 2px 8px -3px color-mix(in srgb, var(--accent1) 40%, transparent);}
+  .cal-week-day.selected{opacity:1;background:linear-gradient(135deg, color-mix(in srgb, var(--accent1) 10%, var(--surface)), color-mix(in srgb, var(--accent1) 4%, var(--surface)));border-color:color-mix(in srgb, var(--accent1) 30%, transparent);box-shadow:0 2px 8px -3px color-mix(in srgb, var(--accent1) 40%, transparent);}
   .cal-week-day.selected .dow{color:var(--accent2);}
   .cal-week-day-head{display:flex;justify-content:space-between;align-items:baseline;font-variant-numeric:tabular-nums;}
   .cal-week-day-head .dow{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
   .cal-week-day-head .daynum{font-size:13px;font-weight:800;width:23px;height:23px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:background .15s ease,color .15s ease,box-shadow .15s ease;}
   .cal-week-day.today .daynum{color:var(--accent1);box-shadow:inset 0 0 0 1.5px var(--accent1);}
-  .cal-week-day.selected .daynum{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 2px 5px -1px color-mix(in srgb, var(--accent1) 55%, transparent);}
+  .cal-week-day.selected .daynum{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:var(--on-fill);box-shadow:0 2px 5px -1px color-mix(in srgb, var(--accent1) 55%, transparent);}
   .cal-week-day-events{display:flex;flex-direction:column;gap:3px;overflow:hidden;flex:1;}
   .cal-week-evt{font-size:10.5px;font-weight:700;padding:3px 6px;border-radius:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   /* A week with nothing due used to just be a bare card with a date in the corner -- the single
@@ -2188,9 +2195,9 @@
 
   /* ---- GST Format viewer (modal) ---- */
   .fmt-chips{display:flex;flex-wrap:wrap;gap:6px;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface-strong);}
-  .fmt-chip{font-family:inherit;font-size:11px;font-weight:700;color:var(--ink-soft);background:#fff;border:1px solid var(--border-strong);border-radius:999px;padding:5px 11px;cursor:pointer;letter-spacing:.01em;}
+  .fmt-chip{font-family:inherit;font-size:11px;font-weight:700;color:var(--ink-soft);background:var(--surface);border:1px solid var(--border-strong);border-radius:999px;padding:5px 11px;cursor:pointer;letter-spacing:.01em;}
   .fmt-chip:hover{background:var(--surface-strong);}
-  .fmt-chip.active{background:var(--accent1);border-color:var(--accent1);color:#fff;}
+  .fmt-chip.active{background:var(--accent1);border-color:var(--accent1);color:var(--on-fill);}
   .fmt-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:16px 20px 4px;}
   .fmt-code{font-family:inherit;font-weight:800;font-size:16px;color:var(--accent2);}
   .fmt-name{font-weight:700;font-size:14.5px;color:var(--ink);margin-left:10px;}
@@ -2200,7 +2207,7 @@
   .fmt-tbl{margin:6px 20px 4px;display:grid;grid-template-columns:auto 1fr;gap:0 14px;}
   .fmt-tbl dt{font-family:inherit;font-size:11px;font-weight:800;color:var(--accent2);background:var(--credit-bg);border-radius:5px;padding:2px 7px;height:fit-content;margin:6px 0;white-space:nowrap;}
   .fmt-tbl dd{margin:6px 0;font-size:12.5px;color:var(--ink);line-height:1.55;}
-  .fmt-note{margin:14px 20px 4px;padding:9px 13px;background:#FFF6E9;border-left:3px solid var(--gold);border-radius:0 7px 7px 0;font-size:11.5px;color:var(--ink-soft);}
+  .fmt-note{margin:14px 20px 4px;padding:9px 13px;background:color-mix(in srgb, var(--gold) 12%, var(--surface));border-left:3px solid var(--gold);border-radius:0 7px 7px 0;font-size:11.5px;color:var(--ink-soft);}
   .fmt-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface-strong);}
   .fmt-nav .fmt-pos{font-size:11.5px;color:var(--ink-faint);font-weight:700;}
   @media (max-width:640px){
@@ -2288,6 +2295,7 @@
   /* ---- Dark mode: an explicit, user-controlled toggle (not tied to OS preference) — the same
      token names throughout the file, just re-pointed. Brand green/gold stay recognizable on dark. */
   :root[data-theme="dark"]{
+    color-scheme:dark;
     --bg:#12181A;
     --surface:#1A2320;
     --surface-strong:#212D27;
@@ -2296,7 +2304,8 @@
     --border-strong:#3B4C43;
     --ink:#EAF2EC;
     --ink-soft:#9FB2A6;
-    --ink-faint:#768D82;
+    --ink-faint:#93AB9D;
+    --on-fill:#06140A;
     --accent1:#33B521;
     --accent2:#2CA01C;
     --accent-grad:#33B521;
@@ -2363,7 +2372,7 @@
      gives their output a consistent grid-based structure instead of each round's card bolting
      itself on with its own one-off spacing/inline styles). All colors are existing design tokens
      so light/dark theming stays automatic. */
-  .dash-section{margin-bottom:28px;}
+  .dash-section{margin-bottom:24px;}
   .dash-section:last-child{margin-bottom:0;}
   .dash-alerts{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
   .dash-alert{cursor:pointer;border-radius:var(--radius-sm);padding:11px 16px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border:1px solid;transition:filter .15s ease,transform .1s ease;}
@@ -2390,6 +2399,7 @@
   .attn-pill{display:inline-block;font-size:9.5px;font-weight:800;padding:1.5px 7px;border-radius:999px;margin-left:6px;vertical-align:1px;white-space:nowrap;}
   .attn-pill.neg{background:var(--debit-bg);color:var(--debit);}
   .attn-pill.warn{background:color-mix(in srgb, var(--gold) 20%, transparent);color:var(--gold-ink);}
+  .attn-pill.info{background:var(--surface-strong);color:var(--ink-soft);}
   .ledger-row .attn-pill{margin:3px 4px 0 0;}
   .col-picker{position:relative;}
   .col-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:40;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 10px 28px rgba(20,30,25,0.16);padding:10px 14px;min-width:210px;}
@@ -2409,7 +2419,7 @@
   }
   /* Module 2 (Nov 2026): Dashboard "Today" panel -- three lanes (Cash / Money owed to you / Compliance),
      most urgent first. Colours come only from the existing tokens, so dark mode follows automatically. */
-  .today{margin-bottom:26px;}
+  .today{margin-bottom:24px;}
   .today-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 20px;flex-wrap:wrap;margin-bottom:12px;}
   .today h2{font-size:19px;font-weight:800;letter-spacing:-.01em;margin:0 0 3px;color:var(--ink);}
   .today-line{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.45;}
@@ -2774,7 +2784,7 @@
   .admin-console-navbtn.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:4px;height:20px;border-radius:0 3px 3px 0;background:#6FE6C4;box-shadow:0 0 10px rgba(111,230,196,0.8);}
   .admin-console-navbtn .tab-count{background:rgba(0,0,0,0.25);padding:1px 7px;border-radius:999px;font-size:10px;margin-left:auto;}
   .admin-console-navbtn.active .tab-count{background:rgba(255,255,255,0.28);}
-  .admin-console-navbtn:not(.active) .tab-count{background:var(--gold);color:#fff;}
+  .admin-console-navbtn:not(.active) .tab-count{background:var(--gold);color:var(--on-fill);}
   .acs-sidebar-foot{padding:14px 20px 18px;position:relative;z-index:1;border-top:1px solid rgba(255,255,255,0.08);font-size:10px;color:#5C7566;font-weight:600;letter-spacing:.03em;}
   .acs-sidebar-foot b{color:#9FB8AC;}
 
@@ -2914,6 +2924,194 @@
   }
   .landing-nav-links a{ position:relative; }
   .landing-nav-links a:hover::after{ width:100%; }
+
+  /* ============================================================================================
+     Module 6 (Nov 2026) -- Mobile / tablet.
+     Phones: the sidebar becomes a slide-in drawer opened from the ☰ button in the title bar (it used
+     to sit ABOVE the page and push the real content ~800px down). Tablets: the icon rail now really is
+     60px wide (the sidebar's inline width style used to beat the CSS rule). Tap targets are 40-44px on
+     touch screens. Display/layout only -- no logic changes.
+     ============================================================================================ */
+  .mobile-nav-btn{display:none;}
+  .mobile-nav-scrim{display:none;}
+  @media (min-width:761px) and (max-width:1024px){
+    .tabstrip{width:60px !important;}
+    /* Same icon-only treatment as the collapsed rail, applied by width (the saved collapse choice only
+       matters on desktop) so nothing is cut off in a 60px column. */
+    .tabstrip{padding:16px 8px;}
+    .tabstrip .sidebar-brand{justify-content:center;padding:1px 0 13px;}
+    .tabstrip .sidebar-brand-text, .tabstrip .sidebar-company-info, .tabstrip .sidebar-company-chevron,
+    .tabstrip .sidebar-user-info, .tabstrip .sidebar-user-chevron, .tabstrip .sidebar-sync-label,
+    .tabstrip .sidebar-collapse-btn, .tabstrip .sidebar-add-group-btn, .tabstrip .sidebar-search-wrap,
+    .tabstrip .sidebar-quicknew-wrap, .tabstrip .nav-section-empty-hint, .tabstrip .navtab-pin-btn,
+    .tabstrip .nav-section-delete-btn{display:none;}
+    .tabstrip .sidebar-company-card, .tabstrip .sidebar-user-card{justify-content:center;padding:7px;}
+    .tabstrip .sidebar-sync-status{justify-content:center;padding:4px 0;}
+    .tabstrip .navtab{position:relative;}
+    .tabstrip .navtab-badge.count{position:absolute;top:3px;right:3px;margin:0;min-width:15px;height:15px;font-size:8.5px;padding:0 3px;display:flex;align-items:center;justify-content:center;}
+    .tabstrip .nav-section-group.collapsed{display:flex;}
+  }
+  @media (max-width:760px){
+    .titlebar{justify-content:flex-start;gap:10px;padding:8px 12px;position:sticky;top:0;z-index:60;}
+    .titlebar span:first-of-type{font-size:13px;line-height:1.25;min-width:0;}
+    .mobile-nav-btn{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:44px;height:44px;
+      border-radius:12px;border:1px solid var(--border-strong);background:var(--surface-strong);color:var(--ink);
+      font-size:20px;line-height:1;cursor:pointer;font-family:inherit;}
+    .mobile-nav-btn:active{transform:scale(0.96);}
+    .mobile-nav-btn:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+    .menubar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 8px;}
+    .menubar::-webkit-scrollbar{display:none;}
+    .menubar > span, .menubar > span > *{white-space:nowrap;}
+    .menubar > span{flex-shrink:0;display:inline-flex;align-items:center;min-height:40px;padding:0 12px;}
+    .menubar > span:last-child{margin-left:auto;padding-left:6px;}
+
+    /* The drawer */
+    .tabstrip{position:fixed;top:0;left:0;bottom:0;height:auto;width:min(86vw,330px) !important;max-width:none;
+      z-index:160;flex-direction:column;gap:2px;padding:14px 14px 28px;overflow-y:auto;overscroll-behavior:contain;
+      border-right:1px solid var(--border-strong);border-bottom:none;
+      box-shadow:12px 0 40px -8px color-mix(in srgb, var(--ink) 40%, transparent);
+      transform:translateX(-105%);visibility:hidden;transition:transform .26s cubic-bezier(.3,.9,.4,1), visibility 0s linear .26s;
+      background:var(--surface);}
+    body.mobile-nav-open .tabstrip{transform:none;visibility:visible;transition:transform .26s cubic-bezier(.3,.9,.4,1), visibility 0s;}
+    .mobile-nav-scrim{display:block;position:fixed;inset:0;z-index:150;background:rgba(10,18,14,.5);opacity:0;pointer-events:none;transition:opacity .22s ease;}
+    body.mobile-nav-open .mobile-nav-scrim{opacity:1;pointer-events:auto;}
+    body.mobile-nav-open{overflow:hidden;}
+    .tabstrip .nav-section-group{flex-direction:column;flex-wrap:nowrap;overflow:visible;padding-bottom:0;}
+    .tabstrip .navtab{width:100%;border-radius:var(--radius-sm);justify-content:flex-start;min-height:44px;padding:10px 12px;font-size:13.5px;}
+    .tabstrip .navtab-label{display:inline;}
+    .tabstrip .nav-section-label{display:flex;}
+    .tabstrip .sidebar-brand-text, .tabstrip .sidebar-company-info{display:block;}
+    .tabstrip .navtab-indicator{display:none;}
+    .tabstrip .navtab.active{background:linear-gradient(135deg,var(--sidebar-accent, var(--accent1)),var(--sidebar-accent, var(--accent2)));}
+    .mobile-nav-close{display:flex;align-self:flex-end;align-items:center;justify-content:center;width:40px;height:40px;margin:-4px -4px 2px 0;
+      border-radius:10px;border:1px solid var(--border);background:var(--surface-strong);color:var(--ink-soft);font-size:18px;cursor:pointer;font-family:inherit;}
+    .main{padding:12px 12px 90px;}
+  }
+  @media (min-width:761px){ .mobile-nav-close{display:none;} }
+
+  /* Touch tap targets (phones and tablets with a touch screen). Rows in dense tables keep their
+     compact look on a mouse; on touch every control is at least 40px tall. */
+  @media (pointer:coarse){
+    .main .btn, .main button.btn{min-height:44px;}
+    .main .btn.small, .main button.small{min-height:40px;padding-top:8px;padding-bottom:8px;}
+    .main .filter-chip, .main .tchip{min-height:40px;display:inline-flex;align-items:center;}
+    .main select, .main input[type=text], .main input[type=number], .main input[type=date], .main input[type=search], .main input[type=email], .main input[type=tel]{min-height:44px;font-size:16px;}
+    .main .attn-pill{min-height:0;}
+    .main td .btn.small, .main td button.small{min-height:36px;}
+    .main button:not(.btn):not(.tl-fix):not(.attn-pill):not(.nav-section-label){min-height:40px;}
+    .main td button, .main .attn-pill, .main .stmt-totals button{min-height:0;}
+    .menubar .theme-toggle, .menubar .btn{min-height:40px;}
+  }
+  @media (pointer:coarse) and (max-width:760px){ .main td .btn.small, .main td button.small{min-height:40px;} }
+
+  /* ============================================================================================
+     Module 4 (Nov 2026) -- first-time experience: setup checklist, plain-language hints.
+     ============================================================================================ */
+  .setup{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px 6px;margin-bottom:18px;box-shadow:0 1px 0 var(--border);}
+  .setup-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .setup-head h2{margin:0 0 3px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--ink);}
+  .setup-head p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .setup-bar{height:6px;border-radius:99px;background:var(--surface-strong);margin:12px 0 4px;overflow:hidden;}
+  .setup-bar i{display:block;height:100%;border-radius:99px;background:var(--accent1);transition:width .4s ease;}
+  .setup-list{display:flex;flex-direction:column;}
+  .setup-step{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--border);}
+  .setup-step:first-child{border-top:none;}
+  .setup-mark{flex-shrink:0;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;color:var(--ink-soft);background:var(--surface-strong);border:1.5px solid var(--border-strong);}
+  .setup-step.next .setup-mark{background:var(--accent1);border-color:var(--accent1);color:var(--on-fill);}
+  .setup-step.done .setup-mark{background:color-mix(in srgb, var(--accent1) 16%, var(--surface));border-color:var(--accent1);color:var(--accent1);}
+  .setup-body{flex:1;min-width:0;}
+  .setup-title{font-size:13.5px;font-weight:700;color:var(--ink);display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .setup-step.done .setup-title{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--border-strong);}
+  .setup-step.done .setup-sub{display:none;}
+  .setup-sub{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:2px;}
+  .setup-opt, .setup-start{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:99px;}
+  .setup-opt{background:var(--surface-strong);color:var(--ink-faint);}
+  .setup-start{background:color-mix(in srgb, var(--accent1) 16%, var(--surface));color:var(--accent1);}
+  .setup-done-tag{font-size:11.5px;font-weight:700;color:var(--ink-faint);flex-shrink:0;}
+  .setup-step .btn{flex-shrink:0;white-space:nowrap;}
+  .setup-show{margin:-4px 0 10px;}
+  .setup-link{background:none;border:none;padding:6px 0;font:inherit;font-size:12px;font-weight:700;color:var(--accent1);cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  @media (max-width:560px){
+    .setup{padding:14px 14px 4px;}
+    .setup-step{flex-wrap:wrap;}
+    .setup-body{flex-basis:calc(100% - 40px);}
+    .setup-step .btn, .setup-done-tag{margin-left:38px;}
+  }
+
+  .plain-hint{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin:0 0 18px;}
+  .plain-hint > summary{list-style:none;display:flex;align-items:center;gap:9px;padding:10px 14px;cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-soft);min-height:42px;border-radius:var(--radius);}
+  .plain-hint > summary::-webkit-details-marker{display:none;}
+  .plain-hint > summary:hover{color:var(--ink);}
+  .plain-hint > summary:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+  .ph-i{flex-shrink:0;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-style:italic;font-family:Georgia,serif;
+    color:var(--accent1);background:color-mix(in srgb, var(--accent1) 14%, var(--surface));}
+  .ph-sum{flex:1;}
+  .ph-chev{width:8px;height:8px;border-right:2px solid var(--ink-faint);border-bottom:2px solid var(--ink-faint);transform:rotate(45deg);transition:transform .15s ease;margin-right:4px;}
+  .plain-hint[open] > summary .ph-chev{transform:rotate(-135deg);}
+  .plain-hint[open] > summary{color:var(--ink);}
+  .ph-body{padding:0 16px 14px 43px;}
+  .ph-lead{margin:0 0 10px;font-size:13px;line-height:1.6;color:var(--ink-soft);max-width:70ch;}
+  .ph-lead b, .ph-points b{color:var(--ink);}
+  .ph-points{margin:0 0 12px;padding-left:18px;font-size:12.8px;line-height:1.6;color:var(--ink-soft);max-width:70ch;}
+  .ph-points li{margin-bottom:4px;}
+  .ph-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  @media (max-width:560px){ .ph-body{padding:0 14px 14px;} .ph-actions .btn, .setup .btn{min-height:40px;} }
+
+  /* ============================================================================================
+     Module 7 (Nov 2026) -- Dark mode contrast.
+     --on-fill (text on a bright accent/gold/red fill) is white in light mode and near-black in dark
+     mode; --ink-faint is brighter in dark mode; hard-coded white surfaces now read --surface; and
+     any button that sets no colours of its own gets the dark palette instead of the browser's light
+     grey (:where() keeps this at zero specificity, so every component rule still wins).
+     ============================================================================================ */
+  :where(:root[data-theme="dark"]) :where(button){background-color:var(--surface-strong);color:var(--ink);border-color:var(--border-strong);}
+  :root[data-theme="dark"] .calendar-grid .dow.weekend{color:var(--credit);}
+  :where(:root[data-theme="dark"]) :where(select, textarea, input:not([type=checkbox]):not([type=radio])){color:var(--ink);}
+
+  /* ============================================================================================
+     Module 5 (Nov 2026) -- Consistency pass.
+     Spacing scale: 18px between page blocks, 24px after a stat grid / between dashboard sections.
+     One look for the "How this works" pill; one focus ring everywhere; menubar items that act like
+     buttons look clickable; dialogs lock the page behind them and are tap-sized on touch screens.
+     ============================================================================================ */
+  .help-pill{padding:2px 10px;font-size:11px;border-radius:20px;min-height:0;line-height:1.5;}
+  :where(button, a, summary, select, input, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+  .menubar > span[id]{cursor:pointer;}
+  body:has(.modal-overlay){overflow:hidden;}
+  .modal-overlay{overscroll-behavior:contain;}
+  .modal-card:focus{outline:none;}
+  .main:focus, .main:focus-visible{outline:none;} /* skip-link target: a container, not a control */
+  @media (pointer:coarse){
+    .modal-card .btn{min-height:44px;}
+    .modal-card .btn.small, .modal-card .panel-head .btn{min-height:40px;min-width:40px;}
+    .modal-card select, .modal-card input[type=text], .modal-card input[type=number], .modal-card input[type=date], .modal-card input[type=search], .modal-card input[type=email], .modal-card input[type=tel], .modal-card input[type=password]{min-height:44px;font-size:16px;}
+    .help-pill{min-height:36px;padding:2px 14px;}
+  }
+
+  /* ===== Module 8 (Nov 2026): speed & polish ===== */
+  /* No sideways jump when a dialog opens/closes or a page grows past one screen: the scrollbar's
+     space is always reserved. */
+  html{scrollbar-gutter:stable;}
+  /* Figures keep a constant width so values changing (balances, counts, badges) never shift the
+     columns or the text next to them. */
+  .main table, .main .today, .main .kpi, .main .dash-section, .tabstrip .navtab-badge, .tabstrip .sidebar-sync-status{font-variant-numeric:tabular-nums;}
+  /* The save-status line never changes height or wraps when its label changes. */
+  .sidebar-sync-status{min-height:26px;box-sizing:border-box;}
+  .sidebar-sync-status .sidebar-sync-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  /* A short confirmation pulse when a save finishes ("Saving…" -> "All changes saved"). */
+  .sidebar-sync-status.just-saved .sidebar-sync-dot{animation:syncSavedPulse 1.1s ease-out 1;}
+  .sidebar-sync-status.just-saved .sidebar-sync-label{color:var(--accent1);transition:color .2s;}
+  @keyframes syncSavedPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--accent1) 55%, transparent);}100%{box-shadow:0 0 0 9px transparent;}}
+  /* In-app busy cue: any button marked aria-busy shows a small spinner before its (kept) label. */
+  .btn[aria-busy="true"]{cursor:progress;}
+  .btn[aria-busy="true"]::before{content:'';display:inline-block;width:12px;height:12px;margin-right:8px;border-radius:50%;
+    border:2px solid currentColor;border-right-color:transparent;animation:btnSpin .7s linear infinite;vertical-align:-2px;}
+  .btn[aria-busy="true"]:disabled{opacity:.8;}
+  @media (prefers-reduced-motion: reduce){
+    .sidebar-sync-status.just-saved .sidebar-sync-dot{animation:none;}
+    .btn[aria-busy="true"]::before{animation-duration:2s;}
+  }
 </style>
 </head>
 <body>
@@ -8322,7 +8520,7 @@ function whatsNewModal(){
                   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <strong style="font-size:13px;">${escapeHtml(i.title)}</strong>
                     <span class="pill" style="font-size:9.5px;">${escapeHtml(i.tag)}</span>
-                    ${(!seenAt || i.date>seenAt) ? `<span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;">NEW</span>` : ''}
+                    ${(!seenAt || i.date>seenAt) ? `<span class="pill" style="font-size:9.5px;background:var(--debit);color:var(--on-fill);">NEW</span>` : ''}
                     <span class="muted" style="font-size:10.5px;margin-left:auto;">${i.date}</span>
                   </div>
                   <p class="muted" style="font-size:11.5px;line-height:1.6;margin:4px 0 0;">${escapeHtml(i.desc)}</p>
@@ -9201,6 +9399,7 @@ let toastStack = [];
 let toastSeq = 0;
 function toast(msg, opts){
   opts = opts || {};
+  msg = String(msg).replace(/^✓\s*/, ''); // success is shown by the green edge; no stray tick in some messages only
   const id = 'ts'+(++toastSeq);
   const item = { id, msg, type: opts.type || 'info', action: opts.action || null };
   toastStack.push(item);
@@ -9405,10 +9604,14 @@ let syncPendingCount = 0;
 function syncStatusLabel(){
   return syncStatus==='saving' ? 'Saving…' : syncStatus==='error' ? 'Save failed — will retry' : 'All changes saved';
 }
+let syncFlashTimer = null, syncPrevShown = 'saved';
 function updateSyncStatusDom(){
   const el = document.getElementById('sidebarSyncStatus');
   if(!el) return;
-  el.className = 'sidebar-sync-status ' + syncStatus;
+  const justSaved = syncPrevShown==='saving' && syncStatus==='saved';
+  syncPrevShown = syncStatus;
+  el.className = 'sidebar-sync-status ' + syncStatus + (justSaved ? ' just-saved' : '');
+  if(justSaved){ clearTimeout(syncFlashTimer); syncFlashTimer = setTimeout(()=>{ const e2 = document.getElementById('sidebarSyncStatus'); if(e2) e2.classList.remove('just-saved'); }, 1400); }
   const label = el.querySelector('.sidebar-sync-label');
   if(label) label.textContent = syncStatusLabel();
 }
@@ -15242,10 +15445,10 @@ function netProfit(){
    Reports tab, and asks Claude to answer using only that data. See functions/index.js. */
 function qaWidget(){
   return `
-    <div id="qaFab" title="Ask a question about your books" role="button" tabindex="0" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:90;">💬</div>
+    <div id="qaFab" title="Ask a question about your books" role="button" tabindex="0" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:var(--on-fill);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:90;">💬</div>
     ${qaOpen ? `
     <div id="qaPanel" style="position:fixed;right:22px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:440px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:90;">
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;background:var(--accent1,#2CA01C);color:#fff;">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;background:var(--accent1,#2CA01C);color:var(--on-fill);">
         <strong style="font-size:13px;">Ask your books</strong>
         <span id="qaCloseBtn" style="cursor:pointer;font-size:15px;">✕</span>
       </div>
@@ -15259,7 +15462,7 @@ function qaWidget(){
           </div>` : ''}
         ${qaMessages.map((m,mi)=>`
           <div style="margin-bottom:10px;display:flex;${m.role==='user'?'justify-content:flex-end;':''}">
-            <div style="max-width:${(m.chartHtml||m.entityHtml)?'96%':'85%'};padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:#fff;' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}${m.chartHtml ? `<div style="margin-top:8px;white-space:normal;">${m.chartHtml}</div>` : ''}${m.entityHtml ? `<div style="margin-top:8px;white-space:normal;">${m.entityHtml}</div>` : ''}${m.csv ? `<div style="margin-top:8px;white-space:normal;"><button type="button" class="btn small secondary" data-qa-export-csv="${mi}">⬇ Export rows as CSV</button></div>` : ''}</div>
+            <div style="max-width:${(m.chartHtml||m.entityHtml)?'96%':'85%'};padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:var(--on-fill);' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}${m.chartHtml ? `<div style="margin-top:8px;white-space:normal;">${m.chartHtml}</div>` : ''}${m.entityHtml ? `<div style="margin-top:8px;white-space:normal;">${m.entityHtml}</div>` : ''}${m.csv ? `<div style="margin-top:8px;white-space:normal;"><button type="button" class="btn small secondary" data-qa-export-csv="${mi}">⬇ Export rows as CSV</button></div>` : ''}</div>
           </div>
         `).join('')}
         ${qaLoading ? `<div class="muted" style="font-size:11.5px;">Thinking…</div>` : ''}
@@ -16013,6 +16216,87 @@ function renderTour(){
   const _renderBeforeTour = render;
   render = function(){ _renderBeforeTour(); renderTour(); };
 }
+const PERF_SAVE_FNS = ['saveAutomationLog','saveBankClears','saveBankRules','saveBudgets','saveCompanyFolderMap','saveCompanyFolders','saveCostCategories','saveCostCenterClasses','saveCostCenters','saveCurrencies','saveCustomerPriceOverrides','saveCycleCounts','saveDeliveryChallans','saveEmployeeLoans','saveEmployees','saveFixedAssets','saveFnfSettlements','saveItems','saveLandedCostAllocation','saveLandedCostAllocations','saveLedgers','savePendingVouchers','savePurchaseOrders','saveQuotations','saveReconciliationRecord','saveReconciliations','saveRecurringTemplates','saveSalaryVouchers','saveSalesOrders','saveScenarios','saveStockAdjustments','saveStockTransfers','saveTaxDeductions','saveVoucherAuditLog','saveVouchers','saveWarehouses'];
+/* ============================================================================================
+   Module 8 (Nov 2026) -- Speed. A per-repaint read cache.
+   One repaint used to recompute the same read-only figures many times over (the sidebar badge,
+   the notification bell, the calendar and the Dashboard all asked for the same alert queue; the
+   Inventory screen valued every item six times). While render() is running, the results of these
+   pure read functions are now remembered and reused for the rest of that single repaint, then
+   thrown away -- so nothing is ever shown stale from an earlier paint. Any save*() call during a
+   repaint also empties the cache. Arrays are handed back as copies. No calculation is changed;
+   the very same functions produce every number.
+   ============================================================================================ */
+const perfMemo = { on:false, c:new Map(), hits:0, miss:0, typing:false, ver:0, keep:null, keepVer:-1, keepCo:null };
+function perfMemoClear(){ perfMemo.c.clear(); }
+function perfCompanyKey(){ try{ return (currentCompany && currentCompany.id) || ''; }catch(e){ return ''; } }
+function perfMemoWrap(name, keyFn){
+  const orig = window[name];
+  if(typeof orig !== 'function' || orig.__perfMemo) return;
+  const wrapped = function(){
+    if(!perfMemo.on) return orig.apply(this, arguments);
+    let k;
+    try{ k = keyFn ? keyFn.apply(null, arguments) : (arguments.length ? JSON.stringify([].slice.call(arguments)) : ''); }catch(e){ k = null; }
+    if(k === null || k === undefined) return orig.apply(this, arguments);
+    const key = name + '|' + k;
+    if(perfMemo.c.has(key)){
+      perfMemo.hits++;
+      const r = perfMemo.c.get(key);
+      return Array.isArray(r) ? r.slice() : r;
+    }
+    perfMemo.miss++;
+    const r = orig.apply(this, arguments);
+    // a promise or a non-plain result is never cached
+    if(r && typeof r.then === 'function') return r;
+    perfMemo.c.set(key, r);
+    return Array.isArray(r) ? r.slice() : r;
+  };
+  wrapped.__perfMemo = true;
+  window[name] = wrapped;
+}
+function installPerfMemo(){
+  const noArg = ['dashboardExceptionQueue','calendarAttentionEvents','calendarAllDataEvents','calCloseChecklistPlaceholderEvent',
+                 'cashFlowForecastData','stockSummaryAll','overdueInvoices'];
+  noArg.forEach(n=>perfMemoWrap(n));
+  perfMemoWrap('monthEndCloseChecklistItems', (m)=> String(m||''));
+  perfMemoWrap('stockMovementForItem', (id)=> (typeof id==='string' ? id : null));
+  perfMemoWrap('stockValuation', (item, asOf)=> (item && item.id ? item.id + '|' + (asOf||'') : null));
+  perfMemoWrap('ledgerBalance', (id)=> (typeof id==='string' ? id : null));
+  perfMemoWrap('partyOutstandingInvoices', (id)=> (typeof id==='string' ? id : null));
+  // any save during a repaint (e.g. auto-posting recurring vouchers) invalidates everything
+  [...new Set(PERF_SAVE_FNS)].forEach(n=>{
+    const f = window[n];
+    if(typeof f !== 'function' || f.__perfSave) return;
+    const w = function(){ perfMemoClear(); perfMemo.ver++; perfMemo.keep = null; return f.apply(this, arguments); };
+    w.__perfSave = true;
+    window[n] = w;
+  });
+  const _renderBeforeMemo = render;
+  render = function(){
+    // A repaint caused by typing in a module search box changes no data, so it may start from the
+    // previous repaint's results -- but only when no save happened since and it is the same company.
+    const co = perfCompanyKey();
+    if(perfMemo.typing && perfMemo.keep && perfMemo.keepVer===perfMemo.ver && perfMemo.keepCo===co){
+      perfMemo.c = perfMemo.keep; perfMemo.carried = true;
+    } else { perfMemo.c = new Map(); perfMemo.carried = false; }
+    perfMemo.on = true;
+    try{ return _renderBeforeMemo.apply(this, arguments); }
+    finally{
+      perfMemo.on = false;
+      perfMemo.keep = perfMemo.c; perfMemo.keepVer = perfMemo.ver; perfMemo.keepCo = co;
+      perfMemo.c = new Map();
+    }
+  };
+  // Mark input events from the module search boxes (capture phase = before the box's own handler).
+  document.addEventListener('input', (e)=>{
+    const t = e.target;
+    if(t && t.closest && t.closest('.module-search')){
+      perfMemo.typing = true;
+      setTimeout(()=>{ perfMemo.typing = false; }, 0);
+    }
+  }, true);
+}
+installPerfMemo();
 function wireKeyActivate(id){
   const el = document.getElementById(id);
   if(!el) return;
@@ -16258,6 +16542,7 @@ function render(){
   app.innerHTML = `
     <a href="#mainContent" class="skip-link">Skip to main content</a>
     <div class="titlebar">
+      <button type="button" class="mobile-nav-btn" id="mobileNavBtn" aria-label="Open menu" aria-controls="appSidebar" aria-expanded="false">☰</button>
       <span>The Reckoning Books by SKm — [Company: ${currentCompany.name}]</span>
       <span class="winbtns"><span>_</span><span>▢</span><span>✕</span></span>
     </div>
@@ -16295,7 +16580,9 @@ function render(){
     </div>
     ` : ''}
     <div class="body-shell">
-      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}">
+      <div class="mobile-nav-scrim" id="mobileNavScrim"></div>
+      <div class="tabstrip ${sidebarCollapsed?'collapsed':''}" id="appSidebar" style="${sidebarCollapsed?'':`width:${sidebarWidth}px;`}">
+        <button type="button" class="mobile-nav-close" id="mobileNavClose" aria-label="Close menu">✕</button>
         <div class="navtab-indicator" id="navtabIndicator"></div>
         ${sidebarBrandHeader()}
         ${sidebarQuickNewMenu()}
@@ -16466,6 +16753,8 @@ function render(){
     modal = 'companyTeam';
     render();
   });
+  wireMobileNav();
+  wireFirstRun();
   document.getElementById('themeToggleBtn')?.addEventListener('click', ()=>{ toggleTheme(); render(); });
   wireKeyActivate('themeToggleBtn');
   document.getElementById('cmdkOpenBtn')?.addEventListener('click', ()=> openCommandPalette());
@@ -22120,7 +22409,7 @@ function renderGateway(){
       <div class="gw-section-row">
         <div class="gw-section-title">Your Companies</div>
         <div class="gw-toolbar">
-        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently" style="position:relative;">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
+        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently" style="position:relative;">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:var(--on-fill);margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
         ${!isDemoUser ? `<button class="btn secondary" id="openInviteEarnBtn" type="button" title="Invite other businesses and see who's joined through your link">🎁 Invite &amp; Earn</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
@@ -26160,7 +26449,7 @@ function masthead(title, sub, helpKey){
     <div>
       <div style="display:flex;align-items:baseline;gap:8px;">
         <h1>${title}</h1>
-        ${helpKey ? `<button class="btn secondary small" data-open-help="${helpKey}" type="button" title="How does this work?" style="padding:2px 9px;font-size:11px;border-radius:20px;">ⓘ How this works</button>` : ''}
+        ${helpKey ? `<button class="btn secondary small help-pill" data-open-help="${helpKey}" type="button" title="How does this work?">ⓘ How this works</button>` : ''}
       </div>
       <div class="sub">${sub||''}</div>
     </div>
@@ -26468,7 +26757,7 @@ function partyRiskList(){
 }
 function partyRiskLevel(score){
   if(score>=50) return { label:'High', style:'background:var(--debit-bg);color:var(--debit);' };
-  if(score>=25) return { label:'Medium', style:'background:#FCEFD9;color:#8a5a00;' };
+  if(score>=25) return { label:'Medium', style:'background:color-mix(in srgb, var(--gold) 20%, var(--surface));color:var(--gold-ink);' };
   return { label:'Low', style:'background:var(--credit-bg);color:var(--credit);' };
 }
 function partyRiskCard(){
@@ -27406,7 +27695,14 @@ function dashOpenVoucher(type, ledgerId, voucherId){
   const blankEntry = ()=>({ledgerId:'',dr:0,cr:0,side:'dr'});
   if(ledgerId && voucherId && (type==='Receipt'||type==='Payment')){
     const rows = type==='Receipt' ? collectionsPriorityList() : dashSupplierBillsDue(3650);
-    const row = rows.find(r=> r.ledger.id===ledgerId && r.invoice.voucherId===voucherId);
+    let row = rows.find(r=> r.ledger.id===ledgerId && r.invoice.voucherId===voucherId);
+    if(!row){
+      // Not overdue/late yet — still a real open invoice/bill (Parties quick actions pass these):
+      // build the row straight from the FIFO outstanding list instead.
+      const l = ledgerOf(ledgerId);
+      const inv = l ? partyOutstandingInvoices(ledgerId).find(i=>i.voucherId===voucherId) : null;
+      if(l && inv) row = { ledger:l, invoice:inv };
+    }
     if(row){
       const amount = row.invoice.remaining, party = row.ledger.name, invDate = row.invoice.date;
       vform = type==='Receipt'
@@ -27444,6 +27740,154 @@ function wireDashboardToday(){
   });
 }
 
+/* ============================================================================================
+   Module 4 (Nov 2026) -- First-time experience.
+   1. A "Get your books started" checklist at the top of the Dashboard. Every tick is read live off
+      the existing data (ledgers, vouchers, items, employees, company GSTIN) -- nothing new is stored
+      except a per-company "hidden" flag in this browser.
+   2. emptyStateAct(): an empty state whose button clicks an existing button on the page.
+   3. plainHint(): a "What is this?" panel in plain language for Inventory, Payroll, GST and Orders --
+      open by default while the module is empty, collapsed to one line once it has data, and it
+      remembers what the person chose.
+   Display only: no accounting calculation is touched.
+   ============================================================================================ */
+function firstRunHiddenKey(){ return 'rb_firstrun_hidden_' + (currentCompany ? currentCompany.id : ''); }
+function firstRunIsHidden(){ try{ return localStorage.getItem(firstRunHiddenKey())==='1'; }catch(e){ return false; } }
+function firstRunSteps(){
+  const hasParty = state.ledgers.some(l=>l.partyType==='customer' || l.partyType==='supplier');
+  const hasOpening = state.ledgers.some(l=>Math.abs(Number(l.opening)||0)>0);
+  return [
+    { key:'party',    title:'Add a customer or supplier', sub:'Tag a ledger as Customer or Supplier so the app can show who owes you and whom you owe.', done:hasParty, cta:'Open Accounts', act:'tab:coa' },
+    { key:'voucher',  title:'Record your first entry', sub:'A sale, purchase, payment or receipt. It takes about a minute and the books update straight away.', done:state.vouchers.length>0, cta:'Record a voucher', act:'tab:voucher' },
+    { key:'opening',  title:'Enter opening balances', optional:true, sub:'Moving from another system? Put in what each account held on day one: cash, bank, loans, stock.', done:hasOpening, cta:'Open Accounts', act:'tab:coa' },
+    { key:'gstin',    title:'Add your GSTIN', optional:true, sub:'Needed for GST invoices and returns. Skip this if you are not registered for GST.', done:!!((currentCompany&&currentCompany.gstin)||'').trim(), cta:'Edit company details', act:'company' },
+    { key:'items',    title:'Add stock items', optional:true, sub:'Only if you sell goods: add each product so stock goes up and down as you buy and sell.', done:state.items.length>0, cta:'Open Inventory', act:'tab:inventory' },
+    { key:'staff',    title:'Add employees', optional:true, sub:'Only if you pay salaries: add your staff to run payroll and create payslips.', done:state.employees.length>0, cta:'Open Payroll', act:'tab:payroll' },
+  ];
+}
+// Visible for a new company: until every step is done, it is hidden, or the books are clearly in
+// regular use (10+ vouchers). Never in a read-only view (the demo company, admin view-only).
+function firstRunVisible(){
+  if(!currentCompany || isReadOnlyMode()) return false;
+  if(state.vouchers.length>=10) return false;
+  if(firstRunHiddenFlagOnly()) return false;
+  return firstRunSteps().some(s=>!s.done);
+}
+function firstRunHiddenFlagOnly(){ return firstRunIsHidden(); }
+function firstRunHtml(){
+  if(!currentCompany || isReadOnlyMode() || state.vouchers.length>=10) return '';
+  const steps = firstRunSteps();
+  const done = steps.filter(s=>s.done).length;
+  if(done===steps.length) return '';
+  if(firstRunIsHidden()){
+    return `<div class="setup-show"><button type="button" class="setup-link" data-fr-show>Show the setup guide (${done} of ${steps.length} done)</button></div>`;
+  }
+  const nextKey = (steps.find(s=>!s.done)||{}).key;
+  return `
+    <section class="setup" aria-label="Get your books started">
+      <div class="setup-head">
+        <div>
+          <h2>Get your books started</h2>
+          <p>${done} of ${steps.length} done. Each step takes a minute or two, and you can do them in any order.</p>
+        </div>
+        <button type="button" class="btn secondary small" data-fr-hide>Hide for now</button>
+      </div>
+      <div class="setup-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${steps.length}" aria-valuenow="${done}"><i style="width:${Math.round(done/steps.length*100)}%"></i></div>
+      <div class="setup-list">
+        ${steps.map((s,i)=>`
+          <div class="setup-step ${s.done?'done':''} ${s.key===nextKey?'next':''}">
+            <span class="setup-mark" aria-hidden="true">${s.done?'✓':(i+1)}</span>
+            <div class="setup-body">
+              <div class="setup-title">${escapeHtml(s.title)}${s.optional?'<span class="setup-opt">Optional</span>':''}${s.key===nextKey?'<span class="setup-start">Start here</span>':''}</div>
+              <div class="setup-sub">${escapeHtml(s.sub)}</div>
+            </div>
+            ${s.done ? `<span class="setup-done-tag">Done</span>` : `<button type="button" class="btn small ${s.key===nextKey?'':'secondary'}" data-fr-act="${s.act}">${escapeHtml(s.cta)}</button>`}
+          </div>`).join('')}
+      </div>
+    </section>`;
+}
+// One handler for every "go and do it" button in the checklist, the hints and the empty states.
+//   tab:<id>    open that screen          company        open Edit Company
+//   click:<id>  click an existing button  scroll:<id>    scroll an element into view
+function firstRunAct(a){
+  const [kind, arg] = String(a||'').split(/:(.*)/s);
+  if(kind==='tab'){ goToTab(arg); }
+  else if(kind==='company'){ document.getElementById('menuEdit')?.click(); }
+  else if(kind==='click'){ document.getElementById(arg)?.click(); }
+  else if(kind==='scroll'){ const el = document.getElementById(arg); if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); const f = el.querySelector('input,select'); if(f) setTimeout(()=>f.focus({preventScroll:true}), 350); } }
+}
+function emptyStateAct({icon, title, text, ctaLabel, act}){
+  return `<div class="empty-state">
+    <div class="empty-state-icon">${icon||'📭'}</div>
+    ${title?`<div class="empty-state-title">${escapeHtml(title)}</div>`:''}
+    <div class="empty-state-text">${text}</div>
+    ${ctaLabel && act ? `<div class="empty-state-cta"><button type="button" class="btn small" data-fr-act="${escapeAttr(act)}">${escapeHtml(ctaLabel)}</button></div>` : ''}
+  </div>`;
+}
+// A "What is this?" panel. `points` is a short list of "do this first" lines; `ctas` are
+// {label, act} buttons. isEmpty decides the default: open while there is nothing here yet.
+function plainHint(key, name, lead, points, ctas, isEmpty, bulleted){
+  let pref = null; try{ pref = localStorage.getItem('rb_hint_'+key); }catch(e){}
+  const open = pref==='open' || (pref===null && isEmpty);
+  return `<details class="plain-hint" data-plain-hint="${key}" ${open?'open':''}>
+    <summary><span class="ph-i" aria-hidden="true">i</span><span class="ph-sum">${isEmpty?'New here? ':''}What is ${escapeHtml(name)}?</span><span class="ph-chev" aria-hidden="true"></span></summary>
+    <div class="ph-body">
+      <p class="ph-lead">${lead}</p>
+      ${points && points.length ? `<${bulleted?'ul':'ol'} class="ph-points">${points.map(p=>`<li>${p}</li>`).join('')}</${bulleted?'ul':'ol'}>` : ''}
+      ${ctas && ctas.length ? `<div class="ph-actions">${ctas.map((c,i)=>`<button type="button" class="btn small ${i?'secondary':''}" data-fr-act="${escapeAttr(c.act)}">${escapeHtml(c.label)}</button>`).join('')}</div>` : ''}
+    </div>
+  </details>`;
+}
+function plainHintInventory(){
+  return plainHint('inventory','Inventory Control',
+    'This is where you keep track of the goods you buy and sell. Add each product once as a <b>stock item</b>; after that, every Sales or Purchase voucher that uses the item raises or lowers its stock on its own.',
+    ['<b>Add an item</b> with its name, unit and the quantity you hold today.',
+     '<b>Record a purchase</b> to bring stock in, or a sale to take it out.',
+     'Come back here to see what is on hand, what it is worth, and what is running low. <b>Low stock</b> means the quantity has reached the reorder level you set for that item.'],
+    [{label:'Add your first item', act:'scroll:addItemSection'}, {label:'Record a purchase', act:'tab:voucher'}], state.items.length===0);
+}
+function plainHintPayroll(){
+  return plainHint('payroll','Payroll',
+    'Payroll turns each employee\'s salary details into a monthly pay run. You add your people once. Each month you run payroll, and the app works out take-home pay after deductions such as PF, ESI, professional tax and TDS, posts the salary entry to your books and creates the payslips.',
+    ['<b>Employees</b> tab: add each person with their salary.',
+     '<b>Run Payroll</b> tab: pick the month and the bank or cash account the pay comes from.',
+     '<b>Payslips &amp; Reports</b> tab: open or download each payslip. <b>Statutory Files</b> has the statements for filing.'],
+    [{label:'Add an employee', act:'click:newEmployeeBtn'}], state.employees.length===0);
+}
+function plainHintGST(){
+  const noGstin = !((currentCompany&&currentCompany.gstin)||'').trim();
+  return plainHint('gst','GST',
+    'This page adds up your GST from the vouchers you have already recorded. <b>Output tax</b> is the GST you charged your customers, which you owe the government. <b>Input credit</b> is the GST your suppliers charged you, which you can subtract. The difference is the <b>Net GST</b>: payable if it is above zero, refundable if it is below.',
+    [noGstin ? '<b>Add your GSTIN</b> under Edit, then company details. It prints on your invoices.' : 'Your GSTIN is set. It prints on your invoices.',
+     'Switch on GST when you record a <b>Sales</b> or <b>Purchase</b> voucher.',
+     'Before you file, review the summary here and download the statement in GSTR format.'],
+    noGstin ? [{label:'Add your GSTIN', act:'company'}, {label:'Record a sale', act:'tab:voucher'}] : [{label:'Record a sale', act:'tab:voucher'}],
+    state.vouchers.filter(v=>v.type==='Sales'||v.type==='Purchase').every(v=>gstBreakdownForVoucher(v).totalTax<=0));
+}
+function plainHintOrders(){
+  const meta = ORDER_DOC_META[ordersSubTab];
+  return plainHint('orders','Sales & Purchase Documents',
+    'These are the papers that come <i>before</i> an invoice. A <b>Quotation</b> is a price you offer. A <b>Sales Order</b> is what the customer confirmed. A <b>Delivery Challan</b> goes with the goods you send. A <b>Purchase Order</b> is what you ask a supplier to deliver.',
+    ['None of them change your accounts by themselves. Your books only change when you <b>convert</b> one into an invoice or voucher.',
+     'You can convert in parts if goods are shipped or received in instalments; the rest stays open.'],
+    [{label:`New ${meta.label}`, act:'click:oNewBtn'}], state.salesOrders.length+state.purchaseOrders.length===0, true);
+}
+function wireFirstRun(){
+  document.querySelectorAll('[data-fr-act]').forEach(b=> b.addEventListener('click', ()=> firstRunAct(b.dataset.frAct)));
+  document.querySelectorAll('[data-fr-hide]').forEach(b=> b.addEventListener('click', ()=>{
+    try{ localStorage.setItem(firstRunHiddenKey(),'1'); }catch(e){}
+    render();
+  }));
+  document.querySelectorAll('[data-fr-show]').forEach(b=> b.addEventListener('click', ()=>{
+    try{ localStorage.removeItem(firstRunHiddenKey()); }catch(e){}
+    render();
+  }));
+  document.querySelectorAll('[data-plain-hint] > summary').forEach(s=> s.addEventListener('click', ()=>{
+    const d = s.parentElement;
+    setTimeout(()=>{ try{ localStorage.setItem('rb_hint_'+d.dataset.plainHint, d.open?'open':'closed'); }catch(e){} }, 0);
+  }));
+}
+
 function viewDashboard(){
   const cash = state.ledgers.filter(l=>bucketOf(l)==='cash'||bucketOf(l)==='bank')
     .reduce((s,l)=>s+ledgerBalance(l.id),0);
@@ -27459,6 +27903,7 @@ function viewDashboard(){
 
   return `
     ${masthead('Dashboard','Overview of the books')}
+    ${firstRunHtml()}
     ${dashTodayHtml()}
     ${aiBarHtml()}
 
@@ -27504,7 +27949,7 @@ function viewDashboard(){
         <button class="btn secondary" id="openImportBtn" type="button">📥 Import Accounting Data</button>
         <button class="btn secondary" id="openMigrateBtn" type="button">🗺️ Migration Assistant</button>
         <button class="btn secondary" id="openAutomationFeedBtn" type="button">🔁 Automation Activity${state.automationLog.length?` (${state.automationLog.length})`:''}</button>
-        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:#fff;margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
+        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:var(--on-fill);margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
         <button class="btn secondary" id="openNotificationsSettingsBtn" type="button" title="Get notified about approvals, overdue invoices and low stock">🔔 Notifications${notificationsEnabled() && 'Notification' in window && Notification.permission==='granted' ? ' <span style="color:var(--credit);">●</span>' : ''}</button>
         <button class="btn secondary" id="openCloseChecklistBtn" type="button">✅ Month-End Close${currentCompany && currentCompany.bookClose && currentCompany.bookClose.lockedThrough ? ` <span class="pill" style="font-size:9.5px;background:var(--surface-strong);color:var(--ink-soft);margin-left:2px;">🔒 thru ${new Date(currentCompany.bookClose.lockedThrough+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span>` : ''}</button>
         <button class="btn secondary" id="openMonthlyNarrativeBtn" type="button">📝 Monthly Summary</button>
@@ -32429,7 +32874,8 @@ function viewOrders(){
   const STATUS_BADGE = { open:`<span class="pill neutral">Open</span>`, partial:`<span class="pill" style="background:color-mix(in srgb, var(--gold) 25%, var(--surface));color:var(--ink);">Partially Converted</span>`, converted:`<span class="pill pos">Converted</span>` };
   return `
     ${masthead('Sales & Purchase Documents','Quotations, Sales Orders, Purchase Orders & Delivery Challans — track before you invoice, with partial conversion as quantity ships or bills in stages')}
-    <div class="vtype-tabs" style="margin-bottom:14px;">
+    ${plainHintOrders()}
+    <div class="vtype-tabs" style="margin-bottom:18px;">
       ${Object.keys(ORDER_DOC_META).map(k=>`<button data-orders-subtab="${k}" type="button" class="${ordersSubTab===k?'active':''}">${ORDER_DOC_META[k].label}s</button>`).join('')}
     </div>
     ${oform && oform.docType===ordersSubTab ? orderDocForm() : `
@@ -32467,7 +32913,7 @@ function viewOrders(){
                 </td>
               </tr>`;
             }).join('')}
-          </table>` : `<div class="empty">${ordersSearchQuery.trim() ? `No ${meta.label.toLowerCase()}s match your search.` : `No ${meta.label.toLowerCase()}s yet. Click "+ New ${meta.label}" to create one.`}</div>`}
+          </table>` : `${ordersSearchQuery.trim() ? `<div class="empty">No ${meta.label.toLowerCase()}s match your search.</div>` : emptyStateAct({icon:'📄', title:`No ${meta.label.toLowerCase()}s yet`, text:`Create your first ${meta.label.toLowerCase()} here. It stays separate from your accounts until you convert it into an invoice.`, ctaLabel:`+ New ${meta.label}`, act:'click:oNewBtn'})}`}
         </div>
       </div>
     `}
@@ -33354,7 +33800,7 @@ function viewDaybook(){
             <td class="ccard-actions" data-label="Action"><button class="btn small secondary" data-edit-voucher="${v.id}" type="button">Edit</button> <button class="btn small secondary" data-delete-voucher="${v.id}" type="button">Delete</button>${v.type==='Sales'?` <button class="btn small secondary" data-print-invoice="${v.id}" type="button">🖨 Invoice</button> <button class="btn small" data-download-invoice-pdf="${v.id}" type="button">⬇ Download PDF</button>`:''}${v.type==='Purchase' && v.items && v.items.length?` <button class="btn small secondary" data-landed-cost="${v.id}" type="button" title="Allocate freight/customs/insurance across this purchase's items, folded into their FIFO/Weighted-Average cost">🚚 Landed Cost</button>`:''} <button class="btn small secondary" data-open-attachments="${v.id}" type="button">📎 Attach</button>${v.type==='Payment' && !v.prepaidMonths && v.entries.some(e=>e.dr>0 && ['purch','dexp','iexp'].includes(bucketOf(ledgerOf(e.ledgerId))))?` <button class="btn small secondary" data-mark-prepaid="${v.id}" type="button">🗓 Mark Prepaid</button>`:''}${v.prepaidMonths?` <span class="pill pos" style="font-size:9.5px;" title="${(v.prepaidPostedMonths||[]).length} of ${v.prepaidMonths-1} future month${v.prepaidMonths-1===1?'':'s'} posted">Prepaid ×${v.prepaidMonths}</span>`:''}${voucherHistoryFor(v.id).length?` <button class="btn small secondary" data-voucher-history="${v.id}" type="button" title="${voucherHistoryFor(v.id).length} edit${voucherHistoryFor(v.id).length===1?'':'s'} recorded">🕘 History</button>`:''}</td>
           </tr>`).join('')}
         </table></div>
-        ${remaining>0 ? `<div class="table-more"><button class="btn secondary small" id="daybookShowMoreBtn" type="button">Show ${Math.min(DAYBOOK_PAGE, remaining)} more (${remaining} remaining)</button></div>` : ''}` : `<div class="empty">${rows.length ? 'No vouchers match your search/filter.' : 'No vouchers recorded yet.'}</div>`}
+        ${remaining>0 ? `<div class="table-more"><button class="btn secondary small" id="daybookShowMoreBtn" type="button">Show ${Math.min(DAYBOOK_PAGE, remaining)} more (${remaining} remaining)</button></div>` : ''}` : `${rows.length ? `<div class="empty">No vouchers match your search/filter.</div>` : emptyStateAct({icon:'📒', title:'Your Day Book is empty', text:'Every sale, purchase, payment and receipt you record will be listed here, newest first. Start with one entry and the rest of the app fills in around it.', ctaLabel:'Record your first voucher', act:'tab:voucher'})}`}
       </div>
     </div>
   `;
@@ -33635,13 +34081,13 @@ function calendarEventRow(e){
   const pay = dismissed ? null : calEventPayAction(e);
   const dismissKey = calEventKey(e);
   return `<div class="cal-agenda-row${(nav&&!dismissed)?' clickable':''}${dismissed?' dismissed':''}"${(nav&&!dismissed)?` data-cal-event-nav="${escapeAttr(nav)}" role="button" tabindex="0"`:''}>
-    <div class="cal-agenda-icon" style="background:color-mix(in srgb, ${color} 16%, #fff);color:${color};">${calEventIcon(e.type)}</div>
+    <div class="cal-agenda-icon" style="background:color-mix(in srgb, ${color} 16%, var(--surface));color:${color};">${calEventIcon(e.type)}</div>
     <div style="flex:1;min-width:0;">
       <div class="title">${escapeHtml(e.title)}</div>
       <div class="detail">${escapeHtml(e.detail)}</div>
       ${pay ? `<button type="button" class="btn small secondary" style="margin-top:6px;font-size:11px;padding:4px 10px;" data-cal-event-pay-type="${escapeAttr(pay.voucherType)}" data-cal-event-pay-ledger="${escapeAttr(e.ledgerId)}" data-cal-event-pay-amount="${Number(e.amount)||0}" data-cal-event-pay-party="${escapeAttr(e.partyName||'')}" data-cal-event-pay-date="${escapeAttr(e.invDate||e.date)}">${pay.label}</button>` : ''}
     </div>
-    <span class="pill" style="background:color-mix(in srgb, ${color} 15%, #fff);color:${color};flex-shrink:0;">${dismissed?'Dismissed':calEventSeverityLabel(e.severity)}</span>
+    <span class="pill" style="background:color-mix(in srgb, ${color} 15%, var(--surface));color:${color};flex-shrink:0;">${dismissed?'Dismissed':calEventSeverityLabel(e.severity)}</span>
     <button type="button" class="cal-dismiss-btn" data-cal-event-dismiss="${escapeAttr(dismissKey)}" title="${dismissed?'Restore this reminder':'Dismiss this reminder'}" aria-label="${dismissed?'Restore':'Dismiss'} — ${escapeAttr(e.title)}">${dismissed?'↺':'✕'}</button>
   </div>`;
 }
@@ -33949,7 +34395,7 @@ function calendarWeekView(weekStart, weekEnd, weekEvents, todayStr){
     if(dateStr<todayStr) cls.push('past');
     if(dateStr===calState.selected) cls.push('selected');
     if(dayEvents.some(e=>e.severity==='overdue')) cls.push('has-overdue');
-    const evts = dayEvents.slice(0,5).map(e=>`<div class="cal-week-evt" style="background:color-mix(in srgb, ${calEventColor(e.severity)} 16%, #fff);color:${calEventColor(e.severity)};" title="${escapeAttr(e.title+' — '+e.detail)}">${calEventIcon(e.type)} ${escapeHtml(e.title)}</div>`).join('');
+    const evts = dayEvents.slice(0,5).map(e=>`<div class="cal-week-evt" style="background:color-mix(in srgb, ${calEventColor(e.severity)} 16%, var(--surface));color:${calEventColor(e.severity)};" title="${escapeAttr(e.title+' — '+e.detail)}">${calEventIcon(e.type)} ${escapeHtml(e.title)}</div>`).join('');
     const eventsBody = dayEvents.length
       ? `${evts}${dayEvents.length>5?`<div class="cal-week-evt" style="background:transparent;color:var(--ink-faint);">+${dayEvents.length-5} more</div>`:''}`
       : `<div class="cal-week-day-empty">Nothing due</div>`;
@@ -34686,7 +35132,7 @@ function viewCOA(){
       {action:'delete', label:'Delete selected', danger:true},
     ])}
     ${state.items.length>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
-      <input type="text" id="itemMasterSearchInput" placeholder="Search items by name, HSN or unit…" value="${escapeAttr(itemMasterSearchQuery)}">
+      ${moduleSearchBox('itemMasterSearchInput','Search items by name, HSN or unit…',itemMasterSearchQuery)}
     </div></div>` : ''}
     ${(()=>{
       const q = itemMasterSearchQuery.trim().toLowerCase();
@@ -34833,6 +35279,7 @@ function viewInventory(){
   const activeCategories = STOCK_GROUPS.filter(grp=>state.items.some(it=>(it.group||'Primary')===grp)).length;
   return `
     ${masthead('Inventory Control Management','Stock, locations, batches & serials, reorder alerts, forecasting, and analytics')}
+    ${plainHintInventory()}
     <div class="bento-grid">
       <div class="stat bento-hero"><div class="label">Total Stock Value</div><div class="val ${totalValue>=0?'pos':'neg'}">₹${fmt(totalValue)}</div></div>
       <div class="stat"><div class="label">Total Items</div><div class="val">${state.items.length}</div></div>
@@ -34866,7 +35313,7 @@ function viewInventory(){
     ${pendingTransfersPanel()}
     ${cycleCountPanel()}
 
-    <div class="section-title">Add New Item</div>
+    <div class="section-title" id="addItemSection">Add New Item</div>
     ${stockItemForm()}
 
     ${(()=>{
@@ -39121,6 +39568,7 @@ function viewGST(){
 
   return `
     ${masthead('GST','Output tax, input credit, and filing-ready statements')}
+    ${plainHintGST()}
 
     <div class="grid">
       <div class="stat"><div class="label">Output Tax (Payable)</div><div class="val neg">₹${fmt(gstOutputTotal())}</div></div>
@@ -41161,7 +41609,7 @@ function viewReconcile(){
           </select>
         </div>
         <div class="field"><label>Statement Date</label><input type="date" id="reconcileDate" value="${asOfDate}"></div>
-        <button class="btn secondary small" id="reconcileHelpBtn" type="button" title="How does this work?" style="align-self:center;">ⓘ How this works</button>
+        <button class="btn secondary small help-pill" id="reconcileHelpBtn" type="button" title="How does this work?" style="align-self:center;">ⓘ How this works</button>
         <div class="field"><label>Statement Closing Balance (₹)</label><input type="number" step="0.01" id="reconcileBalance" placeholder="As shown on your bank statement" value="${escapeAttr(String(reconcileDraft.balance))}"></div>
         <button class="btn" id="saveReconcileBtn" type="button" ${hasBalance?'':'disabled'}>💾 Save Reconciliation</button>
       </div>
@@ -41721,6 +42169,7 @@ function viewPayroll(){
   })(payrollTaxReportRows(filteredPayslips));
   return `
     ${masthead('Payroll Management','Employee master, monthly salary run, payslips, advances, exits, documents & reports')}
+    ${plainHintPayroll()}
     <div class="bento-grid">
       <div class="stat bento-hero"><div class="label">Monthly Payroll (Net)</div><div class="val">₹${fmt(totalMonthlyPayroll)}</div></div>
       <div class="stat"><div class="label">Active Employees</div><div class="val">${activeEmployees.length}</div></div>
@@ -41728,7 +42177,7 @@ function viewPayroll(){
       <div class="stat"><div class="label">Payslips Generated</div><div class="val">${state.salaryVouchers.length}</div></div>
       <div class="stat"><div class="label">Resigned Employees</div><div class="val">${resignedEmployees.length}</div></div>
     </div>
-    <div class="vtype-tabs" style="margin-bottom:14px;">
+    <div class="vtype-tabs" style="margin-bottom:18px;">
       ${Object.keys(PAYROLL_SUBTABS).map(k=>`<button data-payroll-subtab="${k}" type="button" class="${payrollSubTab===k?'active':''}">${PAYROLL_SUBTABS[k]}</button>`).join('')}
     </div>
 
@@ -42322,43 +42771,96 @@ function ageingCompositionBar(buckets, total){
   ];
   return `<span class="mini-bar-stack" title="0-30: ₹${fmt(buckets['0-30']||0)} · 31-60: ₹${fmt(buckets['31-60']||0)} · 61-90: ₹${fmt(buckets['61-90']||0)} · 90+: ₹${fmt(buckets['90+']||0)}">${segs.map(s=>s.v?`<span style="width:${(s.v/total*100).toFixed(1)}%;background:${s.c};"></span>`:'').join('')}</span>`;
 }
+/* Module 3b (Nov 2026): Parties table upgrade -- filter/sort chips, sticky headers, per-row
+   attention flags and one-click Receipt / Pay / Remind actions. Display-only: ageing buckets,
+   outstanding totals and FIFO invoice matching all come from the same partyAgeingSummary()/
+   partyOutstandingInvoices() as before. */
+let partiesFilter = 'all';        // 'all' | 'overdue' | 'overlimit'
+let partiesSort = 'outstanding';  // 'outstanding' | 'aged' | 'name'
 function partyAgeingTable(rows, emptyMsg, catKey, richEmpty){
   // richEmpty -- an emptyState() config, used only for the true "nothing tagged yet" case (not the
   // search-no-match or all-settled cases, which stay as the lighter inline .empty message) so this
-  // whole-section empty state matches the same icon+title+CTA pattern used everywhere else in the
-  // app for an equivalent-weight "module not set up yet" moment (Day Book, Reconcile, Fixed Assets,
-  // Payroll, GST, Stock Items, Foreign Currency, Ledgers' own "select a ledger" state).
+  // whole-section empty state matches the same icon+title+CTA pattern used everywhere else in the app.
   if(!rows.length) return richEmpty ? emptyState(richEmpty) : `<div class="empty">${emptyMsg}</div>`;
-  return `<table class="rb-card-table">
-    <tr>${catKey?`<th style="width:30px;"><input type="checkbox" data-bulk-select-all="${escapeAttr(catKey)}" aria-label="Select all"></th>`:''}<th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th></tr>
+  const hasActions = rows.some(r=>r.actionsHtml);
+  return `<div class="table-scroll"><table class="rb-card-table">
+    <tr>${catKey?`<th style="width:30px;"><input type="checkbox" data-bulk-select-all="${escapeAttr(catKey)}" aria-label="Select all"></th>`:''}<th>Party</th><th>Ageing</th><th class="num">0-30 days</th><th class="num">31-60 days</th><th class="num">61-90 days</th><th class="num">90+ days</th><th class="num">Total Outstanding</th>${hasActions?'<th>Action</th>':''}</tr>
     ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
       ${catKey?`<td data-label="Select"><input type="checkbox" class="bulk-check" data-bulk-ledger="${r.ledger.id}" data-bulk-cat="${escapeAttr(catKey)}" ${bulkLedgerSelection.has(r.ledger.id)?'checked':''} aria-label="Select ${escapeAttr(r.ledger.name)}"></td>`:''}
-      <td class="ccard-title" data-label="Party">${escapeHtml(r.ledger.name)}</td>
+      <td class="ccard-title" data-label="Party">${escapeHtml(r.ledger.name)}${r.flagsHtml||''}</td>
       <td data-label="Ageing">${ageingCompositionBar(r.summary.buckets, r.summary.total)}</td>
       <td class="num" data-label="0-30 days">${r.summary.buckets['0-30']?'₹'+fmt(r.summary.buckets['0-30']):'—'}</td>
       <td class="num" data-label="31-60 days">${r.summary.buckets['31-60']?'₹'+fmt(r.summary.buckets['31-60']):'—'}</td>
       <td class="num ${r.summary.buckets['61-90']?'neg':''}" data-label="61-90 days">${r.summary.buckets['61-90']?'₹'+fmt(r.summary.buckets['61-90']):'—'}</td>
       <td class="num ${r.summary.buckets['90+']?'neg':''}" data-label="90+ days">${r.summary.buckets['90+']?'₹'+fmt(r.summary.buckets['90+']):'—'}</td>
       <td class="num ccard-amount" data-label="Total Outstanding">₹${fmt(r.summary.total)}</td>
+      ${hasActions?`<td class="ccard-actions" data-label="Action">${r.actionsHtml||''}</td>`:''}
     </tr>`).join('')}
-  </table>`;
+  </table></div>`;
 }
 function viewParties(){
   const partyLedgers = visibleLedgersForCurrentUser();
   const customers = partyLedgers.filter(l=>l.partyType==='customer');
   const suppliers = partyLedgers.filter(l=>l.partyType==='supplier');
-  const rowsFor = list => list.map(l=>({ ledger:l, summary: partyAgeingSummary(l.id) })).sort((a,b)=>b.summary.total-a.summary.total);
+  const rowsFor = list => list.map(l=>({ ledger:l, summary: partyAgeingSummary(l.id) }));
   let custRows = rowsFor(customers);
   let suppRows = rowsFor(suppliers);
   const totalReceivable = r2(custRows.reduce((s,r)=>s+r.summary.total,0));
   const totalPayable = r2(suppRows.reduce((s,r)=>s+r.summary.total,0));
-  const overdueCount = custRows.filter(r=>r.summary.buckets['90+']>0).length + suppRows.filter(r=>r.summary.buckets['90+']>0).length;
+  const overdueCount90 = custRows.filter(r=>r.summary.buckets['90+']>0).length + suppRows.filter(r=>r.summary.buckets['90+']>0).length;
 
+  // ---- Attention maps: customers past their Credit Period (same overdueInvoices() as the Dashboard),
+  // suppliers with late bills, and the most-overdue invoice per customer for the Remind draft.
+  const { byLedger: odLedger } = daybookOverdueMaps();
+  const lateBills = {};
+  try{
+    for(const b of dashSupplierBillsDue(0)){
+      if(b.daysLate<=0) continue;
+      const o = lateBills[b.ledger.id] = lateBills[b.ledger.id] || {count:0, amt:0};
+      o.count++; o.amt = r2(o.amt + b.invoice.remaining);
+    }
+  }catch(e){ console.warn('supplier late-bill flags failed', e); }
+  const remindInv = {};
+  try{ for(const r of overdueInvoices()){ if(!remindInv[r.ledger.id]) remindInv[r.ledger.id] = r.invoice.voucherId; } }catch(e){}
+
+  const decorate = (r, kind)=>{
+    const l = r.ledger;
+    const od = kind==='c' ? odLedger[l.id] : lateBills[l.id];
+    const bal = ledgerBalance(l.id);
+    const overLimit = !!(l.creditLimit && bal > l.creditLimit);
+    const noTerms = kind==='c' && !l.creditDays && r.summary.total>0;
+    r.isOverdue = !!od; r.isOverLimit = overLimit;
+    r.flagsHtml = `${od?`<span class="attn-pill neg" title="₹${fmt(od.amt)} past due date">${od.count} overdue</span>`:''}${overLimit?`<span class="attn-pill warn" title="Balance ₹${fmt(bal)} is above the credit limit of ₹${fmt(l.creditLimit)}">over limit</span>`:''}${noTerms?`<span class="attn-pill info" title="Set a Credit Period (days) on this ledger — Alter it from the Ledgers tab — to track due dates and overdue invoices">no credit period</span>`:''}`;
+    if(r.summary.total>0){
+      const inv = partyOutstandingInvoices(l.id)[0]; // oldest open invoice/bill (FIFO order)
+      if(inv){
+        r.actionsHtml = kind==='c'
+          ? `<button type="button" class="btn small" data-party-receipt="${l.id}|${inv.voucherId}" title="Record a Receipt against the oldest open invoice">Receipt</button>${remindInv[l.id]?` <button type="button" class="btn small secondary" data-draft-reminder="${l.id}|${remindInv[l.id]}" title="Draft a payment reminder you can copy">Remind</button>`:''}`
+          : `<button type="button" class="btn small" data-party-pay="${l.id}|${inv.voucherId}" title="Record a Payment against the oldest open bill">Pay</button>`;
+      }
+    }
+  };
+  custRows.forEach(r=>decorate(r,'c'));
+  suppRows.forEach(r=>decorate(r,'s'));
+
+  // ---- Search, filter, sort (display-only)
+  const totalParties = custRows.length + suppRows.length;
   if(partiesSearchQuery.trim()){
     const q = partiesSearchQuery.trim().toLowerCase();
     custRows = custRows.filter(r=>r.ledger.name.toLowerCase().includes(q));
     suppRows = suppRows.filter(r=>r.ledger.name.toLowerCase().includes(q));
   }
+  const applyFilter = rows => partiesFilter==='overdue' ? rows.filter(r=>r.isOverdue)
+    : partiesFilter==='overlimit' ? rows.filter(r=>r.isOverLimit) : rows;
+  custRows = applyFilter(custRows); suppRows = applyFilter(suppRows);
+  const aged = b => (b['90+']||0)*1e6 + (b['61-90']||0)*1e3 + (b['31-60']||0); // lexicographic: oldest bucket wins
+  const applySort = rows => partiesSort==='name' ? rows.sort((a,b)=>a.ledger.name.localeCompare(b.ledger.name))
+    : partiesSort==='aged' ? rows.sort((a,b)=> aged(b.summary.buckets)-aged(a.summary.buckets) || b.summary.total-a.summary.total)
+    : rows.sort((a,b)=>b.summary.total-a.summary.total);
+  applySort(custRows); applySort(suppRows);
+  const shownParties = custRows.length + suppRows.length;
+  const fChip = (k,lab,title)=>`<button type="button" class="filter-chip ${partiesFilter===k?'active':''}" data-parties-filter-chip="${k}" ${title?`title="${escapeAttr(title)}"`:''}>${lab}</button>`;
+  const sChip = (k,lab,title)=>`<button type="button" class="filter-chip ${partiesSort===k?'active':''}" data-parties-sort-chip="${k}" ${title?`title="${escapeAttr(title)}"`:''}>${lab}</button>`;
 
   return `
     ${masthead('Parties','Customers & suppliers — outstanding balances by age','parties')}
@@ -42366,22 +42868,32 @@ function viewParties(){
       <div class="stat bento-hero"><div class="label">Net Position (Receivable − Payable)</div><div class="val ${(totalReceivable-totalPayable)>=0?'pos':'neg'}">₹${fmt(totalReceivable-totalPayable)}</div></div>
       <div class="stat"><div class="label">Total Receivable</div><div class="val pos">₹${fmt(totalReceivable)}</div></div>
       <div class="stat"><div class="label">Total Payable</div><div class="val neg">₹${fmt(totalPayable)}</div></div>
-      <div class="stat"><div class="label">90+ Days Overdue</div><div class="val ${overdueCount?'neg':''}">${overdueCount}</div></div>
+      <div class="stat"><div class="label">90+ Days Outstanding</div><div class="val ${overdueCount90?'neg':''}">${overdueCount90}</div></div>
     </div>
-    ${(customers.length+suppliers.length)>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
-      ${moduleSearchBox('partiesSearchInput','Search customers or suppliers by name…',partiesSearchQuery)}
-    </div></div>` : ''}
+    <div class="panel">
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="module-toolbar">
+          ${moduleSearchBox('partiesSearchInput','Search customers or suppliers by name…',partiesSearchQuery)}
+        </div>
+        <div class="filter-chips">
+          ${fChip('all','All parties')}${fChip('overdue','⚑ Overdue','Customers past their Credit Period, and suppliers whose bills are late')}${fChip('overlimit','Over credit limit')}
+          <span class="chip-divider" aria-hidden="true"></span>
+          ${sChip('outstanding','₹ Outstanding','Largest outstanding first')}${sChip('aged','Oldest debt first','Sort by the 90+/61-90 day buckets')}${sChip('name','A–Z')}
+        </div>
+        <div class="results-line" aria-live="polite">Showing ${shownParties} of ${totalParties} parties</div>
+      </div>
+    </div>
     ${bulkActionBar('ledger', bulkLedgerSelection.size, [
       {action:'tag-customer', label:'Tag as Customer'},
       {action:'tag-supplier', label:'Tag as Supplier'},
       {action:'untag', label:'Clear tag'},
     ])}
     <div class="section-title">Receivables (Customers) — Outstanding ₹${fmt(totalReceivable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? (partiesSearchQuery.trim() ? 'No customers match your search.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.', 'party-customers', customers.length ? null : { icon:'👥', title:'No customers yet', text:'Tag a ledger as a Customer from the Accounts tab to start tracking receivables, ageing and overdue invoices here.', ctaLabel:'Go to Accounts', ctaTab:'coa' })}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(custRows, customers.length ? ((partiesSearchQuery.trim()||partiesFilter!=='all') ? 'No customers match this search/filter.' : 'No outstanding receivables — every customer invoice is settled.') : 'No ledgers tagged as customers yet. Tag one from the Accounts tab.', 'party-customers', customers.length ? null : { icon:'👥', title:'No customers yet', text:'Tag a ledger as a Customer from the Accounts tab to start tracking receivables, ageing and overdue invoices here.', ctaLabel:'Go to Accounts', ctaTab:'coa' })}</div></div>
 
     <div class="section-title">Payables (Suppliers) — Outstanding ₹${fmt(totalPayable)}</div>
-    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? (partiesSearchQuery.trim() ? 'No suppliers match your search.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.', 'party-suppliers', suppliers.length ? null : { icon:'🚚', title:'No suppliers yet', text:'Tag a ledger as a Supplier from the Accounts tab to start tracking payables, ageing and dues here.', ctaLabel:'Go to Accounts', ctaTab:'coa' })}</div></div>
-    <p class="muted" style="font-size:11.5px;">Tag a ledger as a Customer or Supplier from the Accounts tab (click "Not a party" next to any ledger) to have it appear here. Click a row for its invoice-by-invoice breakdown. Payments are matched to the oldest outstanding invoice first (FIFO). Check rows here to bulk re-tag or clear a batch of parties at once.</p>
+    <div class="panel"><div class="panel-body" style="padding:0;">${partyAgeingTable(suppRows, suppliers.length ? ((partiesSearchQuery.trim()||partiesFilter!=='all') ? 'No suppliers match this search/filter.' : 'No outstanding payables — every supplier bill is settled.') : 'No ledgers tagged as suppliers yet. Tag one from the Accounts tab.', 'party-suppliers', suppliers.length ? null : { icon:'🚚', title:'No suppliers yet', text:'Tag a ledger as a Supplier from the Accounts tab to start tracking payables, ageing and dues here.', ctaLabel:'Go to Accounts', ctaTab:'coa' })}</div></div>
+    <p class="muted" style="font-size:11.5px;">Tag a ledger as a Customer or Supplier from the Accounts tab (click "Not a party" next to any ledger) to have it appear here. Click a row for its invoice-by-invoice breakdown; Receipt/Pay records money against the oldest open invoice first (FIFO), the same way payments are matched everywhere else. Check rows to bulk re-tag or clear a batch of parties at once.</p>
   `;
 }
 function partyDetailModal(){
@@ -42647,9 +43159,61 @@ function wireApprovalsAccessTeamHandlers(){
   }
 }
 
+/* ---------------- Module 5: one place that gives every dialog the same behaviour ----------------
+   Every dialog already closes with its ✕, a tap outside, or Escape. This adds what was missing for all of
+   them at once: a name for screen readers (aria-labelledby -> the dialog's own heading), focus moved into
+   the dialog when it opens, and a flag on <body> so the page behind it stops scrolling (see CSS). */
+let __mdlSeq = 0;
+function enhanceModals(){
+  const overlays = document.querySelectorAll('.modal-overlay');
+  overlays.forEach(o=>{
+    const card = o.querySelector('.modal-card'); if(!card) return;
+    if(!o.hasAttribute('aria-labelledby') && !o.hasAttribute('aria-label')){
+      const h = card.querySelector('h1,h2,h3');
+      if(h){ if(!h.id) h.id = 'mdlh'+(++__mdlSeq); o.setAttribute('aria-labelledby', h.id); }
+      else o.setAttribute('aria-label','Dialog');
+    }
+  });
+  const top = overlays[overlays.length-1];
+  if(top){
+    const card = top.querySelector('.modal-card');
+    if(card && !card.contains(document.activeElement)){
+      if(!card.hasAttribute('tabindex')) card.setAttribute('tabindex','-1');
+      card.focus({preventScroll:true});
+    }
+  }
+}
+/* ---------------- Module 6: phone navigation drawer ----------------
+   The drawer's open/closed state is just a class on <body> (no re-render needed to slide it); it is
+   closed whenever a screen is picked, on the scrim, the ✕, Escape, or a left swipe. */
+function mobileNavSet(open){
+  document.body.classList.toggle('mobile-nav-open', !!open);
+  const b = document.getElementById('mobileNavBtn'); if(b) b.setAttribute('aria-expanded', open?'true':'false');
+  if(open){ const a = document.querySelector('#appSidebar .navtab.active') || document.querySelector('#appSidebar .navtab'); if(a && a.scrollIntoView) a.scrollIntoView({block:'center'}); }
+}
+function wireMobileNav(){
+  document.getElementById('mobileNavBtn')?.addEventListener('click', ()=> mobileNavSet(!document.body.classList.contains('mobile-nav-open')));
+  document.getElementById('mobileNavScrim')?.addEventListener('click', ()=> mobileNavSet(false));
+  document.getElementById('mobileNavClose')?.addEventListener('click', ()=> mobileNavSet(false));
+  document.querySelectorAll('#appSidebar .navtab, #appSidebar .sidebar-quicknew-btn').forEach(b=> b.addEventListener('click', ()=>{ if(window.innerWidth<=760) mobileNavSet(false); }));
+  const side = document.getElementById('appSidebar');
+  if(side){
+    let x0=null;
+    side.addEventListener('touchstart', e=>{ x0 = e.touches[0].clientX; }, {passive:true});
+    side.addEventListener('touchend', e=>{ if(x0!==null && e.changedTouches[0].clientX - x0 < -70) mobileNavSet(false); x0=null; }, {passive:true});
+  }
+  if(window.innerWidth>760) document.body.classList.remove('mobile-nav-open');
+}
+if(!window.__mobileNavKeys){
+  window.__mobileNavKeys = true;
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.body.classList.contains('mobile-nav-open')) mobileNavSet(false); });
+  window.addEventListener('resize', ()=>{ if(window.innerWidth>760 && document.body.classList.contains('mobile-nav-open')) mobileNavSet(false); });
+}
+
 /* ---------------- event handling ---------------- */
 function attachHandlers(){
   wireFabScrollFade();
+  enhanceModals();
   document.querySelectorAll('.navtab').forEach(b=>{
     b.addEventListener('click',()=>{
       const id = b.dataset.tab;
@@ -42946,6 +43510,28 @@ function attachHandlers(){
     render();
     const el = document.getElementById('partiesSearchInput');
     if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+  });
+  document.querySelectorAll('[data-parties-filter-chip]').forEach(el=>{
+    el.addEventListener('click', ()=>{ partiesFilter = el.dataset.partiesFilterChip; render(); });
+  });
+  document.querySelectorAll('[data-parties-sort-chip]').forEach(el=>{
+    el.addEventListener('click', ()=>{ partiesSort = el.dataset.partiesSortChip; render(); });
+  });
+  // Quick actions on a Parties row -- stopPropagation so the click doesn't also open the row's
+  // party-detail modal underneath (same pattern as the Collections "Draft" button).
+  document.querySelectorAll('[data-party-receipt]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [lid, vid] = el.dataset.partyReceipt.split('|');
+      dashOpenVoucher('Receipt', lid, vid);
+    });
+  });
+  document.querySelectorAll('[data-party-pay]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [lid, vid] = el.dataset.partyPay.split('|');
+      dashOpenVoucher('Payment', lid, vid);
+    });
   });
 
   document.querySelectorAll('[data-open-help]').forEach(el=>{
@@ -44771,6 +45357,7 @@ function attachHandlers(){
       // of this handler replaces the button outright once the save lands, so nothing needs to
       // explicitly reset it back.
       saveBtn.disabled = true;
+      saveBtn.setAttribute('aria-busy','true');
       saveBtn.textContent = vform.id ? 'Updating…' : 'Saving…';
       if(vform.id){
         const idx = state.vouchers.findIndex(v=>v.id===vform.id);
