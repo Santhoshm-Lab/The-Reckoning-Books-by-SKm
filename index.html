@@ -3215,6 +3215,342 @@
   @media (min-width:761px){ .cf-summary{grid-template-columns:repeat(3,minmax(0,1fr));} }
   .field:has(> .ecl-rate-input){display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:5px;}
   .field:has(> .ecl-rate-input) > label{grid-column:1 / -1;}
+  /* ===== Liquid Glass + Material 3 Expressive layer (Nov 2026) -- Landing / Login / Gateway only =====
+     Glass = a translucent fill + backdrop blur + a specular rim (bright top edge, soft inner glow) + a lifted shadow.
+     --lg-clarity (0 frosted .. 1 clear, default .5) is set from the "Glass" slider and drives blur + fill alpha.
+     Motion borrows Material 3 Expressive: springy overshoot easing, shapes that morph (pill <-> rounded square) on
+     hover/press, large radii and vibrant tonal containers. Everything is scoped to these three screens. */
+  :root{
+    --lg-c:.5;
+    --lg-blur:calc(8px + (1 - var(--lg-clarity,.5)) * 28px);
+    --lg-a:calc(.34 + (1 - var(--lg-clarity,.5)) * .34);       /* light-surface glass: white alpha */
+    --lg-da:calc(.07 + (1 - var(--lg-clarity,.5)) * .17);      /* on-dark glass: white alpha */
+    --lg-fill:rgb(255 255 255 / var(--lg-a));
+    --lg-fill-hi:rgb(255 255 255 / calc(var(--lg-a) + .22));
+    --lg-dfill:rgb(255 255 255 / var(--lg-da));
+    --lg-dfill-hi:rgb(255 255 255 / calc(var(--lg-da) + .10));
+    --lg-edge:rgb(255 255 255 / .72);
+    --lg-edge-d:rgb(255 255 255 / .34);
+    --lg-line:rgb(20 60 35 / .12);
+    --lg-rim:inset 0 1px 0 rgb(255 255 255 / .85), inset 0 -1px 0 rgb(255 255 255 / .25), inset 0 0 18px rgb(255 255 255 / .22);
+    --lg-rim-d:inset 0 1px 0 rgb(255 255 255 / .42), inset 0 -1px 0 rgb(255 255 255 / .08), inset 0 0 22px rgb(255 255 255 / .06);
+    --lg-lift:0 14px 38px rgb(12 48 24 / .13), 0 2px 8px rgb(12 48 24 / .07);
+    --lg-lift-hi:0 22px 54px rgb(12 48 24 / .20), 0 4px 12px rgb(12 48 24 / .10);
+    --lg-spring:cubic-bezier(.34,1.56,.64,1);
+    --lg-ease:cubic-bezier(.22,1,.36,1);
+    --lg-mesh-a:rgb(44 160 28 / .20); --lg-mesh-b:rgb(242 169 0 / .17); --lg-mesh-c:rgb(40 130 200 / .13);
+  }
+  :root[data-theme="dark"]{
+    --lg-a:calc(.20 + (1 - var(--lg-clarity,.5)) * .22);
+    --lg-fill:rgb(40 56 48 / var(--lg-a));
+    --lg-fill-hi:rgb(58 78 68 / calc(var(--lg-a) + .14));
+    --lg-edge:rgb(255 255 255 / .22);
+    --lg-line:rgb(255 255 255 / .10);
+    --lg-rim:inset 0 1px 0 rgb(255 255 255 / .30), inset 0 -1px 0 rgb(255 255 255 / .05), inset 0 0 20px rgb(255 255 255 / .04);
+    --lg-lift:0 16px 40px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .30);
+    --lg-lift-hi:0 24px 56px rgb(0 0 0 / .55), 0 4px 12px rgb(0 0 0 / .35);
+    --lg-mesh-a:rgb(44 160 28 / .22); --lg-mesh-b:rgb(242 169 0 / .12); --lg-mesh-c:rgb(40 130 200 / .14);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --lg-a:calc(.20 + (1 - var(--lg-clarity,.5)) * .22);
+      --lg-fill:rgb(40 56 48 / var(--lg-a));
+      --lg-fill-hi:rgb(58 78 68 / calc(var(--lg-a) + .14));
+      --lg-edge:rgb(255 255 255 / .22);
+      --lg-line:rgb(255 255 255 / .10);
+      --lg-rim:inset 0 1px 0 rgb(255 255 255 / .30), inset 0 -1px 0 rgb(255 255 255 / .05), inset 0 0 20px rgb(255 255 255 / .04);
+      --lg-lift:0 16px 40px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .30);
+      --lg-lift-hi:0 24px 56px rgb(0 0 0 / .55), 0 4px 12px rgb(0 0 0 / .35);
+      --lg-mesh-a:rgb(44 160 28 / .22); --lg-mesh-b:rgb(242 169 0 / .12); --lg-mesh-c:rgb(40 130 200 / .14);
+    }
+  }
+
+  /* ---- Landing: a soft colour mesh behind the page so the glass has something to refract ---- */
+  .landing-page{background:
+      radial-gradient(48vw 38vh at 6% 30%, var(--lg-mesh-a), transparent 62%),
+      radial-gradient(44vw 36vh at 96% 52%, var(--lg-mesh-b), transparent 62%),
+      radial-gradient(50vw 40vh at 18% 88%, var(--lg-mesh-c), transparent 62%),
+      var(--bg);}
+  @media (hover:hover) and (min-width:900px){ .landing-page{background-attachment:fixed;} }
+
+  /* ---- Landing nav: a floating glass bar that overlays the hero ---- */
+  .landing-nav.sticky-nav{position:sticky;top:12px;z-index:50;width:calc(100% - 24px);max-width:1240px;margin:12px auto -88px;
+    padding:10px 14px 10px 18px;border-radius:26px;gap:14px;
+    background:linear-gradient(180deg, rgb(255 255 255 / calc(var(--lg-da) + .06)), rgb(255 255 255 / var(--lg-da)));
+    border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 14px 40px rgb(0 0 0 / .26);
+    backdrop-filter:blur(var(--lg-blur)) saturate(1.5);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.5);
+    transition:box-shadow .3s var(--lg-ease), background .3s var(--lg-ease), top .3s var(--lg-ease);}
+  .landing-nav.sticky-nav.scrolled{top:8px;background:linear-gradient(180deg, rgb(15 42 23 / .62), rgb(15 42 23 / .50));padding:8px 12px 8px 16px;
+    box-shadow:var(--lg-rim-d), 0 18px 44px rgb(0 0 0 / .36);}
+  .landing-nav-brand{white-space:nowrap;}
+  .landing-nav-links{gap:18px;flex-wrap:nowrap;}
+  .landing-nav-links a{white-space:nowrap;padding:7px 11px;border-radius:999px;transition:background .2s var(--lg-ease), color .2s ease, border-radius .3s var(--lg-spring);}
+  .landing-nav-links a:hover{background:rgb(255 255 255 / .14);border-radius:14px;}
+  .landing-nav-links a::after{display:none;}
+  .landing-nav-actions{align-items:center;flex-wrap:nowrap;}
+  .landing-nav-actions .btn{white-space:nowrap;}
+  @media (max-width:1560px){ #landingInstallWrapNav{display:none;} }
+  @media (max-width:1180px){ .landing-nav-links a:nth-child(n+6){display:none;} #landingTryDemoBtn{display:none;} }
+  @media (max-width:1020px){ .landing-nav-links{display:none;} }
+  @media (max-width:760px){ .landing-nav.sticky-nav{width:calc(100% - 16px);margin:8px auto -72px;border-radius:22px;} }
+
+  /* ---- Landing hero: mesh-gradient blobs + a glass frame around the ledger art ---- */
+  .landing-hero{padding-top:104px;}
+  .lg-blob{position:absolute;border-radius:50%;filter:blur(46px);pointer-events:none;z-index:1;opacity:.85;mix-blend-mode:screen;will-change:transform;}
+  .lg-blob-1{width:420px;height:420px;left:-120px;top:120px;background:radial-gradient(circle at 35% 35%, #4ADE80, rgb(16 130 60 / 0) 68%);animation:lgBlobA 16s ease-in-out infinite;}
+  .lg-blob-2{width:360px;height:360px;right:6%;top:-60px;background:radial-gradient(circle at 60% 40%, #FBBF24, rgb(242 169 0 / 0) 68%);animation:lgBlobB 19s ease-in-out infinite;opacity:.55;}
+  .lg-blob-3{width:340px;height:340px;right:-90px;bottom:-60px;background:radial-gradient(circle at 40% 50%, #2DD4BF, rgb(20 160 150 / 0) 68%);animation:lgBlobC 22s ease-in-out infinite;opacity:.5;}
+  @keyframes lgBlobA{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(70px,-50px) scale(1.18);}}
+  @keyframes lgBlobB{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-60px,60px) scale(.9);}}
+  @keyframes lgBlobC{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-80px,-40px) scale(1.12);}}
+  .landing-hero-art{padding:26px;border-radius:36px;background:linear-gradient(160deg, rgb(255 255 255 / calc(var(--lg-da) + .08)), rgb(255 255 255 / calc(var(--lg-da) - .02)));
+    border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 30px 70px rgb(0 0 0 / .30);
+    backdrop-filter:blur(var(--lg-blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.4);
+    transition:border-radius .6s var(--lg-spring), transform .6s var(--lg-spring);}
+  .landing-hero-art:hover{border-radius:52px 28px 52px 28px;transform:translateY(-4px);}
+  .landing-fact-chip{background:linear-gradient(180deg, rgb(255 255 255 / .24), rgb(255 255 255 / .12));border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 14px 30px rgb(0 0 0 / .26);
+    border-radius:999px;padding:9px 16px 9px 10px;}
+  .landing-fact-chip .fc-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#4ADE80,#16A34A);color:#052e16;font-size:12px;font-weight:900;}
+  .landing-badge{border-radius:999px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:var(--lg-rim-d);}
+  .landing-audience-pill{border-radius:999px;background:rgb(255 255 255 / .10);border:1px solid var(--lg-edge-d);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:background .2s ease, border-radius .35s var(--lg-spring), transform .35s var(--lg-spring);}
+  .landing-audience-pill:hover{border-radius:12px;transform:translateY(-1px);}
+  .landing-audience-pill.is-active{background:linear-gradient(135deg,#FDE68A,#F2A900);color:#2a1d00;border-color:transparent;box-shadow:0 6px 18px rgb(242 169 0 / .4);}
+  /* M3 Expressive buttons: pill at rest, squarer on hover, squish on press -- hero + nav + CTA only */
+  .landing-hero-ctas .btn,.landing-nav-actions .btn,.landing-cta-banner .btn,.login-card .btn:not(.secondary),#landingCtaBtn{
+    border-radius:999px;transition:border-radius .35s var(--lg-spring), transform .35s var(--lg-spring), box-shadow .25s ease, background .2s ease;}
+  .landing-hero-ctas .btn:hover,.landing-nav-actions .btn:hover,.landing-cta-banner .btn:hover,.login-card .btn:not(.secondary):hover{border-radius:16px;transform:translateY(-2px);}
+  .landing-hero-ctas .btn:active,.landing-nav-actions .btn:active,.landing-cta-banner .btn:active,.login-card .btn:not(.secondary):active{transform:scale(.95);border-radius:22px;}
+  .landing-hero-ctas .btn:not(.secondary){box-shadow:var(--lg-rim-d), 0 12px 30px rgb(34 160 70 / .45);}
+  .landing-hero-ctas .btn.secondary,.landing-nav-actions .btn.secondary{background:rgb(255 255 255 / .12);border-color:var(--lg-edge-d);box-shadow:var(--lg-rim-d);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+  .lg-hero-ai{display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:9px 16px 9px 12px;border-radius:999px;text-decoration:none;color:#fff;font-size:12.5px;line-height:1.35;max-width:100%;
+    background:linear-gradient(180deg, rgb(255 255 255 / .20), rgb(255 255 255 / .09));border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 10px 26px rgb(0 0 0 / .22);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:transform .35s var(--lg-spring), border-radius .35s var(--lg-spring);}
+  .lg-hero-ai:hover{transform:translateY(-2px);border-radius:18px;}
+  .lg-hero-ai b{color:#FDE68A;}
+  .lg-pulse{flex:none;width:10px;height:10px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 0 rgb(74 222 128 / .6);animation:lgPulse 2s ease-out infinite;}
+  @keyframes lgPulse{0%{box-shadow:0 0 0 0 rgb(74 222 128 / .6);}100%{box-shadow:0 0 0 12px rgb(74 222 128 / 0);}}
+
+  /* ---- Glass surfaces on light/dark page ground ---- */
+  .landing-metrics-band .landing-stat-strip,.landing-feature-card,.landing-mod-card,.landing-mod-tab,.landing-mod-search,.lg-agent-card,.lg-hub,
+  .landing-faq-item,.landing-compare-table,.landing-showcase-tab{
+    background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), var(--lg-lift);
+    backdrop-filter:blur(var(--lg-blur)) saturate(1.6);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.6);}
+  .landing-metrics-band .landing-stat-strip{border-radius:30px;padding:22px 20px;}
+  .landing-stat{background:transparent;}
+  .landing-stat .n{background:linear-gradient(135deg,#15803D,#2CA01C 55%,#D99100);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .landing-feature-card,.landing-mod-card{border-radius:26px;transition:transform .45s var(--lg-spring), box-shadow .3s ease, border-radius .55s var(--lg-spring), border-color .2s ease;}
+  .landing-feature-card:hover,.landing-mod-card:hover{border-radius:34px 18px 34px 18px;box-shadow:var(--lg-rim), var(--lg-lift-hi);}
+  .landing-feature-card::before,.landing-mod-card::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(120% 70% at 50% -20%, rgb(255 255 255 / .50), transparent 60%);opacity:.7;}
+  .landing-feature-icon,.landing-mod-card-icon{border-radius:16px;background:linear-gradient(135deg,#34D399,#16A34A);color:#fff;box-shadow:inset 0 1px 0 rgb(255 255 255 / .5), 0 8px 18px rgb(22 163 74 / .35);}
+  .landing-mod-tab{border-radius:999px;transition:transform .35s var(--lg-spring), border-radius .35s var(--lg-spring), background .2s ease, color .2s ease;}
+  .landing-mod-tab:hover{transform:translateY(-1px);border-radius:14px;}
+  .landing-mod-tab.active{background:linear-gradient(135deg,#22C55E,#15803D);color:#fff;border-color:transparent;box-shadow:inset 0 1px 0 rgb(255 255 255 / .45), 0 10px 24px rgb(22 163 74 / .38);}
+  .landing-mod-tab em{font-style:normal;margin-left:2px;padding:0 7px;border-radius:999px;background:rgb(0 0 0 / .08);font-size:10.5px;}
+  .landing-mod-tab.active em{background:rgb(255 255 255 / .28);}
+  .landing-mod-search{border-radius:999px;}
+  .landing-faq-item{border-radius:22px;}
+  .landing-compare-table{border-radius:26px;overflow:hidden;}
+  .landing-cta-banner{margin:0 14px;border-radius:40px;background:linear-gradient(130deg,#14532D,#16A34A 60%,#CA8A04);border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 30px 70px rgb(20 90 40 / .35);}
+  .landing-cta-banner h2{font-family:'Bricolage Grotesque','Inter',sans-serif;letter-spacing:-.02em;}
+  .landing-cta-banner .btn{background:rgb(255 255 255 / .94);color:#14532D;border-color:transparent;box-shadow:0 14px 34px rgb(0 0 0 / .26);}
+  .landing-footer-main{background:transparent;}
+  .landing-footer-grid{border-radius:34px;padding:34px 30px;background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), var(--lg-lift);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));}
+  @media (max-width:760px){ .landing-footer-grid{padding:24px 18px;border-radius:26px;} .landing-cta-banner{margin:0 8px;border-radius:28px;} }
+
+  /* ---- AI agents band ---- */
+  .lg-ai-band{position:relative;overflow:hidden;margin:34px 14px;border-radius:44px;padding:70px 28px 56px;color:#fff;isolation:isolate;
+    background:radial-gradient(90% 70% at 10% 0%, #166534 0%, transparent 60%), radial-gradient(70% 60% at 100% 100%, #854D0E 0%, transparent 62%), linear-gradient(160deg,#052E16,#0B3D1E 55%,#0F2A17);
+    border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 40px 90px rgb(8 40 20 / .38);}
+  .lg-ai-blob{position:absolute;z-index:-1;border-radius:50%;filter:blur(50px);pointer-events:none;}
+  .lg-ai-blob-a{width:460px;height:460px;left:-120px;top:-100px;background:radial-gradient(circle,#22C55E,transparent 68%);opacity:.5;animation:lgBlobA 18s ease-in-out infinite;}
+  .lg-ai-blob-b{width:420px;height:420px;right:-100px;bottom:-120px;background:radial-gradient(circle,#F59E0B,transparent 68%);opacity:.38;animation:lgBlobB 21s ease-in-out infinite;}
+  .lg-ai-inner{max-width:1180px;margin:0 auto;}
+  .lg-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#FDE68A;
+    background:rgb(253 230 138 / .12);border:1px solid rgb(253 230 138 / .35);}
+  .lg-ai-band h2{font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:clamp(30px,5vw,52px);line-height:1.04;letter-spacing:-.03em;margin:16px 0 14px;font-weight:800;color:#fff;}
+  .lg-ai-band h2 em{font-style:normal;background:linear-gradient(120deg,#86EFAC,#FDE68A);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .lg-ai-sub{max-width:720px;font-size:15px;line-height:1.65;color:rgb(255 255 255 / .82);margin:0 0 26px;}
+  .lg-ai-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:28px;}
+  .lg-ai-stats > div{padding:16px 18px;border-radius:24px;background:linear-gradient(180deg, var(--lg-dfill-hi), var(--lg-dfill));border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));}
+  .lg-ai-stats b{display:block;font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:34px;line-height:1;letter-spacing:-.03em;color:#fff;}
+  .lg-ai-stats span{display:block;margin-top:6px;font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgb(255 255 255 / .7);}
+  .lg-ai-wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:18px;align-items:start;}
+  .lg-agent-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+  .lg-agent-card{position:relative;padding:18px 18px 16px;border-radius:26px;color:#fff;overflow:hidden;
+    background:linear-gradient(165deg, var(--lg-dfill-hi), var(--lg-dfill));border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 12px 30px rgb(0 0 0 / .22);
+    backdrop-filter:blur(var(--lg-blur)) saturate(1.5);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.5);
+    transition:transform .45s var(--lg-spring), border-radius .55s var(--lg-spring), background .25s ease;}
+  .lg-agent-card:hover{transform:translateY(-4px);border-radius:36px 20px 36px 20px;background:linear-gradient(165deg, rgb(255 255 255 / .26), rgb(255 255 255 / .12));}
+  .lg-agent-icon{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:11px;color:#052E16;
+    background:linear-gradient(135deg,#86EFAC,#FDE68A);box-shadow:inset 0 1px 0 rgb(255 255 255 / .7), 0 8px 18px rgb(0 0 0 / .25);}
+  .lg-agent-icon svg{width:21px;height:21px;}
+  .lg-agent-card h3{margin:0 0 6px;font-size:15px;font-weight:800;letter-spacing:-.01em;color:#fff;}
+  .lg-agent-card p{margin:0;font-size:12.6px;line-height:1.55;color:rgb(255 255 255 / .80);}
+  .lg-hub{border-radius:30px;padding:18px 18px 16px;color:#fff;
+    background:linear-gradient(165deg, rgb(255 255 255 / .22), rgb(255 255 255 / .09));border-color:var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 22px 54px rgb(0 0 0 / .32);}
+  .lg-hub-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .lg-hub-title{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:14px;}
+  .lg-hub-tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgb(255 255 255 / .6);}
+  .lg-hub-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .lg-hub-list li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:18px;background:rgb(0 0 0 / .20);border:1px solid rgb(255 255 255 / .10);}
+  .lg-sev{flex:none;margin-top:1px;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  .lg-sev-high{background:#FCA5A5;color:#450A0A;} .lg-sev-med{background:#FDE68A;color:#422006;} .lg-sev-info{background:#A5F3FC;color:#083344;}
+  .lg-hub-agent{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:rgb(255 255 255 / .62);}
+  .lg-hub-text{font-size:12.5px;line-height:1.45;color:#fff;margin-top:2px;}
+  .lg-hub-foot{margin-top:12px;font-size:11.5px;line-height:1.5;color:rgb(255 255 255 / .72);}
+  .lg-ai-principles{list-style:none;margin:26px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:10px;}
+  .lg-ai-principles li{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 10px;border-radius:999px;font-size:12.5px;font-weight:700;color:#fff;
+    background:rgb(255 255 255 / .10);border:1px solid var(--lg-edge-d);}
+  .lg-ai-principles li svg{width:16px;height:16px;color:#86EFAC;}
+  @media (max-width:980px){ .lg-ai-wrap{grid-template-columns:1fr;} .lg-ai-stats{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:640px){ .lg-ai-band{margin:24px 8px;border-radius:30px;padding:46px 16px 36px;} .lg-agent-grid{grid-template-columns:1fr;} }
+
+  /* ---- Glass clarity control (slider: frosted <-> clear) ---- */
+  .lg-clarity{position:relative;display:inline-flex;flex:none;}
+  .lg-clarity-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 12px 7px 9px;border-radius:999px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#fff;
+    background:rgb(255 255 255 / .14);border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    transition:border-radius .35s var(--lg-spring), transform .35s var(--lg-spring), background .2s ease;}
+  .lg-clarity-btn:hover{border-radius:14px;background:rgb(255 255 255 / .22);}
+  .lg-clarity-btn:active{transform:scale(.94);}
+  .lg-clarity-dot{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 210deg,#86EFAC,#FDE68A,#7DD3FC,#86EFAC);box-shadow:inset 0 0 0 2px rgb(255 255 255 / .55);}
+  .lg-clarity-pop{position:absolute;right:0;top:calc(100% + 10px);z-index:80;width:230px;padding:14px 14px 12px;border-radius:24px;color:var(--ink);text-align:left;
+    background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), 0 24px 60px rgb(0 0 0 / .30);
+    backdrop-filter:blur(26px) saturate(1.7);-webkit-backdrop-filter:blur(26px) saturate(1.7);animation:lgPop .3s var(--lg-spring);}
+  .lg-clarity-pop[hidden]{display:none;}
+  @keyframes lgPop{from{opacity:0;transform:translateY(-6px) scale(.94);}to{opacity:1;transform:none;}}
+  .lg-clarity-pop label{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:8px;color:var(--ink);}
+  .lg-clarity-pop input[type=range]{width:100%;accent-color:#16A34A;}
+  .lg-clarity-scale{display:flex;justify-content:space-between;font-size:10.5px;font-weight:700;color:var(--ink-faint);margin-top:2px;}
+  .lg-clarity-reset{margin-top:10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;padding:5px 12px;border-radius:999px;border:1px solid var(--lg-line);background:transparent;color:var(--ink);}
+  .lg-clarity-nav{margin-left:2px;}
+  .lg-clarity-login{position:absolute;top:14px;right:16px;z-index:30;}
+  .lg-clarity-login .lg-clarity-btn{color:var(--ink);background:var(--lg-fill-hi);border-color:var(--lg-edge);box-shadow:var(--lg-rim);}
+  .lg-clarity-gw{order:2;margin-top:2px;}
+  .lg-clarity-gw .lg-clarity-btn{color:var(--ink);background:var(--lg-fill-hi);border-color:var(--lg-edge);box-shadow:var(--lg-rim);padding:11px 14px 11px 11px;}
+  @media (max-width:760px){ .lg-clarity-label{display:none;} .lg-clarity-btn{padding:7px 9px;} }
+
+  /* ---- Module / agent chips (login panel + gateway) ---- */
+  .lg-login-block{margin:14px 0 0;}
+  .lg-mini-title{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:rgb(255 255 255 / .72);margin-bottom:8px;}
+  .lg-chip-cloud{display:flex;flex-wrap:wrap;gap:6px;}
+  .lg-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 8px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;line-height:1.2;
+    background:rgb(255 255 255 / .12);border:1px solid rgb(255 255 255 / .26);box-shadow:inset 0 1px 0 rgb(255 255 255 / .28);
+    transition:border-radius .35s var(--lg-spring), transform .35s var(--lg-spring), background .2s ease;}
+  .lg-chip:hover{border-radius:10px;transform:translateY(-1px);background:rgb(255 255 255 / .2);}
+  .lg-chip svg{width:13px;height:13px;flex:none;}
+  .lg-chip em{font-style:normal;font-size:10px;padding:0 6px;border-radius:999px;background:rgb(0 0 0 / .22);}
+  .lg-chip-ai{background:rgb(253 230 138 / .16);border-color:rgb(253 230 138 / .40);color:#FEF3C7;}
+  .lg-chip-cloud-ai{margin-top:0;}
+  .lg-login-more{margin:14px 0 4px;text-align:left;border-radius:22px;padding:2px 14px;background:var(--lg-fill);border:1px solid var(--lg-edge);box-shadow:var(--lg-rim);}
+  .lg-login-more summary{cursor:pointer;list-style:none;padding:10px 0;font-size:12px;font-weight:800;color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .lg-login-more summary::-webkit-details-marker{display:none;}
+  .lg-login-more summary::after{content:'▾';transition:transform .3s var(--lg-spring);}
+  .lg-login-more[open] summary::after{transform:rotate(180deg);}
+  .lg-login-more .lg-chip{color:var(--ink);background:color-mix(in srgb, var(--accent1) 10%, transparent);border-color:color-mix(in srgb, var(--accent1) 28%, transparent);box-shadow:none;}
+  .lg-login-more .lg-chip em{background:color-mix(in srgb, var(--ink) 12%, transparent);}
+  .lg-login-more .lg-chip-ai{background:color-mix(in srgb, var(--gold) 20%, transparent);border-color:color-mix(in srgb, var(--gold) 45%, transparent);}
+  .lg-login-more .lg-chip-cloud{padding:0 0 10px;}
+
+  /* ---- Login: mesh backdrop, a single large glass slab, expressive tabs + inputs ---- */
+  .login-shell{background:
+      radial-gradient(46vw 40vh at 12% 18%, var(--lg-mesh-a), transparent 62%),
+      radial-gradient(44vw 40vh at 92% 80%, var(--lg-mesh-b), transparent 62%),
+      radial-gradient(40vw 36vh at 78% 8%, var(--lg-mesh-c), transparent 62%);}
+  .login-split{max-width:1000px;border-radius:40px;border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), 0 40px 90px rgb(12 48 24 / .24);
+    background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));backdrop-filter:blur(var(--lg-blur)) saturate(1.6);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.6);}
+  .login-brand-panel{border-radius:0;background:
+      radial-gradient(70% 55% at 0% 0%, rgb(74 222 128 / .38), transparent 60%),
+      radial-gradient(60% 50% at 100% 100%, rgb(250 204 21 / .28), transparent 62%),
+      linear-gradient(150deg,#0B2E17 0%,#14632A 55%,#1E8E2A 100%);overflow:auto;}
+  .login-brand-panel h2{font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:clamp(24px,2.6vw,30px);letter-spacing:-.025em;}
+  .login-brand-panel li svg{color:#86EFAC;}
+  .login-brand-stats > div{padding:10px 14px;border-radius:18px;background:rgb(255 255 255 / .12);border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d);}
+  .login-card{background:transparent;border:0;box-shadow:none;border-radius:0;}
+  .login-card::before{display:none;}
+  .login-logo{border-radius:22px;}
+  .login-card input[type=text],.login-card input[type=password],.login-card input[type=email],.login-card input[type=tel],.login-card input:not([type]){
+    border-radius:16px;background:rgb(255 255 255 / .55);border:1px solid var(--lg-line);box-shadow:inset 0 1px 2px rgb(0 0 0 / .05);transition:border-radius .3s var(--lg-spring), box-shadow .2s ease, border-color .2s ease;}
+  :root[data-theme="dark"] .login-card input[type=text],:root[data-theme="dark"] .login-card input[type=password],:root[data-theme="dark"] .login-card input[type=email],:root[data-theme="dark"] .login-card input[type=tel]{background:rgb(255 255 255 / .06);}
+  .login-card input:focus{border-radius:20px;box-shadow:0 0 0 3px color-mix(in srgb, var(--accent1) 30%, transparent);}
+  .login-card .btn.secondary{border-radius:999px;background:var(--lg-fill);border-color:var(--lg-edge);box-shadow:var(--lg-rim);}
+  @media (max-width:880px){ .login-split{border-radius:30px;} .login-card{padding:30px 22px 26px;} }
+  @media (max-width:640px){ .login-split{border-radius:26px;max-width:100%;} .lg-clarity-login{top:10px;right:10px;} }
+
+  /* ---- Company Gateway: mesh ground, glass hero chips, glass company cards + toolbar ---- */
+  .rb-bg{background:
+      radial-gradient(52% 46% at 6% 0%, var(--lg-mesh-b), transparent 62%),
+      radial-gradient(50% 52% at 100% 100%, var(--lg-mesh-a), transparent 62%),
+      radial-gradient(40% 40% at 70% 10%, var(--lg-mesh-c), transparent 62%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);}
+  .rb-letter{opacity:.55;filter:blur(1px);}
+  .titlebar,.menubar{background:linear-gradient(180deg, var(--lg-fill-hi), var(--lg-fill));border-color:var(--lg-edge);
+    backdrop-filter:blur(var(--lg-blur)) saturate(1.5);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.5);}
+  .gw-hero{max-width:1040px;border-radius:40px;border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d), 0 34px 80px rgb(12 70 30 / .34);
+    background:radial-gradient(80% 90% at 0% 0%, rgb(74 222 128 / .40), transparent 60%), radial-gradient(60% 80% at 100% 100%, rgb(250 204 21 / .30), transparent 62%), linear-gradient(130deg,#0B2E17 0%,#15702B 55%,#22A33A 100%);}
+  .gw-hero h1{font-family:'Bricolage Grotesque','Inter',sans-serif;letter-spacing:-.03em;}
+  .gw-chip{border-radius:22px;background:linear-gradient(180deg, var(--lg-dfill-hi), var(--lg-dfill));border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));transition:transform .4s var(--lg-spring), border-radius .5s var(--lg-spring);}
+  .gw-chip:hover{transform:translateY(-3px);border-radius:30px 16px 30px 16px;}
+  .gw-resume-card{border-radius:999px;background:linear-gradient(180deg, rgb(255 255 255 / .22), rgb(255 255 255 / .10));border:1px solid var(--lg-edge-d);box-shadow:var(--lg-rim-d);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:transform .4s var(--lg-spring), border-radius .4s var(--lg-spring);}
+  .gw-resume-card:hover{transform:translateY(-2px);border-radius:22px;}
+  .gw-wrap{max-width:1040px;}
+  .company-grid{gap:18px;}
+  .company-card{border-radius:30px;background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), var(--lg-lift);
+    backdrop-filter:blur(var(--lg-blur)) saturate(1.6);-webkit-backdrop-filter:blur(var(--lg-blur)) saturate(1.6);
+    transition:transform .5s var(--lg-spring), box-shadow .3s ease, border-radius .6s var(--lg-spring), border-color .2s ease;}
+  .company-card:hover{transform:translateY(-5px);border-radius:40px 22px 40px 22px;box-shadow:var(--lg-rim), var(--lg-lift-hi);}
+  .company-card:active{transform:scale(.975);}
+  .company-card::before{height:100%;background:radial-gradient(120% 70% at 50% -25%, rgb(255 255 255 / .55), transparent 58%);opacity:.65;pointer-events:none;}
+  .gw-toolbar,.gw-folder-chips{padding:0;}
+  .gw-folder-chip,.gw-search-wrap input,.gw-sort-select,.gw-view-toggle{border-radius:999px;background:var(--lg-fill);border-color:var(--lg-edge);box-shadow:var(--lg-rim);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));transition:border-radius .35s var(--lg-spring), transform .35s var(--lg-spring), background .2s ease;}
+  .gw-folder-chip:hover{border-radius:14px;transform:translateY(-1px);}
+  .gw-toolbar .btn,.gw-section-row .btn.secondary{border-radius:999px;background:var(--lg-fill);border-color:var(--lg-edge);box-shadow:var(--lg-rim);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));transition:border-radius .35s var(--lg-spring), transform .35s var(--lg-spring), background .2s ease;}
+  .gw-toolbar .btn:hover,.gw-section-row .btn.secondary:hover{border-radius:14px;transform:translateY(-1px);}
+  .gw-toolbar .btn:active{transform:scale(.95);}
+  .landing-hero-note{margin-top:14px;}
+  .gw-folder-chip.is-active{background:linear-gradient(135deg,#22C55E,#15803D);color:#fff;border-color:transparent;box-shadow:inset 0 1px 0 rgb(255 255 255 / .45), 0 8px 20px rgb(22 163 74 / .34);}
+  .gw-getting-started,.gw-empty-state{border-radius:30px;background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), var(--lg-lift);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));}
+  .lg-gw-inside{max-width:1040px;margin:18px auto 0;padding:0 32px;display:flex;gap:10px;align-items:flex-start;}
+  .lg-gw-inside details{flex:1;min-width:0;}
+  .lg-gw-inside details{border-radius:28px;padding:4px 18px;background:linear-gradient(165deg, var(--lg-fill-hi), var(--lg-fill));border:1px solid var(--lg-edge);box-shadow:var(--lg-rim), var(--lg-lift);
+    backdrop-filter:blur(var(--lg-blur));-webkit-backdrop-filter:blur(var(--lg-blur));}
+  .lg-gw-inside summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;font-size:13px;font-weight:800;color:var(--ink);}
+  .lg-gw-inside summary::-webkit-details-marker{display:none;}
+  .lg-gw-inside summary > span:first-child{flex:1;min-width:0;}
+  .lg-gw-inside summary .lg-gw-sub{font-weight:600;font-size:11.5px;color:var(--ink-faint);}
+  @media (max-width:560px){ .lg-gw-inside summary .lg-gw-sub{display:none;} }
+  .lg-gw-inside summary::after{content:'▾';transition:transform .3s var(--lg-spring);}
+  .lg-gw-inside details[open] summary::after{transform:rotate(180deg);}
+  .lg-gw-inside .lg-chip{color:var(--ink);background:color-mix(in srgb, var(--accent1) 10%, transparent);border-color:color-mix(in srgb, var(--accent1) 28%, transparent);box-shadow:none;}
+  .lg-gw-inside .lg-chip em{background:color-mix(in srgb, var(--ink) 12%, transparent);}
+  .lg-gw-inside .lg-chip-ai{background:color-mix(in srgb, var(--gold) 20%, transparent);border-color:color-mix(in srgb, var(--gold) 45%, transparent);}
+  .lg-gw-inside .lg-mini-title{color:var(--ink-faint);margin-top:10px;}
+  .lg-gw-inside .lg-chip-cloud{padding-bottom:12px;}
+  @media (max-width:760px){ .lg-gw-inside{padding:0 14px;} .gw-hero{border-radius:30px;} .company-card{border-radius:24px;} }
+
+  /* No backdrop-filter? fall back to a solid-ish fill so text stays legible. */
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+    .landing-feature-card,.landing-mod-card,.company-card,.login-split,.lg-hub,.lg-agent-card{background:var(--surface);}
+  }
+  /* Respect reduced motion and reduced transparency */
+  @media (prefers-reduced-motion: reduce){
+    .lg-blob,.lg-ai-blob,.lg-pulse{animation:none !important;}
+    .landing-feature-card,.landing-mod-card,.company-card,.lg-agent-card,.landing-hero-art,.gw-chip,.lg-chip,.lg-clarity-btn,.landing-mod-tab,.gw-folder-chip{transition:none !important;}
+    .landing-feature-card:hover,.landing-mod-card:hover,.company-card:hover,.lg-agent-card:hover,.landing-hero-art:hover{transform:none;}
+  }
+  @media (prefers-reduced-transparency: reduce){
+    :root{--lg-clarity:0;}
+    .landing-nav.sticky-nav{background:#0F2A17;}
+  }
   /* ===== Admin Panel light/dark (Nov 2026) ===== */
   .admin-console-topbar{gap:10px;}
   .admin-theme-btn{white-space:nowrap;}
@@ -19910,6 +20246,9 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'Recurring Templates', desc:'Rent, subscriptions and other repeating postings, generated on schedule for your review — nothing posts itself.' },
     { name:'Voucher Attachments', desc:'Attach a bill or receipt image or PDF to any voucher, straight from the Day Book.' },
     { name:'Calendar View', desc:'Every voucher plotted on the date it was posted, browsable month by month.' },
+    { name:'Bank Reconciliation', desc:'Tick statement lines as cleared, see the difference against your book balance, and let AI call out stale uncleared items.' },
+    { name:'Bank Rules', desc:'Rules that categorize imported statement lines for you, so repeat payees land on the right ledger every time.' },
+    { name:'Opt-in Auto-Posting', desc:'Mark a recurring template "Auto" with a ceiling and it posts itself when due — everything else still waits for your review.' },
   ]},
   { id:'compliance', label:'GST & Compliance', icon:'gst', modules:[
     { name:'Automatic GST', desc:'CGST, SGST and IGST computed on every applicable voucher — no manual tax math.' },
@@ -19932,6 +20271,7 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'Delivery Challans', desc:'Dispatch documentation, linked back to the order it fulfils.' },
     { name:'POS / Quick Sale', desc:'A fast, cart-based checkout screen for over-the-counter sales.' },
     { name:'Hold & Recall Sale', desc:'Park an in-progress sale and pick it back up exactly where you left off.' },
+    { name:'Partial Order Conversion', desc:'Convert a quotation or order into an invoice in stages — each order shows Not converted, Partially converted or Converted.' },
   ]},
   { id:'payroll', label:'Payroll & Fixed Assets', icon:'payroll', modules:[
     { name:'Payroll Management', desc:'Employee records and one-click monthly salary voucher generation.' },
@@ -19948,6 +20288,9 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'Financial Performance Report', desc:'A consolidated view of how the business is actually doing.' },
     { name:'Interactive Dashboard', desc:'Live visuals for cash position, profit and trend — personalizable per browser.' },
     { name:'Excel Export', desc:'Every report, one click, no reformatting afterward.' },
+    { name:'What-If Scenarios', desc:'Model a delayed payment or a big sale closing with provisional vouchers that never touch your real books.' },
+    { name:'Consolidated Financials', desc:'Combine P&L and Balance Sheet across every company you can access, with intercompany balances eliminated.' },
+    { name:'ESG / Sustainability Estimate', desc:'A labelled carbon-footprint estimate from fuel, electricity, logistics and paper spend, using standard proxy factors.' },
   ]},
   { id:'ai', label:'AI-Native Intelligence', icon:'ai', modules:[
     { name:'Agentic Command Palette', desc:'Type "paid 500 for rent yesterday" and it drafts the voucher for your review — nothing posts itself.' },
@@ -19961,12 +20304,25 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'Predictive Autofill & Auto-Categorization', desc:'A ghost-text amount suggestion as you type, and the right ledger group suggested for a new account.' },
     { name:'Automation Activity Feed', desc:'Every automatic action the app takes, logged chronologically, with one-click undo.' },
   ]},
+  { id:'agents', label:'AI Agents', icon:'ai', modules:[
+    { name:'AI Agents Hub', desc:'One ranked inbox over every agent — open a finding to fix it, snooze it for a week, or dismiss it.' },
+    { name:'Cash & Working-Capital Agent', desc:'Projects cash 90 days ahead, finds the date it would run out, and stress-tests it against late-paying customers.' },
+    { name:'TDS & Advance-Tax Agent', desc:'Spots payments that probably needed TDS, catches tax withheld but not deposited by the 7th, and projects every advance-tax instalment.' },
+    { name:'Spend-Policy Agent', desc:'Set single-payment, vendor, category and weekend rules — it flags every voucher that breaks one.' },
+    { name:'Collections & Payment-Run Agent', desc:'Drafts friendly, firm or final reminders for overdue customers and proposes this week\'s supplier payment run — never sent automatically.' },
+    { name:'GST / Compliance Watch Agent', desc:'Watches months of GST readiness side by side — late filings, lagging reconciliation, input credit at risk.' },
+    { name:'Internal Audit Agent', desc:'A year-wise audit of GL integrity, statutory compliance, controls and fraud indicators, with PDF and Word export.' },
+    { name:'Bad-Debt Risk & ECL Provisioning', desc:'Predicts the provision your receivables need from ageing and each customer\'s payment history, with one-click Journal posting.' },
+  ]},
   { id:'security', label:'Multi-Company & Security', icon:'companies', modules:[
     { name:'Multi-Company', desc:'Every business, or every client\'s books, from one login — each one fully separate.' },
     { name:'Multi-Currency', desc:'Ledgers can carry their own currency and exchange rate.' },
     { name:'Email-Verified Accounts', desc:'No sign-in without a verified email address.' },
     { name:'Role-Based Admin Panel', desc:'Full Administrator, Group Admin and read-only roles, with per-feature access control.' },
     { name:'Full Audit Log', desc:'Every admin action and security event, recorded and reviewable.' },
+    { name:'Team Access & Group Admin', desc:'Add your own users, cap them to view-only, restrict them by ledger group, and manage companies, support and audit from one Group Admin console.' },
+    { name:'Create-Company Wizard', desc:'A guided setup for each new company — name, financial year and opening choices — before you post a single voucher.' },
+    { name:'Financial-Year Archiving', desc:'Close a year and archive it, keeping the books of record intact and readable.' },
     { name:'Try the Live Demo', desc:'A real, fully populated company you can explore with no sign-up at all.' },
   ]},
   { id:'productivity', label:'Productivity & Data Tools', icon:'productivity', modules:[
@@ -19976,22 +20332,128 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'One-Click Backup & Restore', desc:'A company\'s entire books, backed up or restored in a single click.' },
     { name:'Full Accessibility', desc:'ARIA roles, keyboard-only modal control and focus management throughout.' },
     { name:'Dark Mode', desc:'Every screen, matched automatically to your system.' },
+    { name:'Receipt Scan (OCR)', desc:'Photograph or upload a receipt — the amount, date and vendor are read right in your browser into a draft you review.' },
+    { name:'Share from WhatsApp', desc:'Install the app, then share a receipt photo straight from WhatsApp\'s own share sheet into the app.' },
+    { name:'Data Interchange Messaging', desc:'Built-in group chat and a Support-to-Administrator line, with attachments, in-thread search and group announcements.' },
+    { name:'What\'s New & Notifications', desc:'A running What\'s New panel and local notifications, so new features and due items never go unseen.' },
   ]},
 ];
+
+// ====== Liquid Glass layer (Nov 2026): clarity slider + AI-agents data, shared by Landing / Login / Gateway ======
+const LANDING_AI_AGENTS = [
+  { icon:'dashboards', name:'Cash & Working-Capital', body:'Projects your cash 90 days ahead, finds the exact date it would run out, stress-tests it against late-paying customers, and says which collections to chase and which supplier payments can wait.' },
+  { icon:'gst', name:'TDS & Advance-Tax', body:'Spots supplier payments that probably needed TDS, catches tax withheld but not deposited by the 7th, and projects every advance-tax instalment from year-to-date profit.' },
+  { icon:'check', name:'Spend-Policy', body:'Set your own rules — single-payment cap, vendor monthly cap, category caps, weekend payments — and every voucher that breaks one is flagged. One tap suggests starter caps from your history.' },
+  { icon:'orders', name:'Collections & Payment-Run', body:'Drafts a friendly, firm or final-notice reminder for every overdue customer — copy, WhatsApp or email, never sent automatically — and proposes this week\'s supplier payment run against the cash you actually have.' },
+  { icon:'security', name:'GST / Compliance Watch', body:'Watches months of GST readiness side by side: filings drifting late, bank reconciliation lagging a period marked ready, input credit at risk from a missing supplier GSTIN.' },
+  { icon:'ledgers', name:'Internal Audit', body:'A year-wise automated audit — GL integrity, statutory compliance, internal controls and fraud indicators — severity-ranked, explainable from your own books, with PDF and Word export.' },
+  { icon:'payroll', name:'Bad-Debt Risk & ECL', body:'Predicts the provision for doubtful debts your receivables need — an ageing matrix tuned by each customer\'s own payment reliability — with one-click Journal posting.' },
+  { icon:'ai', name:'Ask Your Books', body:'Type "paid 500 for rent yesterday" to draft a voucher, ask for "top 5 expense categories last quarter" as a chart, or "who owes me the most" — answered with a link to the party.' },
+];
+function landingAiCount(){
+  return LANDING_MODULE_CATEGORIES.filter(c=>c.id==='ai'||c.id==='agents').reduce((n,c)=>n+c.modules.length,0);
+}
+function loadGlassClarity(){
+  try{ const v = localStorage.getItem('rb_glass_clarity'); if(v!==null && v!=='' && !isNaN(+v)) return Math.min(100,Math.max(0,+v)); }catch(e){}
+  return 50;
+}
+function applyGlassClarity(v){
+  try{ document.documentElement.style.setProperty('--lg-clarity', String(Math.min(100,Math.max(0,v))/100)); }catch(e){}
+}
+try{ applyGlassClarity(loadGlassClarity()); }catch(e){}
+function glassClarityControl(extraClass){
+  const v = loadGlassClarity();
+  return `<div class="lg-clarity ${extraClass||''}" data-lg-clarity>
+    <button type="button" class="lg-clarity-btn" data-lg-clarity-toggle aria-haspopup="true" aria-expanded="false" title="Glass clarity"><span class="lg-clarity-dot" aria-hidden="true"></span><span class="lg-clarity-label">Glass</span></button>
+    <div class="lg-clarity-pop" data-lg-clarity-pop hidden role="group" aria-label="Glass clarity">
+      <label>Glass clarity <output data-lg-clarity-out>${v}%</output></label>
+      <input type="range" min="0" max="100" step="5" value="${v}" data-lg-clarity-range aria-label="Glass clarity, frosted to clear">
+      <div class="lg-clarity-scale"><span>Frosted</span><span>Clear</span></div>
+      <button type="button" class="lg-clarity-reset" data-lg-clarity-reset>Reset</button>
+    </div>
+  </div>`;
+}
+function wireGlassClarity(){
+  document.querySelectorAll('[data-lg-clarity]').forEach(box=>{
+    if(box.dataset.lgWired) return; box.dataset.lgWired='1';
+    const btn = box.querySelector('[data-lg-clarity-toggle]'), pop = box.querySelector('[data-lg-clarity-pop]');
+    const range = box.querySelector('[data-lg-clarity-range]'), out = box.querySelector('[data-lg-clarity-out]');
+    const setOpen = (o)=>{ pop.hidden = !o; btn.setAttribute('aria-expanded', o?'true':'false'); };
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); setOpen(pop.hidden); });
+    pop.addEventListener('click', (e)=>e.stopPropagation());
+    const set = (v)=>{ applyGlassClarity(v); if(out) out.textContent = v+'%'; try{ localStorage.setItem('rb_glass_clarity', String(v)); }catch(e){} };
+    range.addEventListener('input', ()=>set(+range.value));
+    box.querySelector('[data-lg-clarity-reset]').addEventListener('click', ()=>{ range.value=50; set(50); });
+    document.addEventListener('click', ()=>{ if(!pop.hidden) setOpen(false); });
+    box.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ setOpen(false); btn.focus(); } });
+  });
+}
+function landingAiAgentsSection(){
+  const total = landingAiCount();
+  const sample = [
+    ['high','High','Cash','Projected cash runs out in 41 days if two overdue invoices slip another month'],
+    ['high','High','TDS','A contractor payment likely needed TDS — none was withheld'],
+    ['med','Medium','Spend policy','A weekend payment pushed a vendor past its monthly cap'],
+    ['med','Medium','Collections','3 overdue customers — reminders drafted, none sent'],
+    ['info','Info','GST watch','Bank reconciliation is lagging behind a period marked ready'],
+  ];
+  return `
+    <section class="lg-ai-band" id="ai-agents" aria-labelledby="lgAiTitle">
+      <div class="lg-ai-blob lg-ai-blob-a" aria-hidden="true"></div><div class="lg-ai-blob lg-ai-blob-b" aria-hidden="true"></div>
+      <div class="lg-ai-inner">
+        <div class="lg-eyebrow reveal">AI that works your books</div>
+        <h2 id="lgAiTitle" class="reveal">Seven AI agents. <em>One ranked inbox.</em></h2>
+        <p class="lg-ai-sub reveal">They don't just report what went wrong — they tell you what to do next. Every finding is built from your own books, explainable, and one click away from the voucher behind it. No external AI service, and nothing is ever sent on your behalf.</p>
+        <div class="lg-ai-stats reveal">
+          <div><b>7</b><span>AI agents</span></div>
+          <div><b>1</b><span>Agents Hub inbox</span></div>
+          <div><b>${total}</b><span>AI features &amp; agents</span></div>
+          <div><b>0</b><span>External AI APIs</span></div>
+        </div>
+        <div class="lg-ai-wrap">
+          <div class="lg-agent-grid reveal-stagger">
+            ${LANDING_AI_AGENTS.map(a=>`
+            <article class="lg-agent-card">
+              <div class="lg-agent-icon">${landingFeatureIcon(a.icon)}</div>
+              <h3>${escapeHtml(a.name)}</h3>
+              <p>${escapeHtml(a.body)}</p>
+            </article>`).join('')}
+          </div>
+          <aside class="lg-hub reveal" aria-label="AI Agents Hub — illustration with sample findings">
+            <div class="lg-hub-head"><span class="lg-hub-title"><span class="lg-pulse" aria-hidden="true"></span>AI Agents Hub</span><span class="lg-hub-tag">Illustration · sample findings</span></div>
+            <ul class="lg-hub-list">
+              ${sample.map(r=>`<li><span class="lg-sev lg-sev-${r[0]}">${r[1]}</span><div><div class="lg-hub-agent">${r[2]}</div><div class="lg-hub-text">${r[3]}</div></div></li>`).join('')}
+            </ul>
+            <div class="lg-hub-foot">Open a finding to fix it · snooze it for a week · or dismiss it. Find it all in <strong>Reports → AI &amp; Predictive Insights</strong>.</div>
+          </aside>
+        </div>
+        <ul class="lg-ai-principles reveal">
+          <li>${landingFeatureIcon('check')}Built only from your own books</li>
+          <li>${landingFeatureIcon('check')}Every finding explainable</li>
+          <li>${landingFeatureIcon('check')}Drafts reminders — never sends them</li>
+          <li>${landingFeatureIcon('check')}Severity-ranked, snooze or dismiss</li>
+        </ul>
+      </div>
+    </section>`;
+}
+function loginModuleChips(){
+  return LANDING_MODULE_CATEGORIES.map(c=>`<span class="lg-chip">${landingFeatureIcon(c.icon)}${escapeHtml(c.label)}<em>${c.modules.length}</em></span>`).join('');
+}
+
 function landingModulesSection(){
   const cats = LANDING_MODULE_CATEGORIES;
   const totalModules = cats.reduce((n,c)=>n+c.modules.length,0);
   return `
     <div class="landing-section landing-modules-section" id="modules" style="padding-top:8px;">
-      <h2 class="reveal">Every module, in one place</h2>
-      <p class="landing-section-sub reveal">${totalModules} modules across ${cats.length} categories — this is the whole app, not a highlights reel. Browse by category or search for what you need.</p>
+      <h2 class="reveal">Every module, every feature</h2>
+      <p class="landing-section-sub reveal">${cats.length} modules, ${totalModules} features — this is the whole app, not a highlights reel. Browse by module or search for the feature you need.</p>
       <div class="landing-mod-toolbar reveal">
         <div class="landing-mod-tabs" role="tablist">
           ${cats.map((c,i)=>`<button class="landing-mod-tab${i===0?' active':''}" type="button" data-mod-tab="${c.id}" role="tab">${landingFeatureIcon(c.icon)}<span>${escapeHtml(c.label)}</span><em>${c.modules.length}</em></button>`).join('')}
         </div>
         <div class="landing-mod-search">
           ${landingFeatureIcon('search')}
-          <input type="text" id="landingModSearch" placeholder="Search modules — e.g. GST, payroll, reconciliation" autocomplete="off">
+          <input type="text" id="landingModSearch" placeholder="Search features — e.g. GST, payroll, reconciliation" autocomplete="off">
         </div>
       </div>
       <div class="landing-mod-grid" id="landingModGrid">
@@ -20031,7 +20493,7 @@ function wireLandingModulesExplorer(){
     tabsWrap?.classList.toggle('is-searching', !!q);
     if(emptyMsg){
       emptyMsg.classList.toggle('hidden', visible>0);
-      if(visible===0) emptyMsg.textContent = `No modules match "${search.value.trim()}".`;
+      if(visible===0) emptyMsg.textContent = `No features match "${search.value.trim()}".`;
     }
   }
   tabs.forEach(t=>t.addEventListener('click', ()=>{
@@ -20430,21 +20892,20 @@ function renderLanding(){
       <div class="landing-nav sticky-nav" id="landingNav">
         <div class="landing-nav-brand"><img src="data:image/png;base64,${LOGO_ICON_B64}" alt="The Reckoning Books"> The Reckoning Books</div>
         <div class="landing-nav-links">
-          <a href="#how-it-works">How It Works</a>
           <a href="#features">Features</a>
+          <a href="#ai-agents">AI Agents</a>
           <a href="#modules">All Modules</a>
           <a href="#demo">Live Demo</a>
-          <a href="#showcase">See It In Action</a>
-          <a href="#calculator">Time Saved</a>
           <a href="#security">Security</a>
           <a href="#faq">FAQ</a>
         </div>
         <div class="landing-nav-actions">
+          ${glassClarityControl('lg-clarity-nav')}
           <button class="btn secondary small" id="landingTryDemoBtn" type="button">Try Demo</button>
           <button class="btn secondary small" id="landingLoginBtn" type="button">Log In</button>
           <button class="btn small" id="landingSignupBtn" type="button">Create Account</button>
           <div class="landing-install-wrap nav" id="landingInstallWrapNav">
-            <button class="btn secondary small" id="landingInstallBtnNav" type="button">⭳ Install The Reckoning Books</button>
+            <button class="btn secondary small" id="landingInstallBtnNav" type="button" title="Install The Reckoning Books">⭳ Install</button>
             <div class="landing-install-menu" id="landingInstallMenuNav" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
           </div>
         </div>
@@ -20455,6 +20916,7 @@ function renderLanding(){
         <button class="landing-mobile-menu-close" id="landingMobileMenuClose" type="button" aria-label="Close menu">×</button>
         <a href="#how-it-works" data-mobile-nav-link="1">How It Works</a>
         <a href="#features" data-mobile-nav-link="1">Features</a>
+        <a href="#ai-agents" data-mobile-nav-link="1">AI Agents</a>
         <a href="#modules" data-mobile-nav-link="1">All Modules</a>
         <a href="#demo" data-mobile-nav-link="1">Live Demo</a>
         <a href="#showcase" data-mobile-nav-link="1">See It In Action</a>
@@ -20467,6 +20929,7 @@ function renderLanding(){
       </div>
       <div class="landing-hero">
         <div class="landing-hero-glow"></div>
+        <div class="lg-blob lg-blob-1" aria-hidden="true"></div><div class="lg-blob lg-blob-2" aria-hidden="true"></div><div class="lg-blob lg-blob-3" aria-hidden="true"></div>
         <div class="aurora-orb" style="width:340px;height:340px;top:-140px;left:36%;background:radial-gradient(circle,rgba(46,125,50,0.55),transparent 70%);animation:auroraDrift1 12s ease-in-out infinite;"></div>
         <div class="aurora-orb" style="width:260px;height:260px;bottom:-130px;right:4%;background:radial-gradient(circle,rgba(242,169,0,0.32),transparent 70%);animation:auroraDrift2 14s ease-in-out infinite;"></div>
         <div class="landing-hero-inner">
@@ -20490,6 +20953,7 @@ function renderLanding(){
                 <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
               </div>
             </div>
+            <a class="lg-hero-ai" href="#ai-agents"><span class="lg-pulse" aria-hidden="true"></span><span><b>7 AI agents + an Agents Hub</b> watch your cash, TDS, spend, collections, GST, audit and bad-debt risk</span><span aria-hidden="true">→</span></a>
             <div class="landing-hero-note">Free to start · No credit card · Or explore the SKm Group of Companies demo company first, no sign-up needed</div>
           </div>
           <div class="landing-hero-art">
@@ -20505,8 +20969,8 @@ function renderLanding(){
           <div class="landing-stat"><div class="n" data-count="${VOUCHER_TYPES.length}">0</div><div class="l">Voucher Types</div></div>
           <div class="landing-stat"><div class="n" data-count="${GROUPS.length}">0</div><div class="l">Ledger Groups, Tally-style</div></div>
           <div class="landing-stat"><div class="n" data-count="10">0</div><div class="l">Report Types</div></div>
-          <div class="landing-stat"><div class="n" data-count="21">0</div><div class="l">AI-Native Features</div></div>
-          <div class="landing-stat"><div class="n" data-count="${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)}">0</div><div class="l">Modules, Total</div></div>
+          <div class="landing-stat"><div class="n" data-count="${landingAiCount()}">0</div><div class="l">AI Features &amp; Agents</div></div>
+          <div class="landing-stat"><div class="n" data-count="${LANDING_MODULE_CATEGORIES.length}">0</div><div class="l">Modules, ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} Features</div></div>
         </div>
       </div>
 
@@ -20535,6 +20999,8 @@ function renderLanding(){
           </div>`).join('')}
         </div>
       </div>
+
+      ${landingAiAgentsSection()}
 
       ${landingModulesSection()}
 
@@ -20683,6 +21149,7 @@ function renderLanding(){
   wireRoiCalculator();
   loadLandingPublicStats();
   wireSpotlightGlow('.landing-hero');
+  wireGlassClarity();
   wireCardTilt('.landing-feature-card');
 }
 // ---- ROI / switching-cost calculator (#calculator): recomputes and writes straight into the
@@ -21211,6 +21678,7 @@ function renderLogin(){
           <span class="winbtns"><span>_</span><span>▢</span><span>✕</span></span>
         </div>
         <div class="login-shell">
+          ${glassClarityControl('lg-clarity-login')}
           <div class="login-split">
           <div class="login-brand-panel">
             <div class="aurora-orb" style="width:220px;height:220px;top:-8%;right:-10%;background:radial-gradient(circle,rgba(255,255,255,0.16),transparent 70%);animation:auroraDrift1 12s ease-in-out infinite;"></div>
@@ -21222,13 +21690,21 @@ function renderLogin(){
               <ul class="login-brand-features">
                 <li>${landingFeatureIcon('vouchers')}Real double-entry vouchers, always balanced</li>
                 <li>${landingFeatureIcon('gst')}GST tracked and filing-ready, automatically</li>
-                <li>${landingFeatureIcon('ai')}23 AI-native features watching your books</li>
+                <li>${landingFeatureIcon('ai')}${landingAiCount()} AI features and 7 AI agents watching your books</li>
                 <li>${landingFeatureIcon('security')}Email-verified accounts with a full audit log</li>
               </ul>
+              <div class="lg-login-block">
+                <div class="lg-mini-title">Inside the app · ${LANDING_MODULE_CATEGORIES.length} modules · ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features</div>
+                <div class="lg-chip-cloud">${loginModuleChips()}</div>
+              </div>
+              <div class="lg-login-block">
+                <div class="lg-mini-title">AI agents · one ranked inbox</div>
+                <div class="lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.slice(0,7).map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</div>
+              </div>
               <div class="login-brand-stats">
-                <div><div class="n">${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)}</div><div class="l">Modules</div></div>
+                <div><div class="n">${LANDING_MODULE_CATEGORIES.length}</div><div class="l">Modules</div></div>
                 <div><div class="n">${VOUCHER_TYPES.length}</div><div class="l">Voucher Types</div></div>
-                <div><div class="n">23</div><div class="l">AI Features</div></div>
+                <div><div class="n">${landingAiCount()}</div><div class="l">AI Features</div></div>
               </div>
             </div>
           </div>
@@ -21407,6 +21883,11 @@ function renderLogin(){
             </div>
           </div>
           </div>
+          <details class="lg-login-more">
+            <summary><span>What's inside — ${LANDING_MODULE_CATEGORIES.length} modules, ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features &amp; 7 AI agents</span></summary>
+            <div class="lg-chip-cloud">${loginModuleChips()}</div>
+            <div class="lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.slice(0,7).map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</div>
+          </details>
           <div class="login-footer">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
         </div>
       </div>
@@ -21978,6 +22459,7 @@ function renderLogin(){
     firstField?.focus();
   }
   wireSpotlightGlow('.login-shell');
+  wireGlassClarity();
 }
 
 /* ---------------- Gateway of Tally — company selection ---------------- */
@@ -22540,6 +23022,17 @@ function renderGateway(){
       </div>
       `;
     })() : ''}
+    ${currentUser ? `
+    <div class="lg-gw-inside">
+      ${glassClarityControl('lg-clarity-gw')}
+      <details>
+        <summary><span>What's inside your books — ${LANDING_MODULE_CATEGORIES.length} modules, ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features &amp; 7 AI agents</span><span class="lg-gw-sub">tap to explore</span></summary>
+        <div class="lg-mini-title">The ${LANDING_MODULE_CATEGORIES.length} modules · features in each</div>
+        <div class="lg-chip-cloud">${loginModuleChips()}</div>
+        <div class="lg-mini-title">AI agents · one ranked inbox in Reports → AI &amp; Predictive Insights</div>
+        <div class="lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</div>
+      </details>
+    </div>` : ''}
     <div class="gw-wrap">
       ${(()=>{
         const allMyCompanies = visibleCompanies();
@@ -24959,6 +25452,7 @@ function renderGateway(){
     });
   }
   wireSpotlightGlow('.gw-hero');
+  wireGlassClarity();
   wireCardTilt('.company-card');
 }
 function fileDropdown(){
