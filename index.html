@@ -3112,6 +3112,66 @@
     .sidebar-sync-status.just-saved .sidebar-sync-dot{animation:none;}
     .btn[aria-busy="true"]::before{animation-duration:2s;}
   }
+
+  /* ===== Module 9 (Nov 2026): Inventory ===== */
+  .stat-link{cursor:pointer;transition:transform .15s ease, box-shadow .15s ease;}
+  .stat-link:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.08);}
+  .stat-link:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+  .filter-chip .chip-count{display:inline-block;min-width:18px;margin-left:4px;padding:0 6px;border-radius:999px;background:color-mix(in srgb, var(--ink) 9%, transparent);font-size:10.5px;font-weight:800;text-align:center;}
+  .filter-chip.active .chip-count{background:rgba(255,255,255,.28);color:var(--on-fill);}
+  tr.row-out td, tr.row-low td{background:color-mix(in srgb, var(--debit-bg) 55%, var(--surface));}
+  tr.row-low td{background:color-mix(in srgb, var(--gold) 9%, var(--surface));}
+  .btn.icon-btn{padding-left:9px;padding-right:9px;}
+  .btn.danger-quiet{color:var(--debit);}
+  .btn.danger-quiet:hover{background:var(--debit-bg);border-color:var(--debit);}
+  .add-item-disclosure > summary{font-weight:800;}
+
+  /* ===== Module 10 (Nov 2026): Payroll ===== */
+  input[type=month]{font-family:inherit;font-size:12.5px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--field);color:var(--ink);width:100%;transition:border-color .15s, box-shadow .15s;}
+  .main td.ccard-actions .btn{white-space:nowrap;}
+  .vtype-tabs .tab-count{display:inline-block;margin-left:7px;min-width:18px;padding:0 6px;border-radius:999px;background:color-mix(in srgb, var(--ink) 10%, transparent);font-size:10.5px;font-weight:800;line-height:17px;text-align:center;}
+  .vtype-tabs button.active .tab-count{background:rgba(255,255,255,.28);color:var(--on-fill);}
+  .vtype-tabs .tab-count.warn{background:var(--gold);color:var(--on-fill);}
+  tr.row-resigned td{color:var(--ink-soft);background:color-mix(in srgb, var(--ink) 3%, var(--surface));}
+  tr.totals-row td{font-weight:800;border-top:2px solid var(--border-strong);background:color-mix(in srgb, var(--accent1) 6%, var(--surface));}
+  .run-summary{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:560px){ .run-summary{grid-template-columns:1fr 1fr;} }
+  /* ===== Module 11 (Nov 2026): Reports statements (display only) ===== */
+  .stmt-toolbar{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin:2px 0 14px;}
+  .stmt-toolbar .filter-chip{margin-left:auto;}
+  .stmt-toolbar .pill{font-size:12px;padding:4px 12px;}
+  .panel:has(> .panel-body > table.statement-table){max-width:1000px;}
+  .tb-table th.num, .tb-table td.num{width:22%;}
+  tr.tb-zero td{color:var(--ink-faint);}
+  tr.tb-filtered{display:none !important;}
+  .statement-table td.empty{border:0;border-radius:0;margin:0;background:transparent;padding:6px 14px 6px 30px;text-align:left;font-style:italic;color:var(--ink-faint);font-size:12px;}
+  .statement-table td.empty::before{display:none;}
+  .stmt-hide-zero tr.stmt-zero{display:none;}
+  .report-card.rc-filtered, .report-group.rc-filtered{display:none;}
+  @media (max-width:560px){ .stmt-toolbar .filter-chip{margin-left:0;} .panel:has(> .panel-body > table.statement-table){max-width:none;} }
+  @media (max-width:760px){ .tb-table td.ccard-amount:empty{display:none;} .tb-table tr{padding:8px 14px;margin-bottom:6px;} }
+  /* ===== Module 12 (Nov 2026): GST ===== */
+  #gstStatusRow{margin:0 0 18px;}
+  /* ===== Module 13 (Nov 2026): Admin Panel (layout only) ===== */
+  .admin-console td select[data-status-select]{min-width:96px;width:auto;}
+  .admin-console td{vertical-align:top;}
+  .admin-console td.muted[style*="font-size:11px"]:not([style*="nowrap"]){max-width:96px;}
+  details.row-more{display:inline-block;}
+  details.row-more > summary{list-style:none;cursor:pointer;display:inline-block;}
+  details.row-more > summary::-webkit-details-marker{display:none;}
+  details.row-more[open] > summary{background:var(--surface-strong);}
+  .row-more-menu{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;max-width:260px;}
+  .admin-console .filter-chips{margin-top:2px;}
+  @media (max-width:680px){
+    .admin-console-topbar .amh-sub{display:none;}
+    .admin-console-topbar{gap:10px;padding:12px 16px;}
+    .admin-console-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%;}
+    .acs-stat-chip{min-width:0;padding:5px 8px;}
+    .acs-stat-chip .l{font-size:8px;}
+    .admin-console-topbar #modalClose{position:absolute !important;top:12px;right:12px;}
+  }
+  #gstStatusRow .btn{margin-left:0;}
+  #gstMonthFilter{width:auto;min-width:170px;}
 </style>
 </head>
 <body>
@@ -6912,6 +6972,10 @@ function toggleDashboardSection(id){
 // a "Recently Used" optgroup above the full list -- see trackLedgerUsage/ledgerSelectOptionsHtml
 // below. Kept in this browser's localStorage only, exactly like pinnedTiles/darkMode above.
 let ledgerUsageHistory = (function(){ try{ return JSON.parse(localStorage.getItem('rb_ledgerUsage')||'{}'); }catch(e){ return {}; } })();
+let gstSearchQuery = '';         // Module 12: GST supplies search (narration / date)
+let gstMonthFilter = 'all';      // Module 12: 'all' | 'YYYY-MM'
+const GST_PAGE = 30;
+let gstOutLimit = GST_PAGE, gstInLimit = GST_PAGE;
 let gstShowMonthCompare = false; // toggles the "Compare to Last Month" panel on the GST tab
 let activeFY = null; // FY label (e.g. '2025-26') the user has chosen to view for the open company; null = "All Years" (no filter, the original all-time behaviour)
 let vform = null; // active voucher form draft
@@ -7330,6 +7394,13 @@ let isDetailCategory = null; // which Income Statement line was clicked, for the
 
 /* ---------------- Admin Panel state ---------------- */
 let adminTab = 'overview';      // 'overview' | 'users' | 'companies' | 'analytics' | 'support' | 'settings' | 'auditLog' — which tab the Admin Panel modal shows
+let adminUserFilter = 'all';     // Module 13: 'all' | 'active' | 'blocked' | 'staff' | 'expired' (display filter on the Users tab)
+const ADMIN_PAGE = 25;
+let adminUserLimit = ADMIN_PAGE;
+let adminCompanyFilter = 'all';  // Module 13: 'all' | 'active' | 'empty' | 'orphaned'
+let adminCompanyLimit = ADMIN_PAGE;
+let adminAuditAction = 'all';    // Module 13: action-type filter on the Audit Log tab
+let adminAuditLimit = 50;
 let adminUserSearch = '';       // search box text on the Users tab (matches name/username/email/mobile)
 let adminUserSort = 'name';     // 'name' | 'created' | 'status' — Users tab sort key
 let adminUserSortDir = 'asc';   // 'asc' | 'desc'
@@ -7592,6 +7663,10 @@ let daybookSearchQuery = '';
 let daybookTypeFilter = '';
 let itemMasterSearchQuery = '';
 let inventorySearchQuery = '';
+const INVENTORY_PAGE = 50;          // items rendered per "Show more" click
+let inventoryStatusFilter = '';     // '' | 'low' | 'out' | 'ok'
+let inventoryLimit = INVENTORY_PAGE;
+let inventoryAddOpen = false;       // Add New Item section stays open across repaints
 let itemEditId = null; // null = "Create Stock Item" mode | a state.items id = editing that item in stockItemForm()
 let partiesSearchQuery = '';
 let ordersSearchQuery = '';
@@ -7648,6 +7723,10 @@ let landedCostDraft = null;    // null = not allocating | {purchaseVoucherId, ch
 let barcodeLabelDraft = null;  // null = not printing labels | {itemId, count} (round: Inventory Advanced Update Phase 2)
 let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
+let tbSearchQuery = '';            // Module 11: Trial Balance ledger search (display filter only)
+let tbBalanceFilter = 'all';       // 'all' | 'balance' | 'zero'
+let stmtHideZero = false;          // Module 11: hide all-zero lines on Income Statement / Balance Sheet (screen only)
+let reportsFindQuery = '';         // Module 11: Reports landing "find a report" filter
 let reportsSelected = null; // null = Reports landing grid | 'trialBalance'|'incomeStatement'|'balanceSheet'|'ratios'|'cashFlow'
 // User-entered benchmark values for the Financial Performance Report's Benchmarking/Peer Comparison
 // section — {ratioKey: numericValue}. Deliberately session-only (not persisted): this app has no
@@ -7683,6 +7762,11 @@ let auditAgentFY = null; // FY label (e.g. '2025-26') the Internal Audit Agent r
 let employeeDraft = null; // null = not adding/editing an employee | {id?, code?, name, designation, department, employmentType, joinDate, resignDate, pan, bankName, bankAccount, bankIFSC, basic, hra, allowances, bonus, pf, esi, pt, tds, otherDeductions}
 let payrollMonth = new Date().toISOString().slice(0,7); // YYYY-MM the "Generate Payroll" panel is showing
 let payrollPayFromLedgerId = null; // which Bank/Cash ledger salary net pay is credited from, for the "Generate Payroll" panel
+let employeeSearchQuery = '';       // Employees tab search
+let employeeStatusFilter = '';      // '' | 'active' | 'resigned'
+let payslipSearchQuery = '';        // Payslips history search (employee name or month)
+const PAYSLIP_PAGE = 50;
+let payslipLimit = PAYSLIP_PAGE;
 let payslipYearFilter = 'all'; // 'all' or a 'YYYY' string — filters the Payslips history table
 let statutoryFileMonth = null; // null = default to the most recent payroll month | 'YYYY-MM' — which month's PF ECR/ESI file to generate (Payroll → Statutory Files)
 let loanDraft = null; // null = not giving a loan/advance | {employeeId, principal, emiAmount, payFromLedgerId, date}
@@ -23402,8 +23486,11 @@ function renderGateway(){
     document.getElementById('refreshPublicStatsBtn')?.addEventListener('click', refreshPublicStats);
   }
   if(modal==='adminPanel' && adminTab==='users'){
+    document.querySelectorAll('[data-admin-user-filter]').forEach(el=>el.addEventListener('click', ()=>{ adminUserFilter = el.dataset.adminUserFilter; adminUserLimit = ADMIN_PAGE; renderGateway(); }));
+    document.getElementById('adminUsersMoreBtn')?.addEventListener('click', ()=>{ adminUserLimit += ADMIN_PAGE; renderGateway(); });
+    document.getElementById('adminUserClearBtn')?.addEventListener('click', ()=>{ adminUserSearch=''; adminUserFilter='all'; adminUserLimit = ADMIN_PAGE; renderGateway(); });
     document.getElementById('adminUserSearchInput')?.addEventListener('input', (e)=>{
-      adminUserSearch = e.target.value;
+      adminUserSearch = e.target.value; adminUserLimit = ADMIN_PAGE;
       const caret = e.target.selectionStart;
       renderGateway();
       const el = document.getElementById('adminUserSearchInput');
@@ -23627,7 +23714,7 @@ function renderGateway(){
       });
     });
     document.getElementById('selectAllUsersCheckbox')?.addEventListener('change', (e)=>{
-      const list = adminFilteredSortedUsers().filter(u=> !(currentUser && u.id===currentUser.id));
+      const list = adminVisibleUsers().shown.filter(u=> !(currentUser && u.id===currentUser.id));
       if(e.target.checked){ list.forEach(u=>{ selectedUserIds[u.id] = true; }); }
       else { list.forEach(u=>{ delete selectedUserIds[u.id]; }); }
       renderGateway();
@@ -23934,8 +24021,11 @@ function renderGateway(){
     });
   }
   if(modal==='adminPanel' && adminTab==='companies'){
+    document.querySelectorAll('[data-admin-co-filter]').forEach(el=>el.addEventListener('click', ()=>{ adminCompanyFilter = el.dataset.adminCoFilter; adminCompanyLimit = ADMIN_PAGE; renderGateway(); }));
+    document.getElementById('adminCompaniesMoreBtn')?.addEventListener('click', ()=>{ adminCompanyLimit += ADMIN_PAGE; renderGateway(); });
+    document.getElementById('adminCompanyClearBtn')?.addEventListener('click', ()=>{ adminCompanySearch=''; adminCompanyFilter='all'; adminCompanyLimit = ADMIN_PAGE; renderGateway(); });
     document.getElementById('adminCompanySearchInput')?.addEventListener('input', (e)=>{
-      adminCompanySearch = e.target.value;
+      adminCompanySearch = e.target.value; adminCompanyLimit = ADMIN_PAGE;
       const caret = e.target.selectionStart;
       renderGateway();
       const el = document.getElementById('adminCompanySearchInput');
@@ -24214,7 +24304,10 @@ function renderGateway(){
       const el = document.getElementById('adminAuditSearchInput');
       if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
     });
+    document.getElementById('adminAuditActionSelect')?.addEventListener('change', (e)=>{ adminAuditAction = e.target.value; adminAuditLimit = 50; renderGateway(); });
+    document.getElementById('adminAuditMoreBtn')?.addEventListener('click', ()=>{ adminAuditLimit += 50; renderGateway(); });
     document.getElementById('adminAuditRangeSelect')?.addEventListener('change', (e)=>{
+      adminAuditLimit = 50;
       const v = e.target.value;
       adminAuditRangeDays = v==='all' ? 'all' : Number(v);
       renderGateway();
@@ -25661,8 +25754,28 @@ function adminGroupTreeModal(){
   </div>
   `;
 }
+function adminUserChipFilter(u){
+  switch(adminUserFilter){
+    case 'active': return !u.blocked;
+    case 'blocked': return !!u.blocked;
+    case 'staff': return u.role==='admin' || u.role==='support';
+    case 'expired': return u.plan==='paid' && isPlanExpired(u);
+    default: return true;
+  }
+}
+// What the Users table is actually showing right now (search + chip filter + page) -- the Select-all
+// checkbox uses exactly this set, so "all" never silently includes rows you cannot see.
+function adminVisibleUsers(){
+  const full = adminFilteredSortedUsers().filter(adminUserChipFilter);
+  return { full, shown: full.slice(0, adminUserLimit) };
+}
 function adminUsersTab(){
-  const list = adminFilteredSortedUsers();
+  const baseList = adminFilteredSortedUsers();
+  const { full: fullList, shown: list } = adminVisibleUsers();
+  const chipCounts = { all: baseList.length, active: baseList.filter(u=>!u.blocked).length, blocked: baseList.filter(u=>u.blocked).length, staff: baseList.filter(u=>u.role==='admin'||u.role==='support').length, expired: baseList.filter(u=>u.plan==='paid' && isPlanExpired(u)).length };
+  const userChip = (k,lab)=>`<button type="button" class="filter-chip ${adminUserFilter===k?'active':''}" data-admin-user-filter="${k}">${lab} <span class="chip-count">${chipCounts[k]}</span></button>`;
+  const shownIds = new Set(list.map(u=>u.id));
+  const hiddenSelected = Object.keys(selectedUserIds).filter(id=>selectedUserIds[id] && !shownIds.has(id)).length;
   const arrow = (key)=> adminUserSort===key ? (adminUserSortDir==='asc'?' ▲':' ▼') : '';
   const selectableList = list.filter(u=> !(currentUser && u.id===currentUser.id));
   const selectedCount = Object.keys(selectedUserIds).filter(id=>selectedUserIds[id]).length;
@@ -25670,12 +25783,13 @@ function adminUsersTab(){
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="adminUserSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(adminUserSearch)}" style="max-width:280px;">
-      <span class="muted" style="font-size:12px;">${list.length} of ${users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked)).length} account${users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked)).length===1?'':'s'}</span>
+      <span class="muted" style="font-size:12px;">${fullList.length} of ${users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked)).length} account${users.filter(u=>!u.groupOwnerId && !(u.teamOwnerId && u.blocked)).length===1?'':'s'}</span>
       ${isFullAdmin() ? `<button class="btn small" id="openAddUserBtn" type="button" style="margin-left:auto;">+ Add User</button>` : ''}
     </div>
+    <div class="filter-chips" style="margin-bottom:12px;">${userChip('all','All')}${userChip('active','Active')}${userChip('blocked','Blocked')}${userChip('staff','Admin &amp; Support')}${userChip('expired','Plan expired')}</div>
     ${selectedCount ? `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-      <strong style="font-size:12px;">${selectedCount} selected</strong>
+      <strong style="font-size:12px;">${selectedCount} selected</strong>${hiddenSelected ? `<span class="muted" style="font-size:11.5px;">(${hiddenSelected} not shown by the current search / filter — bulk actions still apply to them)</span>` : ''}
       <button class="btn secondary small" data-bulk-status="active" type="button">Unblock</button>
       <button class="btn secondary small" data-bulk-status="blocked" type="button">Block</button>
       <button class="btn secondary small" data-bulk-delete type="button" style="color:var(--debit);" ${isFullAdmin()?'':'disabled'} title="${isFullAdmin()?'':'Only a full Administrator can bulk-delete accounts'}">Delete</button>
@@ -25750,6 +25864,7 @@ function adminUsersTab(){
                 <button class="btn secondary small" id="cancelEditUserBtn" type="button">Cancel</button>
               ` : `<button class="btn secondary small" data-edit-user="${escapeAttr(u.id)}" type="button">Edit</button>`}
               <button class="btn secondary small" data-view-user-detail="${escapeAttr(u.id)}" type="button">Details</button>
+              <details class="row-more"><summary class="btn secondary small">More ▾</summary><div class="row-more-menu">
               <button class="btn secondary small" data-reset-password="${escapeAttr(u.id)}" type="button" ${u.email?'':'disabled'}>Reset Password</button>
               <button class="btn secondary small" data-force-logout="${escapeAttr(u.id)}" type="button" ${isSelf?'disabled':''}>Force Logout</button>
               <select data-role-select="${escapeAttr(u.id)}" ${isSelf||!isFullAdmin()?'disabled':''} style="width:auto;">
@@ -25759,13 +25874,15 @@ function adminUsersTab(){
               </select>
               <button class="btn secondary small" data-update-status="${escapeAttr(u.id)}" type="button" ${isSelf?'disabled':''}>Update Status</button>
               <button class="btn secondary small" data-delete-account="${escapeAttr(u.id)}" type="button" style="color:var(--debit);" ${isSelf||!isFullAdmin()||u.protected?'disabled':''} title="${u.protected?'This account is protected and cannot be deleted':''}">Delete</button>
+              </div></details>
             </div>
           </td>
         </tr>`;
       }).join('')}
     </table>
     </div>
-    ` : `<div class="empty">${adminUserSearch ? 'No accounts match your search.' : 'No accounts have been created yet.'}</div>`}
+    ${fullList.length>list.length ? `<div class="table-more"><button class="btn secondary" id="adminUsersMoreBtn" type="button">Show ${Math.min(fullList.length-list.length, ADMIN_PAGE)} more (${fullList.length-list.length} not shown)</button></div>` : ''}
+    ` : `<div class="empty">${(adminUserSearch || adminUserFilter!=='all') ? 'No accounts match your search / filter.' : 'No accounts have been created yet.'}${(adminUserSearch || adminUserFilter!=='all') ? ' <button class="btn small secondary" id="adminUserClearBtn" type="button">Clear</button>' : ''}</div>`}
   `;
 }
 // A direct "pick a user, then flag their features" screen — the Users tab's per-user Details modal
@@ -25933,12 +26050,20 @@ function adminAddUserModal(){
   `;
 }
 function adminCompaniesTab(){
-  const list = adminFilteredCompanies();
+  const baseCos = adminFilteredCompanies();
+  const orphanIds = new Set(findOrphanedCompanies().map(c=>c.id));
+  const hasV = c => Array.isArray(c.vouchers) && c.vouchers.length>0;
+  const coPass = c => adminCompanyFilter==='all' || (adminCompanyFilter==='active' && hasV(c)) || (adminCompanyFilter==='empty' && !hasV(c)) || (adminCompanyFilter==='orphaned' && orphanIds.has(c.id));
+  const fullCos = baseCos.filter(coPass);
+  const list = fullCos.slice(0, adminCompanyLimit);
+  const coCounts = { all: baseCos.length, active: baseCos.filter(hasV).length, empty: baseCos.filter(c=>!hasV(c)).length, orphaned: baseCos.filter(c=>orphanIds.has(c.id)).length };
+  const coChip = (k,lab)=>`<button type="button" class="filter-chip ${adminCompanyFilter===k?'active':''}" data-admin-co-filter="${k}">${lab} <span class="chip-count">${coCounts[k]}</span></button>`;
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="adminCompanySearchInput" placeholder="Search company or owner…" value="${escapeAttr(adminCompanySearch)}" style="max-width:280px;">
-      <span class="muted" style="font-size:12px;">${list.length} of ${companies.length} compan${companies.length===1?'y':'ies'}</span>
+      <span class="muted" style="font-size:12px;">${fullCos.length} of ${companies.length} compan${companies.length===1?'y':'ies'}</span>
     </div>
+    <div class="filter-chips" style="margin-bottom:12px;">${coChip('all','All')}${coChip('active','With vouchers')}${coChip('empty','No vouchers yet')}${coChip('orphaned','Orphaned')}</div>
     ${list.length ? `
     <div style="overflow-x:auto;">
     <table>
@@ -25948,7 +26073,7 @@ function adminCompaniesTab(){
         return `<tr>
         <td class="muted">${i+1}</td>
         <td>${escapeHtml(c.name)}${isSharedDemoId(c.id)?' <span class="pill pos" style="margin-left:4px;">Sample</span>':''}</td>
-        <td class="muted">${escapeHtml(ownerLabelFor(c))}</td>
+        <td class="muted">${orphanIds.has(c.id) ? '<span class="pill neg">Orphaned</span> <span style="font-size:11.5px;">owner account no longer exists</span>' : escapeHtml(ownerLabelFor(c))}</td>
         <td class="num">${(c.ledgers||[]).length}</td>
         <td class="num">${(c.vouchers||[]).length}</td>
         <td class="muted" style="font-size:11px;white-space:nowrap;">${lastActivity ? escapeHtml(lastActivity) : '—'}</td>
@@ -25957,6 +26082,7 @@ function adminCompaniesTab(){
           <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
             <button class="btn secondary small" data-view-company="${escapeAttr(c.id)}" type="button">View</button>
             <button class="btn secondary small" data-export-company="${escapeAttr(c.id)}" type="button">⬇ Export</button>
+            ${isFullAdmin() ? `<details class="row-more" ${reassigningCompanyId===c.id?'open':''}><summary class="btn secondary small">More ▾</summary><div class="row-more-menu">` : ''}
             ${!isSharedDemoId(c.id) && isFullAdmin() ? (
               reassigningCompanyId===c.id ? `
                 <select data-reassign-select="${escapeAttr(c.id)}">
@@ -25967,16 +26093,22 @@ function adminCompaniesTab(){
               ` : `<button class="btn secondary small" data-reassign-company="${escapeAttr(c.id)}" type="button">Reassign Owner</button>`
             ) : ''}
             ${isFullAdmin() ? `<button class="btn secondary small" data-admin-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);" ${isSharedDemoId(c.id)?'disabled title="Shared demo companies can\'t be deleted here"':''}>Delete</button>` : ''}
+            ${isFullAdmin() ? '</div></details>' : ''}
           </div>
         </td>
       </tr>`;}).join('')}
     </table>
     </div>
-    ` : `<div class="empty">${adminCompanySearch ? 'No companies match your search.' : 'No companies yet.'}</div>`}
+    ${fullCos.length>list.length ? `<div class="table-more"><button class="btn secondary" id="adminCompaniesMoreBtn" type="button">Show ${Math.min(fullCos.length-list.length, ADMIN_PAGE)} more (${fullCos.length-list.length} not shown)</button></div>` : ''}
+    ` : `<div class="empty">${(adminCompanySearch || adminCompanyFilter!=='all') ? 'No companies match your search / filter.' : 'No companies yet.'}${(adminCompanySearch || adminCompanyFilter!=='all') ? ' <button class="btn small secondary" id="adminCompanyClearBtn" type="button">Clear</button>' : ''}</div>`}
   `;
 }
 function adminAuditLogTab(){
-  const filtered = adminFilteredAuditLog();
+  const auditBase = adminFilteredAuditLog();
+  const auditActions = Array.from(new Set(auditLog.map(e=>e.action).filter(Boolean))).sort();
+  if(adminAuditAction!=='all' && !auditActions.includes(adminAuditAction)) adminAuditAction = 'all';
+  const filteredAll = auditBase.filter(e=>adminAuditAction==='all' || e.action===adminAuditAction);
+  const filtered = filteredAll.slice(0, adminAuditLimit);
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="adminAuditSearchInput" placeholder="Search actor, action, target or detail…" value="${escapeAttr(adminAuditSearch)}" style="max-width:280px;">
@@ -25986,7 +26118,11 @@ function adminAuditLogTab(){
         <option value="7" ${adminAuditRangeDays===7?'selected':''}>Last 7 days</option>
         <option value="30" ${adminAuditRangeDays===30?'selected':''}>Last 30 days</option>
       </select>
-      <span class="muted" style="font-size:12px;">${filtered.length} of ${auditLog.length===200?'200+':auditLog.length} event${auditLog.length===1?'':'s'}${auditLog.length===200?' (most recent 200 loaded)':''}, newest first.</span>
+      <select id="adminAuditActionSelect" style="max-width:200px;" aria-label="Filter by action">
+        <option value="all">All actions</option>
+        ${auditActions.map(a=>`<option value="${escapeAttr(a)}" ${a===adminAuditAction?'selected':''}>${escapeHtml(a)}</option>`).join('')}
+      </select>
+      <span class="muted" style="font-size:12px;">${filteredAll.length} of ${auditLog.length===200?'200+':auditLog.length} event${auditLog.length===1?'':'s'}${auditLog.length===200?' (most recent 200 loaded)':''}, newest first.</span>
     </div>
     ${filtered.length ? `
     <div style="overflow-x:auto;">
@@ -26001,7 +26137,8 @@ function adminAuditLogTab(){
       </tr>`).join('')}
     </table>
     </div>
-    ` : `<div class="empty">${(adminAuditSearch || adminAuditRangeDays!=='all') ? 'No events match your filters.' : 'No activity recorded yet.'}</div>`}
+    ${filteredAll.length>filtered.length ? `<div class="table-more"><button class="btn secondary" id="adminAuditMoreBtn" type="button">Show ${Math.min(filteredAll.length-filtered.length, 50)} more (${filteredAll.length-filtered.length} not shown)</button></div>` : ''}
+    ` : `<div class="empty">${(adminAuditSearch || adminAuditRangeDays!=='all' || adminAuditAction!=='all') ? 'No events match your filters.' : 'No activity recorded yet.'}</div>`}
   `;
 }
 
@@ -27814,7 +27951,7 @@ function firstRunAct(a){
   if(kind==='tab'){ goToTab(arg); }
   else if(kind==='company'){ document.getElementById('menuEdit')?.click(); }
   else if(kind==='click'){ document.getElementById(arg)?.click(); }
-  else if(kind==='scroll'){ const el = document.getElementById(arg); if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); const f = el.querySelector('input,select'); if(f) setTimeout(()=>f.focus({preventScroll:true}), 350); } }
+  else if(kind==='scroll'){ const el = document.getElementById(arg); if(el){ if(el.tagName==='DETAILS') el.open = true; el.scrollIntoView({behavior:'smooth', block:'start'}); const f = el.querySelector('input,select'); if(f) setTimeout(()=>f.focus({preventScroll:true}), 350); } }
 }
 function emptyStateAct({icon, title, text, ctaLabel, act}){
   return `<div class="empty-state">
@@ -35283,8 +35420,8 @@ function viewInventory(){
     <div class="bento-grid">
       <div class="stat bento-hero"><div class="label">Total Stock Value</div><div class="val ${totalValue>=0?'pos':'neg'}">₹${fmt(totalValue)}</div></div>
       <div class="stat"><div class="label">Total Items</div><div class="val">${state.items.length}</div></div>
-      <div class="stat"><div class="label">Low Stock</div><div class="val ${lowStock>0?'neg':''}">${lowStock}</div></div>
-      <div class="stat"><div class="label">Out of Stock</div><div class="val ${outOfStock>0?'neg':''}">${outOfStock}</div></div>
+      <div class="stat stat-link" data-inv-filter="low" role="button" tabindex="0" title="Show only low-stock items"><div class="label">Low Stock</div><div class="val ${lowStock>0?'neg':''}">${lowStock}</div></div>
+      <div class="stat stat-link" data-inv-filter="out" role="button" tabindex="0" title="Show only out-of-stock items"><div class="label">Out of Stock</div><div class="val ${outOfStock>0?'neg':''}">${outOfStock}</div></div>
       <div class="stat"><div class="label">Categories</div><div class="val">${activeCategories}</div></div>
     </div>
 
@@ -35308,51 +35445,31 @@ function viewInventory(){
 
     ${reorderSuggestionsPanel()}
 
-    ${manageWarehousesPanel()}
-    ${stockByLocationTable()}
-    ${pendingTransfersPanel()}
-    ${cycleCountPanel()}
-
-    <div class="section-title" id="addItemSection">Add New Item</div>
-    ${stockItemForm()}
-
-    ${(()=>{
-      const batches = batchRegister();
-      if(!batches.length) return '';
-      const expiringSoon = batches.filter(b=>b.qty>0 && b.daysToExpiry!=null && b.daysToExpiry>=0 && b.daysToExpiry<=30).length;
-      const expired = batches.filter(b=>b.qty>0 && b.expired).length;
-      return `
-      <div class="section-title">Batch &amp; Expiry Register ${expired?`<span class="pill neg" style="margin-left:6px;">${expired} expired</span>`:''}${expiringSoon?`<span class="pill neg" style="margin-left:6px;">${expiringSoon} expiring ≤30d</span>`:''}</div>
-      <div class="panel">
-        <div class="panel-body" style="padding:0;">
-          <table class="rb-card-table">
-            <tr><th>Item</th><th>Batch No.</th><th class="num">Qty on Hand</th><th>Expiry Date</th><th>Status</th></tr>
-            ${batches.map(b=>{
-              const statusBadge = b.qty<=0 ? `<span class="pill">Nil stock</span>` : b.expired ? `<span class="pill neg">Expired</span>` : (b.daysToExpiry!=null && b.daysToExpiry<=30) ? `<span class="pill neg">Expires in ${b.daysToExpiry}d</span>` : `<span class="pill pos">OK</span>`;
-              return `<tr>
-                <td class="ccard-title" data-label="Item">${b.item.name}<div class="muted" style="font-size:10.5px;">${b.item.unit||''}</div></td>
-                <td data-label="Batch No.">${escapeAttr(b.batch)}</td>
-                <td class="num" data-label="Qty on Hand">${fmt(b.qty)} ${b.item.unit||''}</td>
-                <td data-label="Expiry Date">${b.expiry||'—'}</td>
-                <td data-label="Status">${statusBadge}</td>
-              </tr>`;
-            }).join('')}
-          </table>
-        </div>
-      </div>
-      <p class="muted" style="font-size:11px;">Batches are created by entering a Batch No. (and optional Expiry Date) on a voucher's item line, for any item with "Track batch number &amp; expiry date" enabled. Qty on Hand nets purchases/sales-returns in against sales/purchase-returns out for that batch.</p>
-      `;
-    })()}
-
-    ${summaries.length>6 ? `<div class="panel"><div class="panel-body" style="padding:10px 14px;">
-      ${moduleSearchBox('inventorySearchInput','Search items by name, HSN or unit…',inventorySearchQuery)}
-    </div></div>` : ''}
+    <div id="inventoryListTop"></div>
     ${(()=>{
       const q = inventorySearchQuery.trim().toLowerCase();
       const matches = item => !q || item.name.toLowerCase().includes(q) || (item.hsn||'').toLowerCase().includes(q) || (item.unit||'').toLowerCase().includes(q);
+      const statusOf = r => r.summary.closing<=0 ? 'out' : (r.item.reorderLevel!=null && r.summary.closing<=r.item.reorderLevel) ? 'low' : 'ok';
+      const passes = r => matches(r.item) && (!inventoryStatusFilter || statusOf(r)===inventoryStatusFilter);
+      const visible = summaries.filter(passes);
+      const visibleValue = visible.reduce((s2,r)=>s2+r.summary.value,0);
+      const okCount = summaries.length - lowStock - outOfStock;
+      const chip = (k,lab,n)=>`<button type="button" class="filter-chip ${inventoryStatusFilter===k?'active':''}" data-inv-status="${k}">${lab} <span class="chip-count">${n}</span></button>`;
+      const toolbar = summaries.length ? `<div class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="module-toolbar">
+          ${summaries.length>6 ? moduleSearchBox('inventorySearchInput','Search items by name, HSN or unit…',inventorySearchQuery) : ''}
+          <button class="btn small" id="inventoryAddItemBtn" type="button">＋ Add item</button>
+        </div>
+        <div class="filter-chips">${chip('','All items',summaries.length)}${chip('low','Low stock',lowStock)}${chip('out','Out of stock',outOfStock)}${chip('ok','In stock',okCount)}</div>
+        <div class="results-line" aria-live="polite">Showing ${Math.min(visible.length, inventoryLimit)} of ${visible.length} item${visible.length===1?'':'s'}${visible.length!==summaries.length?` (filtered from ${summaries.length})`:''} · stock value ₹${fmt(visibleValue)}</div>
+      </div></div>` : '';
+      let budget = inventoryLimit;
       const groupsHtml = STOCK_GROUPS.map(grp=>{
-        const groupItems = summaries.filter(r=>(r.item.group||'Primary')===grp && matches(r.item));
-        if(!groupItems.length) return '';
+        if(budget<=0) return '';
+        const groupAll = visible.filter(r=>(r.item.group||'Primary')===grp);
+        if(!groupAll.length) return '';
+        const groupItems = groupAll.slice(0, budget);
+        budget -= groupItems.length;
         return `
         <div class="section-title">${grp}</div>
         <div class="panel">
@@ -35368,7 +35485,7 @@ function viewInventory(){
                   const cls = out ? 'danger' : low ? 'warn' : '';
                   return `<span class="mini-bar" title="${fmt(summary.closing)} on hand vs reorder level ${fmt(item.reorderLevel)}"><span class="mini-bar-fill ${cls}" style="width:${pct.toFixed(0)}%;"></span></span>`;
                 })() : '';
-                return `<tr>
+                return `<tr class="${out?'row-out':low?'row-low':''}">
                   <td class="ccard-title" data-label="Item" data-stock-detail="${item.id}" style="cursor:pointer;">${item.name}<div class="muted" style="font-size:10.5px;">${item.unit||''}${item.hsn?' · HSN '+item.hsn:''}</div>${stockBar}</td>
                   <td class="num" data-label="Opening">${fmt(summary.opening)}</td>
                   <td class="num" data-label="Inward">${summary.inward?fmt(summary.inward):'—'}</td>
@@ -35380,9 +35497,9 @@ function viewInventory(){
                   <td data-label="Status">${statusBadge}</td>
                   <td class="ccard-actions" style="white-space:nowrap;">
                     <button class="btn small secondary" data-stock-adjust="${item.id}" type="button">Adjust</button>
-                    <button class="btn small secondary" data-print-barcode-labels="${item.id}" type="button" title="Print barcode labels for this item">🏷️ Labels</button>
                     <button class="btn small secondary" data-edit-item="${item.id}" type="button">Edit</button>
-                    <button class="btn small secondary" data-delete-item="${item.id}" type="button">Delete</button>
+                    <button class="btn small secondary icon-btn" data-print-barcode-labels="${item.id}" type="button" title="Print barcode labels for this item" aria-label="Print barcode labels for ${escapeAttr(item.name)}">🏷️</button>
+                    <button class="btn small secondary danger-quiet" data-delete-item="${item.id}" type="button">Delete</button>
                   </td>
                 </tr>`;
               }).join('')}
@@ -35390,11 +35507,52 @@ function viewInventory(){
           </div>
         </div>`;
       }).join('');
-      if(groupsHtml) return groupsHtml;
-      if(q) return `<div class="empty">No items match "${escapeHtml(inventorySearchQuery)}".</div>`;
+      const remaining = visible.length - Math.min(visible.length, inventoryLimit);
+      const more = remaining>0 ? `<div class="table-more"><button class="btn secondary" id="inventoryShowMoreBtn" type="button">Show ${Math.min(remaining, INVENTORY_PAGE)} more item${Math.min(remaining, INVENTORY_PAGE)===1?'':'s'} (${remaining} not shown)</button></div>` : '';
+      if(groupsHtml) return toolbar + groupsHtml + more;
+      if(summaries.length) return toolbar + `<div class="empty">No items match${q?` "${escapeHtml(inventorySearchQuery)}"`:''}${inventoryStatusFilter?` in this stock status`:''}. <button class="btn small secondary" id="inventoryClearFiltersBtn" type="button">Clear filters</button></div>`;
       return emptyState({icon:'📦', title:'No stock items yet', text:'Add items in the Accounts tab first.', ctaLabel:'Go to Accounts', ctaTab:'coa'});
     })()}
     <p class="muted" style="font-size:11px;">Closing stock = Opening Quantity + Purchases + Sales Returns (Credit Notes) − Sales − Purchase Returns (Debit Notes) ± manual adjustments. Click an item name for its full movement history.</p>
+
+    ${manageWarehousesPanel()}
+    ${stockByLocationTable()}
+    ${pendingTransfersPanel()}
+    ${cycleCountPanel()}
+
+    <details class="disclosure add-item-disclosure" id="addItemSection" ${(inventoryAddOpen||itemEditId||!state.items.length)?'open':''}>
+      <summary>${itemEditId ? 'Edit Stock Item' : '＋ Add New Item'}</summary>
+      <div class="disclosure-body">${stockItemForm()}</div>
+    </details>
+
+    ${(()=>{
+      const batches = batchRegister();
+      if(!batches.length) return '';
+      const expiringSoon = batches.filter(b=>b.qty>0 && b.daysToExpiry!=null && b.daysToExpiry>=0 && b.daysToExpiry<=30).length;
+      const expired = batches.filter(b=>b.qty>0 && b.expired).length;
+      return `
+      <div class="section-title">Batch &amp; Expiry Register ${expired?`<span class="pill neg" style="margin-left:6px;">${expired} expired</span>`:''}${expiringSoon?`<span class="pill neg" style="margin-left:6px;">${expiringSoon} expiring ≤30d</span>`:''}</div>
+      <div class="panel">
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll"><table class="rb-card-table">
+            <tr><th>Item</th><th>Batch No.</th><th class="num">Qty on Hand</th><th>Expiry Date</th><th>Status</th></tr>
+            ${batches.map(b=>{
+              const statusBadge = b.qty<=0 ? `<span class="pill">Nil stock</span>` : b.expired ? `<span class="pill neg">Expired</span>` : (b.daysToExpiry!=null && b.daysToExpiry<=30) ? `<span class="pill neg">Expires in ${b.daysToExpiry}d</span>` : `<span class="pill pos">OK</span>`;
+              return `<tr>
+                <td class="ccard-title" data-label="Item">${b.item.name}<div class="muted" style="font-size:10.5px;">${b.item.unit||''}</div></td>
+                <td data-label="Batch No.">${escapeAttr(b.batch)}</td>
+                <td class="num" data-label="Qty on Hand">${fmt(b.qty)} ${b.item.unit||''}</td>
+                <td data-label="Expiry Date">${b.expiry||'—'}</td>
+                <td data-label="Status">${statusBadge}</td>
+              </tr>`;
+            }).join('')}
+          </table></div>
+        </div>
+      </div>
+      <p class="muted" style="font-size:11px;">Batches are created by entering a Batch No. (and optional Expiry Date) on a voucher's item line, for any item with "Track batch number &amp; expiry date" enabled. Qty on Hand nets purchases/sales-returns in against sales/purchase-returns out for that batch.</p>
+      `;
+    })()}
+
 
     <details class="disclosure">
       <summary>Advanced — Serial Register, Customer Price Lists, ABC Analysis, Demand Forecast, Sales by Channel &amp; Inventory Analytics</summary>
@@ -35941,13 +36099,16 @@ function reportsLanding(){
         </div>` : ''}
       </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+    <div class="module-toolbar" style="margin-bottom:14px;">
+      ${moduleSearchBox('reportsFindInput','Find a report — e.g. balance, GST, cash, audit…',reportsFindQuery)}
       <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Export All (Excel)</button>
     </div>
+    <div class="results-line" id="reportsFindLine" aria-live="polite" style="margin:-4px 0 12px;"></div>
     ${groups.map(g=>{
       const inGroup = cards.filter(c=>c.group===g);
       if(!inGroup.length) return '';
       return `
+      <div class="report-group">
       <div class="section-title">${g}</div>
       <div class="grid report-card-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin-bottom:18px;">
         ${inGroup.map(c=>{
@@ -35964,22 +36125,42 @@ function reportsLanding(){
             </div>
           </div>
         `;}).join('')}
+      </div>
       </div>`;
     }).join('')}
+    <div class="empty" id="reportsFindEmpty" style="display:none;">No report matches that search. <button class="btn small secondary" id="reportsFindClearBtn" type="button">Clear search</button></div>
   `;
 }
+function stmtStatusPill(kind, text){ return `<span class="pill ${kind}">${text}</span>`; }
 function reportTrialBalance(){
   const tb = state.ledgers.map(l=>({l, b:ledgerBalance(l.id)}));
   const tbDr = tb.reduce((s,r)=>s + (r.b>0?r.b:0),0);
   const tbCr = tb.reduce((s,r)=>s + (r.b<0?-r.b:0),0);
   const flagMap = anomalyFlaggedLedgerIds();
+  const tbDiff = Math.abs(tbDr - tbCr);
+  const tbZero = r => Math.abs(r.b) < 0.005;
+  const nonZeroN = tb.filter(r=>!tbZero(r)).length, zeroN = tb.length - nonZeroN;
+  const tbq = tbSearchQuery.trim().toLowerCase();
+  const tbHidden = r => (tbq && !(r.l.name||'').toLowerCase().includes(tbq)) || (tbBalanceFilter==='balance' && tbZero(r)) || (tbBalanceFilter==='zero' && !tbZero(r));
+  const tbShown = tb.filter(r=>!tbHidden(r)).length;
+  const tbChip = (k,lab,n)=>`<button type="button" class="filter-chip ${tbBalanceFilter===k?'active':''}" data-tb-filter="${k}">${lab} <span class="chip-count">${n}</span></button>`;
   return `
     ${reportHeader('Trial Balance', 'exportTBBtn', null, 'printTBBtn')}
+    <p class="muted" style="font-size:11.5px;margin-top:-8px;">As at ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'long',year:'numeric'})}</p>
+    <div class="stmt-toolbar">
+      ${tbDiff<0.01 ? stmtStatusPill('pos','✓ Debit and Credit totals agree') : stmtStatusPill('neg',`Out of balance by ₹${fmt(tbDiff)} — ${tbDr>tbCr?'Debit':'Credit'} is higher`)}
+      <span class="muted" style="font-size:11.5px;">${tb.length} ledger${tb.length===1?'':'s'} · Dr ₹${fmt(tbDr)} · Cr ₹${fmt(tbCr)}</span>
+    </div>
+    ${tb.length>6 ? `<div class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="module-toolbar">${moduleSearchBox('tbSearchInput','Search ledgers…',tbSearchQuery)}</div>
+      <div class="filter-chips">${tbChip('all','All',tb.length)}${tbChip('balance','With balance',nonZeroN)}${tbChip('zero','Zero balance',zeroN)}</div>
+      <div class="results-line" id="tbResultsLine" aria-live="polite">Showing ${tbShown} of ${tb.length} ledgers — totals below always cover every ledger</div>
+    </div></div>` : ''}
     <div id="trialBalanceStatementBody">
     <div class="panel"><div class="panel-body" style="padding:0;">
-      <table class="rb-card-table statement-table">
+      <table class="rb-card-table statement-table tb-table">
         <tr><th scope="col">Ledger</th><th scope="col" class="num">Debit</th><th scope="col" class="num">Credit</th></tr>
-        ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}${anomalyBadge(r.l.id,flagMap)}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
+        ${tb.map(r=>`<tr data-ledger-detail="${r.l.id}" data-tb-name="${escapeAttr((r.l.name||'').toLowerCase())}" data-tb-zero="${tbZero(r)?1:0}" class="${tbZero(r)?'tb-zero':''}${tbHidden(r)?' tb-filtered':''}" style="cursor:pointer;"><td class="ccard-title" data-label="Ledger">${r.l.name}${anomalyBadge(r.l.id,flagMap)}</td><td class="num ccard-amount" data-label="Debit">${r.b>0?fmt(r.b):''}</td><td class="num ccard-amount" data-label="Credit">${r.b<0?fmt(r.b):''}</td></tr>`).join('')}
         <tr style="font-weight:600;border-top:2px solid var(--ink);"><td class="ccard-title" data-label="Ledger">Total</td><td class="num ccard-amount" data-label="Debit">₹${fmt(tbDr)}</td><td class="num ccard-amount" data-label="Credit">₹${fmt(tbCr)}</td></tr>
       </table>
     </div></div>
@@ -36003,7 +36184,11 @@ function reportIncomeStatement(){
   };
   return `
     ${reportHeader('Income Statement (Schedule III, Division I) — Statement of Profit and Loss', 'exportPLBtn', null, 'printPLBtn')}
-    <div id="incomeStatementStatementBody">
+    <div class="stmt-toolbar">
+      ${pl.profitForPeriod>=0 ? stmtStatusPill('pos',`Net profit ₹${fmt(pl.profitForPeriod)}`) : stmtStatusPill('neg',`Net loss ₹${fmt(-pl.profitForPeriod)}`)}
+      <button type="button" class="filter-chip ${stmtHideZero?'active':''}" id="stmtHideZeroBtn" aria-pressed="${stmtHideZero?'true':'false'}">Hide zero lines</button>
+    </div>
+    <div id="incomeStatementStatementBody" class="${stmtHideZero?'stmt-hide-zero':''}">
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">For the period ${fy.periodLabel}${hasPrev?` — compared to ${fy.prevPeriodLabel}`:''}</p>
     <div class="panel"><div class="panel-body" style="padding:0;">
       <table class="statement-table">
@@ -36059,7 +36244,12 @@ function reportBalanceSheet(){
 
   return `
     ${reportHeader('Balance Sheet (Schedule III, Division I)', 'exportBSBtn', null, 'printBSBtn')}
-    <div id="balanceSheetStatementBody">
+    <div class="stmt-toolbar">
+      ${Math.abs(bs.totalAssets-bs.totalEquityAndLiab)<0.01 ? stmtStatusPill('pos','✓ Total Assets = Total Equity and Liabilities') : stmtStatusPill('neg',`Out of balance by ₹${fmt(Math.abs(bs.totalAssets-bs.totalEquityAndLiab))}`)}
+      <span class="muted" style="font-size:11.5px;">Assets ₹${fmt(bs.totalAssets)} · Equity and Liabilities ₹${fmt(bs.totalEquityAndLiab)}</span>
+      <button type="button" class="filter-chip ${stmtHideZero?'active':''}" id="stmtHideZeroBtn" aria-pressed="${stmtHideZero?'true':'false'}">Hide zero lines</button>
+    </div>
+    <div id="balanceSheetStatementBody" class="${stmtHideZero?'stmt-hide-zero':''}">
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">As at ${fy.asOfLabel}${hasPrev?` — compared to ${fy.prevAsOfLabel}`:''}</p>
     <div class="panel">
       <div class="panel-head"><h2>I. Equity and Liabilities</h2></div>
@@ -39532,7 +39722,7 @@ function gstReadinessCard(){
   const d = gstReturnReadinessData(monthKey);
   const issueCount = d.missingGstinVouchers.length + d.missingHsnVouchers.length;
   return `
-    <div class="panel">
+    <div class="panel" id="gstReadinessCard">
       <div class="panel-head">
         <h2>🧾 GST Return Readiness</h2>
         <select id="gstReadinessMonthPicker">
@@ -39561,30 +39751,75 @@ function gstReadinessCard(){
     </div>
   `;
 }
+function gstSupplyRowHtml(v, g){
+  const invoice = voucherAmount(v);
+  const taxable = invoice - g.totalTax;
+  return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted ccard-title" data-label="Date">${v.date}</td><td class="ccard-title" data-label="Narration">${v.narration||'—'}</td><td class="num" data-label="Taxable">₹${fmt(taxable)}</td><td class="num" data-label="CGST">₹${fmt(g.cgst)}</td><td class="num" data-label="SGST">₹${fmt(g.sgst)}</td><td class="num" data-label="IGST">₹${fmt(g.igst)}</td><td class="num ccard-amount" data-label="Invoice Total">₹${fmt(invoice)}</td></tr>`;
+}
+// Module 12: filtered, totalled, paged supply table. Display only -- every figure still comes from
+// gstBreakdownForVoucher()/voucherAmount(); the totals row simply adds up the rows being shown.
+function gstSupplySection(title, anchorId, rows, limit, moreId, emptyTitle, emptyText){
+  const q = gstSearchQuery.trim().toLowerCase();
+  const filtered = rows.filter(({v})=> (gstMonthFilter==='all' || (v.date||'').slice(0,7)===gstMonthFilter) && (!q || `${v.narration||''} ${v.date||''}`.toLowerCase().includes(q)));
+  const shown = filtered.slice(0, limit);
+  const sum = filtered.reduce((a,{v,g})=>{ const inv = voucherAmount(v); a.taxable += inv - g.totalTax; a.cgst += g.cgst; a.sgst += g.sgst; a.igst += g.igst; a.inv += inv; return a; }, {taxable:0,cgst:0,sgst:0,igst:0,inv:0});
+  const remaining = filtered.length - shown.length;
+  const filtersOn = gstMonthFilter!=='all' || !!q;
+  let body;
+  if(!rows.length) body = emptyState({icon:'🧾', title:emptyTitle, text:emptyText});
+  else if(!filtered.length) body = `<div class="empty">No vouchers match these filters. <button class="btn small secondary" data-gst-clear type="button">Clear filters</button></div>`;
+  else body = `<div class="table-scroll"><table class="rb-card-table">
+        <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
+        ${shown.map(({v,g})=>gstSupplyRowHtml(v,g)).join('')}
+        <tr class="totals-row"><td class="ccard-title" data-label="Date" colspan="2">Total · ${filtered.length} voucher${filtered.length===1?'':'s'}${filtersOn?' (filtered)':''}</td><td class="num" data-label="Taxable">₹${fmt(sum.taxable)}</td><td class="num" data-label="CGST">₹${fmt(sum.cgst)}</td><td class="num" data-label="SGST">₹${fmt(sum.sgst)}</td><td class="num" data-label="IGST">₹${fmt(sum.igst)}</td><td class="num ccard-amount" data-label="Invoice Total">₹${fmt(sum.inv)}</td></tr>
+      </table></div>
+      ${remaining>0 ? `<div class="table-more"><button class="btn secondary" id="${moreId}" type="button">Show ${Math.min(remaining, GST_PAGE)} more (${remaining} not shown — totals above already include them)</button></div>` : ''}`;
+  return `
+    <div class="section-title" id="${anchorId}">${title} <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
+    <div class="panel"><div class="panel-body" style="padding:0;">${body}</div></div>`;
+}
 function viewGST(){
   const netGST = gstOutputTotal() - gstInputTotal();
   const outward = state.vouchers.filter(v=>v.type==='Sales').map(v=>({v, g:gstBreakdownForVoucher(v)})).filter(r=>r.g.totalTax>0);
   const inward = state.vouchers.filter(v=>v.type==='Purchase').map(v=>({v, g:gstBreakdownForVoucher(v)})).filter(r=>r.g.totalTax>0);
+  const gstMonths = Array.from(new Set([...outward, ...inward].map(r=>(r.v.date||'').slice(0,7)).filter(Boolean))).sort().reverse();
+  if(gstMonthFilter!=='all' && !gstMonths.includes(gstMonthFilter)) gstMonthFilter = 'all';
+  const monthLabel = m => new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  const rdMonth = gstReadinessMonth || new Date().toISOString().slice(0,7);
+  const rd = gstReturnReadinessData(rdMonth);
+  const rdIssues = rd.missingGstinVouchers.length + rd.missingHsnVouchers.length;
+  const gstQ = gstSearchQuery.trim().toLowerCase();
+  const gstShowFilters = (outward.length + inward.length) > 0;
+  const gstFiltersOn = gstMonthFilter!=='all' || !!gstQ;
+  const cntOut = outward.filter(({v})=> (gstMonthFilter==='all' || (v.date||'').slice(0,7)===gstMonthFilter) && (!gstQ || `${v.narration||''} ${v.date||''}`.toLowerCase().includes(gstQ))).length;
+  const cntIn = inward.filter(({v})=> (gstMonthFilter==='all' || (v.date||'').slice(0,7)===gstMonthFilter) && (!gstQ || `${v.narration||''} ${v.date||''}`.toLowerCase().includes(gstQ))).length;
 
   return `
     ${masthead('GST','Output tax, input credit, and filing-ready statements')}
     ${plainHintGST()}
 
+    <div class="stmt-toolbar" id="gstStatusRow">
+      ${rd.ready ? `<span class="pill pos">✓ ${monthLabel(rdMonth)}: filing-ready</span>`
+        : rdIssues ? `<span class="pill neg">⚠ ${rdIssues} thing${rdIssues===1?'':'s'} to fix before filing ${monthLabel(rdMonth)}</span><button class="btn small secondary" type="button" data-gst-jump="gstReadinessCard" style="margin-left:0;">Review</button>`
+        : `<span class="pill">No GST vouchers in ${monthLabel(rdMonth)}</span>`}
+      <span class="muted" style="font-size:11.5px;">Pick another month in GST Return Readiness below.</span>
+    </div>
+
     <div class="grid">
-      <div class="stat"><div class="label">Output Tax (Payable)</div><div class="val neg">₹${fmt(gstOutputTotal())}</div></div>
-      <div class="stat"><div class="label">Input Credit</div><div class="val pos">₹${fmt(gstInputTotal())}</div></div>
+      <div class="stat stat-link" data-gst-jump="gstOutwardSection" role="button" tabindex="0" title="Jump to outward supplies"><div class="label">Output Tax (Payable)</div><div class="val neg">₹${fmt(gstOutputTotal())}</div></div>
+      <div class="stat stat-link" data-gst-jump="gstInwardSection" role="button" tabindex="0" title="Jump to inward supplies"><div class="label">Input Credit</div><div class="val pos">₹${fmt(gstInputTotal())}</div></div>
       <div class="stat"><div class="label">Net GST ${netGST>=0?'Payable':'Refundable'}</div><div class="val ${netGST>=0?'neg':'pos'}">₹${fmt(Math.abs(netGST))}</div></div>
-      <div class="stat"><div class="label">GST Filings This Year</div><div class="val">${state.vouchers.filter(v=>(v.type==='Sales'||v.type==='Purchase') && gstBreakdownForVoucher(v).totalTax>0).length}</div></div>
+      <div class="stat"><div class="label">GST Vouchers Recorded</div><div class="val">${state.vouchers.filter(v=>(v.type==='Sales'||v.type==='Purchase') && gstBreakdownForVoucher(v).totalTax>0).length}</div></div>
     </div>
 
     <div class="panel">
       <div class="panel-head"><h2>GST Summary</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn small" id="downloadGSTBtn" type="button">⬇ Download GST Statement (GSTR format)</button>
           <button class="btn secondary small ${gstShowMonthCompare?'active':''}" id="gstCompareToggleBtn" type="button">📊 ${gstShowMonthCompare?'Hide':'Compare to Last Month'}</button>
           <button class="btn secondary small" id="viewGSTFormatsBtn" type="button">📋 GST Format</button>
           <button class="btn secondary small" id="openEInvoiceBtn" type="button">📄 e-Invoice / e-Way Bill</button>
           <button class="btn secondary small" id="openInvSettingsBtn" type="button">🎨 Invoice Template</button>
-          <button class="btn secondary small" id="downloadGSTBtn" type="button">⬇ Download GST Statement (GSTR format)</button>
         </div>
       </div>
       <div class="panel-body" style="padding:0;">
@@ -39612,29 +39847,16 @@ function viewGST(){
 
     ${gstReadinessCard()}
 
-    <div class="section-title">Outward Supplies (Sales) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
-    <div class="panel"><div class="panel-body" style="padding:0;">
-      ${outward.length ? `<table class="rb-card-table">
-        <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
-        ${outward.map(({v,g})=>{
-          const invoice = voucherAmount(v);
-          const taxable = invoice - g.totalTax;
-          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted ccard-title" data-label="Date">${v.date}</td><td class="ccard-title" data-label="Narration">${v.narration||'—'}</td><td class="num" data-label="Taxable">₹${fmt(taxable)}</td><td class="num" data-label="CGST">₹${fmt(g.cgst)}</td><td class="num" data-label="SGST">₹${fmt(g.sgst)}</td><td class="num" data-label="IGST">₹${fmt(g.igst)}</td><td class="num ccard-amount" data-label="Invoice Total">₹${fmt(invoice)}</td></tr>`;
-        }).join('')}
-      </table>` : emptyState({icon:'🧾', title:'No GST sales vouchers recorded yet', text:'Apply GST to a Sales voucher to see it here.'})}
-    </div></div>
-
-    <div class="section-title">Inward Supplies (Purchase) <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
-    <div class="panel"><div class="panel-body" style="padding:0;">
-      ${inward.length ? `<table class="rb-card-table">
-        <tr><th>Date</th><th>Narration</th><th class="num">Taxable</th><th class="num">CGST</th><th class="num">SGST</th><th class="num">IGST</th><th class="num">Invoice Total</th></tr>
-        ${inward.map(({v,g})=>{
-          const invoice = voucherAmount(v);
-          const taxable = invoice - g.totalTax;
-          return `<tr data-edit-voucher="${v.id}" style="cursor:pointer;"><td class="muted ccard-title" data-label="Date">${v.date}</td><td class="ccard-title" data-label="Narration">${v.narration||'—'}</td><td class="num" data-label="Taxable">₹${fmt(taxable)}</td><td class="num" data-label="CGST">₹${fmt(g.cgst)}</td><td class="num" data-label="SGST">₹${fmt(g.sgst)}</td><td class="num" data-label="IGST">₹${fmt(g.igst)}</td><td class="num ccard-amount" data-label="Invoice Total">₹${fmt(invoice)}</td></tr>`;
-        }).join('')}
-      </table>` : emptyState({icon:'🧾', title:'No GST purchase vouchers recorded yet', text:'Apply GST to a Purchase voucher to see it here.'})}
-    </div></div>
+    ${gstShowFilters ? `<div class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="module-toolbar">
+        ${(outward.length+inward.length)>6 ? moduleSearchBox('gstSearchInput','Search narration or date…',gstSearchQuery) : ''}
+        ${gstMonths.length>1 ? `<select id="gstMonthFilter" aria-label="Filter supplies by month"><option value="all">All months</option>${gstMonths.map(m=>`<option value="${m}" ${m===gstMonthFilter?'selected':''}>${monthLabel(m)}</option>`).join('')}</select>` : ''}
+        ${gstFiltersOn ? `<button class="btn small secondary" data-gst-clear type="button">Clear filters</button>` : ''}
+      </div>
+      <div class="results-line" aria-live="polite">Showing ${cntOut} of ${outward.length} outward and ${cntIn} of ${inward.length} inward vouchers${gstFiltersOn?' (filtered)':''}</div>
+    </div></div>` : ''}
+    ${gstSupplySection('Outward Supplies (Sales)','gstOutwardSection',outward,gstOutLimit,'gstOutMoreBtn','No GST sales vouchers recorded yet','Apply GST to a Sales voucher to see it here.')}
+    ${gstSupplySection('Inward Supplies (Purchase)','gstInwardSection',inward,gstInLimit,'gstInMoreBtn','No GST purchase vouchers recorded yet','Apply GST to a Purchase voucher to see it here.')}
     <p class="muted" style="font-size:11.5px;">Note: only Sales/Purchase vouchers where GST was applied via the GST Calculator appear here. Use the Voucher tab to record a taxable sale or purchase.</p>
   `;
 }
@@ -42156,6 +42378,7 @@ function viewPayroll(){
   const years = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month.slice(0,4)))).sort((a,b)=>b.localeCompare(a));
   const filteredPayslips = state.salaryVouchers.filter(sv=> payslipYearFilter==='all' || sv.month.startsWith(payslipYearFilter));
   const recentPayslips = filteredPayslips.slice().sort((a,b)=> b.month.localeCompare(a.month) || b.generatedAt.localeCompare(a.generatedAt));
+  const searchedPayslips = (()=>{ const pq = payslipSearchQuery.trim().toLowerCase(); if(!pq) return recentPayslips; return recentPayslips.filter(sv=>{ const e = state.employees.find(x=>x.id===sv.employeeId); return sv.month.includes(pq) || (e && (e.name||'').toLowerCase().includes(pq)); }); })();
   const monthsWithPayroll = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
   const totalDaysThisMonth = daysInPayrollMonth(payrollMonth);
   const resignedEmployees = state.employees.filter(e=>e.active===false);
@@ -42172,26 +42395,52 @@ function viewPayroll(){
     ${plainHintPayroll()}
     <div class="bento-grid">
       <div class="stat bento-hero"><div class="label">Monthly Payroll (Net)</div><div class="val">₹${fmt(totalMonthlyPayroll)}</div></div>
-      <div class="stat"><div class="label">Active Employees</div><div class="val">${activeEmployees.length}</div></div>
+      <div class="stat stat-link" data-payroll-jump="employees:active" role="button" tabindex="0" title="Show active employees"><div class="label">Active Employees</div><div class="val">${activeEmployees.length}</div></div>
       <div class="stat"><div class="label">Monthly Cost to Company</div><div class="val">₹${fmt(totalMonthlyCTC)}</div></div>
-      <div class="stat"><div class="label">Payslips Generated</div><div class="val">${state.salaryVouchers.length}</div></div>
-      <div class="stat"><div class="label">Resigned Employees</div><div class="val">${resignedEmployees.length}</div></div>
+      <div class="stat stat-link" data-payroll-jump="payslips:" role="button" tabindex="0" title="Open payslips"><div class="label">Payslips Generated</div><div class="val">${state.salaryVouchers.length}</div></div>
+      <div class="stat stat-link" data-payroll-jump="employees:resigned" role="button" tabindex="0" title="Show resigned employees"><div class="label">Resigned Employees</div><div class="val">${resignedEmployees.length}</div></div>
     </div>
     <div class="vtype-tabs" style="margin-bottom:18px;">
-      ${Object.keys(PAYROLL_SUBTABS).map(k=>`<button data-payroll-subtab="${k}" type="button" class="${payrollSubTab===k?'active':''}">${PAYROLL_SUBTABS[k]}</button>`).join('')}
+      ${Object.keys(PAYROLL_SUBTABS).map(k=>{
+        const cnt = k==='employees' ? state.employees.length
+          : k==='loans' ? state.employeeLoans.filter(l=>l.outstanding>0.001 && l.active!==false).length
+          : k==='settlements' ? state.fnfSettlements.length
+          : k==='payslips' ? state.salaryVouchers.length : 0;
+        const pendingRun = k==='run' ? activeEmployees.filter(e=>!paidThisMonth.has(e.id)).length : 0;
+        const badge = k==='run' ? (pendingRun ? `<span class="tab-count warn" title="${pendingRun} not yet paid for ${payrollMonth}">${pendingRun}</span>` : '')
+          : (cnt ? `<span class="tab-count">${cnt}</span>` : '');
+        return `<button data-payroll-subtab="${k}" type="button" class="${payrollSubTab===k?'active':''}">${PAYROLL_SUBTABS[k]}${badge}</button>`;
+      }).join('')}
     </div>
 
     ${payrollSubTab==='employees' ? `
     <div class="section-title">Employees</div>
+    ${state.employees.length ? (()=>{
+      const eq = employeeSearchQuery.trim().toLowerCase();
+      const shownEmps = state.employees.filter(e=> (!eq || [e.name,e.code,e.designation,e.department].some(x=>(x||'').toLowerCase().includes(eq))) && (!employeeStatusFilter || (employeeStatusFilter==='active' ? e.active!==false : e.active===false)));
+      const chip = (k,lab,n)=>`<button type="button" class="filter-chip ${employeeStatusFilter===k?'active':''}" data-emp-status="${k}">${lab} <span class="chip-count">${n}</span></button>`;
+      return `<div class="panel"><div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="module-toolbar">
+          ${state.employees.length>6 ? moduleSearchBox('employeeSearchInput','Search by name, code, designation or department…',employeeSearchQuery) : ''}
+          <button class="btn small" id="employeeAddBtn" type="button">＋ Add employee</button>
+        </div>
+        <div class="filter-chips">${chip('','All',state.employees.length)}${chip('active','Active',activeEmployees.length)}${chip('resigned','Resigned',resignedEmployees.length)}</div>
+        <div class="results-line" aria-live="polite">Showing ${shownEmps.length} of ${state.employees.length} employee${state.employees.length===1?'':'s'}${shownEmps.length!==state.employees.length?' (filtered)':''}</div>
+      </div></div>`;
+    })() : ''}
     <div class="panel">
       <div class="panel-body" style="padding:0;">
-        ${state.employees.length ? `<table class="rb-card-table">
+        ${state.employees.length ? (()=>{
+          const eq2 = employeeSearchQuery.trim().toLowerCase();
+          const empRows = state.employees.filter(e=> (!eq2 || [e.name,e.code,e.designation,e.department].some(x=>(x||'').toLowerCase().includes(eq2))) && (!employeeStatusFilter || (employeeStatusFilter==='active' ? e.active!==false : e.active===false)));
+          if(!empRows.length) return `<div class="empty">No employees match. <button class="btn small secondary" id="employeeClearFiltersBtn" type="button">Clear filters</button></div>`;
+          return `<div class="table-scroll"><table class="rb-card-table">
           <tr><th>Code</th><th>Name</th><th>Designation</th><th class="num">Gross/mo</th><th class="num">Net/mo</th><th class="num">CTC/mo</th><th>Status</th><th></th></tr>
-          ${state.employees.map(e=>{
+          ${empRows.map(e=>{
             const hasHistory = state.salaryVouchers.some(sv=>sv.employeeId===e.id) || hasFnfSettlement(e.id) || state.employeeLoans.some(l=>l.employeeId===e.id);
             const loanOut = employeeLoanOutstanding(e.id);
             const settled = hasFnfSettlement(e.id);
-            return `<tr>
+            return `<tr class="${e.active===false?'row-resigned':''}">
             <td class="muted" data-label="Code">${escapeHtml(e.code||'—')}</td>
             <td class="ccard-title" data-label="Name">${escapeHtml(e.name)}${loanOut>0?`<div class="muted" style="font-size:10.5px;">Loan outstanding: ₹${fmt(loanOut)}</div>`:''}</td>
             <td class="muted" data-label="Designation">${escapeHtml(e.designation||'—')}</td>
@@ -42201,17 +42450,18 @@ function viewPayroll(){
             <td data-label="Status">${e.active!==false ? `<span class="pill pos">Active</span>` : `<span class="pill neg">Resigned${e.resignDate?' '+escapeHtml(e.resignDate):''}</span>`}${settled?` <span class="pill pos">F&amp;F Settled</span>`:''}</td>
             <td class="ccard-actions" data-label="Actions">
               <button class="btn small secondary" data-edit-employee="${e.id}" type="button">Edit</button>
-              <button class="btn small secondary" data-employee-documents="${e.id}" type="button">📁 Documents${(employeeDocumentsCache[e.id]||[]).length?` (${employeeDocumentsCache[e.id].length})`:''}</button>
+              <button class="btn small secondary" data-employee-documents="${e.id}" type="button" title="Employee documents" aria-label="Employee documents">📁 Docs${(employeeDocumentsCache[e.id]||[]).length?` (${employeeDocumentsCache[e.id].length})`:''}</button>
               <button class="btn small secondary" data-toggle-employee="${e.id}" type="button">${e.active!==false?'Resign':'Reactivate'}</button>
               ${e.active===false && !settled ? `<button class="btn small secondary" data-run-fnf="${e.id}" type="button">Run F&amp;F</button>` : ''}
               ${settled ? `<button class="btn small secondary" data-print-fnf="${state.fnfSettlements.find(f=>f.employeeId===e.id).id}" type="button">🖨 Settlement</button>` : ''}
-              <button class="btn small secondary" data-delete-employee="${e.id}" type="button" style="color:var(--debit);" title="${hasHistory?'Has payroll/loan/settlement history — admin or override password required':''}">${hasHistory?'🔒 Delete':'Delete'}</button>
+              <button class="btn small secondary danger-quiet" data-delete-employee="${e.id}" type="button" title="${hasHistory?'Has payroll/loan/settlement history — admin or override password required':''}">${hasHistory?'🔒 Delete':'Delete'}</button>
             </td>
           </tr>`;}).join('')}
-        </table>` : emptyState({icon:'🧑‍💼', title:'No employees yet', text:'Add one below to start running payroll.'})}
+        </table></div>`;
+        })() : emptyState({icon:'🧑‍💼', title:'No employees yet', text:'Add one below to start running payroll.'})}
       </div>
     </div>
-    <div class="panel"><div class="panel-body">
+    <div class="panel" id="employeeFormAnchor"><div class="panel-body">
       ${employeeDraft ? employeeDraftForm() : `<button class="btn secondary small" id="newEmployeeBtn" type="button">+ Add Employee</button>`}
     </div></div>
     ` : ''}
@@ -42281,7 +42531,22 @@ function viewPayroll(){
           <div class="field" style="max-width:150px;"><label>Days in Month</label><input type="text" value="${totalDaysThisMonth}" disabled></div>
         </div>
         ${!payFromOptions.length ? `<p class="muted" style="font-size:12px;">Add a Bank or Cash ledger (Accounts tab) before running payroll.</p>` : ''}
-        ${activeEmployees.length ? `<table class="rb-card-table" style="margin-top:8px;">
+        ${activeEmployees.length ? (()=>{
+          const runRows = activeEmployees.map(e=>{
+            const lop = Math.max(0, Number(payrollLopDays[e.id])||0);
+            const pr = proratedSalaryFigures(e, Math.max(0,totalDaysThisMonth-lop), totalDaysThisMonth);
+            const emi = Math.min(employeeLoanEmiDue(e.id), pr.netPay);
+            return { e, net: pr.netPay, emi, take: r2(pr.netPay-emi), paid: paidThisMonth.has(e.id) };
+          });
+          const pend = runRows.filter(r=>!r.paid);
+          const pendTotal = r2(pend.reduce((a,r)=>a+r.take,0));
+          return `<div class="bento-grid run-summary" style="margin:10px 0 4px;">
+            <div class="stat"><div class="label">To pay this run</div><div class="val">₹${fmt(pendTotal)}</div></div>
+            <div class="stat"><div class="label">Pending</div><div class="val ${pend.length?'neg':''}">${pend.length} of ${runRows.length}</div></div>
+            <div class="stat"><div class="label">Already paid</div><div class="val ${runRows.length-pend.length?'pos':''}">${runRows.length-pend.length}</div></div>
+          </div>`;
+        })() : ''}
+        ${activeEmployees.length ? `<div class="table-scroll"><table class="rb-card-table" style="margin-top:8px;">
           <tr><th>Employee</th><th class="num" style="width:90px;">LOP Days</th><th class="num">Payable Days</th><th class="num">Prorated Net</th><th class="num">Loan EMI</th><th class="num">Take-Home</th><th>Status</th></tr>
           ${activeEmployees.map(e=>{
             const lop = Math.max(0, Number(payrollLopDays[e.id])||0);
@@ -42297,9 +42562,11 @@ function viewPayroll(){
             <td class="num" data-label="Prorated Net">₹${fmt(prorated.netPay)}</td>
             <td class="num ${emi>0?'neg':''}" data-label="Loan EMI">${emi>0?'− ₹'+fmt(emi):'—'}</td>
             <td class="num" style="font-weight:700;" data-label="Take-Home">₹${fmt(takeHome)}</td>
-            <td data-label="Status">${already ? `<span class="muted">Already paid for ${payrollMonth}</span>` : `<span class="muted">Pending</span>`}</td>
+            <td data-label="Status">${already ? `<span class="pill pos" title="Already paid for ${payrollMonth}">Paid ${payrollMonth}</span>` : `<span class="pill">Pending</span>`}</td>
           </tr>`;}).join('')}
-        </table>
+          ${(()=>{ let n=0,e2=0,t=0; activeEmployees.forEach(e=>{ const lop=Math.max(0,Number(payrollLopDays[e.id])||0); const pr=proratedSalaryFigures(e,Math.max(0,totalDaysThisMonth-lop),totalDaysThisMonth); const emi=Math.min(employeeLoanEmiDue(e.id),pr.netPay); n+=pr.netPay; e2+=emi; t+=r2(pr.netPay-emi); });
+            return `<tr class="totals-row"><td class="ccard-title" data-label="Employee">Total · ${activeEmployees.length} employee${activeEmployees.length===1?'':'s'}</td><td></td><td></td><td class="num" data-label="Prorated Net">₹${fmt(r2(n))}</td><td class="num" data-label="Loan EMI">${e2>0?'− ₹'+fmt(r2(e2)):'—'}</td><td class="num" data-label="Take-Home">₹${fmt(r2(t))}</td><td></td></tr>`; })()}
+        </table></div>
         <button class="btn" id="generatePayrollBtn" type="button" style="margin-top:10px;" ${payFromOptions.length?'':'disabled'}>Generate Payroll for ${payrollMonth}</button>
         <p class="muted" style="font-size:11px;margin-top:8px;">LOP Days = days of unpaid leave this month. Earnings and statutory deductions are prorated straight-line by payable days; Bonus and loan EMI are not prorated.</p>
         ` : `<p class="muted" style="font-size:12px;margin-top:8px;">Add an active employee above first.</p>`}
@@ -42324,10 +42591,14 @@ function viewPayroll(){
           <button class="btn small secondary" id="downloadBankTransferBtn" type="button">⬇ Bank Transfer File</button>` : ''}
         </div>
       </div>
+      ${state.salaryVouchers.length>6 ? `<div class="panel-body" style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;">
+        <div class="module-toolbar">${moduleSearchBox('payslipSearchInput','Search by employee name or month (e.g. 2026-10)…',payslipSearchQuery)}</div>
+        <div class="results-line" aria-live="polite">Showing ${Math.min(searchedPayslips.length, payslipLimit)} of ${searchedPayslips.length} payslip${searchedPayslips.length===1?'':'s'}${searchedPayslips.length!==filteredPayslips.length?` (filtered from ${filteredPayslips.length})`:''}</div>
+      </div>` : ''}
       <div class="panel-body" style="padding:0;">
-        ${recentPayslips.length ? `<table class="rb-card-table">
+        ${searchedPayslips.length ? `<div class="table-scroll"><table class="rb-card-table">
           <tr><th>Month</th><th>Employee</th><th class="num">Net Pay</th><th>Paid Via</th><th>Status</th><th></th></tr>
-          ${recentPayslips.map(sv=>{
+          ${searchedPayslips.slice(0,payslipLimit).map(sv=>{
             const e = state.employees.find(x=>x.id===sv.employeeId);
             const payFromLedger = sv.payFromLedgerId ? ledgerOf(sv.payFromLedgerId) : null;
             return `<tr>
@@ -42339,7 +42610,7 @@ function viewPayroll(){
               <td class="ccard-actions" data-label="Actions"><button class="btn small secondary" data-print-payslip="${sv.id}" type="button">🖨 Payslip</button> <button class="btn small secondary" data-ledger-detail="${salariesLedgerId||''}" type="button">View in Salary Ledger</button> <button class="btn small secondary" data-void-payslip="${sv.id}" type="button" style="color:var(--debit);">Void</button></td>
             </tr>`;
           }).join('')}
-        </table>` : emptyState({icon:'💰', title:'No payroll run yet', text:'Run payroll above to see settlements here.'})}
+        </table></div>${searchedPayslips.length>payslipLimit ? `<div class="table-more"><button class="btn secondary" id="payslipShowMoreBtn" type="button">Show ${Math.min(searchedPayslips.length-payslipLimit,PAYSLIP_PAGE)} more (${searchedPayslips.length-payslipLimit} not shown)</button></div>` : ''}` : (recentPayslips.length ? `<div class="empty">No payslips match. <button class="btn small secondary" id="payslipClearBtn" type="button">Clear search</button></div>` : emptyState({icon:'💰', title:'No payroll run yet', text:'Run payroll above to see settlements here.'}))}
       </div>
     </div>
     <p class="muted" style="font-size:11px;">Running payroll posts one Journal voucher per employee for the month: the shared "${EMPLOYEE_SALARY_LEDGER_NAME}" ledger (Indirect Expenses) is debited with that employee's gross pay, the chosen Pay From ledger is credited with their take-home pay, "${SALARY_DEDUCTIONS_LEDGER_NAME}" is credited with anything withheld (PF/ESI/PT/TDS/other), and "${EMPLOYEE_LOAN_LEDGER_NAME}" is credited with any loan EMI recovered. If Employer PF/ESI apply, "${EMPLOYER_CONTRIB_LEDGER_NAME}" is also debited and "${EMPLOYER_CONTRIB_PAYABLE_LEDGER_NAME}" credited for the company's own contribution. Every employee's name and amount shows as its own line in these ledgers' statements, and all reports (P&amp;L, Trial Balance, Cash/Bank Book) pick it up automatically. Use "Void" on a payslip to reverse just that employee's entry for the month — it deletes the linked voucher and restores any loan balance it had recovered. The Bank Transfer File is a plain CSV (Beneficiary Name, Account Number, IFSC, Bank Name, Amount, Narration) for the month's take-home pay, ready to upload to most banks' bulk NEFT/RTGS portals — employees missing bank details are skipped and listed in a warning.</p>
@@ -43497,8 +43768,28 @@ function attachHandlers(){
     const el = document.getElementById('itemMasterSearchInput');
     if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
   });
+  document.querySelectorAll('[data-inv-status]').forEach(el=>{
+    el.addEventListener('click', ()=>{ inventoryStatusFilter = el.dataset.invStatus; inventoryLimit = INVENTORY_PAGE; render(); });
+  });
+  document.querySelectorAll('[data-inv-filter]').forEach(el=>{
+    const go = ()=>{
+      inventoryStatusFilter = inventoryStatusFilter===el.dataset.invFilter ? '' : el.dataset.invFilter;
+      inventoryLimit = INVENTORY_PAGE; render();
+      document.getElementById('inventoryListTop')?.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
+  });
+  document.getElementById('inventoryShowMoreBtn')?.addEventListener('click', ()=>{ inventoryLimit += INVENTORY_PAGE; render(); });
+  document.getElementById('inventoryClearFiltersBtn')?.addEventListener('click', ()=>{ inventorySearchQuery=''; inventoryStatusFilter=''; inventoryLimit = INVENTORY_PAGE; render(); });
+  document.getElementById('inventoryAddItemBtn')?.addEventListener('click', ()=>{
+    const d = document.getElementById('addItemSection');
+    if(d){ d.open = true; inventoryAddOpen = true; d.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(()=>document.getElementById('newItemName')?.focus(), 350); }
+  });
+  document.getElementById('addItemSection')?.addEventListener('toggle', (e)=>{ if(e.target.tagName==='DETAILS' && !itemEditId) inventoryAddOpen = e.target.open; });
   document.getElementById('inventorySearchInput')?.addEventListener('input', (e)=>{
     inventorySearchQuery = e.target.value;
+    inventoryLimit = INVENTORY_PAGE;
     const caret = e.target.selectionStart;
     render();
     const el = document.getElementById('inventorySearchInput');
@@ -43840,6 +44131,29 @@ function attachHandlers(){
         render();
       });
     });
+    document.querySelectorAll('[data-payroll-jump]').forEach(el=>{
+      const go = ()=>{ const [tabk, filt] = el.dataset.payrollJump.split(':'); payrollSubTab = tabk; if(tabk==='employees'){ employeeStatusFilter = (employeeStatusFilter===filt ? '' : filt); employeeSearchQuery=''; } render(); };
+      el.addEventListener('click', go);
+      el.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
+    });
+    document.querySelectorAll('[data-emp-status]').forEach(el=>{ el.addEventListener('click', ()=>{ employeeStatusFilter = el.dataset.empStatus; render(); }); });
+    document.getElementById('employeeClearFiltersBtn')?.addEventListener('click', ()=>{ employeeStatusFilter=''; employeeSearchQuery=''; render(); });
+    document.getElementById('employeeSearchInput')?.addEventListener('input', (e)=>{
+      employeeSearchQuery = e.target.value;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('employeeSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.getElementById('payslipSearchInput')?.addEventListener('input', (e)=>{
+      payslipSearchQuery = e.target.value; payslipLimit = PAYSLIP_PAGE;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('payslipSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.getElementById('payslipShowMoreBtn')?.addEventListener('click', ()=>{ payslipLimit += PAYSLIP_PAGE; render(); });
+    document.getElementById('payslipClearBtn')?.addEventListener('click', ()=>{ payslipSearchQuery=''; payslipLimit = PAYSLIP_PAGE; render(); });
+    document.getElementById('employeeAddBtn')?.addEventListener('click', ()=>{
+      document.getElementById('newEmployeeBtn')?.click();
+      setTimeout(()=>{ document.getElementById('employeeFormAnchor')?.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
+    });
     document.getElementById('newEmployeeBtn')?.addEventListener('click', ()=>{
       if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
       employeeDraft = { name:'', designation:'', department:'', employmentType:'Full-time', joinDate: new Date().toISOString().slice(0,10), resignDate:'', pan:'', uan:'', esiNumber:'', bankName:'', bankAccount:'', bankIFSC:'', basic:0, hra:0, allowances:0, bonus:0, pf:0, esi:0, pt:0, tds:0, otherDeductions:0, employerPF:0, employerESI:0 };
@@ -43862,6 +44176,7 @@ function attachHandlers(){
           employerPF:ec.pf, employerESI:ec.esi,
         };
         render();
+        document.getElementById('employeeFormAnchor')?.scrollIntoView({behavior:'smooth', block:'start'});
       });
     });
     document.querySelectorAll('[data-toggle-employee]').forEach(el=>{
@@ -44064,7 +44379,12 @@ function attachHandlers(){
     document.querySelectorAll('[data-lop-employee]').forEach(el=>{
       el.addEventListener('change', ()=>{
         payrollLopDays[el.dataset.lopEmployee] = Math.max(0, Number(el.value)||0);
-        render();
+        // repaint after focus has moved on, then put the cursor back where the user went (Tab keeps its place)
+        setTimeout(()=>{
+          const a = document.activeElement; const nextId = a && a.dataset && a.dataset.lopEmployee;
+          render();
+          if(nextId){ const n = document.querySelector('[data-lop-employee="'+nextId+'"]'); if(n){ n.focus(); try{ n.select(); }catch(err){} } }
+        }, 0);
       });
     });
     document.getElementById('payrollMonthInput')?.addEventListener('change', e=>{ payrollMonth = e.target.value; payrollLopDays = {}; render(); });
@@ -46762,6 +47082,53 @@ function attachHandlers(){
       if(csv) downloadCSV(csv.header, csv.rows, csv.filename);
     });
     document.getElementById('exportExcelBtn')?.addEventListener('click', exportReportsToExcel);
+    // Module 11: display-only statement helpers (never change a figure; print/export read the data, not these classes)
+    const applyTbFilter = ()=>{
+      const q = tbSearchQuery.trim().toLowerCase(); let shown = 0, total = 0;
+      document.querySelectorAll('.tb-table tr[data-tb-name]').forEach(tr=>{
+        total++; const z = tr.dataset.tbZero==='1';
+        const hide = (q && !tr.dataset.tbName.includes(q)) || (tbBalanceFilter==='balance' && z) || (tbBalanceFilter==='zero' && !z);
+        tr.classList.toggle('tb-filtered', !!hide); if(!hide) shown++;
+      });
+      const line = document.getElementById('tbResultsLine');
+      if(line) line.textContent = `Showing ${shown} of ${total} ledgers${shown!==total?' (filtered)':''} — totals below always cover every ledger`;
+      document.querySelectorAll('[data-tb-filter]').forEach(b=>b.classList.toggle('active', b.dataset.tbFilter===tbBalanceFilter));
+    };
+    document.getElementById('tbSearchInput')?.addEventListener('input', e=>{ tbSearchQuery = e.target.value; applyTbFilter(); });
+    document.querySelectorAll('[data-tb-filter]').forEach(b=>b.addEventListener('click', ()=>{ tbBalanceFilter = b.dataset.tbFilter; applyTbFilter(); }));
+    const ZERO_RE = /^\(?\s*₹?\s*0(\.0+)?\s*\)?$/;
+    document.querySelectorAll('#incomeStatementStatementBody .statement-table, #balanceSheetStatementBody .statement-table').forEach(tbl=>{
+      let group = [], header = null;
+      const flush = ()=>{ if(header && group.length && group.every(r=>r.classList.contains('stmt-zero'))) header.classList.add('stmt-zero'); };
+      tbl.querySelectorAll('tr').forEach(tr=>{
+        const isHead = !!tr.querySelector('th[colspan]'), isCols = !isHead && !!tr.querySelector('th');
+        if(isCols) return;
+        if(isHead){ flush(); header = tr; group = []; return; }
+        const nums = [...tr.querySelectorAll('td.num')].map(td=>td.textContent.trim());
+        const zero = nums.length>0 && nums.every(t=>t===''||ZERO_RE.test(t)) && !tr.hasAttribute('data-ledger-detail') && !tr.querySelector('td.empty');
+        if(zero) tr.classList.add('stmt-zero');
+        group.push(tr);
+      });
+      flush();
+    });
+    document.getElementById('stmtHideZeroBtn')?.addEventListener('click', ()=>{
+      stmtHideZero = !stmtHideZero;
+      document.querySelectorAll('#incomeStatementStatementBody, #balanceSheetStatementBody').forEach(el=>el.classList.toggle('stmt-hide-zero', stmtHideZero));
+      const b = document.getElementById('stmtHideZeroBtn'); if(b){ b.classList.toggle('active', stmtHideZero); b.setAttribute('aria-pressed', stmtHideZero?'true':'false'); }
+    });
+    const applyReportsFind = ()=>{
+      const q = reportsFindQuery.trim().toLowerCase(); let shown = 0, total = 0;
+      document.querySelectorAll('.report-card').forEach(c=>{
+        total++; const hide = q && !c.textContent.toLowerCase().includes(q);
+        c.classList.toggle('rc-filtered', !!hide); if(!hide) shown++;
+      });
+      document.querySelectorAll('.report-group').forEach(g=>g.classList.toggle('rc-filtered', !g.querySelector('.report-card:not(.rc-filtered)')));
+      const line = document.getElementById('reportsFindLine'); if(line) line.textContent = q ? `Showing ${shown} of ${total} reports` : '';
+      const empty = document.getElementById('reportsFindEmpty'); if(empty) empty.style.display = (q && !shown) ? '' : 'none';
+    };
+    if(document.getElementById('reportsFindInput')) applyReportsFind();
+    document.getElementById('reportsFindInput')?.addEventListener('input', e=>{ reportsFindQuery = e.target.value; applyReportsFind(); });
+    document.getElementById('reportsFindClearBtn')?.addEventListener('click', ()=>{ reportsFindQuery = ''; const i = document.getElementById('reportsFindInput'); if(i){ i.value=''; i.focus(); } applyReportsFind(); });
     document.getElementById('exportTBBtn')?.addEventListener('click', exportTrialBalanceToExcel);
     document.getElementById('exportPLBtn')?.addEventListener('click', exportPLToExcel);
     document.getElementById('exportBSBtn')?.addEventListener('click', exportBalanceSheetToExcel);
@@ -47020,6 +47387,20 @@ function attachHandlers(){
       gstReadinessMonth = e.target.value;
       render();
     });
+    document.querySelectorAll('[data-gst-jump]').forEach(el=>{
+      const go = ()=>{ const t = document.getElementById(el.dataset.gstJump); if(t) t.scrollIntoView({behavior:'smooth', block:'start'}); };
+      el.addEventListener('click', go);
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
+    });
+    document.getElementById('gstSearchInput')?.addEventListener('input', e=>{
+      gstSearchQuery = e.target.value; gstOutLimit = gstInLimit = GST_PAGE;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('gstSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.getElementById('gstMonthFilter')?.addEventListener('change', e=>{ gstMonthFilter = e.target.value; gstOutLimit = gstInLimit = GST_PAGE; render(); });
+    document.querySelectorAll('[data-gst-clear]').forEach(el=>el.addEventListener('click', ()=>{ gstSearchQuery=''; gstMonthFilter='all'; gstOutLimit = gstInLimit = GST_PAGE; render(); }));
+    document.getElementById('gstOutMoreBtn')?.addEventListener('click', ()=>{ gstOutLimit += GST_PAGE; render(); });
+    document.getElementById('gstInMoreBtn')?.addEventListener('click', ()=>{ gstInLimit += GST_PAGE; render(); });
   }
   if(modal==='invoiceSettings'){
     document.getElementById('invTemplate')?.addEventListener('change', e=>{ invoiceSettingsDraft.template = e.target.value; });
