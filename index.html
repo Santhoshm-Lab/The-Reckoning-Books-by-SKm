@@ -871,6 +871,7 @@
   .mini-bar{display:block;width:100%;max-width:96px;height:6px;border-radius:999px;background:var(--border);overflow:hidden;}
   .mini-bar-fill{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent2),var(--accent1));}
   .mini-bar-fill.warn{background:var(--gold);}
+  .muted .mini-bar{display:inline-block;width:72px;vertical-align:middle;margin-left:6px;}
   .mini-bar-fill.danger{background:var(--debit);}
   .mini-bar-label{display:block;font-size:9.5px;color:var(--ink-faint);margin-top:3px;font-weight:700;}
 
@@ -3197,6 +3198,23 @@
   }
   #gstStatusRow .btn{margin-left:0;}
   #gstMonthFilter{width:auto;min-width:170px;}
+  /* ===== Module 14 / round 3 (Nov 2026): Reconcile ===== */
+  .recon-filters{padding:12px 16px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--border);}
+  #reconTxnPanel .table-more{border-top:1px solid var(--border);}
+  /* ===== Module 15 / round 3 (Nov 2026): Assets, Orders, Calendar agenda ===== */
+  .vtype-tabs .vt-count{display:inline-block;margin-left:6px;min-width:18px;padding:0 6px;border-radius:999px;background:color-mix(in srgb, var(--ink) 10%, transparent);font-size:10.5px;font-weight:800;text-align:center;}
+  .vtype-tabs button.active .vt-count{background:rgba(255,255,255,.28);}
+  #calAgendaSearchInput{min-width:0;}
+  #calMonthSelect{min-width:128px;}
+  #calYearSelect{min-width:84px;}
+  /* ===== Module 16 / round 3 (Nov 2026): Ratios, Cash Flow, Forecast, ECL ===== */
+  .ratio-def{font-size:10.5px;font-weight:500;color:var(--ink-faint);margin-top:1px;}
+  .ratio-glance{margin-bottom:14px;}
+  .ratio-glance .stat .pill{font-size:10.5px;}
+  .cf-summary{margin-bottom:14px;}
+  @media (min-width:761px){ .cf-summary{grid-template-columns:repeat(3,minmax(0,1fr));} }
+  .field:has(> .ecl-rate-input){display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:5px;}
+  .field:has(> .ecl-rate-input) > label{grid-column:1 / -1;}
   /* ===== Admin Panel light/dark (Nov 2026) ===== */
   .admin-console-topbar{gap:10px;}
   .admin-theme-btn{white-space:nowrap;}
@@ -7621,6 +7639,13 @@ let adminAuditRangeDays = 'all'; // 'all' | 1 | 7 | 30 — date-range filter on 
    adminTab / modal==='adminPanel' state above — a support user never reaches that modal at all. */
 let groupAdminTab = 'overview';   // 'overview' | 'users' | 'support' | 'settings' | 'audit' — which tab the Group Admin modal shows
 let groupUserSearch = '';         // search box text on the Group Admin Users tab (matches name/username/email/mobile)
+const GROUP_PAGE = 25;              // round 3: Group Admin rows per "Show more"
+let groupUserFilter = 'all';        // 'all' | 'active' | 'blocked' -- display filter only
+let groupUserLimit = GROUP_PAGE;
+let groupCompanySearch = '';
+let groupCompanyFilter = 'all';     // 'all' | 'approvals'
+let groupCompanyLimit = GROUP_PAGE;
+let groupAuditLimit = 50;
 let groupSelectedUserIds = {};    // uid -> true, for the Group Admin Users tab's bulk-action checkboxes (block/unblock only -- delete stays full-Admin-only)
 let groupAuditSearch = '';        // search box text on the Group Admin Audit tab (matches actor/action/target/detail)
 let groupAuditRangeDays = 'all';  // 'all' | 1 | 7 | 30 — date-range filter on the Group Admin Audit tab
@@ -7701,6 +7726,13 @@ let inventoryAddOpen = false;       // Add New Item section stays open across re
 let itemEditId = null; // null = "Create Stock Item" mode | a state.items id = editing that item in stockItemForm()
 let partiesSearchQuery = '';
 let ordersSearchQuery = '';
+const ORDERS_PAGE = 40;          // Module 15 (round 3): Orders rows per "Show more"
+let ordersFilter = 'all';        // 'all' | 'open' | 'partial' | 'converted' -- display filter only
+let ordersLimit = ORDERS_PAGE;
+let assetFilter = 'all';         // 'all' | 'due' | 'mostly' | 'noledger' -- display filter only
+let assetQuery = '';
+let calAgendaQuery = '';         // Agenda search (title / detail)
+let calAgendaSeverity = 'all';   // 'all' | 'overdue' | 'dueSoon'
 // Ctrl+K / Cmd+K command palette — jump to any screen, start a new voucher of any type, or search
 // ledgers/parties/items/vouchers by name, all from one box. See openCommandPalette()/cmdkResults()/
 // commandPaletteModal() further down.
@@ -7754,6 +7786,11 @@ let landedCostDraft = null;    // null = not allocating | {purchaseVoucherId, ch
 let barcodeLabelDraft = null;  // null = not printing labels | {itemId, count} (round: Inventory Advanced Update Phase 2)
 let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
+let fcFlowFilter = 'all';          // Module 16 (round 3): Cash Flow Forecast events -- 'all'|'in'|'out'
+let fcBucketFilter = 0;            // 0 = all, else 30/60/90
+let eclQuery = '';                 // ECL provision customer search (display only)
+let eclFilter = 'all';             // 'all' | 'high' | 'low' | 'nohist'
+const ECL_PAGE = 40; let eclLimit = ECL_PAGE;
 let tbSearchQuery = '';            // Module 11: Trial Balance ledger search (display filter only)
 let tbBalanceFilter = 'all';       // 'all' | 'balance' | 'zero'
 let stmtHideZero = false;          // Module 11: hide all-zero lines on Income Statement / Balance Sheet (screen only)
@@ -7775,6 +7812,10 @@ let finPerfCostOfCapital = '';
 let presoAudience = 'board';   // 'board' | 'investor' | 'management' — tailors which slides are included
 let presentModeOpen = false;   // true while the full-screen Present Mode overlay is showing
 let presentModeIdx = 0;        // which slide Present Mode is currently on
+const RECON_PAGE = 60;            // Module 14 (round 3): Reconcile transactions shown per "Show more"
+let reconFilter = 'all';          // 'all' | 'open' | 'cleared' | 'stale' -- display filter only
+let reconQuery = '';              // search over narration / type / date / amount -- display only
+let reconLimit = RECON_PAGE;
 let reconcileLedgerId = null; // which bank ledger the Reconcile tab is currently showing
 let reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' }; // Reconcile tab's statement-date/balance inputs
 let recurringDraft = null; // null = not adding/editing a recurring template | {id?, name, type, ledgerA, ledgerB, amount, narration, frequency, nextDueDate}
@@ -8443,6 +8484,11 @@ function groupFilteredUsers(){
     (u.email||'').toLowerCase().includes(q) ||
     (u.mobile||'').toLowerCase().includes(q)
   );
+}
+// Search + status chip + paging for the Group Admin Users tab (display only).
+function groupVisibleUsers(){
+  const full = groupFilteredUsers().filter(u=> groupUserFilter==='all' ? true : (groupUserFilter==='blocked' ? !!u.blocked : !u.blocked));
+  return { full, shown: full.slice(0, groupUserLimit) };
 }
 // Search + date-range filter for the Group Admin Audit tab — mirrors adminFilteredAuditLog() exactly,
 // over whatever loadGroupAdminData() already cached in groupAuditLog (last 200 events involving this
@@ -10692,6 +10738,9 @@ async function refreshCurrentSession(btnId){
 }
 async function loadState(){
   const cid = currentCompany.id;
+  reconFilter='all'; reconQuery=''; reconLimit=RECON_PAGE;
+  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
+  ordersFilter='all'; ordersLimit=ORDERS_PAGE; assetFilter='all'; assetQuery=''; calAgendaQuery=''; calAgendaSeverity='all';
   reconcileLedgerId = null; // reset so the Reconcile tab re-picks a bank ledger belonging to this company
   reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' };
   try{
@@ -24448,16 +24497,30 @@ function renderGateway(){
       });
     });
   }
+  if(modal==='groupAdmin'){
+    document.querySelectorAll('[data-group-company-filter]').forEach(el=>el.addEventListener('click', ()=>{ groupCompanyFilter = el.dataset.groupCompanyFilter; groupCompanyLimit = GROUP_PAGE; renderGateway(); }));
+    document.querySelectorAll('[data-group-company-clear]').forEach(el=>el.addEventListener('click', ()=>{ groupCompanyFilter='all'; groupCompanySearch=''; groupCompanyLimit=GROUP_PAGE; renderGateway(); }));
+    document.getElementById('groupCompaniesMoreBtn')?.addEventListener('click', ()=>{ groupCompanyLimit += GROUP_PAGE; renderGateway(); });
+    document.getElementById('groupCompanySearchInput')?.addEventListener('input', (e)=>{
+      groupCompanySearch = e.target.value; groupCompanyLimit = GROUP_PAGE;
+      const caret = e.target.selectionStart; renderGateway();
+      const el = document.getElementById('groupCompanySearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.querySelectorAll('[data-group-ticket-filter]').forEach(el=>el.addEventListener('click', ()=>{ groupTicketStatusFilter = el.dataset.groupTicketFilter; renderGateway(); }));
+    document.getElementById('groupAuditMoreBtn')?.addEventListener('click', ()=>{ groupAuditLimit += 50; renderGateway(); });
+  }
   if(modal==='groupAdmin' && groupAdminTab==='users'){
     document.getElementById('groupUserSearchInput')?.addEventListener('input', (e)=>{
-      groupUserSearch = e.target.value;
+      groupUserSearch = e.target.value; groupUserLimit = GROUP_PAGE;
       const caret = e.target.selectionStart;
       renderGateway();
       const el = document.getElementById('groupUserSearchInput');
       if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
     });
+    document.querySelectorAll('[data-group-user-filter]').forEach(el=>el.addEventListener('click', ()=>{ groupUserFilter = el.dataset.groupUserFilter; groupUserLimit = GROUP_PAGE; renderGateway(); }));
+    document.getElementById('groupUsersMoreBtn')?.addEventListener('click', ()=>{ groupUserLimit += GROUP_PAGE; renderGateway(); });
     document.getElementById('selectAllGroupUsersCheckbox')?.addEventListener('change', (e)=>{
-      const list = groupFilteredUsers();
+      const list = groupVisibleUsers().shown;
       if(e.target.checked){ list.forEach(u=>{ groupSelectedUserIds[u.id] = true; }); }
       else { list.forEach(u=>{ delete groupSelectedUserIds[u.id]; }); }
       renderGateway();
@@ -24883,7 +24946,7 @@ function renderGateway(){
   }
   if(modal==='groupAdmin' && groupAdminTab==='audit'){
     document.getElementById('groupAuditSearchInput')?.addEventListener('input', (e)=>{
-      groupAuditSearch = e.target.value;
+      groupAuditSearch = e.target.value; groupAuditLimit = 50;
       const caret = e.target.selectionStart;
       renderGateway();
       const el = document.getElementById('groupAuditSearchInput');
@@ -26253,10 +26316,28 @@ function groupAdminCompaniesTab(){
   return `
     <div class="section-title" style="margin-top:0;">Companies in Your Group</div>
     <p class="muted" style="font-size:12px;margin-top:0;">Every company in your group is shared — you and everyone you've added can open and work in any of them. You can also edit a company's settings or delete it outright; your group's users cannot.</p>
+    ${(()=>{ return ''; })()}
     ${groupCompanies.length ? `
+    ${(()=>{
+      const gq = groupCompanySearch.trim().toLowerCase();
+      const appr = groupCompanies.filter(c=>companyPendingApprovalsCount(c)>0).length;
+      const owner = c => groupMembers.find(u=>u.id===c.ownerId);
+      const fullC = groupCompanies.filter(c=>(groupCompanyFilter!=='approvals' || companyPendingApprovalsCount(c)>0) && (!gq || (c.name||'').toLowerCase().includes(gq) || ((owner(c)||{}).name||'').toLowerCase().includes(gq)));
+      const on = groupCompanyFilter!=='all' || !!gq;
+      return `<div class="module-toolbar" style="margin-bottom:8px;">
+        <div class="filter-chips"><button type="button" class="filter-chip ${groupCompanyFilter==='all'?'active':''}" data-group-company-filter="all">All <span class="chip-count">${groupCompanies.length}</span></button>${appr?`<button type="button" class="filter-chip ${groupCompanyFilter==='approvals'?'active':''}" data-group-company-filter="approvals">Needs approval <span class="chip-count">${appr}</span></button>`:''}</div>
+        ${groupCompanies.length>5 ? moduleSearchBox('groupCompanySearchInput','Search company or creator…',groupCompanySearch) : ''}
+        ${on ? `<button class="btn small secondary" data-group-company-clear type="button">Clear filters</button>` : ''}
+      </div>
+      <div class="results-line" aria-live="polite" style="margin-bottom:10px;">Showing ${Math.min(fullC.length, groupCompanyLimit)} of ${groupCompanies.length} compan${groupCompanies.length===1?'y':'ies'}${on?` (${fullC.length} match)`:''}</div>`;
+    })()}
     <table>
       <tr><th>Company</th><th>Created By</th><th class="num">Ledgers</th><th class="num">Vouchers</th><th>Last Activity</th><th></th></tr>
-      ${groupCompanies.map(c=>{
+      ${(()=>{
+        const gq = groupCompanySearch.trim().toLowerCase();
+        const owner = c => groupMembers.find(u=>u.id===c.ownerId);
+        return groupCompanies.filter(c=>(groupCompanyFilter!=='approvals' || companyPendingApprovalsCount(c)>0) && (!gq || (c.name||'').toLowerCase().includes(gq) || ((owner(c)||{}).name||'').toLowerCase().includes(gq))).slice(0, groupCompanyLimit);
+      })().map(c=>{
         const owner = groupMembers.find(u=>u.id===c.ownerId);
         const lastActivity = companyLastActivity(c);
         return `<tr>
@@ -26269,34 +26350,44 @@ function groupAdminCompaniesTab(){
             <div style="display:flex;flex-wrap:wrap;gap:4px;">
               <button class="btn secondary small" data-group-view-company="${escapeAttr(c.id)}" type="button">Open</button>
               <button class="btn secondary small" data-group-edit-company="${escapeAttr(c.id)}" type="button">Edit</button>
-              <button class="btn secondary small" data-group-company-approvals="${escapeAttr(c.id)}" type="button">Approvals${companyPendingApprovalsCount(c)?` (${companyPendingApprovalsCount(c)})`:''}</button>
-              <button class="btn secondary small" data-group-company-access="${escapeAttr(c.id)}" type="button">Access</button>
-              ${c.ownerId===currentUser.id ? `<button class="btn secondary small" data-group-company-team="${escapeAttr(c.id)}" type="button">Team Access</button>` : ''}
-              <button class="btn secondary small" data-group-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);">Delete</button>
+              <details class="row-more"><summary class="btn secondary small">More ▾</summary><div class="row-more-menu">
+                <button class="btn secondary small" data-group-company-approvals="${escapeAttr(c.id)}" type="button">Approvals${companyPendingApprovalsCount(c)?` (${companyPendingApprovalsCount(c)})`:''}</button>
+                <button class="btn secondary small" data-group-company-access="${escapeAttr(c.id)}" type="button">Access</button>
+                ${c.ownerId===currentUser.id ? `<button class="btn secondary small" data-group-company-team="${escapeAttr(c.id)}" type="button">Team Access</button>` : ''}
+                <button class="btn secondary small" data-group-delete-company="${escapeAttr(c.id)}" type="button" style="color:var(--debit);">Delete</button>
+              </div></details>
+              ${companyPendingApprovalsCount(c)?`<span class="pill neg" title="Vouchers waiting for approval">${companyPendingApprovalsCount(c)} to approve</span>`:''}
             </div>
           </td>
         </tr>`;
       }).join('')}
     </table>
+    ${(()=>{ const gq = groupCompanySearch.trim().toLowerCase(); const owner = c => groupMembers.find(u=>u.id===c.ownerId); const n = groupCompanies.filter(c=>(groupCompanyFilter!=='approvals' || companyPendingApprovalsCount(c)>0) && (!gq || (c.name||'').toLowerCase().includes(gq) || ((owner(c)||{}).name||'').toLowerCase().includes(gq))).length; return n>groupCompanyLimit ? `<div class="table-more"><button class="btn secondary" id="groupCompaniesMoreBtn" type="button">Show ${Math.min(n-groupCompanyLimit, GROUP_PAGE)} more (${n-groupCompanyLimit} not shown)</button></div>` : (n===0 ? `<div class="empty">No companies match these filters. <button class="btn small secondary" data-group-company-clear type="button">Clear filters</button></div>` : ''); })()}
     ` : `<div class="empty">Nobody in your group has created a company yet.</div>`}
   `;
 }
 function groupAdminUsersTab(){
   const stats = computeGroupAdminStats();
   const atCap = stats.totalUsers >= stats.limit;
-  const list = groupFilteredUsers();
+  const vis = groupVisibleUsers();
+  const list = vis.shown;
   const selectedCount = Object.keys(groupSelectedUserIds).filter(id=>groupSelectedUserIds[id]).length;
+  const hiddenSelected = Object.keys(groupSelectedUserIds).filter(id=>groupSelectedUserIds[id] && !list.some(u=>u.id===id)).length;
   const allVisibleSelected = list.length>0 && list.every(u=>groupSelectedUserIds[u.id]);
+  const gChipCounts = { all: groupMembers.length, active: groupMembers.filter(u=>!u.blocked).length, blocked: groupMembers.filter(u=>u.blocked).length };
+  const gChip = (k,lab)=>`<button type="button" class="filter-chip ${groupUserFilter===k?'active':''}" data-group-user-filter="${k}">${lab} <span class="chip-count">${gChipCounts[k]}</span></button>`;
+  const seatPct = Math.min(100, Math.round(stats.totalUsers/Math.max(1,stats.limit)*100));
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-      <input type="text" id="groupUserSearchInput" placeholder="Search name, username, email or mobile…" value="${escapeAttr(groupUserSearch)}" style="max-width:280px;">
-      <span class="muted" style="font-size:12px;">${list.length} of ${stats.totalUsers} shown · ${stats.totalUsers} of ${stats.limit} used</span>
+      ${moduleSearchBox('groupUserSearchInput','Search name, username, email or mobile…',groupUserSearch)}
+      <span class="muted" style="font-size:12px;">Showing ${list.length} of ${vis.full.length}${vis.full.length!==stats.totalUsers?` (${stats.totalUsers} in group)`:''} · ${stats.totalUsers} of ${stats.limit} seats used <span class="mini-bar" title="${seatPct}% of seats used"><span class="mini-bar-fill ${seatPct>=100?'warn':''}" style="width:${seatPct}%;"></span></span></span>
       <button class="btn secondary small" id="requestMoreSeatsBtn" type="button" style="margin-left:auto;" ${atCap?'':'title="Ask an Administrator to raise your user limit"'}>Request More Seats</button>
       <button class="btn small" id="openGroupAddUserBtn" type="button" ${atCap?'disabled':''} title="${atCap?'You have reached your user limit — ask an Administrator to raise it':''}">+ Add User</button>
     </div>
+    ${groupMembers.length>1 ? `<div class="filter-chips" style="margin-bottom:12px;">${gChip('all','All')}${gChip('active','Active')}${gChip('blocked','Blocked')}</div>` : ''}
     ${selectedCount ? `
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--surface-strong);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-      <strong style="font-size:12px;">${selectedCount} selected</strong>
+      <strong style="font-size:12px;">${selectedCount} selected${hiddenSelected?` <span class="muted" style="font-weight:500;">(${hiddenSelected} not shown by the current search/filter)</span>`:''}</strong>
       <button class="btn secondary small" data-group-bulk-status="active" type="button">Unblock</button>
       <button class="btn secondary small" data-group-bulk-status="blocked" type="button">Block</button>
       <button class="btn secondary small" id="clearGroupSelectionBtn" type="button">Clear</button>
@@ -26334,17 +26425,20 @@ function groupAdminUsersTab(){
                 <button class="btn secondary small" id="cancelGroupEditUserBtn" type="button">Cancel</button>
               ` : `<button class="btn secondary small" data-group-edit-user="${escapeAttr(u.id)}" type="button">Edit</button>`}
               <button class="btn secondary small" data-group-view-user-detail="${escapeAttr(u.id)}" type="button">Details</button>
-              <button class="btn secondary small" data-group-reset-password="${escapeAttr(u.id)}" type="button" ${u.email?'':'disabled'}>Reset Password</button>
-              <button class="btn secondary small" data-group-update-status="${escapeAttr(u.id)}" type="button">Update Status</button>
-              <button class="btn secondary small" data-group-delete-user="${escapeAttr(u.id)}" type="button" style="color:var(--debit);">Delete</button>
+              <details class="row-more"><summary class="btn secondary small">More ▾</summary><div class="row-more-menu">
+                <button class="btn secondary small" data-group-reset-password="${escapeAttr(u.id)}" type="button" ${u.email?'':'disabled'}>Reset Password</button>
+                <button class="btn secondary small" data-group-update-status="${escapeAttr(u.id)}" type="button">Update Status</button>
+                <button class="btn secondary small" data-group-delete-user="${escapeAttr(u.id)}" type="button" style="color:var(--debit);">Delete</button>
+              </div></details>
             </div>
           </td>
         </tr>`;
       }).join('')}
     </table>
     </div>
+    ${vis.full.length>list.length ? `<div class="table-more"><button class="btn secondary" id="groupUsersMoreBtn" type="button">Show ${Math.min(vis.full.length-list.length, GROUP_PAGE)} more (${vis.full.length-list.length} not shown)</button></div>` : ''}
     ` : `<div class="empty">You haven't created any users yet.</div>`}
-    ${groupMembers.length && !list.length ? `<div class="empty">No accounts match your search.</div>` : ''}
+    ${groupMembers.length && !list.length ? `<div class="empty">No accounts match your search or filter.</div>` : ''}
   `;
 }
 // Support's own version of adminFeatureAccessTab() — same "select a user, then flag their
@@ -26490,12 +26584,7 @@ function groupAdminSupportTab(){
   const filtered = groupTicketStatusFilter==='all' ? groupTickets : groupTickets.filter(t=>t.status===groupTicketStatusFilter);
   return `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-      <select id="groupTicketStatusFilterSelect" style="max-width:180px;">
-        <option value="all" ${groupTicketStatusFilter==='all'?'selected':''}>All statuses</option>
-        <option value="open" ${groupTicketStatusFilter==='open'?'selected':''}>Open</option>
-        <option value="in_progress" ${groupTicketStatusFilter==='in_progress'?'selected':''}>In Progress</option>
-        <option value="resolved" ${groupTicketStatusFilter==='resolved'?'selected':''}>Resolved</option>
-      </select>
+      <div class="filter-chips">${[['all','All'],['open','Open'],['in_progress','In Progress'],['resolved','Resolved']].map(([k,l])=>`<button type="button" class="filter-chip ${groupTicketStatusFilter===k?'active':''}" data-group-ticket-filter="${k}">${l} <span class="chip-count">${k==='all'?groupTickets.length:groupTickets.filter(t=>t.status===k).length}</span></button>`).join('')}</div>
       <span class="muted" style="font-size:12px;">${filtered.length} of ${groupTickets.length} ticket${groupTickets.length===1?'':'s'} from your group</span>
     </div>
     ${filtered.length ? `
@@ -26559,20 +26648,20 @@ function groupAdminAuditTab(){
   const filtered = groupFilteredAuditLog();
   return `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-      <input type="text" id="groupAuditSearchInput" placeholder="Search actor, action, target or detail…" value="${escapeAttr(groupAuditSearch)}" style="max-width:280px;">
+      ${moduleSearchBox('groupAuditSearchInput','Search actor, action, target or detail…',groupAuditSearch)}
       <select id="groupAuditRangeSelect" style="max-width:160px;">
         <option value="all" ${groupAuditRangeDays==='all'?'selected':''}>All time</option>
         <option value="1" ${groupAuditRangeDays===1?'selected':''}>Last 24 hours</option>
         <option value="7" ${groupAuditRangeDays===7?'selected':''}>Last 7 days</option>
         <option value="30" ${groupAuditRangeDays===30?'selected':''}>Last 30 days</option>
       </select>
-      <span class="muted" style="font-size:12px;">${filtered.length} of ${groupAuditLog.length} event${groupAuditLog.length===1?'':'s'} involving you or your group, newest first.</span>
+      <span class="muted" style="font-size:12px;">Showing ${Math.min(filtered.length, groupAuditLimit)} of ${groupAuditLog.length} event${groupAuditLog.length===1?'':'s'} involving you or your group, newest first${filtered.length!==groupAuditLog.length?` (${filtered.length} match)`:''}.</span>
     </div>
     ${filtered.length ? `
     <div style="overflow-x:auto;">
     <table>
       <tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr>
-      ${filtered.map(e=>`<tr>
+      ${filtered.slice(0, groupAuditLimit).map(e=>`<tr>
         <td class="muted" style="font-size:11px;white-space:nowrap;">${fmtTimestamp(e.at)}</td>
         <td>${escapeHtml(e.actorName||'—')}</td>
         <td>${escapeHtml(e.action||'—')}</td>
@@ -26581,6 +26670,7 @@ function groupAdminAuditTab(){
       </tr>`).join('')}
     </table>
     </div>
+    ${filtered.length>groupAuditLimit ? `<div class="table-more"><button class="btn secondary" id="groupAuditMoreBtn" type="button">Show ${Math.min(filtered.length-groupAuditLimit, 50)} more (${filtered.length-groupAuditLimit} not shown)</button></div>` : ''}
     ` : `<div class="empty">${(groupAuditSearch || groupAuditRangeDays!=='all') ? 'No events match your filters.' : 'No activity recorded yet.'}</div>`}
   `;
 }
@@ -33042,31 +33132,47 @@ function viewOrders(){
       return docNo.includes(q) || (party && party.name.toLowerCase().includes(q));
     });
   }
+  const oAllCount = state[meta.stateKey].length;
+  const oCounts = { all: statuses.length, open: openCount, partial: statuses.filter(s=>s==='partial').length, converted: convertedCount };
+  const oStatusOf = d => orderDocStatus(d);
+  if(ordersFilter==='open') list = list.filter(d=>oStatusOf(d)!=='converted');
+  else if(ordersFilter==='partial') list = list.filter(d=>oStatusOf(d)==='partial');
+  else if(ordersFilter==='converted') list = list.filter(d=>oStatusOf(d)==='converted');
+  const oFiltersOn = ordersFilter!=='all' || !!ordersSearchQuery.trim();
+  const oShown = list.slice(0, ordersLimit);
+  const oRemaining = list.length - oShown.length;
+  const oSum = list.reduce((t,d)=>t+itemsSubtotal(d.items||[]),0);
+  const oChip = (k,lab)=>`<button type="button" class="filter-chip ${ordersFilter===k?'active':''}" data-orders-filter="${k}">${lab} <span class="chip-count">${oCounts[k]}</span></button>`;
   const STATUS_BADGE = { open:`<span class="pill neutral">Open</span>`, partial:`<span class="pill" style="background:color-mix(in srgb, var(--gold) 25%, var(--surface));color:var(--ink);">Partially Converted</span>`, converted:`<span class="pill pos">Converted</span>` };
   return `
     ${masthead('Sales & Purchase Documents','Quotations, Sales Orders, Purchase Orders & Delivery Challans — track before you invoice, with partial conversion as quantity ships or bills in stages')}
     ${plainHintOrders()}
     <div class="vtype-tabs" style="margin-bottom:18px;">
-      ${Object.keys(ORDER_DOC_META).map(k=>`<button data-orders-subtab="${k}" type="button" class="${ordersSubTab===k?'active':''}">${ORDER_DOC_META[k].label}s</button>`).join('')}
+      ${Object.keys(ORDER_DOC_META).map(k=>`<button data-orders-subtab="${k}" type="button" class="${ordersSubTab===k?'active':''}">${ORDER_DOC_META[k].label}s<span class="vt-count">${state[ORDER_DOC_META[k].stateKey].length}</span></button>`).join('')}
     </div>
     ${oform && oform.docType===ordersSubTab ? orderDocForm() : `
       <div class="grid">
-        <div class="stat"><div class="label">Total ${meta.label}s</div><div class="val">${state[meta.stateKey].length}</div></div>
-        <div class="stat"><div class="label">Open</div><div class="val">${openCount}</div></div>
-        <div class="stat"><div class="label">Converted</div><div class="val pos">${convertedCount}</div></div>
+        <div class="stat stat-link" data-orders-filter="all" role="button" tabindex="0" title="Show every ${meta.label.toLowerCase()}"><div class="label">Total ${meta.label}s</div><div class="val">${state[meta.stateKey].length}</div></div>
+        <div class="stat stat-link" data-orders-filter="open" role="button" tabindex="0" title="Show only ${meta.label.toLowerCase()}s not yet fully converted"><div class="label">Open</div><div class="val">${openCount}</div></div>
+        <div class="stat stat-link" data-orders-filter="converted" role="button" tabindex="0" title="Show only converted ${meta.label.toLowerCase()}s"><div class="label">Converted</div><div class="val pos">${convertedCount}</div></div>
         <div class="stat"><div class="label">Open Value (remaining qty)</div><div class="val">₹${fmt(openValue)}</div></div>
       </div>
       <div class="panel">
-        <div class="panel-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <input type="text" id="ordersSearchInput" placeholder="Search by ${meta.prefix} no. or party…" value="${escapeAttr(ordersSearchQuery)}" style="flex:1;min-width:200px;">
-          <button class="btn secondary small" id="oNewBtn" type="button">+ New ${meta.label}</button>
+        <div class="recon-filters" style="border-bottom:0;">
+          <div class="module-toolbar">
+            <div class="filter-chips">${oChip('all','All')}${oChip('open','Not fully converted')}${oCounts.partial?oChip('partial','Partially converted'):''}${oChip('converted','Converted')}</div>
+            ${moduleSearchBox('ordersSearchInput',`Search by ${meta.prefix} no. or party…`,ordersSearchQuery)}
+            ${oFiltersOn ? `<button class="btn small secondary" data-orders-clear type="button">Clear filters</button>` : ''}
+            <button class="btn small" id="oNewBtn" type="button" style="margin-left:auto;">+ New ${meta.label}</button>
+          </div>
+          <div class="results-line" aria-live="polite">Showing ${oShown.length} of ${oAllCount} ${meta.label.toLowerCase()}${oAllCount===1?'':'s'}${oFiltersOn?` (${list.length} match)`:''}</div>
         </div>
       </div>
       <div class="panel">
         <div class="panel-body" style="padding:0;">
           ${list.length ? `<table class="rb-card-table">
             <tr><th>${meta.prefix} No.</th><th>Date</th><th>${meta.partyRole==='customer'?'Customer':'Supplier'}</th><th class="num">Amount</th><th>Status</th><th>Action</th></tr>
-            ${list.map(d=>{
+            ${oShown.map(d=>{
               const party = ledgerOf(d.partyLedgerId);
               const amt = itemsSubtotal(d.items||[]);
               const status = orderDocStatus(d);
@@ -33079,12 +33185,16 @@ function viewOrders(){
                 <td data-label="Status">${STATUS_BADGE[status]}${vCount?` <span class="muted" style="font-size:10px;">(${vCount} voucher${vCount===1?'':'s'})</span>`:''}</td>
                 <td class="ccard-actions" data-label="Action">
                   ${status!=='converted' ? `<button class="btn small secondary" data-edit-order="${d.id}" type="button">Edit</button> <button class="btn small secondary" data-convert-order="${d.id}" type="button">${status==='partial'?'Convert Remaining':'Convert to Voucher'}</button>` : ''}
-                  <button class="btn small secondary" data-print-order="${d.id}" type="button">🖨 Print</button>
-                  <button class="btn small secondary" data-delete-order="${d.id}" type="button">Delete</button>
+                  <details class="row-more"><summary class="btn secondary small">More ▾</summary><div class="row-more-menu">
+                    <button class="btn small secondary" data-print-order="${d.id}" type="button">🖨 Print</button>
+                    <button class="btn small secondary" data-delete-order="${d.id}" type="button">Delete</button>
+                  </div></details>
                 </td>
               </tr>`;
             }).join('')}
-          </table>` : `${ordersSearchQuery.trim() ? `<div class="empty">No ${meta.label.toLowerCase()}s match your search.</div>` : emptyStateAct({icon:'📄', title:`No ${meta.label.toLowerCase()}s yet`, text:`Create your first ${meta.label.toLowerCase()} here. It stays separate from your accounts until you convert it into an invoice.`, ctaLabel:`+ New ${meta.label}`, act:'click:oNewBtn'})}`}
+            <tr class="totals-row"><td class="ccard-title" data-label="Total" colspan="3">Total · ${list.length} ${meta.label.toLowerCase()}${list.length===1?'':'s'}${oFiltersOn?' (filtered)':''}</td><td class="num ccard-amount" data-label="Amount">₹${fmt(oSum)}</td><td></td><td></td></tr>
+          </table>
+          ${oRemaining>0 ? `<div class="table-more"><button class="btn secondary" id="ordersMoreBtn" type="button">Show ${Math.min(oRemaining, ORDERS_PAGE)} more (${oRemaining} not shown — total above already includes them)</button></div>` : ''}` : `${oFiltersOn ? `<div class="empty">No ${meta.label.toLowerCase()}s match these filters. <button class="btn small secondary" data-orders-clear type="button">Clear filters</button></div>` : emptyStateAct({icon:'📄', title:`No ${meta.label.toLowerCase()}s yet`, text:`Create your first ${meta.label.toLowerCase()} here. It stays separate from your accounts until you convert it into an invoice.`, ctaLabel:`+ New ${meta.label}`, act:'click:oNewBtn'})}`}
         </div>
       </div>
     `}
@@ -34308,6 +34418,17 @@ function calendarAgendaView(events, monthLabel, year){
 // Filter-chip row for the Agenda view (round 3) -- same visual convention as the Day Book's own
 // type filter-chips (moduleToolbar/.filter-chips), toggling calAgendaHiddenTypes. Built from every
 // type present in the FULL month (not the already-filtered list), with a live count per type.
+function calendarAgendaSearchBar(total, shown, sev){
+  if(!total) return '';
+  const on = !!calAgendaQuery.trim() || calAgendaSeverity!=='all' || calAgendaHiddenTypes.size>0;
+  const chip = (k,lab)=> sev[k] ? `<button type="button" class="filter-chip ${calAgendaSeverity===k?'active':''}" data-cal-agenda-sev="${k}">${lab} <span class="chip-count">${sev[k]}</span></button>` : '';
+  return `<div class="module-toolbar" style="margin-bottom:10px;">
+    <div class="filter-chips">${chip('overdue','Overdue')}${chip('dueSoon','Due soon')}</div>
+    ${total>5 ? moduleSearchBox('calAgendaSearchInput','Search this month’s events…',calAgendaQuery) : ''}
+    ${on ? `<button class="btn small secondary" data-cal-agenda-clear type="button">Clear filters</button>` : ''}
+  </div>
+  <div class="results-line" aria-live="polite" style="margin-bottom:10px;">Showing ${shown} of ${total} event${total===1?'':'s'} this month${on?' (filtered)':''}</div>`;
+}
 function calendarAgendaFilterChips(allMonthEvents){
   const types = calAgendaEventTypes(allMonthEvents);
   if(types.length<2) return ''; // nothing meaningful to filter with only one (or zero) event type present
@@ -34627,7 +34748,12 @@ function viewCalendar(){
 
   // Agenda view's own type filter chips (round 3) -- scoped to Agenda only; Month/Week dots stay
   // unaffected by which types are hidden there.
-  const agendaEvents = monthEvents.filter(e=>!calAgendaHiddenTypes.has(e.type));
+  const calAq = calAgendaQuery.trim().toLowerCase();
+  const calSevCounts = { overdue: monthEvents.filter(e=>e.severity==='overdue').length, dueSoon: monthEvents.filter(e=>e.severity==='dueSoon').length };
+  if(calAgendaSeverity!=='all' && !calSevCounts[calAgendaSeverity]) calAgendaSeverity = 'all';
+  const agendaEvents = monthEvents.filter(e=>!calAgendaHiddenTypes.has(e.type)
+    && (calAgendaSeverity==='all' || e.severity===calAgendaSeverity)
+    && (!calAq || `${e.title} ${e.detail}`.toLowerCase().includes(calAq)));
 
   const selectedVouchers = vouchersByDate[calState.selected] || [];
   const selectedEvents = calViewMode==='week' ? weekEvents.filter(e=>e.date===calState.selected) : (eventsByDate[calState.selected] || []);
@@ -34685,7 +34811,7 @@ function viewCalendar(){
           <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--ink-faint);"></span>Reference only</span>
         </div>
         ` : calViewMode==='week' ? calendarWeekView(weekRange.start, weekRange.end, weekEvents, todayStr)
-        : `${calendarAgendaFilterChips(monthEvents)}${calendarAgendaView(agendaEvents, monthNames[month], year)}`}
+        : `${calendarAgendaSearchBar(monthEvents.length, agendaEvents.length, calSevCounts)}${calendarAgendaFilterChips(monthEvents)}${(!agendaEvents.length && monthEvents.length) ? `<div class="empty">No events match these filters. <button class="btn small secondary" data-cal-agenda-clear type="button">Clear filters</button></div>` : calendarAgendaView(agendaEvents, monthNames[month], year)}`}
       </div>
     </div>
     ${(calViewMode==='month' || calViewMode==='week') ? `
@@ -36436,13 +36562,34 @@ function ratioLiquidityGaugeCard(ratios){
     </div>
   `;
 }
+const RATIO_DEFS = {
+  'Current Ratio':'Current assets ÷ current liabilities', 'Quick Ratio':'(Cash &amp; bank + receivables) ÷ current liabilities', 'Cash Ratio':'Cash &amp; bank ÷ current liabilities', 'Working Capital':'Current assets − current liabilities',
+  'Debt-to-Equity Ratio':'Total liabilities ÷ equity', 'Debt Ratio':'Total liabilities ÷ total assets', 'Equity Ratio':'Equity ÷ total assets',
+  'Gross Profit Margin':'Gross profit ÷ revenue', 'Operating Profit Margin':'Operating profit ÷ revenue', 'Net Profit Margin':'Net profit ÷ revenue', 'Return on Assets (ROA)':'Net profit ÷ total assets', 'Return on Equity (ROE)':'Net profit ÷ equity',
+  'Asset Turnover':'Revenue ÷ total assets', 'Trade Receivables Turnover':'Revenue ÷ trade receivables', 'Days Sales Outstanding (DSO)':'365 ÷ receivables turnover', 'Trade Payables Turnover':'Cost of sales ÷ trade payables', 'Days Payable Outstanding (DPO)':'365 ÷ payables turnover'
+};
+function ratioRow(label, val){ return reportRow(`${label}<div class="ratio-def">${RATIO_DEFS[label]||''}</div>`, val); }
 function reportRatioAnalysis(){
   const is = incomeStatementData();
   const bs = balanceSheetIFRSData(is.profitForPeriod);
   const ratios = ratioAnalysisData(is, bs);
   const fySeries = ratioFYSeries(6);
+  const num = x => typeof x==='number' && isFinite(x);
+  const rPill = (cond, yes, no) => cond==null ? '' : `<span class="pill ${cond?'pos':'neg'}">${cond?yes:no}</span>`;
+  const glance = [
+    {jump:'ratioLiquidity', label:'Current Ratio', val: num(ratios.currentRatio)?fmtRatio(ratios.currentRatio)+'×':'—', pill: num(ratios.currentRatio)?rPill(ratios.currentRatio>=1,'Above 1.0×','Below 1.0×'):''},
+    {jump:'ratioSolvency', label:'Debt-to-Equity', val: num(ratios.debtToEquity)?fmtRatio(ratios.debtToEquity)+'×':'—', pill: num(ratios.debtToEquity)?rPill(ratios.debtToEquity<=1,'At or below 1.0×','Above 1.0×'):''},
+    {jump:'ratioProfitability', label:'Net Profit Margin', val: fmtPct(ratios.netMargin), pill: num(ratios.netMargin)?rPill(ratios.netMargin>=0,'Profitable','Loss-making'):''},
+    {jump:'ratioEfficiency', label:'Days Sales Outstanding', val: fmtDays(ratios.dso), pill: ''},
+  ];
   return `
     ${reportHeader('Ratio Analysis (Detailed)', 'exportRatiosBtn')}
+    <div class="grid ratio-glance">
+      ${glance.map(g=>`<div class="stat stat-link" data-ratio-jump="${g.jump}" role="button" tabindex="0" title="Jump to the detail"><div class="label">${g.label}</div><div class="val">${g.val}</div>${g.pill?`<div style="margin-top:6px;">${g.pill}</div>`:''}</div>`).join('')}
+    </div>
+    <div class="filter-chips ratio-jumps" style="margin:0 0 14px;">
+      ${[['ratioLiquidity','Liquidity'],['ratioSolvency','Solvency'],['ratioProfitability','Profitability'],['ratioEfficiency','Efficiency']].map(([id,l])=>`<button type="button" class="filter-chip" data-ratio-jump="${id}">${l}</button>`).join('')}
+    </div>
     ${narrativePanel(ratioAnalysisNarrative(ratios))}
     <h2 style="font-family:inherit;font-weight:800;font-size:15px;margin:0 0 12px;letter-spacing:-.01em;color:var(--ink);">Ratio Trends &amp; Liquidity Health</h2>
     <div class="viz-grid">
@@ -36453,14 +36600,14 @@ function reportRatioAnalysis(){
     <h2 style="font-family:inherit;font-weight:800;font-size:15px;margin:22px 0 12px;letter-spacing:-.01em;color:var(--ink);">Ratios in Detail</h2>
     <div class="row" style="align-items:flex-start;">
       <div style="flex:1;">
-        <div class="panel">
+        <div class="panel" id="ratioLiquidity">
           <div class="panel-head"><h2>Liquidity</h2></div>
           <div class="panel-body" style="padding:0;">
             <table>
-              ${reportRow('Current Ratio', fmtRatio(ratios.currentRatio))}
-              ${reportRow('Quick Ratio', fmtRatio(ratios.quickRatio))}
-              ${reportRow('Cash Ratio', fmtRatio(ratios.cashRatio))}
-              ${reportRow('Working Capital', `₹${fmt(ratios.workingCapital)}`)}
+              ${ratioRow('Current Ratio', fmtRatio(ratios.currentRatio))}
+              ${ratioRow('Quick Ratio', fmtRatio(ratios.quickRatio))}
+              ${ratioRow('Cash Ratio', fmtRatio(ratios.cashRatio))}
+              ${ratioRow('Working Capital', `₹${fmt(ratios.workingCapital)}`)}
             </table>
           </div>
           <div class="panel-body" style="border-top:1px solid var(--border);">
@@ -36471,13 +36618,13 @@ function reportRatioAnalysis(){
             ], {benchmark:1, benchmarkLabel:'1.0×'})}
           </div>
         </div>
-        <div class="panel">
+        <div class="panel" id="ratioSolvency">
           <div class="panel-head"><h2>Solvency / Leverage</h2></div>
           <div class="panel-body" style="padding:0;">
             <table>
-              ${reportRow('Debt-to-Equity Ratio', fmtRatio(ratios.debtToEquity))}
-              ${reportRow('Debt Ratio', fmtRatio(ratios.debtRatio))}
-              ${reportRow('Equity Ratio', fmtRatio(ratios.equityRatio))}
+              ${ratioRow('Debt-to-Equity Ratio', fmtRatio(ratios.debtToEquity))}
+              ${ratioRow('Debt Ratio', fmtRatio(ratios.debtRatio))}
+              ${ratioRow('Equity Ratio', fmtRatio(ratios.equityRatio))}
             </table>
           </div>
           <div class="panel-body" style="border-top:1px solid var(--border);">
@@ -36489,15 +36636,15 @@ function reportRatioAnalysis(){
         </div>
       </div>
       <div style="flex:1;">
-        <div class="panel">
+        <div class="panel" id="ratioProfitability">
           <div class="panel-head"><h2>Profitability</h2></div>
           <div class="panel-body" style="padding:0;">
             <table>
-              ${reportRow('Gross Profit Margin', fmtPct(ratios.grossMargin))}
-              ${reportRow('Operating Profit Margin', fmtPct(ratios.operatingMargin))}
-              ${reportRow('Net Profit Margin', fmtPct(ratios.netMargin))}
-              ${reportRow('Return on Assets (ROA)', fmtPct(ratios.roa))}
-              ${reportRow('Return on Equity (ROE)', fmtPct(ratios.roe))}
+              ${ratioRow('Gross Profit Margin', fmtPct(ratios.grossMargin))}
+              ${ratioRow('Operating Profit Margin', fmtPct(ratios.operatingMargin))}
+              ${ratioRow('Net Profit Margin', fmtPct(ratios.netMargin))}
+              ${ratioRow('Return on Assets (ROA)', fmtPct(ratios.roa))}
+              ${ratioRow('Return on Equity (ROE)', fmtPct(ratios.roe))}
             </table>
           </div>
           <div class="panel-body" style="border-top:1px solid var(--border);">
@@ -36510,15 +36657,15 @@ function reportRatioAnalysis(){
             ])}
           </div>
         </div>
-        <div class="panel">
+        <div class="panel" id="ratioEfficiency">
           <div class="panel-head"><h2>Efficiency</h2></div>
           <div class="panel-body" style="padding:0;">
             <table>
-              ${reportRow('Asset Turnover', fmtRatio(ratios.assetTurnover))}
-              ${reportRow('Trade Receivables Turnover', fmtRatio(ratios.receivablesTurnover))}
-              ${reportRow('Days Sales Outstanding (DSO)', fmtDays(ratios.dso))}
-              ${reportRow('Trade Payables Turnover', fmtRatio(ratios.payablesTurnover))}
-              ${reportRow('Days Payable Outstanding (DPO)', fmtDays(ratios.dpo))}
+              ${ratioRow('Asset Turnover', fmtRatio(ratios.assetTurnover))}
+              ${ratioRow('Trade Receivables Turnover', fmtRatio(ratios.receivablesTurnover))}
+              ${ratioRow('Days Sales Outstanding (DSO)', fmtDays(ratios.dso))}
+              ${ratioRow('Trade Payables Turnover', fmtRatio(ratios.payablesTurnover))}
+              ${ratioRow('Days Payable Outstanding (DPO)', fmtDays(ratios.dpo))}
             </table>
           </div>
           <div class="panel-body" style="border-top:1px solid var(--border);">
@@ -36619,6 +36766,12 @@ function reportCashFlow(){
   const monthly = cashFlowMonthlySeries(12);
   return `
     ${reportHeader('Cash Flow Statement (Direct Method)', 'exportCFBtn', null, 'printCFBtn')}
+    <div class="stmt-toolbar"><span class="pill ${cashMatches?'pos':'neg'}">${cashMatches?'✓ Closing cash matches Cash + Bank ledgers':'⚠ Closing cash differs from Cash + Bank by ₹'+fmt(Math.abs(cf.closingCash-cf.actualCash))}</span></div>
+    <div class="grid cf-summary">
+      <div class="stat"><div class="label">Opening Cash</div><div class="val">₹${fmt(cf.openingCash)}</div></div>
+      <div class="stat"><div class="label">Net Change in Cash</div><div class="val ${cf.netChange>=0?'pos':'neg'}">${cf.netChange>=0?'+':'−'}₹${fmt(Math.abs(cf.netChange))}</div></div>
+      <div class="stat"><div class="label">Closing Cash</div><div class="val">₹${fmt(cf.closingCash)}</div></div>
+    </div>
     <div id="cashFlowStatementBody">
     <div class="row" style="align-items:stretch;">
       <div style="flex:1;">${cashFlowBucketSummaryPanel('Operating Activities', 'operating', cf)}</div>
@@ -36664,20 +36817,28 @@ function reportCashFlowForecast(){
   const today = new Date().toISOString().slice(0,10);
   const bucketFor = d => d<=addDays(today,30) ? 30 : d<=addDays(today,60) ? 60 : 90;
   const sorted = [...data.events].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  const fcCounts = { all: sorted.length, in: sorted.filter(e=>e.amount>=0).length, out: sorted.filter(e=>e.amount<0).length };
+  const fcShown = sorted.filter(e=> (fcFlowFilter==='all' || (fcFlowFilter==='in'?e.amount>=0:e.amount<0)) && (!fcBucketFilter || bucketFor(e.date)===fcBucketFilter));
+  const fcNet = fcShown.reduce((t,e)=>t+e.amount,0);
+  const fcOn = fcFlowFilter!=='all' || !!fcBucketFilter;
+  const fcChip = (k,lab)=>`<button type="button" class="filter-chip ${fcFlowFilter===k?'active':''}" data-fc-flow="${k}">${lab} <span class="chip-count">${fcCounts[k]}</span></button>`;
+  const fcBChip = b=>`<button type="button" class="filter-chip ${fcBucketFilter===b?'active':''}" data-fc-bucket="${b}">${b?'Within '+b+'d':'Any time'}</button>`;
   return `
     ${reportHeader('Cash Flow Forecast')}
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">A forward-looking projection, not a historical statement — see the Cash Flow Statement for what already happened. Built from open receivables (by each customer's Credit Period), open payables, and active recurring templates due within the next 90 days.</p>
     ${cashFlowForecastCard()}
     <div class="panel" style="margin-top:14px;">
       <div class="panel-head"><h2>Events Behind This Forecast</h2></div>
+      ${sorted.length>3 ? `<div class="recon-filters"><div class="module-toolbar"><div class="filter-chips">${fcChip('all','All')}${fcChip('in','Inflows')}${fcChip('out','Outflows')}</div><div class="filter-chips">${fcBChip(0)}${fcBChip(30)}${fcBChip(60)}${fcBChip(90)}</div>${fcOn?`<button class="btn small secondary" data-fc-clear type="button">Clear filters</button>`:''}</div><div class="results-line" aria-live="polite">Showing ${fcShown.length} of ${sorted.length} expected events</div></div>` : ''}
       <div class="panel-body" style="padding:0;">
         ${sorted.length ? `<table>
           <tr><th>Expected Date</th><th>Within</th><th class="num">Expected Amount</th></tr>
-          ${sorted.map(e=>`<tr>
+          ${fcShown.map(e=>`<tr>
             <td class="muted">${e.date}</td>
             <td><span class="pill ${e.amount>=0?'pos':'neutral'}">+${bucketFor(e.date)}d</span></td>
             <td class="num ${e.amount>=0?'pos':'neg'}">${e.amount>=0?'+':''}₹${fmt(e.amount)}</td>
-          </tr>`).join('')}
+          </tr>`).join('') || `<tr><td colspan="3" class="empty">No events match these filters. <button class="btn small secondary" data-fc-clear type="button">Clear filters</button></td></tr>`}
+          ${fcShown.length ? `<tr class="totals-row"><td colspan="2">Net · ${fcShown.length} event${fcShown.length===1?'':'s'}${fcOn?' (filtered)':''}</td><td class="num ${fcNet>=0?'pos':'neg'}">${fcNet>=0?'+':'−'}₹${fmt(Math.abs(fcNet))}</td></tr>` : ''}
         </table>` : `<div class="empty">No open receivables, payables, or due recurring templates within the next 90 days.</div>`}
       </div>
     </div>
@@ -37276,6 +37437,19 @@ function reportECLProvision(){
   const matrixOverride = {};
   for(const b of ['0-30','31-60','61-90','90+']){ if(eclMatrixOverrides[b]!=null && eclMatrixOverrides[b]!=='') matrixOverride[b] = Number(eclMatrixOverrides[b])/100; }
   const { rows, matrix, totalProvision, totalOutstanding } = eclProvisionReport(matrixOverride);
+  // Display-only customer filters (never touch totalProvision, which is what "Post Provision" uses).
+  const eclAll = rows.map(r=>({r, hi: r.multiplier>1, lo: r.multiplier<1, nohist: !(r.reliability.sampleSize>0)}));
+  const eclCounts = { all: eclAll.length, high: eclAll.filter(x=>x.hi).length, low: eclAll.filter(x=>x.lo).length, nohist: eclAll.filter(x=>x.nohist).length };
+  const eclQ = eclQuery.trim().toLowerCase();
+  const eclFiltered = eclAll.filter(x=>{
+    if(eclFilter==='high' && !x.hi) return false; if(eclFilter==='low' && !x.lo) return false; if(eclFilter==='nohist' && !x.nohist) return false;
+    return !eclQ || x.r.ledger.name.toLowerCase().includes(eclQ);
+  });
+  const eclShown = eclFiltered.slice(0, eclLimit);
+  const eclRemaining = eclFiltered.length - eclShown.length;
+  const eclOn = eclFilter!=='all' || !!eclQ;
+  const eclSubOut = eclFiltered.reduce((t,x)=>t+x.r.summary.total,0), eclSubProv = eclFiltered.reduce((t,x)=>t+x.r.provisionTotal,0);
+  const eclChip = (k,lab)=>`<button type="button" class="filter-chip ${eclFilter===k?'active':''}" data-ecl-filter="${k}">${lab} <span class="chip-count">${eclCounts[k]}</span></button>`;
   return `
     ${reportHeader('Bad-Debt Risk & ECL Provisioning (AI)')}
     <p class="muted" style="font-size:12px;margin-top:-10px;">A provision for doubtful debts your receivables actually need — Ind AS 109's simplified "provision matrix" approach for trade receivables (ageing-bucket base rates below) blended with each customer's own historical payment reliability, not just today's snapshot. Fully transparent: every provision amount traces back to a visible rate and a visible track record. Nothing here changes your books until you post it.</p>
@@ -37295,21 +37469,25 @@ function reportECLProvision(){
         <p class="muted" style="font-size:11px;margin-bottom:0;">Each customer's actual rate per bucket also multiplies by their own reliability score below (0.5x for a consistently on-time payer, up to 2x for one with a history of very late or unsettled invoices).</p>
       </div>
     </div>
-    <div class="panel"><div class="panel-body" style="padding:0;">
+    <div class="panel">
+      ${rows.length>6 ? `<div class="recon-filters"><div class="module-toolbar"><div class="filter-chips">${eclChip('all','All')}${eclChip('high','Higher risk')}${eclChip('low','Lower risk')}${eclCounts.nohist?eclChip('nohist','No history'):''}</div>${moduleSearchBox('eclSearchInput','Search customer…',eclQuery)}${eclOn?`<button class="btn small secondary" data-ecl-clear type="button">Clear filters</button>`:''}</div><div class="results-line" aria-live="polite">Showing ${eclShown.length} of ${rows.length} customer${rows.length===1?'':'s'}${eclOn?` (${eclFiltered.length} match)`:''} · "Higher risk" = reliability multiplier above 1x</div></div>` : ''}
+    <div class="panel-body" style="padding:0;">
       <table class="rb-card-table">
         <tr><th>Customer</th><th class="num">Outstanding</th><th>Payment History</th><th class="num">Reliability</th><th class="num">ECL Provision</th></tr>
-        ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
+        ${eclShown.map(({r})=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
           <td class="ccard-title" data-label="Customer">${escapeHtml(r.ledger.name)}</td>
           <td class="num" data-label="Outstanding">₹${fmt(r.summary.total)}</td>
           <td class="muted" data-label="Payment History" style="font-size:11.5px;">${r.reliability.sampleSize>0 ? `${r.reliability.sampleSize} settled, avg ${r.reliability.avgDaysToPay}d, ${r.reliability.pctOnTime}% on time` : 'No settled history yet'}</td>
           <td class="num" data-label="Reliability">${r.multiplier}x</td>
           <td class="num ccard-amount" data-label="ECL Provision">₹${fmt(r.provisionTotal)}</td>
-        </tr>`).join('')}
+        </tr>`).join('') || `<tr><td colspan="5" class="empty">No customers match these filters. <button class="btn small secondary" data-ecl-clear type="button">Clear filters</button></td></tr>`}
+        ${eclOn && eclFiltered.length ? `<tr class="totals-row"><td colspan="1" class="ccard-title" data-label="Subtotal">Subtotal · ${eclFiltered.length} customer${eclFiltered.length===1?'':'s'} (filtered)</td><td class="num" data-label="Outstanding">₹${fmt(eclSubOut)}</td><td></td><td></td><td class="num" data-label="ECL Provision">₹${fmt(eclSubProv)}</td></tr>` : ''}
         <tr style="font-weight:700;border-top:2px solid var(--ink);">
-          <td colspan="4" data-label="">Total ECL Provision</td>
+          <td colspan="4" data-label="">Total ECL Provision${eclOn?' (all customers — this is what gets posted)':''}</td>
           <td class="num">₹${fmt(totalProvision)}</td>
         </tr>
       </table>
+      ${eclRemaining>0 ? `<div class="table-more"><button class="btn secondary" id="eclMoreBtn" type="button">Show ${Math.min(eclRemaining, ECL_PAGE)} more (${eclRemaining} not shown — totals already include them)</button></div>` : ''}
     </div></div>
     <button class="btn" id="postECLProvisionBtn" type="button" ${isReadOnlyMode()?'disabled':''}>Post Provision as Journal Voucher</button>
     ${isReadOnlyMode() ? `<div class="muted" style="font-size:11.5px;margin-top:6px;">${escapeHtml(readOnlyToastMessage())}</div>` : ''}
@@ -41852,6 +42030,27 @@ function viewReconcile(){
     .filter(r=>r.ledgerId===reconcileLedgerId)
     .sort((a,b)=> b.date===a.date ? (b.createdAt||'').localeCompare(a.createdAt||'') : (b.date<a.date?-1:1))
     .slice(0,8);
+  // Display-only view of summary.rows (never feeds back into the reconciliation maths).
+  const reconAll = summary.rows.map(r=>{
+    const staleDays = !r.cleared ? Math.round((new Date(asOfDate+'T00:00:00') - new Date(r.date+'T00:00:00')) / 86400000) : 0;
+    return {...r, staleDays, isStale: !r.cleared && staleDays > RECON_STALE_DAYS};
+  });
+  const reconCounts = { all: reconAll.length, open: reconAll.filter(r=>!r.cleared).length, cleared: reconAll.filter(r=>r.cleared).length, stale: reconAll.filter(r=>r.isStale).length };
+  if(reconFilter==='stale' && !reconCounts.stale) reconFilter = 'all';
+  const reconQ = reconQuery.trim().toLowerCase();
+  const reconFiltered = reconAll.filter(r=>{
+    if(reconFilter==='open' && r.cleared) return false;
+    if(reconFilter==='cleared' && !r.cleared) return false;
+    if(reconFilter==='stale' && !r.isStale) return false;
+    if(!reconQ) return true;
+    const amt = r.dr || r.cr;
+    return (`${r.narration||''} ${r.type||''} ${r.date} ${amt} ${fmt(amt)}`).toLowerCase().includes(reconQ);
+  });
+  const reconShown = reconFiltered.slice(0, reconLimit);
+  const reconRemaining = reconFiltered.length - reconShown.length;
+  const reconSumDr = reconFiltered.reduce((a,r)=>a+r.dr,0), reconSumCr = reconFiltered.reduce((a,r)=>a+r.cr,0);
+  const reconFiltersOn = reconFilter!=='all' || !!reconQ;
+  const reconChip = (k,lab)=>`<button type="button" class="filter-chip ${reconFilter===k?'active':''}" data-recon-filter="${k}">${lab} <span class="chip-count">${reconCounts[k]}</span></button>`;
 
   return `
     ${masthead('Bank Reconciliation','Match your books against the bank statement, account by account')}
@@ -41885,8 +42084,8 @@ function viewReconcile(){
       <div class="panel-body" style="padding:0;">
         <table>
           <tr><td>Balance as per Bank Statement (${reconcileDateLabel(asOfDate)})</td><td class="num">₹${fmt(statementBalance)}</td></tr>
-          <tr><td>Add: Deposits/Receipts in books not yet credited by bank (${summary.outstandingDeposits.length})</td><td class="num">+ ₹${fmt(summary.outstandingDrTotal)}</td></tr>
-          <tr><td>Less: Payments/Cheques in books not yet presented (${summary.outstandingPayments.length})</td><td class="num">− ₹${fmt(summary.outstandingCrTotal)}</td></tr>
+          <tr><td>Add: Deposits/Receipts in books not yet credited by bank (${summary.outstandingDeposits.length}${summary.outstandingDeposits.length?` · <a class="linklike" role="button" tabindex="0" data-recon-jump="open">show</a>`:''})</td><td class="num">+ ₹${fmt(summary.outstandingDrTotal)}</td></tr>
+          <tr><td>Less: Payments/Cheques in books not yet presented (${summary.outstandingPayments.length}${summary.outstandingPayments.length?` · <a class="linklike" role="button" tabindex="0" data-recon-jump="open">show</a>`:''})</td><td class="num">− ₹${fmt(summary.outstandingCrTotal)}</td></tr>
           <tr style="font-weight:700;border-top:2px solid var(--ink);"><td>= Balance as per Books (calculated)</td><td class="num">₹${fmt(summary.computedBookBalance)}</td></tr>
           <tr><td class="muted">Actual Balance as per Books (Ledger)</td><td class="num muted">₹${fmt(summary.bookBalance)}</td></tr>
           <tr style="font-weight:700;"><td>Unreconciled Difference</td><td class="num ${Math.abs(summary.difference)<0.005?'':'neg'}">₹${fmt(summary.difference)}</td></tr>
@@ -41912,7 +42111,7 @@ function viewReconcile(){
             ${explanation.reasons.map(r=>`<li>${escapeHtml(r)}</li>`).join('')}
           </ul>
           ${explanation.staleItems.length ? `
-          <p class="muted" style="font-size:11.5px;margin:0 0 12px;">Also outstanding a long time (over ${RECON_STALE_DAYS} days) — worth a second look: ${explanation.staleItems.map(r=>`${escapeHtml(r.narration||r.type)} (₹${fmt(r.dr||r.cr)}, ${r.date})`).join('; ')}.</p>
+          <p class="muted" style="font-size:11.5px;margin:0 0 12px;">Also outstanding a long time (over ${RECON_STALE_DAYS} days) — worth a second look: ${explanation.staleItems.slice(0,5).map(r=>`${escapeHtml(r.narration||r.type)} (₹${fmt(r.dr||r.cr)}, ${r.date})`).join('; ')}${explanation.staleItems.length>5?` — and ${explanation.staleItems.length-5} more (<a class="linklike" role="button" tabindex="0" data-recon-jump="stale">show all ${explanation.staleItems.length}</a>)`:''}.</p>
           ` : ''}
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface-strong);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;">
             <div style="flex:1;min-width:220px;font-size:12.5px;">Proposed entry: <strong>Journal</strong> — ${entryLabel} — ₹${fmt(explanation.amount)}, dated ${reconcileDateLabel(asOfDate)}</div>
@@ -41923,20 +42122,28 @@ function viewReconcile(){
       </div>`;
     })() : ''}
 
-    <div class="panel">
+    <div class="panel" id="reconTxnPanel">
       <div class="panel-head">
         <h2>Transactions up to ${reconcileDateLabel(asOfDate)}</h2>
         <div style="display:flex;gap:8px;">
-          <button class="btn secondary small" id="reconcileSelectAllBtn" type="button" ${summary.rows.length?'':'disabled'} title="Tick Cleared on every transaction below">☑ Select All</button>
-          <button class="btn secondary small" id="reconcileUncheckAllBtn" type="button" ${summary.rows.length?'':'disabled'} title="Untick Cleared on every transaction below">☐ Uncheck All</button>
+          <button class="btn secondary small" id="reconcileSelectAllBtn" type="button" ${summary.rows.length?'':'disabled'} title="Tick Cleared on all ${reconCounts.all} transactions on this account up to the statement date — not only the ones currently shown">☑ Select All</button>
+          <button class="btn secondary small" id="reconcileUncheckAllBtn" type="button" ${summary.rows.length?'':'disabled'} title="Untick Cleared on all ${reconCounts.all} transactions on this account up to the statement date — not only the ones currently shown">☐ Uncheck All</button>
         </div>
       </div>
       <div class="panel-body" style="padding:0;">
+        ${reconAll.length>0 ? `<div class="recon-filters">
+          <div class="module-toolbar">
+            <div class="filter-chips">${reconChip('all','All')}${reconChip('open','Not cleared')}${reconChip('cleared','Cleared')}${reconCounts.stale?reconChip('stale','Outstanding &gt; '+RECON_STALE_DAYS+'d'):''}</div>
+            ${reconAll.length>8 ? moduleSearchBox('reconSearchInput','Search narration, type, date or amount…',reconQuery) : ''}
+            ${reconFiltersOn ? `<button class="btn small secondary" data-recon-clear type="button">Clear filters</button>` : ''}
+          </div>
+          <div class="results-line" aria-live="polite">Showing ${reconShown.length} of ${reconAll.length} transaction${reconAll.length===1?'':'s'}${reconFiltersOn?` (${reconFiltered.length} match)`:''}${reconFiltersOn?' · Select All / Uncheck All still apply to every transaction':''}</div>
+        </div>` : ''}
         <table class="rb-card-table">
           <tr><th>Date</th><th>Voucher</th><th>Narration</th><th class="num">Deposit (Dr)</th><th class="num">Payment (Cr)</th><th style="text-align:center;">Cleared</th></tr>
-          ${summary.rows.map(r=>{
-            const staleDays = !r.cleared ? Math.round((new Date(asOfDate+'T00:00:00') - new Date(r.date+'T00:00:00')) / 86400000) : 0;
-            const isStale = !r.cleared && staleDays > RECON_STALE_DAYS;
+          ${reconShown.map(r=>{
+            const staleDays = r.staleDays;
+            const isStale = r.isStale;
             return `
           <tr>
             <td class="muted ccard-title" data-label="Date">${r.date}</td>
@@ -41945,8 +42152,10 @@ function viewReconcile(){
             <td class="num" data-label="Deposit (Dr)">${r.dr?'₹'+fmt(r.dr):''}</td>
             <td class="num" data-label="Payment (Cr)">${r.cr?'₹'+fmt(r.cr):''}</td>
             <td class="ccard-actions" style="text-align:center;" data-label="Cleared"><input type="checkbox" data-clear-voucher="${r.voucherId}" ${r.cleared?'checked':''}></td>
-          </tr>`;}).join('') || `<tr><td colspan="6" class="empty">No transactions on this account up to this date yet.</td></tr>`}
+          </tr>`;}).join('') || `<tr><td colspan="6" class="empty">${reconAll.length ? 'No transactions match these filters. <button class="btn small secondary" data-recon-clear type="button">Clear filters</button>' : 'No transactions on this account up to this date yet.'}</td></tr>`}
+          ${reconFiltered.length ? `<tr class="totals-row"><td class="ccard-title" data-label="Total" colspan="3">Total · ${reconFiltered.length} transaction${reconFiltered.length===1?'':'s'}${reconFiltersOn?' (filtered)':''}</td><td class="num" data-label="Deposit (Dr)">₹${fmt(reconSumDr)}</td><td class="num" data-label="Payment (Cr)">₹${fmt(reconSumCr)}</td><td></td></tr>` : ''}
         </table>
+        ${reconRemaining>0 ? `<div class="table-more"><button class="btn secondary" id="reconMoreBtn" type="button">Show ${Math.min(reconRemaining, RECON_PAGE)} more (${reconRemaining} not shown — totals above already include them)</button></div>` : ''}
       </div>
     </div>
 
@@ -42049,25 +42258,49 @@ function viewAssets(){
   const totalCost = activeAssets.reduce((s,a)=>s+(Number(a.cost)||0),0);
   const totalBookValue = activeAssets.reduce((s,a)=>{ const l=ledgerOf(a.ledgerId); return s+(l?ledgerBalance(l.id):0); },0);
   const dueThisFY = activeAssets.filter(a=>!(a.postedFYs||[]).includes(currentFY) && assetDepreciationForFY(a,currentFY)>0).length;
+  // Display-only row model + filters (Module 15, round 3). Figures come from the same functions as before.
+  const assetRows = activeAssets.map(a=>{
+    const ledger = ledgerOf(a.ledgerId);
+    const bookValue = ledger ? ledgerBalance(ledger.id) : null;
+    const posted = (a.postedFYs||[]).includes(currentFY);
+    const dueDep = assetDepreciationForFY(a, currentFY);
+    const cost = Number(a.cost)||0;
+    const depPct = (cost>0 && bookValue!=null) ? Math.max(0, Math.min(100, (1 - bookValue/cost)*100)) : null;
+    return { a, ledger, bookValue, posted, dueDep, cost, depPct, due: !posted && dueDep>0, mostly: depPct!=null && depPct>=90, noledger: !ledger };
+  });
+  const aCounts = { all: assetRows.length, due: assetRows.filter(r=>r.due).length, mostly: assetRows.filter(r=>r.mostly).length, noledger: assetRows.filter(r=>r.noledger).length };
+  if((assetFilter==='mostly' && !aCounts.mostly) || (assetFilter==='noledger' && !aCounts.noledger)) assetFilter = 'all';
+  const aq = assetQuery.trim().toLowerCase();
+  const assetFiltered = assetRows.filter(r=>{
+    if(assetFilter!=='all' && !r[assetFilter]) return false;
+    if(!aq) return true;
+    return `${r.a.name} ${r.ledger?r.ledger.name:''} ${r.a.method}`.toLowerCase().includes(aq);
+  });
+  const aFiltersOn = assetFilter!=='all' || !!aq;
+  const aSum = assetFiltered.reduce((t,r)=>({cost:t.cost+r.cost, book:t.book+(r.bookValue||0), dep:t.dep+(r.due?r.dueDep:0)}),{cost:0,book:0,dep:0});
+  const aChip = (k,lab)=>`<button type="button" class="filter-chip ${assetFilter===k?'active':''}" data-asset-filter="${k}">${lab} <span class="chip-count">${aCounts[k]}</span></button>`;
   return `
     ${masthead('Fixed Asset Register',`Track assets and post depreciation for FY ${currentFY}`,'assets')}
     <div class="grid">
-      <div class="stat"><div class="label">Total Assets</div><div class="val">${activeAssets.length}</div></div>
+      <div class="stat stat-link" data-asset-filter="all" role="button" tabindex="0" title="Show every asset"><div class="label">Total Assets</div><div class="val">${activeAssets.length}</div></div>
       <div class="stat"><div class="label">Total Cost</div><div class="val">₹${fmt(totalCost)}</div></div>
       <div class="stat"><div class="label">Total Book Value</div><div class="val">₹${fmt(totalBookValue)}</div></div>
-      <div class="stat"><div class="label">Depreciation Due (FY ${currentFY})</div><div class="val ${dueThisFY?'neg':''}">${dueThisFY}</div></div>
+      <div class="stat stat-link" data-asset-filter="due" role="button" tabindex="0" title="Show only assets with depreciation due"><div class="label">Depreciation Due (FY ${currentFY})</div><div class="val ${dueThisFY?'neg':''}">${dueThisFY}</div></div>
     </div>
     <div class="panel">
+      ${assetRows.length ? `<div class="recon-filters">
+        <div class="module-toolbar">
+          <div class="filter-chips">${aChip('all','All')}${aChip('due','Depreciation due')}${aCounts.mostly?aChip('mostly','≥ 90% depreciated'):''}${aCounts.noledger?aChip('noledger','Ledger missing'):''}</div>
+          ${assetRows.length>6 ? moduleSearchBox('assetSearchInput','Search asset, ledger or method…',assetQuery) : ''}
+          ${aFiltersOn ? `<button class="btn small secondary" data-asset-clear type="button">Clear filters</button>` : ''}
+          ${fixedAssetDraft ? '' : `<button class="btn small" id="newAssetBtn" type="button" style="margin-left:auto;">+ Add Fixed Asset</button>`}
+        </div>
+        <div class="results-line" aria-live="polite">Showing ${assetFiltered.length} of ${assetRows.length} asset${assetRows.length===1?'':'s'}${aFiltersOn?' (filtered)':''}</div>
+      </div>` : ''}
       <div class="panel-body" style="padding:0;">
-        ${activeAssets.length ? `<table class="rb-card-table">
+        ${assetFiltered.length ? `<table class="rb-card-table">
           <tr><th>Asset</th><th>Ledger</th><th class="num">Cost</th><th>Method</th><th>Life</th><th class="num">Book Value</th><th class="num">FY ${currentFY} Dep.</th><th></th></tr>
-          ${activeAssets.map(a=>{
-            const ledger = ledgerOf(a.ledgerId);
-            const bookValue = ledger ? ledgerBalance(ledger.id) : null;
-            const posted = (a.postedFYs||[]).includes(currentFY);
-            const dueDep = assetDepreciationForFY(a, currentFY);
-            const cost = Number(a.cost)||0;
-            const depPct = (cost>0 && bookValue!=null) ? Math.max(0, Math.min(100, (1 - bookValue/cost)*100)) : null;
+          ${assetFiltered.map(({a,ledger,bookValue,posted,dueDep,cost,depPct})=>{
             const depBar = depPct!=null ? `<span class="mini-bar" title="${depPct.toFixed(0)}% depreciated"><span class="mini-bar-fill ${depPct>=90?'warn':''}" style="width:${depPct.toFixed(0)}%;"></span></span><span class="mini-bar-label">${depPct.toFixed(0)}% depreciated</span>` : '';
             return `<tr>
               <td class="ccard-title" data-label="Asset">${escapeHtml(a.name)}${depBar}</td>
@@ -42079,16 +42312,19 @@ function viewAssets(){
               <td class="num" data-label="FY ${currentFY} Dep.">${posted ? `<span class="muted">✓ Posted</span>` : (dueDep>0 ? '₹'+fmt(dueDep) : '—')}</td>
               <td class="ccard-actions" data-label="Actions">
                 ${!posted && dueDep>0 && ledger ? `<button class="btn small secondary" data-post-depreciation="${a.id}" type="button">Post Dep.</button>` : ''}
-                ${ledger ? `<button class="btn small secondary" data-dispose-asset="${a.id}" type="button">Dispose</button>` : ''}
-                <button class="btn small secondary" data-delete-asset="${a.id}" type="button">🗑</button>
+                <details class="row-more"><summary class="btn secondary small">More ▾</summary><div class="row-more-menu">
+                  ${ledger ? `<button class="btn small secondary" data-dispose-asset="${a.id}" type="button">Dispose</button>` : ''}
+                  <button class="btn small secondary" data-delete-asset="${a.id}" type="button">🗑 Delete</button>
+                </div></details>
               </td>
             </tr>`;
           }).join('')}
-        </table>` : emptyState({icon:'🏢', title:'No fixed assets registered yet', text:'Add one above to start tracking depreciation.'})}
+          <tr class="totals-row"><td class="ccard-title" data-label="Total" colspan="2">Total · ${assetFiltered.length} asset${assetFiltered.length===1?'':'s'}${aFiltersOn?' (filtered)':''}</td><td class="num" data-label="Cost">₹${fmt(aSum.cost)}</td><td></td><td></td><td class="num" data-label="Book Value">₹${fmt(aSum.book)}</td><td class="num" data-label="FY ${currentFY} Dep. due">${aSum.dep>0?'₹'+fmt(aSum.dep):'—'}</td><td></td></tr>
+        </table>` : (assetRows.length ? `<div class="empty">No assets match these filters. <button class="btn small secondary" data-asset-clear type="button">Clear filters</button></div>` : emptyStateAct({icon:'🏢', title:'No fixed assets registered yet', text:'Add one to start tracking depreciation and book value.', ctaLabel:'+ Add Fixed Asset', act:'click:newAssetBtn'}))}
       </div>
     </div>
     <div class="panel"><div class="panel-body">
-      ${fixedAssetDraft ? assetDraftForm() : `<button class="btn secondary small" id="newAssetBtn" type="button">+ Add Fixed Asset</button>`}
+      ${fixedAssetDraft ? assetDraftForm() : (assetRows.length ? `<span class="muted" style="font-size:12px;">Add a new asset with “+ Add Fixed Asset” above.</span>` : `<button class="btn secondary small" id="newAssetBtn" type="button">+ Add Fixed Asset</button>`)}
     </div></div>
     <p class="muted" style="font-size:11.5px;">Book Value is read live off the linked ledger's balance. "Post Dep." posts a Journal voucher (Dr Depreciation / Cr the asset's ledger) for the current financial year and can only be posted once per asset per year. "Dispose" retires an asset at its current book value and posts the resulting profit/loss on sale.</p>
     ${disposedAssets.length ? `
@@ -42103,6 +42339,7 @@ function viewAssets(){
           <td class="num" data-label="Sale Proceeds">₹${fmt(a.disposalProceeds||0)}</td>
           <td class="num ${(a.disposalProfitLoss||0)>=0?'pos':'neg'}" data-label="Profit/(Loss)">${(a.disposalProfitLoss||0)>=0?'':'−'}₹${fmt(Math.abs(a.disposalProfitLoss||0))}</td>
         </tr>`).join('')}
+        ${disposedAssets.length>1 ? (()=>{ const bv=disposedAssets.reduce((t,a)=>t+(a.disposalBookValue||0),0), pr=disposedAssets.reduce((t,a)=>t+(a.disposalProceeds||0),0), pl=disposedAssets.reduce((t,a)=>t+(a.disposalProfitLoss||0),0); return `<tr class="totals-row"><td class="ccard-title" data-label="Total" colspan="2">Total · ${disposedAssets.length} assets</td><td class="num" data-label="Book Value at Disposal">₹${fmt(bv)}</td><td class="num" data-label="Sale Proceeds">₹${fmt(pr)}</td><td class="num ${pl>=0?'pos':'neg'}" data-label="Profit/(Loss)">${pl>=0?'':'−'}₹${fmt(Math.abs(pl))}</td></tr>`; })() : ''}
       </table>
     </div></div>
     ` : ''}
@@ -43963,9 +44200,21 @@ function attachHandlers(){
     });
   }
   if(view==='assets'){
+    document.querySelectorAll('[data-asset-filter]').forEach(el=>{
+      const go = ()=>{ assetFilter = el.dataset.assetFilter; render(); };
+      el.addEventListener('click', go);
+      if(el.getAttribute('role')==='button' && el.tagName!=='BUTTON') el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
+    });
+    document.getElementById('assetSearchInput')?.addEventListener('input', e=>{
+      assetQuery = e.target.value;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('assetSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.querySelectorAll('[data-asset-clear]').forEach(el=>el.addEventListener('click', ()=>{ assetFilter='all'; assetQuery=''; render(); }));
     document.getElementById('newAssetBtn')?.addEventListener('click', ()=>{
       fixedAssetDraft = { name:'', ledgerId:'', cost:'', purchaseDate: new Date().toISOString().slice(0,10), usefulLifeYears:5, method:'SLM', salvageValue:0 };
       render();
+      const fn=document.getElementById('faName'); if(fn){ try{ fn.scrollIntoView({block:'center'}); fn.focus(); }catch(e){} }
     });
     document.getElementById('cancelAssetBtn')?.addEventListener('click', ()=>{ fixedAssetDraft = null; render(); });
     document.getElementById('faName')?.addEventListener('input', e=> fixedAssetDraft.name = e.target.value);
@@ -44024,12 +44273,19 @@ function attachHandlers(){
       el.addEventListener('click', ()=>{
         ordersSubTab = el.dataset.ordersSubtab;
         oform = null;
-        ordersSearchQuery = '';
+        ordersSearchQuery = ''; ordersFilter = 'all'; ordersLimit = ORDERS_PAGE;
         render();
       });
     });
+    document.querySelectorAll('[data-orders-filter]').forEach(el=>{
+      const go = ()=>{ ordersFilter = el.dataset.ordersFilter; ordersLimit = ORDERS_PAGE; render(); };
+      el.addEventListener('click', go);
+      if(el.tagName!=='BUTTON') el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
+    });
+    document.querySelectorAll('[data-orders-clear]').forEach(el=>el.addEventListener('click', ()=>{ ordersFilter='all'; ordersSearchQuery=''; ordersLimit=ORDERS_PAGE; render(); }));
+    document.getElementById('ordersMoreBtn')?.addEventListener('click', ()=>{ ordersLimit += ORDERS_PAGE; render(); });
     document.getElementById('ordersSearchInput')?.addEventListener('input', (e)=>{
-      ordersSearchQuery = e.target.value;
+      ordersSearchQuery = e.target.value; ordersLimit = ORDERS_PAGE;
       const caret = e.target.selectionStart;
       render();
       const el = document.getElementById('ordersSearchInput');
@@ -46245,6 +46501,13 @@ function attachHandlers(){
     });
     // Agenda view's type filter chips (round 3) -- "__all__" clears every hidden type, otherwise
     // toggle membership in calAgendaHiddenTypes (see calendarAgendaFilterChips()).
+    document.querySelectorAll('[data-cal-agenda-sev]').forEach(el=>el.addEventListener('click', ()=>{ calAgendaSeverity = (calAgendaSeverity===el.dataset.calAgendaSev) ? 'all' : el.dataset.calAgendaSev; render(); }));
+    document.getElementById('calAgendaSearchInput')?.addEventListener('input', e=>{
+      calAgendaQuery = e.target.value;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('calAgendaSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.querySelectorAll('[data-cal-agenda-clear]').forEach(el=>el.addEventListener('click', ()=>{ calAgendaQuery=''; calAgendaSeverity='all'; calAgendaHiddenTypes.clear(); render(); }));
     document.querySelectorAll('[data-cal-type-chip]').forEach(el=>{
       el.addEventListener('click', ()=>{
         const t = el.dataset.calTypeChip;
@@ -47167,6 +47430,22 @@ function attachHandlers(){
     document.getElementById('exportPLBtn')?.addEventListener('click', exportPLToExcel);
     document.getElementById('exportBSBtn')?.addEventListener('click', exportBalanceSheetToExcel);
     document.getElementById('exportRatiosBtn')?.addEventListener('click', exportRatiosToExcel);
+    document.querySelectorAll('[data-ratio-jump]').forEach(el=>{
+      const go = ()=>{ const t = document.getElementById(el.dataset.ratioJump); if(t) t.scrollIntoView({behavior:'smooth', block:'start'}); };
+      el.addEventListener('click', go);
+      if(el.tagName!=='BUTTON') el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
+    });
+    document.querySelectorAll('[data-fc-flow]').forEach(el=>el.addEventListener('click', ()=>{ fcFlowFilter = el.dataset.fcFlow; render(); }));
+    document.querySelectorAll('[data-fc-bucket]').forEach(el=>el.addEventListener('click', ()=>{ fcBucketFilter = Number(el.dataset.fcBucket)||0; render(); }));
+    document.querySelectorAll('[data-fc-clear]').forEach(el=>el.addEventListener('click', ()=>{ fcFlowFilter='all'; fcBucketFilter=0; render(); }));
+    document.querySelectorAll('[data-ecl-filter]').forEach(el=>el.addEventListener('click', ()=>{ eclFilter = el.dataset.eclFilter; eclLimit = ECL_PAGE; render(); }));
+    document.querySelectorAll('[data-ecl-clear]').forEach(el=>el.addEventListener('click', ()=>{ eclFilter='all'; eclQuery=''; eclLimit=ECL_PAGE; render(); }));
+    document.getElementById('eclMoreBtn')?.addEventListener('click', ()=>{ eclLimit += ECL_PAGE; render(); });
+    document.getElementById('eclSearchInput')?.addEventListener('input', e=>{
+      eclQuery = e.target.value; eclLimit = ECL_PAGE;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('eclSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
     document.getElementById('exportCFBtn')?.addEventListener('click', exportCashFlowToExcel);
     document.getElementById('printTBBtn')?.addEventListener('click', printTrialBalanceReport);
     document.getElementById('printPLBtn')?.addEventListener('click', printIncomeStatementReport);
@@ -47490,7 +47769,21 @@ function attachHandlers(){
   if(view==='reconcile'){
     document.getElementById('reconcileLedgerSelect')?.addEventListener('change', e=>{
       reconcileLedgerId = e.target.value;
+      reconFilter = 'all'; reconQuery = ''; reconLimit = RECON_PAGE;
       render();
+    });
+    document.querySelectorAll('[data-recon-filter]').forEach(el=>el.addEventListener('click', ()=>{ reconFilter = el.dataset.reconFilter; reconLimit = RECON_PAGE; render(); }));
+    document.getElementById('reconSearchInput')?.addEventListener('input', e=>{
+      reconQuery = e.target.value; reconLimit = RECON_PAGE;
+      const caret = e.target.selectionStart; render();
+      const el = document.getElementById('reconSearchInput'); if(el){ el.focus(); try{ el.setSelectionRange(caret, caret); }catch(err){} }
+    });
+    document.querySelectorAll('[data-recon-clear]').forEach(el=>el.addEventListener('click', ()=>{ reconFilter='all'; reconQuery=''; reconLimit = RECON_PAGE; render(); }));
+    document.getElementById('reconMoreBtn')?.addEventListener('click', ()=>{ reconLimit += RECON_PAGE; render(); });
+    document.querySelectorAll('[data-recon-jump]').forEach(el=>{
+      const go = ()=>{ reconFilter = el.dataset.reconJump; reconQuery=''; reconLimit = RECON_PAGE; render(); const t=document.getElementById('reconTxnPanel'); if(t) t.scrollIntoView({behavior:'smooth', block:'start'}); };
+      el.addEventListener('click', go);
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); go(); } });
     });
     document.getElementById('reconcileDate')?.addEventListener('change', e=>{
       reconcileDraft.date = e.target.value;
