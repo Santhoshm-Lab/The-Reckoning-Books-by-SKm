@@ -3551,6 +3551,40 @@
     :root{--lg-clarity:0;}
     .landing-nav.sticky-nav{background:#0F2A17;}
   }
+  /* ===== GST filing panel (Nov 2026) ===== */
+  .gstf-controls{display:flex;gap:8px;flex-wrap:wrap;}
+  .gstf-controls select{min-width:150px;width:auto;}
+  #gstFilingPanel .panel-head{flex-wrap:wrap;gap:10px;}
+  @media (max-width:640px){ #gstFilingPanel .panel-head{flex-direction:column;align-items:stretch;} .gstf-controls{width:100%;} }
+  .gstf-verdict{padding:11px 14px;border-radius:10px;font-size:13px;font-weight:600;background:var(--surface-strong);color:var(--ink);margin-bottom:14px;}
+  .gstf-verdict.ok{background:var(--credit-bg);color:var(--credit);}
+  .gstf-verdict.bad{background:var(--debit-bg);color:var(--debit);}
+  .gstf-tiles{margin-bottom:14px;}
+  @media (min-width:1100px){ .gstf-tiles{grid-template-columns:repeat(6,minmax(0,1fr));} }
+  .gstf-sub{font-size:11px;color:var(--ink-faint);margin-top:3px;line-height:1.35;}
+  .gstf-issues{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+  .gstf-issue{border:1px solid var(--border);border-radius:10px;background:var(--surface);}
+  .gstf-issue summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:9px;padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .gstf-issue summary::-webkit-details-marker{display:none;}
+  .gstf-issue summary::after{content:'▾';margin-left:auto;color:var(--ink-faint);}
+  .gstf-issue[open] summary::after{content:'▴';}
+  .gstf-issue-title{min-width:0;}
+  .gstf-issue .chip-count{flex:none;min-width:20px;text-align:center;padding:0 7px;border-radius:999px;font-size:11px;font-weight:700;background:color-mix(in srgb, var(--ink) 10%, transparent);color:var(--ink);}
+  .gstf-tag{flex:none;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;}
+  .gstf-fix .gstf-tag{background:var(--debit-bg);color:var(--debit);}
+  .gstf-review .gstf-tag{background:color-mix(in srgb, var(--gold) 22%, transparent);color:var(--ink);}
+  .gstf-issue-body{padding:0 12px 11px;display:flex;flex-direction:column;gap:5px;align-items:flex-start;}
+  .gstf-issue-body p{margin:0 0 3px;font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .gstf-row{align-self:stretch;display:flex;justify-content:space-between;gap:12px;padding:6px 9px;border-radius:7px;background:var(--surface-strong);font-size:12px;cursor:pointer;}
+  .gstf-row:hover{outline:1px solid var(--border-strong);}
+  .gstf-books{font-size:11.5px;margin-bottom:12px;}
+  .gstf-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .gstf-actions .btn.is-held{opacity:.6;}
+  .gstf-how{margin-top:14px;border-top:1px solid var(--rule);padding-top:10px;}
+  .gstf-how summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--ink);}
+  .gstf-how ol{margin:10px 0 8px;padding-left:20px;font-size:12.5px;line-height:1.6;color:var(--ink-soft);}
+  .gstf-how p{font-size:11.5px;margin:0;}
+  @media (max-width:640px){ .gstf-actions .btn{width:100%;} .gstf-controls select{min-width:0;flex:1;} }
   /* ===== Admin Panel light/dark (Nov 2026) ===== */
   .admin-console-topbar{gap:10px;}
   .admin-theme-btn{white-space:nowrap;}
@@ -11075,7 +11109,7 @@ async function refreshCurrentSession(btnId){
 async function loadState(){
   const cid = currentCompany.id;
   reconFilter='all'; reconQuery=''; reconLimit=RECON_PAGE;
-  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
+  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; gstFilingPeriodKey=null; gstFilingFreqLocal=null; gstFilingSettingsDraft=null; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
   ordersFilter='all'; ordersLimit=ORDERS_PAGE; assetFilter='all'; assetQuery=''; calAgendaQuery=''; calAgendaSeverity='all';
   reconcileLedgerId = null; // reset so the Reconcile tab re-picks a bank ledger belonging to this company
   reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' };
@@ -15878,7 +15912,7 @@ function buildGSTStatementWorkbook(){
     ...b2cRows.map(r=>[ r.isInter?'7B — Inter-State':'7A — Intra-State', r.rate, r.count, r2(r.taxable), r2(r.igst), r2(r.cgst), r2(r.sgst), r2(r.tax) ]),
     ['Total','', taxedSales.length, r2(outTotals.taxable), r2(outTotals.igst), r2(outTotals.cgst), r2(outTotals.sgst), r2(outTotals.tax)],
     [],
-    ['No B2B (Table 4) rows are produced because customer GSTIN is not captured per party in this app — if any of the above buyers are actually GST-registered, move that invoice to Table 4 manually and supply their GSTIN.'],
+    ['This year summary groups every sale by rate as a working paper. To file a return, use File GST Return on the GST screen: it reports invoices to GST-registered buyers party-wise (Table 4) for the month or quarter you pick.'],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(t7), 'GSTR-1 - Table 7 (B2C)');
 
@@ -17165,6 +17199,7 @@ function render(){
     ${modal==='eway' ? eWayBillTransportModal() : ''}
     ${modal==='attachments' ? attachmentsModal() : ''}
     ${modal==='invoiceSettings' ? invoiceSettingsModal() : ''}
+    ${modal==='gstFilingSettings' ? gstFilingSettingsModal() : ''}
     ${modal==='voucherHistory' ? voucherHistoryModal() : ''}
     ${modal==='approvals' ? approvalsModal() : ''}
     ${modal==='manageAccess' ? manageAccessModal() : ''}
@@ -20206,7 +20241,7 @@ function landingFeatureIcon(name){
 const LANDING_FEATURES = [
   { icon:'vouchers', title:'Real Double-Entry Vouchers', body:'Payment, Receipt, Sales, Purchase, Journal and Contra — every entry is validated to balance before it can save. No shortcuts.' },
   { icon:'ledgers', title:'Ledgers & Financial Reports', body:'Running balances on every account, plus Trial Balance, Income Statement, Balance Sheet, Cash Flow and Ratio Analysis — exportable to Excel.' },
-  { icon:'gst', title:'GST, Built In', body:'CGST / SGST / IGST tracked automatically, printable tax invoices, and a downloadable, filing-ready GST statement.' },
+  { icon:'gst', title:'GST, Built In', body:'CGST / SGST / IGST tracked automatically, printable tax invoices, and a GSTR-1 file you upload straight to the GST portal.' },
   { icon:'companies', title:'Multi-Company', body:'Run every business — or every client\'s books — from one account, each fully separate and secure.' },
   { icon:'inventory', title:'Inventory Control & Fixed Assets', body:'Multi-location stock control with batch/serial tracking, reorder alerts and demand forecasting, plus a Fixed Asset Register with depreciation, handled automatically.' },
   { icon:'importbackup', title:'Smart Import & Backup', body:'Bring in bank statements or spreadsheets pre-mapped to vouchers, and back up or restore a company\'s entire books in one click.' },
@@ -20253,7 +20288,8 @@ const LANDING_MODULE_CATEGORIES = [
   { id:'compliance', label:'GST & Compliance', icon:'gst', modules:[
     { name:'Automatic GST', desc:'CGST, SGST and IGST computed on every applicable voucher — no manual tax math.' },
     { name:'GST Return Readiness Report', desc:'A GSTR-1/3B-style monthly summary of output tax vs. input credit, flagging any voucher missing a GSTIN or HSN.' },
-    { name:'e-Invoice JSON Export', desc:'Generates a ready-to-file e-Invoice payload for eligible Sales vouchers.' },
+    { name:'GSTR-1 File for the GST Portal', desc:'Pick a month or quarter and download GSTR-1 in the portal\'s own upload format — B2B, B2C, credit notes, HSN and documents issued — after a pre-filing check. You upload and file it yourself.' },
+    { name:'e-Invoice JSON Export', desc:'Builds the e-Invoice payload for a Sales voucher, for upload through your e-invoice portal or provider.' },
     { name:'TDS/TCS Report', desc:'A dedicated summary of tax deducted and collected at source.' },
     { name:'Configurable Invoice Templates', desc:'Logo, accent color, template and footer note — identical on the live preview and every later reprint.' },
   ]},
@@ -20857,7 +20893,7 @@ const LANDING_FAQ = [
   { q:'Is The Reckoning Books free to use?', a:'Yes — create a free account with no credit card and explore every core bookkeeping feature. Some advanced modules can be gated to Paid or Lifetime plans depending on how your organization sets it up.' },
   { q:'Do I need to install anything?', a:'No — it runs entirely in your browser. You can also install it as a desktop app for quicker access, but that\'s entirely optional.' },
   { q:'Is my data secure?', a:'Every account is email-verified, every change is written to a full audit log, and each company\'s books are kept fully separate — even when you manage several from one account.' },
-  { q:'Does it handle GST?', a:'Yes — CGST, SGST and IGST are calculated automatically on every applicable voucher, with printable tax invoices and a downloadable, filing-ready GST statement.' },
+  { q:'Does it handle GST?', a:'Yes — CGST, SGST and IGST are calculated automatically on every applicable voucher, with printable tax invoices and a GSTR-1 file in the GST portal\'s upload format. You upload and file it on the portal yourself.' },
   { q:'Can I manage more than one business?', a:'Yes — Multi-Company support lets you run every business, or every client\'s books if you\'re an accountant, from a single account, each fully separate.' },
   { q:'Can I get my data out if I need to?', a:'Yes — every report exports to Excel, and you can back up or restore a company\'s entire books in one click.' },
 ];
@@ -21691,7 +21727,7 @@ function renderLogin(){
               <p class="login-brand-sub">Real double-entry books, GST built in, inventory, payroll and reports — with an AI layer that watches your numbers, not just stores them.</p>
               <ul class="login-brand-features">
                 <li>${landingFeatureIcon('vouchers')}Real double-entry vouchers, always balanced</li>
-                <li>${landingFeatureIcon('gst')}GST tracked and filing-ready, automatically</li>
+                <li>${landingFeatureIcon('gst')}GST tracked, with a GSTR-1 file for the portal</li>
                 <li>${landingFeatureIcon('ai')}${landingAiCount()} AI features and 7 AI agents watching your books</li>
                 <li>${landingFeatureIcon('security')}Email-verified accounts with a full audit log</li>
               </ul>
@@ -28617,7 +28653,7 @@ function plainHintGST(){
     'This page adds up your GST from the vouchers you have already recorded. <b>Output tax</b> is the GST you charged your customers, which you owe the government. <b>Input credit</b> is the GST your suppliers charged you, which you can subtract. The difference is the <b>Net GST</b>: payable if it is above zero, refundable if it is below.',
     [noGstin ? '<b>Add your GSTIN</b> under Edit, then company details. It prints on your invoices.' : 'Your GSTIN is set. It prints on your invoices.',
      'Switch on GST when you record a <b>Sales</b> or <b>Purchase</b> voucher.',
-     'Before you file, review the summary here and download the statement in GSTR format.'],
+     'To file, pick the period under <b>File GST Return</b>, clear anything marked Must fix, then download the GSTR-1 file and upload it on the GST portal.'],
     noGstin ? [{label:'Add your GSTIN', act:'company'}, {label:'Record a sale', act:'tab:voucher'}] : [{label:'Record a sale', act:'tab:voucher'}],
     state.vouchers.filter(v=>v.type==='Sales'||v.type==='Purchase').every(v=>gstBreakdownForVoucher(v).totalTax<=0));
 }
@@ -32528,7 +32564,7 @@ function alterLedgerModal(){
   if(editing && !l){ return ''; }
   const openingAbs = l ? Math.abs(l.opening||0) : 0;
   const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
-  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.isIntercompany || l.currency || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.address || l.shippingAddress || l.bankAccountNumber || l.bankIFSC));
+  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.isIntercompany || l.currency || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.state || l.address || l.shippingAddress || l.bankAccountNumber || l.bankIFSC));
   return `
     <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
@@ -32556,7 +32592,7 @@ function alterLedgerModal(){
                 <div class="field" style="max-width:140px;"><label>GST Rate</label>
                   <select id="alterLedgerGST">
                     <option value="" ${l&&l.gstRate==null?'selected':''}>— None —</option>
-                    ${[0,5,12,18,28].map(r=>`<option value="${r}" ${l&&l.gstRate===r?'selected':''}>${r}%</option>`).join('')}
+                    ${GST_RATE_OPTIONS.map(r=>`<option value="${r}" ${l&&l.gstRate===r?'selected':''}>${gstRateLabel(r)}</option>`).join('')}
                   </select>
                 </div>
                 <div class="field" style="max-width:220px;"><label>MSME Supplier?</label>
@@ -32594,6 +32630,7 @@ function alterLedgerModal(){
                 <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="alterLedgerCreditLimit" value="${l&&l.creditLimit!=null?l.creditLimit:''}" step="0.01" placeholder="e.g. 100000"></div>
                 <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
                 <div class="field"><label>GSTIN (optional, for parties)</label><input type="text" id="alterLedgerGSTIN" value="${escapeAttr(l&&l.gstin?l.gstin:'')}" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
+                <div class="field" style="max-width:220px;"><label>State (for parties without a GSTIN)</label><select id="alterLedgerState"><option value="">Same State as this company</option>${INDIAN_STATES.map(st=>`<option value="${escapeAttr(st)}" ${l&&l.state===st?'selected':''}>${escapeHtml(st)}</option>`).join('')}</select></div>
               </div>
               <div class="row">
                 <div class="field"><label>Billing Address (optional, prints on invoices)</label><textarea id="alterLedgerAddress" rows="2" placeholder="Building, street, area, city, state, pincode">${escapeHtml(l&&l.address?l.address:'')}</textarea></div>
@@ -33930,7 +33967,7 @@ function gstCalculator(){
         <div class="row" style="margin-top:6px;">
           <div class="field" style="max-width:140px;"><label>GST Rate</label>
             <select id="gstRate">
-              ${[0,5,12,18,28].map(r=>`<option value="${r}" ${Number(g.rate)===r?'selected':''}>${r}%</option>`).join('')}
+              ${GST_RATE_OPTIONS.map(r=>`<option value="${r}" ${Number(g.rate)===r?'selected':''}>${gstRateLabel(r)}</option>`).join('')}
             </select>
           </div>
           <div class="field" style="max-width:220px;"><label>Supply Type</label>
@@ -33982,7 +34019,7 @@ function paymentPurchaseItemsPanel(){
         <div class="row" style="margin-top:6px;">
           <div class="field" style="max-width:140px;"><label>GST Rate</label>
             <select id="gstRate">
-              ${[0,5,12,18,28].map(r=>`<option value="${r}" ${Number(g.rate)===r?'selected':''}>${r}%</option>`).join('')}
+              ${GST_RATE_OPTIONS.map(r=>`<option value="${r}" ${Number(g.rate)===r?'selected':''}>${gstRateLabel(r)}</option>`).join('')}
             </select>
           </div>
           <div class="field" style="max-width:220px;"><label>Supply Type</label>
@@ -34188,7 +34225,7 @@ function viewPOS(){
               <summary>GST — ${rate}%, ${pos.supply==='intra'?'Intrastate':'Interstate'}</summary>
               <div class="disclosure-body row">
                 <div class="field" style="max-width:110px;"><label>GST Rate</label>
-                  <select id="posGstRate">${[0,5,12,18,28].map(r=>`<option value="${r}" ${Number(pos.gstRate)===r?'selected':''}>${r}%</option>`).join('')}</select>
+                  <select id="posGstRate">${GST_RATE_OPTIONS.map(r=>`<option value="${r}" ${Number(pos.gstRate)===r?'selected':''}>${gstRateLabel(r)}</option>`).join('')}</select>
                 </div>
                 <div class="field" style="max-width:190px;"><label>Supply Type</label>
                   <select id="posSupply">
@@ -35516,7 +35553,7 @@ function stockItemForm(){
           <div class="field" style="max-width:140px;"><label>GST Rate</label>
             <select id="newItemGST">
               <option value="" ${d.gstRate==null?'selected':''}>— None —</option>
-              ${[0,5,12,18,28].map(r=>`<option value="${r}" ${d.gstRate===r?'selected':''}>${r}%</option>`).join('')}
+              ${GST_RATE_OPTIONS.map(r=>`<option value="${r}" ${d.gstRate===r?'selected':''}>${gstRateLabel(r)}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -40446,7 +40483,7 @@ function gstReadinessCard(){
         </div>
         <div class="muted" style="font-size:12px;margin-bottom:10px;">${d.salesCount} GST sales voucher${d.salesCount===1?'':'s'} · ${d.purchaseCount} GST purchase voucher${d.purchaseCount===1?'':'s'} this month.</div>
         ${d.ready ? `
-          <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:var(--credit-bg);color:var(--credit);font-size:13px;font-weight:600;">✓ Filing-ready — no missing GSTIN or HSN found for this month.</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:var(--credit-bg);color:var(--credit);font-size:13px;font-weight:600;">✓ No missing GSTIN or HSN found for this month. Run the check in File GST Return above before you file.</div>
         ` : issueCount ? `
           <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:6px;">⚠️ ${issueCount} thing${issueCount===1?'':'s'} to fix before filing:</div>
           <div style="display:flex;flex-direction:column;gap:5px;">
@@ -40486,6 +40523,549 @@ function gstSupplySection(title, anchorId, rows, limit, moreId, emptyTitle, empt
     <div class="section-title" id="${anchorId}">${title} <span class="muted" style="font-weight:500;font-size:11px;">— click a row to open that voucher</span></div>
     <div class="panel"><div class="panel-body" style="padding:0;">${body}</div></div>`;
 }
+/* ====== GST filing engine (Nov 2026) ======
+   Turns the vouchers already in the books into a period-wise GSTR-1 in the GST portal's own offline-upload
+   JSON layout (b2b / b2cl / b2cs / cdnr / cdnur / nil / hsn.hsn_b2b + hsn.hsn_b2c / doc_issue), plus the
+   GSTR-3B figures for the same period and a pre-filing check.
+   REPORTING ONLY: nothing here posts, edits or re-computes a voucher or a ledger balance. Tax amounts are read
+   straight off the six GST ledgers' own voucher lines, so every return total reconciles to the books
+   (see gstReturnData().books). This app has no connection to the GST Network: the file is uploaded by the
+   user on the portal (Returns > GSTR-1 > Prepare Offline > Upload), reviewed there, and filed there. */
+const GST_STATE_CODES = {'Jammu and Kashmir':'01','Himachal Pradesh':'02','Punjab':'03','Chandigarh':'04','Uttarakhand':'05','Haryana':'06','Delhi':'07','Rajasthan':'08','Uttar Pradesh':'09','Bihar':'10','Sikkim':'11','Arunachal Pradesh':'12','Nagaland':'13','Manipur':'14','Mizoram':'15','Tripura':'16','Meghalaya':'17','Assam':'18','West Bengal':'19','Jharkhand':'20','Odisha':'21','Chhattisgarh':'22','Madhya Pradesh':'23','Gujarat':'24','Dadra and Nagar Haveli and Daman and Diu':'26','Maharashtra':'27','Karnataka':'29','Goa':'30','Lakshadweep':'31','Kerala':'32','Tamil Nadu':'33','Puducherry':'34','Andaman and Nicobar Islands':'35','Telangana':'36','Andhra Pradesh':'37','Ladakh':'38'};
+const GST_STATE_NAME_BY_CODE = Object.fromEntries(Object.entries(GST_STATE_CODES).map(([n,c])=>[c,n]));
+const GST_VALID_RATES = [0,0.1,0.25,1,1.5,3,5,6,7.5,12,18,28,40];   // rates the portal accepts on a line
+const GST_RATE_OPTIONS = [0,0.25,3,5,18,40,12,28];                   // what the rate pickers offer; 12 and 28 are the pre-22-Sep-2025 slabs
+function gstRateLabel(r){ return (r===12||r===28) ? `${r}% (old slab)` : `${r}%`; }
+const GST_B2CL_LIMIT = 100000;   // inter-State invoice to an unregistered buyer above this value is reported invoice-wise (Table 5)
+const GST_LEDGER_IDS = new Set(['l_ocgst','l_osgst','l_oigst','l_icgst','l_isgst','l_iigst']);
+const GST_UQC_MAP = {NOS:'NOS',NO:'NOS',NUMBER:'NOS',NUMBERS:'NOS',PC:'PCS',PCS:'PCS',PIECE:'PCS',PIECES:'PCS',KG:'KGS',KGS:'KGS',KILOGRAM:'KGS',KILOGRAMS:'KGS',G:'GMS',GM:'GMS',GMS:'GMS',GRAM:'GMS',GRAMS:'GMS',L:'LTR',LTR:'LTR',LITRE:'LTR',LITRES:'LTR',LITER:'LTR',ML:'MLT',MLT:'MLT',M:'MTR',MTR:'MTR',METER:'MTR',METRE:'MTR',METERS:'MTR',METRES:'MTR',CM:'CMS',CMS:'CMS',BOX:'BOX',BOXES:'BOX',BAG:'BAG',BAGS:'BAG',BTL:'BTL',BOTTLE:'BTL',BOTTLES:'BTL',DOZ:'DOZ',DOZEN:'DOZ',PKT:'PAC',PACK:'PAC',PACKS:'PAC',PAC:'PAC',PACKET:'PAC',SET:'SET',SETS:'SET',PAIR:'PRS',PAIRS:'PRS',PRS:'PRS',ROLL:'ROL',ROLLS:'ROL',ROL:'ROL',TON:'TON',TONS:'TON',TONNE:'MTS',TONNES:'MTS',MT:'MTS',MTS:'MTS',QTL:'QTL',QUINTAL:'QTL',SQF:'SQF',SQFT:'SQF',SQM:'SQM',SQY:'SQY',CTN:'CTN',CARTON:'CTN',CARTONS:'CTN',UNIT:'UNT',UNITS:'UNT',UNT:'UNT',CAN:'CAN',CANS:'CAN',DRUM:'DRM',DRM:'DRM',BUNDLE:'BDL',BUNDLES:'BDL',BDL:'BDL',TUBE:'TUB',TUB:'TUB',YDS:'YDS',YARD:'YDS',YARDS:'YDS',KLR:'KLR',CBM:'CBM',BAL:'BAL',BALE:'BAL',GRS:'GRS',GROSS:'GRS',TBS:'TBS',THD:'THD',OTH:'OTH',NA:'NA'};
+function gstUqc(unit){ const k = String(unit||'').toUpperCase().replace(/[^A-Z]/g,''); return GST_UQC_MAP[k] || 'OTH'; }
+let gstFilingPeriodKey = null;       // 'YYYY-MM' (month) or 'YYYY-MM/Q' (quarter starting that month); null = pick a sensible default
+let gstFilingFreqLocal = null;       // session override when the company record can't be saved (read-only user)
+let gstFilingSettingsDraft = null;   // null = settings modal closed
+
+function gstFilingSettings(){
+  const s = (currentCompany && currentCompany.gstFiling) || {};
+  const freq = gstFilingFreqLocal || s.freq;
+  return {
+    freq: freq==='quarterly' ? 'quarterly' : 'monthly',
+    untaxed: ['nil','exempt','nongst','skip'].includes(s.untaxed) ? s.untaxed : '',
+    defaultHsn: String(s.defaultHsn||'').replace(/\D/g,''),
+    above5cr: !!s.above5cr,
+  };
+}
+function gstPad2(n){ return String(n).padStart(2,'0'); }
+function gstPeriodFromKey(key){
+  const quarter = /\/Q$/.test(key);
+  const [y,m] = key.slice(0,7).split('-').map(Number);
+  const endM = quarter ? m+2 : m;
+  const lastDay = new Date(y, endM, 0).getDate();
+  const mon = i => new Date(y, i-1, 1).toLocaleDateString('en-IN',{month:'short'});
+  return {
+    key, quarter, from:`${y}-${gstPad2(m)}-01`, to:`${y}-${gstPad2(endM)}-${gstPad2(lastDay)}`,
+    fp: gstPad2(endM)+String(y),
+    label: quarter ? `${mon(m)}–${mon(endM)} ${y} (quarter)` : new Date(y, m-1, 1).toLocaleDateString('en-IN',{month:'long',year:'numeric'}),
+  };
+}
+function gstPeriodKeyForMonth(monthKey, freq){
+  if(freq!=='quarterly') return monthKey;
+  const [y,m] = monthKey.split('-').map(Number);
+  return `${y}-${gstPad2([1,1,1,4,4,4,7,7,7,10,10,10][m-1])}/Q`;
+}
+// Periods worth offering: every month (or quarter) that has a Sales / Purchase / Credit Note / Debit Note
+// voucher, plus the current and the previous one. Newest first.
+function gstFilingPeriodKeys(freq){
+  const months = new Set();
+  for(const v of state.vouchers){ if(v.date && (v.type==='Sales'||v.type==='Purchase'||v.type==='Credit Note'||v.type==='Debit Note')) months.add(v.date.slice(0,7)); }
+  const withData = new Set(Array.from(months).map(m=>gstPeriodKeyForMonth(m,freq)));
+  const now = new Date(), cur = `${now.getFullYear()}-${gstPad2(now.getMonth()+1)}`;
+  const back = new Date(now.getFullYear(), now.getMonth()-(freq==='quarterly'?3:1), 1), prev = `${back.getFullYear()}-${gstPad2(back.getMonth()+1)}`;
+  const curKey = gstPeriodKeyForMonth(cur,freq), prevKey = gstPeriodKeyForMonth(prev,freq);
+  const all = new Set([...withData, curKey, prevKey]);
+  const keys = Array.from(all).sort().reverse();
+  // Default: the period that has just ended (that is the one being filed) when it has vouchers, else the newest with vouchers.
+  const def = withData.has(prevKey) ? prevKey : (keys.find(k=>withData.has(k)) || curKey);
+  return { keys, def };
+}
+function gstActiveFilingPeriod(){
+  const s = gstFilingSettings();
+  const { keys, def } = gstFilingPeriodKeys(s.freq);
+  if(!gstFilingPeriodKey || !keys.includes(gstFilingPeriodKey)) gstFilingPeriodKey = def;
+  return { period: gstPeriodFromKey(gstFilingPeriodKey), keys };
+}
+// Net movement on the three output and three input GST ledgers inside one voucher (read-only).
+function gstVoucherTax(v){
+  const o = {c:0,s:0,i:0}, n = {c:0,s:0,i:0}; let touchesOut = false, touchesIn = false;
+  for(const e of (v.entries||[])){
+    const dr = e.dr||0, cr = e.cr||0;
+    switch(e.ledgerId){
+      case 'l_ocgst': o.c += cr-dr; touchesOut = true; break;
+      case 'l_osgst': o.s += cr-dr; touchesOut = true; break;
+      case 'l_oigst': o.i += cr-dr; touchesOut = true; break;
+      case 'l_icgst': n.c += dr-cr; touchesIn = true; break;
+      case 'l_isgst': n.s += dr-cr; touchesIn = true; break;
+      case 'l_iigst': n.i += dr-cr; touchesIn = true; break;
+    }
+  }
+  return { out:o, inp:n, outTot:o.c+o.s+o.i, inTot:n.c+n.s+n.i, touchesOut, touchesIn };
+}
+function gstVoucherParty(v, side, ledgerMap){
+  const cands = (v.entries||[]).filter(e=>(e[side]||0)>0 && !GST_LEDGER_IDS.has(e.ledgerId)).map(e=>ledgerMap.get(e.ledgerId)).filter(Boolean);
+  return cands.find(l=>l.gstin) || cands.find(l=>l.partyType || l.group==='sundeb' || l.group==='sundcr') || cands[0] || null;
+}
+function gstHome(){
+  const g = ((currentCompany&&currentCompany.gstin)||'').trim().toUpperCase();
+  const valid = isValidGSTIN(g);
+  return { gstin:g, valid, code: valid ? g.slice(0,2) : (GST_STATE_CODES[(currentCompany&&currentCompany.state)||'']||'') };
+}
+// Document numbers, built once per report. Invoices use exactly the numbering salesVoucherInvoiceNumber()
+// prints on the invoice; credit and debit notes get their own running series (CN/<FY>/0001, DN/<FY>/0001).
+function gstDocNumberMaps(){
+  const cmp = (a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1);
+  const p4 = n => String(n).padStart(4,'0');
+  const prefix = (currentCompany && currentCompany.invoiceSettings && currentCompany.invoiceSettings.numberPrefix || '').trim();
+  const inv = new Map(), cn = new Map(), dn = new Map();
+  state.vouchers.filter(x=>x.type==='Sales').sort(cmp).forEach((x,i)=>inv.set(x.id, prefix ? `${prefix}${p4(i+1)}` : `INV/${fyLabelForDate(x.date)}/${p4(i+1)}`));
+  state.vouchers.filter(x=>x.type==='Credit Note').sort(cmp).forEach((x,i)=>cn.set(x.id, `CN/${fyLabelForDate(x.date)}/${p4(i+1)}`));
+  state.vouchers.filter(x=>x.type==='Debit Note' && gstVoucherTax(x).outTot>0.004).sort(cmp).forEach((x,i)=>dn.set(x.id, `DN/${fyLabelForDate(x.date)}/${p4(i+1)}`));
+  return { inv, cn, dn };
+}
+function gstSnapRate(taxable, tax){
+  if(!(taxable>0)) return null;
+  const raw = tax/taxable*100; let best = null;
+  for(const r of GST_VALID_RATES){
+    if(Math.abs(raw-r)<=0.06 || Math.abs(tax-taxable*r/100)<=0.11){ if(best===null || Math.abs(raw-r)<Math.abs(raw-best)) best = r; }
+  }
+  return best;
+}
+// Shares a rounded total across parts so the parts add back to exactly the total (largest part takes the paise).
+function gstSplit(total, weights){
+  const sum = weights.reduce((s,x)=>s+x,0);
+  if(!(sum>0)) return weights.map((_,i)=> i===0 ? r2(total) : 0);
+  const parts = weights.map(w=>r2(total*w/sum));
+  const diff = r2(total - parts.reduce((s,x)=>s+x,0));
+  if(diff){ let k = 0; weights.forEach((w,i)=>{ if(w>weights[k]) k = i; }); parts[k] = r2(parts[k]+diff); }
+  return parts;
+}
+// One outward document (invoice / credit note / debit note) with its rate-wise and HSN-wise lines.
+// All amounts are positive magnitudes; `sign` (-1 for a credit note) is applied when totals are added up.
+function gstBuildOutwardDoc(v, kind, t, ctx){
+  const sign = kind==='CN' ? -1 : 1;
+  const c = r2(sign*t.out.c), s = r2(sign*t.out.s), i = r2(sign*t.out.i);
+  const tax = r2(c+s+i), val = r2(voucherAmount(v)), taxable = r2(val-tax);
+  const party = gstVoucherParty(v, kind==='CN'?'cr':'dr', ctx.ledgerMap);
+  const gstinRaw = ((party&&party.gstin)||'').trim().toUpperCase();
+  const ctin = isValidGSTIN(gstinRaw) ? gstinRaw : '';
+  const issues = [];
+  if(gstinRaw && !ctin) issues.push('gstinBad');
+  const hasI = Math.abs(i)>0.004, hasCS = Math.abs(c)+Math.abs(s)>0.004;
+  if(hasI && hasCS) issues.push('mixedHeads');
+  const inter = hasI && !hasCS;
+  const pos = ctin ? ctin.slice(0,2) : ((party && party.state && GST_STATE_CODES[party.state]) || (!inter ? ctx.home.code : ''));
+  if(!pos) issues.push('pos');
+  else if(ctx.home.code && !issues.includes('mixedHeads')){ if((pos===ctx.home.code && inter) || (pos!==ctx.home.code && !inter)) issues.push('posTax'); }
+  const num = (kind==='INV' ? ctx.nums.inv : kind==='CN' ? ctx.nums.cn : ctx.nums.dn).get(v.id) || '';
+  if(!num || num.length>16 || !/^[A-Za-z0-9\/-]+$/.test(num)) issues.push('docnum');
+
+  // --- items: taxable shared by line value; tax shared by line value x that item's own rate when the item
+  // masters carry different rates that explain the voucher's tax, else one rate for the whole document.
+  const items = (v.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
+  const masters = items.map(it=> it.itemId ? (ctx.itemMap.get(it.itemId)||null) : null);
+  let amts = items.map(it=>Math.max(0,itemLineAmount(it)));
+  if(!(amts.reduce((a,b)=>a+b,0)>0)) amts = items.map(()=>1);
+  let itemRates = null;
+  if(items.length>1 && taxable>0 && masters.every(m=>m && typeof m.gstRate==='number')){
+    const distinct = new Set(masters.map(m=>m.gstRate));
+    if(distinct.size>1){
+      const sumA = amts.reduce((a,b)=>a+b,0);
+      const expected = masters.reduce((x,m,k)=>x + taxable*(amts[k]/sumA)*m.gstRate/100, 0);
+      if(Math.abs(expected-tax)<=Math.max(1, tax*0.005)) itemRates = masters.map(m=>m.gstRate);
+    }
+  }
+  let docRate = null;
+  if(!itemRates){
+    docRate = tax===0 ? 0 : gstSnapRate(taxable, tax);
+    if(docRate===null){ docRate = taxable>0 ? r2(tax/taxable*100) : 0; issues.push('rate'); }
+  }
+  const hsn = [];
+  if(items.length){
+    const tv = gstSplit(taxable, amts);
+    const tw = itemRates ? amts.map((a,k)=>a*itemRates[k]) : amts;
+    const pc = gstSplit(c, tw), ps = gstSplit(s, tw), pi = gstSplit(i, tw);
+    items.forEach((it,k)=>{
+      const m = masters[k];
+      const code = String((m&&m.hsn)||ctx.settings.defaultHsn||'').replace(/\D/g,'');
+      const service = code.startsWith('99');
+      hsn.push({ hsn:code, uqc: service ? 'NA' : gstUqc(m&&m.unit), qty: service ? 0 : (Number(it.qty)||0), rt: itemRates ? itemRates[k] : docRate, txval:tv[k], c:pc[k], s:ps[k], i:pi[k] });
+    });
+  } else {
+    const code = ctx.settings.defaultHsn;
+    hsn.push({ hsn:code, uqc: code.startsWith('99') ? 'NA' : 'OTH', qty:0, rt:docRate, txval:taxable, c, s, i });
+  }
+  const minLen = ctx.settings.above5cr ? 6 : 4;
+  if(hsn.some(h=>!/^\d{4,8}$/.test(h.hsn) || h.hsn.length<minLen)) issues.push('hsn');
+  // rate-wise lines = the HSN lines grouped by rate (so both always add up to the same document totals)
+  const byRate = new Map();
+  hsn.forEach(h=>{ const r = byRate.get(h.rt) || {rt:h.rt, txval:0, c:0, s:0, i:0}; r.txval = r2(r.txval+h.txval); r.c = r2(r.c+h.c); r.s = r2(r.s+h.s); r.i = r2(r.i+h.i); byRate.set(h.rt, r); });
+  return { id:v.id, kind, sign, num, date:v.date, val, taxable, c, s, i, tax, partyName: party ? party.name : '', partyId: party ? party.id : '', ctin, pos, inter,
+    lines: Array.from(byRate.values()).sort((a,b)=>a.rt-b.rt), hsn, issues, section:'' };
+}
+// The whole return for one period. Pure function of the books + GST filing settings.
+function gstReturnData(period){
+  const settings = gstFilingSettings(), home = gstHome();
+  const ctx = { settings, home, nums: gstDocNumberMaps(), ledgerMap: new Map(state.ledgers.map(l=>[l.id,l])), itemMap: new Map((state.items||[]).map(m=>[m.id,m])) };
+  const docs = [], untaxed = [], excluded = [], itcRows = [], salesInPeriod = [], cnInPeriod = [];
+  const books = { c:0, s:0, i:0 };
+  for(const v of state.vouchers){
+    if(!v.date || v.date<period.from || v.date>period.to) continue;
+    const t = gstVoucherTax(v);
+    books.c += t.out.c; books.s += t.out.s; books.i += t.out.i;
+    const amt = () => r2(voucherAmount(v));
+    if(v.type==='Sales'){
+      salesInPeriod.push(v);
+      if(t.outTot>0.004) docs.push(gstBuildOutwardDoc(v,'INV',t,ctx));
+      else if(!t.touchesOut) untaxed.push({v, sign:1});
+      else excluded.push({v, reason:'Sales voucher with a net debit on the output GST ledgers', out:t.out});
+    } else if(v.type==='Credit Note'){
+      cnInPeriod.push(v);
+      if(t.outTot<-0.004) docs.push(gstBuildOutwardDoc(v,'CN',t,ctx));
+      else if(!t.touchesOut) untaxed.push({v, sign:-1});
+      else excluded.push({v, reason:'Credit Note that adds to output GST instead of reversing it', out:t.out});
+    } else if(v.type==='Debit Note'){
+      if(t.outTot>0.004) docs.push(gstBuildOutwardDoc(v,'DN',t,ctx));
+      else if(t.touchesOut && Math.abs(t.outTot)>0.004) excluded.push({v, reason:'Debit Note with a net debit on the output GST ledgers', out:t.out});
+      if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), party: gstVoucherParty(v,'dr',ctx.ledgerMap)});
+    } else if(v.type==='Purchase'){
+      if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), party: gstVoucherParty(v,'cr',ctx.ledgerMap)});
+      if(Math.abs(t.outTot)>0.004) excluded.push({v, reason:'Output GST posted in a Purchase voucher (for example reverse charge) — report it by hand', out:t.out});
+    } else {
+      if(t.outTot<-0.004) excluded.push({v, reason:'GST payment or set-off entry (not a supply)', out:t.out, setoff:true});
+      else {
+        if(t.outTot>0.004) excluded.push({v, reason:`Output GST posted in a ${v.type} voucher, not in a Sales, Credit Note or Debit Note voucher`, out:t.out});
+        if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), party: gstVoucherParty(v,'cr',ctx.ledgerMap)});
+      }
+    }
+  }
+  // ---- sections ----
+  const b2b = new Map(), b2cl = new Map(), b2cs = new Map(), cdnr = new Map(), cdnur = [];
+  const hsnB2B = new Map(), hsnB2C = new Map(), t32 = new Map();
+  const tot = { txval:0, c:0, s:0, i:0 };
+  const sec = { b2b:{n:0,txval:0,tax:0}, b2cl:{n:0,txval:0,tax:0}, b2cs:{n:0,txval:0,tax:0}, cdnr:{n:0,txval:0,tax:0}, cdnur:{n:0,txval:0,tax:0} };
+  const push = (map,key,d)=>{ if(!map.has(key)) map.set(key,[]); map.get(key).push(d); };
+  const addHsn = (map,h,sign)=>{ const key = `${h.hsn}|${h.uqc}|${h.rt}`; const r = map.get(key) || {hsn:h.hsn, uqc:h.uqc, rt:h.rt, qty:0, txval:0, c:0, s:0, i:0}; r.qty = Number((r.qty+sign*h.qty).toFixed(3)); r.txval = r2(r.txval+sign*h.txval); r.c = r2(r.c+sign*h.c); r.s = r2(r.s+sign*h.s); r.i = r2(r.i+sign*h.i); map.set(key,r); };
+  for(const d of docs){
+    const large = d.inter && d.val>GST_B2CL_LIMIT;
+    d.section = d.ctin ? (d.kind==='INV' ? 'b2b' : 'cdnr') : large ? (d.kind==='INV' ? 'b2cl' : 'cdnur') : 'b2cs';
+    if(d.section==='b2b') push(b2b, d.ctin, d);
+    else if(d.section==='cdnr') push(cdnr, d.ctin, d);
+    else if(d.section==='b2cl') push(b2cl, d.pos||'??', d);
+    else if(d.section==='cdnur') cdnur.push(d);
+    else d.lines.forEach(l=>{ const key = `${d.inter?'INTER':'INTRA'}|${d.pos||'??'}|${l.rt}`; const r = b2cs.get(key) || {sply_ty:d.inter?'INTER':'INTRA', pos:d.pos||'', rt:l.rt, txval:0, c:0, s:0, i:0}; r.txval = r2(r.txval+d.sign*l.txval); r.c = r2(r.c+d.sign*l.c); r.s = r2(r.s+d.sign*l.s); r.i = r2(r.i+d.sign*l.i); b2cs.set(key,r); });
+    d.hsn.forEach(h=>addHsn(d.ctin ? hsnB2B : hsnB2C, h, d.sign));
+    tot.txval += d.sign*d.taxable; tot.c += d.sign*d.c; tot.s += d.sign*d.s; tot.i += d.sign*d.i;
+    const sx = sec[d.section]; sx.n++; sx.txval += d.sign*d.taxable; sx.tax += d.sign*d.tax;
+    if(!d.ctin && d.inter){ const r = t32.get(d.pos||'??') || {pos:d.pos||'', txval:0, i:0}; r.txval = r2(r.txval+d.sign*d.taxable); r.i = r2(r.i+d.sign*d.i); t32.set(d.pos||'??', r); }
+  }
+  // ---- supplies with no GST on them (Table 8), reported the way the company has chosen ----
+  const nil = { INTRB2B:{nil:0,expt:0,ngsup:0}, INTRAB2B:{nil:0,expt:0,ngsup:0}, INTRB2C:{nil:0,expt:0,ngsup:0}, INTRAB2C:{nil:0,expt:0,ngsup:0} };
+  let untaxedTotal = 0; const untaxedHsnBad = [];
+  for(const u of untaxed){
+    const a = r2(voucherAmount(u.v)); untaxedTotal += u.sign*a;
+    if(!settings.untaxed || settings.untaxed==='skip') continue;
+    const party = gstVoucherParty(u.v, u.sign<0?'cr':'dr', ctx.ledgerMap);
+    const g = ((party&&party.gstin)||'').trim().toUpperCase(), reg = isValidGSTIN(g);
+    const pos = reg ? g.slice(0,2) : ((party&&party.state&&GST_STATE_CODES[party.state]) || home.code);
+    const key = `${(home.code && pos && pos!==home.code)?'INTR':'INTRA'}${reg?'B2B':'B2C'}`;
+    nil[key][settings.untaxed==='nil'?'nil':settings.untaxed==='exempt'?'expt':'ngsup'] += u.sign*a;
+    if(settings.untaxed!=='nongst'){
+      // exempt and nil-rated supplies also belong in the HSN summary, at 0%
+      const items = (u.v.items||[]).filter(it=>it.name && (Number(it.qty)||0)>0);
+      let am = items.map(it=>Math.max(0,itemLineAmount(it))); if(!(am.reduce((x,y)=>x+y,0)>0)) am = items.map(()=>1);
+      const tv = items.length ? gstSplit(a, am) : [a];
+      (items.length ? items : [null]).forEach((it,k)=>{
+        const m = it && it.itemId ? ctx.itemMap.get(it.itemId) : null;
+        const code = String((m&&m.hsn)||settings.defaultHsn||'').replace(/\D/g,''), service = code.startsWith('99');
+        if(!/^\d{4,8}$/.test(code) || code.length<(settings.above5cr?6:4)){ if(!untaxedHsnBad.includes(u.v)) untaxedHsnBad.push(u.v); return; }
+        addHsn(reg ? hsnB2B : hsnB2C, {hsn:code, uqc: service||!it ? (service?'NA':'OTH') : gstUqc(m&&m.unit), qty: service||!it ? 0 : (Number(it.qty)||0), rt:0, txval:tv[k], c:0, s:0, i:0}, u.sign);
+      });
+    }
+  }
+  Object.values(nil).forEach(r=>{ r.nil = r2(r.nil); r.expt = r2(r.expt); r.ngsup = r2(r.ngsup); });
+  // ---- Table 13: documents issued ----
+  const series = (list, map) => { const nums = list.map(v=>map.get(v.id)).filter(Boolean).sort(); return nums.length ? { from:nums[0], to:nums[nums.length-1], totnum:nums.length, cancel:0, net_issue:nums.length } : null; };
+  const docIssue = [];
+  const sInv = series(salesInPeriod, ctx.nums.inv); if(sInv) docIssue.push({doc_num:1, name:'Invoices for outward supply', ...sInv});
+  const sDn = series(docs.filter(d=>d.kind==='DN').map(d=>({id:d.id})), ctx.nums.dn); if(sDn) docIssue.push({doc_num:4, name:'Debit Note', ...sDn});
+  const sCn = series(cnInPeriod, ctx.nums.cn); if(sCn) docIssue.push({doc_num:5, name:'Credit Note', ...sCn});
+  // ---- ITC as per books + GSTR-3B figures ----
+  const itc = itcRows.reduce((a,r)=>({c:a.c+r.c, s:a.s+r.s, i:a.i+r.i}), {c:0,s:0,i:0});
+  const pay = { i:Math.max(0,r2(tot.i)), c:Math.max(0,r2(tot.c)), s:Math.max(0,r2(tot.s)) };
+  const cr = { i:Math.max(0,r2(itc.i)), c:Math.max(0,r2(itc.c)), s:Math.max(0,r2(itc.s)) };
+  const due = {...pay}, left = {...cr}; const use = (credit, head)=>{ const x = Math.min(due[head], left[credit]); due[head] = r2(due[head]-x); left[credit] = r2(left[credit]-x); };
+  use('i','i'); use('i','c'); use('i','s'); use('c','c'); use('c','i'); use('s','s'); use('s','i');   // statutory order of using credit
+  const g3b = {
+    t31a:{ txval:r2(tot.txval), i:r2(tot.i), c:r2(tot.c), s:r2(tot.s) },
+    t31c: r2(nil.INTRB2B.nil+nil.INTRAB2B.nil+nil.INTRB2C.nil+nil.INTRAB2C.nil + nil.INTRB2B.expt+nil.INTRAB2B.expt+nil.INTRB2C.expt+nil.INTRAB2C.expt),
+    t31e: r2(nil.INTRB2B.ngsup+nil.INTRAB2B.ngsup+nil.INTRB2C.ngsup+nil.INTRAB2C.ngsup),
+    t32: Array.from(t32.values()).filter(r=>r.txval||r.i).sort((a,b)=>a.pos.localeCompare(b.pos)),
+    itc:{ i:r2(itc.i), c:r2(itc.c), s:r2(itc.s) }, payable:pay, cash:due, cashTotal:r2(due.i+due.c+due.s),
+  };
+  // ---- pre-filing check ----
+  const issues = [];
+  const vrow = x => ({ id:x.id, date:x.date, num:x.num||'', party:x.partyName||'', amount:x.val });
+  const fromV = (v,num) => ({ id:v.id, date:v.date, num:num||v.type, party:(v.narration||'').slice(0,60), amount:r2(voucherAmount(v)) });
+  const withIssue = code => docs.filter(d=>d.issues.includes(code)).map(vrow);
+  const add = (level, code, title, help, rows) => { if(rows===true || (rows && rows.length)) issues.push({level, code, title, help, rows: rows===true ? [] : rows}); };
+  if(!home.valid) add('fix','homeGstin', home.gstin ? 'Your company GSTIN is not in a valid format' : 'Your company GSTIN is not set', 'Add the 15-character GSTIN under Edit Company. The portal file is addressed to this number.', true);
+  if(untaxed.length && !settings.untaxed) add('fix','untaxed', `${untaxed.length} sale${untaxed.length===1?'':'s'} without GST — say how to report ${untaxed.length===1?'it':'them'}`, 'Open GST filing settings and choose Nil-rated, Exempt, Non-GST, or Leave out. This fills Table 8.', untaxed.map(u=>fromV(u.v, ctx.nums.inv.get(u.v.id)||ctx.nums.cn.get(u.v.id))));
+  add('fix','pos', 'Place of supply unknown', 'IGST was charged to a buyer with no GSTIN and no State. Open the party under Ledgers and set its State.', withIssue('pos'));
+  add('fix','posTax', 'Tax type does not match the place of supply', 'A supply inside your State should carry CGST + SGST; a supply to another State should carry IGST. Check the party GSTIN or State, or correct the voucher.', withIssue('posTax'));
+  add('fix','mixedHeads', 'Voucher carries IGST together with CGST/SGST', 'One invoice is either inter-State (IGST) or intra-State (CGST + SGST). Correct the voucher.', withIssue('mixedHeads'));
+  add('fix','rate', 'GST rate is not a valid slab', 'The tax on this voucher does not work out to a GST rate the portal accepts. Correct the voucher, or give each item its own GST rate under Inventory.', withIssue('rate'));
+  add('fix','hsn', `HSN / SAC code missing or shorter than ${settings.above5cr?6:4} digits`, 'Add the HSN code to the item under Inventory, or set a default HSN/SAC in GST filing settings (useful for a service business with one SAC).', [...withIssue('hsn'), ...untaxedHsnBad.map(v=>fromV(v, ctx.nums.inv.get(v.id)))]);
+  add('fix','docnum', 'Document number longer than 16 characters or using other symbols', 'GST allows up to 16 characters: letters, digits, "/" and "-". Shorten the invoice number prefix under Invoice Template.', withIssue('docnum'));
+  add('fix','gstinBad', 'Party GSTIN is not in a valid format', 'Correct the GSTIN on the party under Ledgers. Until then the supply is reported as a sale to an unregistered buyer.', withIssue('gstinBad'));
+  const exOut = excluded.filter(x=>!x.setoff);
+  add('review','excluded', 'Output GST posted outside a sales document — not in GSTR-1', 'These vouchers move the output GST ledgers but are not invoices or notes. If any is a real supply (an advance, reverse charge), add it on the portal by hand.', exOut.map(x=>fromV(x.v)));
+  const custNoGstin = docs.filter(d=>!d.ctin && d.partyId && (()=>{ const l = ctx.ledgerMap.get(d.partyId); return l && (l.partyType==='customer' || l.group==='sundeb'); })());
+  add('review','b2cCustomers', 'Credit customers reported as unregistered (B2C)', 'These customers have no GSTIN on file, so their invoices go to the B2C tables. If a customer is GST-registered, add the GSTIN under Ledgers so the invoice moves to B2B and the customer gets input credit.', custNoGstin.map(vrow));
+  add('review','cdnur', 'Credit / debit note to an unregistered inter-State buyer above ₹1 lakh', 'Reported note-wise in Table 9B (unregistered) on the assumption that the original invoice was also above ₹1 lakh. If the original invoice was smaller, move it on the portal.', cdnur.map(vrow));
+  add('review','itcNoGstin', 'Input credit claimed where the supplier has no GSTIN on file', 'Credit is available only when the supplier has reported the invoice and it appears in your GSTR-2B. Check these against GSTR-2B.', itcRows.filter(r=>(r.c+r.s+r.i)>0 && !(r.party && isValidGSTIN((r.party.gstin||'').toUpperCase()))).map(r=>fromV(r.v)));
+  if(docs.some(d=>d.kind!=='INV')) add('review','noteNumbers', 'Credit and debit note numbers come from this app', 'Notes are numbered CN/<year>/0001 and DN/<year>/0001 in date order. Use the same number on the note you give the customer.', docs.filter(d=>d.kind!=='INV').map(vrow));
+  const fixCount = issues.filter(x=>x.level==='fix').length;
+  const outRet = r2(tot.c+tot.s+tot.i), outBooks = r2(books.c+books.s+books.i);
+  return { period, settings, home, docs, sections:{b2b,b2cl,b2cs,cdnr,cdnur}, sec, nil, untaxedCount:untaxed.length, untaxedTotal:r2(untaxedTotal),
+    hsnB2B:Array.from(hsnB2B.values()).filter(h=>h.txval||h.qty||h.c||h.s||h.i).sort((a,b)=>a.hsn.localeCompare(b.hsn)||a.rt-b.rt),
+    hsnB2C:Array.from(hsnB2C.values()).filter(h=>h.txval||h.qty||h.c||h.s||h.i).sort((a,b)=>a.hsn.localeCompare(b.hsn)||a.rt-b.rt),
+    docIssue, excluded, itcRows, g3b, totals:{ txval:r2(tot.txval), c:r2(tot.c), s:r2(tot.s), i:r2(tot.i), tax:outRet },
+    books:{ returnTax:outRet, ledgerTax:outBooks, excludedTax:r2(outBooks-outRet) },
+    issues, fixCount, reviewCount: issues.length-fixCount, ready: fixCount===0,
+    // nothing to file: no GST documents and no input credit -- and sales without GST only count when the company is GST-registered
+    empty: !docs.length && !itcRows.length && (!untaxed.length || !home.gstin) };
+}
+function gstDateDMY(iso){ const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`; }
+// GSTR-1 in the GST portal's offline-upload JSON layout. Sections with nothing to report are left out.
+function gstr1PortalJson(d){
+  const itms = (doc)=> doc.lines.map(l=>{
+    const det = { txval:l.txval, rt:l.rt };
+    if(doc.inter) det.iamt = l.i; else { det.camt = l.c; det.samt = l.s; }
+    det.csamt = 0;
+    return { num: Math.round(l.rt*100)+1, itm_det: det };
+  });
+  const o = { gstin:d.home.gstin, fp:d.period.fp, version:'GST3.0.4', hash:'hash' };   // same envelope as the widely used ERPNext India Compliance export
+  const S = d.sections;
+  if(S.b2b.size) o.b2b = Array.from(S.b2b.entries()).map(([ctin,list])=>({ ctin, inv:list.map(x=>({ inum:x.num, idt:gstDateDMY(x.date), val:x.val, pos:x.pos, rchrg:'N', inv_typ:'R', itms:itms(x) })) }));
+  if(S.b2cl.size) o.b2cl = Array.from(S.b2cl.entries()).map(([pos,list])=>({ pos, inv:list.map(x=>({ inum:x.num, idt:gstDateDMY(x.date), val:x.val, itms:itms(x) })) }));
+  const cs = Array.from(S.b2cs.values()).filter(r=>r.txval||r.c||r.s||r.i);
+  if(cs.length) o.b2cs = cs.map(r=>{ const row = { sply_ty:r.sply_ty, rt:r.rt, typ:'OE', pos:r.pos, txval:r.txval }; if(r.sply_ty==='INTER') row.iamt = r.i; else { row.camt = r.c; row.samt = r.s; } row.csamt = 0; return row; });
+  if(S.cdnr.size) o.cdnr = Array.from(S.cdnr.entries()).map(([ctin,list])=>({ ctin, nt:list.map(x=>({ ntty:x.kind==='CN'?'C':'D', nt_num:x.num, nt_dt:gstDateDMY(x.date), val:x.val, pos:x.pos, rchrg:'N', inv_typ:'R', itms:itms(x) })) }));
+  if(S.cdnur.length) o.cdnur = S.cdnur.map(x=>({ ntty:x.kind==='CN'?'C':'D', nt_num:x.num, nt_dt:gstDateDMY(x.date), val:x.val, typ:'B2CL', pos:x.pos, itms:itms(x) }));
+  const nilRows = Object.entries(d.nil).filter(([,r])=>r.nil||r.expt||r.ngsup).map(([k,r])=>({ sply_ty:k, nil_amt:r.nil, expt_amt:r.expt, ngsup_amt:r.ngsup }));
+  if(nilRows.length) o.nil = { inv:nilRows };
+  const hrow = (h,k)=>({ num:k+1, hsn_sc:h.hsn, desc:'', user_desc:'', uqc:h.uqc, qty:h.qty, rt:h.rt, txval:h.txval, iamt:h.i, camt:h.c, samt:h.s, csamt:0 });
+  if(d.hsnB2B.length || d.hsnB2C.length){ o.hsn = {}; if(d.hsnB2B.length) o.hsn.hsn_b2b = d.hsnB2B.map(hrow); if(d.hsnB2C.length) o.hsn.hsn_b2c = d.hsnB2C.map(hrow); }
+  if(d.docIssue.length) o.doc_issue = { doc_det: d.docIssue.map(x=>({ doc_num:x.doc_num, docs:[{ num:1, from:x.from, to:x.to, totnum:x.totnum, cancel:x.cancel, net_issue:x.net_issue }] })) };
+  return o;
+}
+function downloadGstr1Json(){
+  const { period } = gstActiveFilingPeriod();
+  const d = gstReturnData(period);
+  if(!d.ready){ toast(`Fix the ${d.fixCount} item${d.fixCount===1?'':'s'} marked "Must fix" first — the portal would reject this file`, {type:'error'}); return; }
+  downloadJSON(gstr1PortalJson(d), `GSTR1_${d.home.gstin}_${period.fp}.json`);
+  toast(`GSTR-1 file for ${period.label} downloaded — upload it on the GST portal under GSTR-1 → Prepare Offline`);
+}
+// Excel working file for the same period: sheets named and headed like the Government's own GSTR-1 offline
+// template, plus the GSTR-3B figures, the input-credit register and anything left out.
+function buildGstFilingWorkbook(d){
+  const wb = XLSX.utils.book_new();
+  const st = code => code ? `${code}-${GST_STATE_NAME_BY_CODE[code]||''}` : '';
+  const dmy = iso => { const [y,m,dd] = iso.split('-'); return `${dd}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m)-1]}-${y}`; };
+  const sheet = (name, rows, widths) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = (widths||[]).map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws, name); };
+  const S = d.sections, g = d.g3b;
+  const tile = k => [d.sec[k].n, r2(d.sec[k].txval), r2(d.sec[k].tax)];
+  sheet('Read Me', [
+    ['GST filing workbook — '+d.period.label],
+    ['Legal name', currentCompany.name], ['GSTIN', d.home.gstin||'(not set)'], ['Return period (portal)', d.period.fp], ['Generated on', new Date().toLocaleDateString('en-IN')],
+    [],
+    ['How to file'],
+    ['1.', 'Download "GSTR-1 file for GST portal (JSON)" from the GST module for this period.'],
+    ['2.', 'On gst.gov.in open Returns Dashboard, pick this period, open GSTR-1 and choose Prepare Offline, then Upload. Select the JSON file.'],
+    ['3.', 'When the portal has processed it, download the error report if one is offered and correct those lines.'],
+    ['4.', 'Compare each table on the portal with the "GSTR-1 summary" sheet here, then submit and file with DSC or EVC.'],
+    ['5.', 'GSTR-3B fills itself on the portal from this GSTR-1 and from GSTR-2B. Compare it with the "GSTR-3B" sheet here; take input credit as per GSTR-2B.'],
+    [],
+    ['Pre-filing check', d.ready ? 'No must-fix items' : `${d.fixCount} must-fix item(s) — the JSON download is held back until these are cleared`],
+    ...d.issues.map(x=>[x.level==='fix'?'MUST FIX':'Review', x.title, x.rows.length||'', x.help]),
+    [],
+    ['This workbook and the JSON are prepared from your own vouchers. Nothing is sent to the GST Network by this app — you upload, review and file on the portal.'],
+  ], [14,70,10,90]);
+  sheet('GSTR-1 summary', [
+    ['Table','Description','Documents','Taxable value','Tax'],
+    ['4A','B2B invoices (registered buyers)', ...tile('b2b')],
+    ['5','B2C large — inter-State invoices above ₹1,00,000', ...tile('b2cl')],
+    ['7','B2C others (net of credit notes)', ...tile('b2cs')],
+    ['9B','Credit / debit notes — registered', ...tile('cdnr')],
+    ['9B','Credit / debit notes — unregistered', ...tile('cdnur')],
+    ['8','Nil-rated, exempt and non-GST supplies', d.untaxedCount, r2(g.t31c+g.t31e), 0],
+    [],
+    ['','Total taxable outward supplies', d.docs.length, d.totals.txval, d.totals.tax],
+    ['','of which IGST', '', '', d.totals.i], ['','of which CGST', '', '', d.totals.c], ['','of which SGST/UTGST', '', '', d.totals.s],
+    [],
+    ['Books check','Output GST on the ledgers for this period', '', '', d.books.ledgerTax],
+    ['','Output GST in this return', '', '', d.books.returnTax],
+    ['','Difference (vouchers listed on the "Left out" sheet)', '', '', d.books.excludedTax],
+  ], [12,52,12,16,14]);
+  const b2bRows = [['GSTIN/UIN of Recipient','Receiver Name','Invoice Number','Invoice date','Invoice Value','Place Of Supply','Reverse Charge','Applicable % of Tax Rate','Invoice Type','E-Commerce GSTIN','Rate','Taxable Value','Cess Amount']];
+  S.b2b.forEach(list=>list.forEach(x=>x.lines.forEach(l=>b2bRows.push([x.ctin, x.partyName, x.num, dmy(x.date), x.val, st(x.pos), 'N', '', 'Regular B2B', '', l.rt, l.txval, 0]))));
+  sheet('b2b,sez,de', b2bRows, [18,28,18,13,13,22,9,10,13,14,7,14,9]);
+  const b2clRows = [['Invoice Number','Invoice date','Invoice Value','Place Of Supply','Applicable % of Tax Rate','Rate','Taxable Value','Cess Amount','E-Commerce GSTIN']];
+  S.b2cl.forEach(list=>list.forEach(x=>x.lines.forEach(l=>b2clRows.push([x.num, dmy(x.date), x.val, st(x.pos), '', l.rt, l.txval, 0, '']))));
+  sheet('b2cl', b2clRows, [18,13,13,22,10,7,14,9,14]);
+  const b2csRows = [['Type','Place Of Supply','Applicable % of Tax Rate','Rate','Taxable Value','Cess Amount','E-Commerce GSTIN']];
+  Array.from(S.b2cs.values()).filter(r=>r.txval||r.c||r.s||r.i).forEach(r=>b2csRows.push(['OE', st(r.pos), '', r.rt, r.txval, 0, '']));
+  sheet('b2cs', b2csRows, [8,22,10,7,14,9,14]);
+  const cdnrRows = [['GSTIN/UIN of Recipient','Receiver Name','Note Number','Note Date','Note Type','Place Of Supply','Reverse Charge','Note Supply Type','Note Value','Applicable % of Tax Rate','Rate','Taxable Value','Cess Amount']];
+  S.cdnr.forEach(list=>list.forEach(x=>x.lines.forEach(l=>cdnrRows.push([x.ctin, x.partyName, x.num, dmy(x.date), x.kind==='CN'?'C':'D', st(x.pos), 'N', 'Regular B2B', x.val, '', l.rt, l.txval, 0]))));
+  sheet('cdnr', cdnrRows, [18,28,18,13,9,22,9,13,13,10,7,14,9]);
+  const cdnurRows = [['UR Type','Note Number','Note Date','Note Type','Place Of Supply','Note Value','Applicable % of Tax Rate','Rate','Taxable Value','Cess Amount']];
+  S.cdnur.forEach(x=>x.lines.forEach(l=>cdnurRows.push(['B2CL', x.num, dmy(x.date), x.kind==='CN'?'C':'D', st(x.pos), x.val, '', l.rt, l.txval, 0])));
+  sheet('cdnur', cdnurRows, [9,18,13,9,22,13,10,7,14,9]);
+  sheet('exemp', [['Description','Nil Rated Supplies','Exempted(other than nil rated/non GST supply)','Non-GST Supplies'],
+    ['Inter-State supplies to registered persons', d.nil.INTRB2B.nil, d.nil.INTRB2B.expt, d.nil.INTRB2B.ngsup],
+    ['Intra-State supplies to registered persons', d.nil.INTRAB2B.nil, d.nil.INTRAB2B.expt, d.nil.INTRAB2B.ngsup],
+    ['Inter-State supplies to unregistered persons', d.nil.INTRB2C.nil, d.nil.INTRB2C.expt, d.nil.INTRB2C.ngsup],
+    ['Intra-State supplies to unregistered persons', d.nil.INTRAB2C.nil, d.nil.INTRAB2C.expt, d.nil.INTRAB2C.ngsup]], [44,18,40,18]);
+  const hsnHead = ['HSN','Description','UQC','Total Quantity','Taxable Value','Rate','Integrated Tax Amount','Central Tax Amount','State/UT Tax Amount','Cess Amount'];
+  const hsnRow = h => [h.hsn, '', h.uqc, h.qty, h.txval, h.rt, h.i, h.c, h.s, 0];
+  sheet('hsn(b2b)', [hsnHead, ...d.hsnB2B.map(hsnRow)], [10,20,8,14,14,7,18,16,17,10]);
+  sheet('hsn(b2c)', [hsnHead, ...d.hsnB2C.map(hsnRow)], [10,20,8,14,14,7,18,16,17,10]);
+  sheet('docs', [['Nature of Document','Sr. No. From','Sr. No. To','Total Number','Cancelled'], ...d.docIssue.map(x=>[x.name, x.from, x.to, x.totnum, x.cancel])], [30,20,20,13,10]);
+  sheet('GSTR-3B', [
+    ['FORM GSTR-3B — figures as per books for '+d.period.label],
+    [],
+    ['3.1 Outward supplies','Taxable value','IGST','CGST','SGST/UTGST','Cess'],
+    ['(a) Outward taxable supplies (other than zero rated, nil rated and exempted)', g.t31a.txval, g.t31a.i, g.t31a.c, g.t31a.s, 0],
+    ['(b) Outward taxable supplies (zero rated)', 0,0,0,0,0,'Not recorded in this app — add on the portal if you export'],
+    ['(c) Other outward supplies (nil rated, exempted)', g.t31c, '', '', '', ''],
+    ['(d) Inward supplies (liable to reverse charge)', 0,0,0,0,0,'Not recorded in this app — add on the portal if it applies'],
+    ['(e) Non-GST outward supplies', g.t31e, '', '', '', ''],
+    [],
+    ['3.2 Inter-State supplies to unregistered persons','Place of supply','Taxable value','IGST'],
+    ...(g.t32.length ? g.t32.map(r=>['', st(r.pos), r.txval, r.i]) : [['', 'None', 0, 0]]),
+    [],
+    ['4 Eligible ITC (as per books — claim as per GSTR-2B)','IGST','CGST','SGST/UTGST','Cess'],
+    ['(A)(5) All other ITC, net of purchase returns', g.itc.i, g.itc.c, g.itc.s, 0],
+    ['Imports, reverse charge, ISD credit and ITC reversals', 0,0,0,0,'Not recorded in this app — add on the portal if they apply'],
+    [],
+    ['6.1 Payment of tax (estimate)','Tax payable','Paid through ITC','To pay in cash'],
+    ['Integrated Tax', g.payable.i, r2(g.payable.i-g.cash.i), g.cash.i],
+    ['Central Tax', g.payable.c, r2(g.payable.c-g.cash.c), g.cash.c],
+    ['State/UT Tax', g.payable.s, r2(g.payable.s-g.cash.s), g.cash.s],
+    ['Total', r2(g.payable.i+g.payable.c+g.payable.s), r2(g.payable.i+g.payable.c+g.payable.s-g.cashTotal), g.cashTotal],
+    ['The estimate uses only this period\'s input credit in the order the law sets. Credit carried forward in your electronic credit ledger, interest and late fee are not included.'],
+  ], [66,18,16,16,16,10,50]);
+  sheet('ITC register', [['Date','Voucher type','Supplier','Supplier GSTIN','Narration','IGST','CGST','SGST/UTGST','Total credit'],
+    ...d.itcRows.map(r=>[r.v.date, r.v.type, r.party?r.party.name:'', r.party?(r.party.gstin||''):'', r.v.narration||'', r.i, r.c, r.s, r2(r.i+r.c+r.s)])], [12,14,28,18,40,12,12,12,13]);
+  sheet('Left out', [['Date','Voucher type','Narration','Why it is not in GSTR-1','IGST','CGST','SGST/UTGST'],
+    ...d.excluded.map(x=>[x.v.date, x.v.type, x.v.narration||'', x.reason, r2(x.out.i), r2(x.out.c), r2(x.out.s)])], [12,14,40,60,12,12,12]);
+  return wb;
+}
+function downloadGstFilingWorkbook(){
+  if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  const { period } = gstActiveFilingPeriod();
+  const d = gstReturnData(period);
+  XLSX.writeFile(buildGstFilingWorkbook(d), `GST_Filing_${(d.home.gstin||(currentCompany.name||'company').replace(/[^a-z0-9]+/gi,'_'))}_${period.fp}.xlsx`);
+  toast(`GST filing workbook for ${period.label} downloaded`);
+}
+// ---- GST tab: "File GST Return" panel ----
+function gstFilingPanel(d, keys){
+  const s = d.settings, p = d.period;
+  const money = n => '₹'+fmt(n);
+  const b2cN = d.sec.b2cl.n + d.sec.b2cs.n, b2cV = d.sec.b2cl.txval + d.sec.b2cs.txval;
+  const notesN = d.sec.cdnr.n + d.sec.cdnur.n + d.docs.filter(x=>x.section==='b2cs' && x.kind!=='INV').length;
+  const itcTot = r2(d.g3b.itc.i+d.g3b.itc.c+d.g3b.itc.s);
+  const issueHtml = x => `
+    <details class="gstf-issue gstf-${x.level}" data-gstf-issue="${x.code}">
+      <summary><span class="gstf-tag">${x.level==='fix'?'Must fix':'Review'}</span><span class="gstf-issue-title">${escapeHtml(x.title)}</span>${x.rows.length?`<span class="chip-count">${x.rows.length}</span>`:''}</summary>
+      <div class="gstf-issue-body">
+        <p>${escapeHtml(x.help)}</p>
+        ${x.code==='untaxed' || x.code==='hsn' ? `<button class="btn small secondary" type="button" data-gstf-settings>Open GST filing settings</button>` : ''}
+        ${x.rows.slice(0,8).map(r=>`<div class="gstf-row" data-edit-voucher="${escapeAttr(r.id)}" role="button" tabindex="0"><span>${escapeHtml(r.date)} · ${escapeHtml(r.num)}${r.party?` · ${escapeHtml(r.party)}`:''}</span><span>${money(r.amount)}</span></div>`).join('')}
+        ${x.rows.length>8 ? `<div class="muted" style="font-size:11.5px;">and ${x.rows.length-8} more — all are listed in the filing workbook.</div>` : ''}
+      </div>
+    </details>`;
+  return `
+    <div class="panel" id="gstFilingPanel">
+      <div class="panel-head"><h2>File GST Return</h2>
+        <div class="gstf-controls">
+          <select id="gstFilingFreq" aria-label="How often you file GSTR-1"><option value="monthly" ${s.freq==='monthly'?'selected':''}>Monthly filer</option><option value="quarterly" ${s.freq==='quarterly'?'selected':''}>Quarterly filer (QRMP)</option></select>
+          <select id="gstFilingPeriod" aria-label="Return period">${keys.map(k=>`<option value="${k}" ${k===p.key?'selected':''}>${escapeHtml(gstPeriodFromKey(k).label)}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="gstf-verdict ${d.empty?'':d.ready?'ok':'bad'}" id="gstFilingVerdict">
+          ${d.empty ? `Nothing recorded for ${escapeHtml(p.label)}. If you made no supplies, file a Nil return on the portal.`
+            : d.ready ? `✓ ${escapeHtml(p.label)} is ready. Download the GSTR-1 file and upload it on the GST portal.${d.reviewCount?` ${d.reviewCount} item${d.reviewCount===1?'':'s'} worth a look first.`:''}`
+            : `⚠ ${d.fixCount} item${d.fixCount===1?'':'s'} must be fixed before the GSTR-1 file for ${escapeHtml(p.label)} can be downloaded.`}
+        </div>
+        <div class="grid gstf-tiles">
+          <div class="stat"><div class="label">B2B invoices · Table 4</div><div class="val">${d.sec.b2b.n}</div><div class="gstf-sub">${money(d.sec.b2b.txval)} taxable</div></div>
+          <div class="stat"><div class="label">B2C sales · Tables 5 & 7</div><div class="val">${b2cN}</div><div class="gstf-sub">${money(b2cV)} taxable, net</div></div>
+          <div class="stat"><div class="label">Credit / debit notes</div><div class="val">${notesN}</div><div class="gstf-sub">${d.untaxedCount ? `${d.untaxedCount} sale${d.untaxedCount===1?'':'s'} without GST` : 'Table 9B'}</div></div>
+          <div class="stat"><div class="label">Output tax</div><div class="val neg">${money(d.totals.tax)}</div><div class="gstf-sub">IGST ${money(d.totals.i)} · CGST ${money(d.totals.c)} · SGST ${money(d.totals.s)}</div></div>
+          <div class="stat"><div class="label">Input credit (books)</div><div class="val pos">${money(itcTot)}</div><div class="gstf-sub">Claim as per GSTR-2B</div></div>
+          <div class="stat"><div class="label">Estimated cash to pay</div><div class="val">${money(d.g3b.cashTotal)}</div><div class="gstf-sub">Before credit carried forward</div></div>
+        </div>
+        ${d.issues.length ? `<div class="gstf-issues">${d.issues.map(issueHtml).join('')}</div>` : ''}
+        ${Math.abs(d.books.excludedTax)>0.004 ? `<div class="muted gstf-books">Books check: output GST on the ledgers for this period is ${money(d.books.ledgerTax)}; this return reports ${money(d.books.returnTax)}. The ${money(Math.abs(d.books.excludedTax))} difference is GST payments, set-offs and other entries that are not sales documents.</div>`
+          : (!d.empty ? `<div class="muted gstf-books">Books check: the output GST in this return equals the output GST posted to the ledgers for the period (${money(d.books.ledgerTax)}).</div>` : '')}
+        <div class="gstf-actions">
+          <button class="btn ${d.ready?'':'is-held'}" id="gstr1JsonBtn" type="button" ${d.empty?'disabled':''} ${d.ready?'':'title="Held until the Must fix items above are cleared"'}>⬇ GSTR-1 file for GST portal (JSON)</button>
+          <button class="btn secondary" id="gstFilingXlsxBtn" type="button">⬇ Filing workbook (Excel) — GSTR-1 tables + GSTR-3B</button>
+          <button class="btn secondary" id="gstFilingSettingsBtn" type="button">⚙ GST filing settings</button>
+        </div>
+        <details class="gstf-how">
+          <summary>How to file with these downloads</summary>
+          <ol>
+            <li>Download the <b>GSTR-1 file (JSON)</b> for the period.</li>
+            <li>On the GST portal open <b>Returns Dashboard</b>, choose the period, open <b>GSTR-1</b> and pick <b>Prepare Offline → Upload</b>. Select the file.</li>
+            <li>When the portal has processed it, check each table against the <b>GSTR-1 summary</b> sheet of the filing workbook. If the portal offers an error report, correct those lines.</li>
+            <li>Submit and file GSTR-1 on the portal with DSC or EVC.</li>
+            <li><b>GSTR-3B</b> then fills itself on the portal from this GSTR-1 and from GSTR-2B. Compare it with the <b>GSTR-3B</b> sheet, take input credit as per GSTR-2B, pay and file.</li>
+          </ol>
+          <p class="muted">This app does not connect to the GST Network. The file is prepared from your vouchers; you upload, review and file it yourself. Exports, reverse charge, advances and e-commerce sales are not recorded here, so add them on the portal if they apply to you.</p>
+        </details>
+      </div>
+    </div>`;
+}
+function gstFilingSettingsModal(){
+  const d = gstFilingSettingsDraft; if(!d) return '';
+  return `
+    <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true" aria-labelledby="gstfSetTitle">
+      <div class="modal-card" style="width:520px;">
+        <div class="panel-head"><h2 id="gstfSetTitle">GST filing settings</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div class="field"><label for="gstfUntaxed">Sales recorded without GST are</label>
+            <select id="gstfUntaxed">
+              <option value="" ${!d.untaxed?'selected':''}>Choose…</option>
+              <option value="nil" ${d.untaxed==='nil'?'selected':''}>Nil-rated supplies (taxable at 0%)</option>
+              <option value="exempt" ${d.untaxed==='exempt'?'selected':''}>Exempt supplies</option>
+              <option value="nongst" ${d.untaxed==='nongst'?'selected':''}>Non-GST supplies (outside GST)</option>
+              <option value="skip" ${d.untaxed==='skip'?'selected':''}>Leave them out of the return</option>
+            </select>
+            <p class="muted" style="font-size:11.5px;margin:4px 0 0;">Fills Table 8 of GSTR-1 and row 3.1(c) or 3.1(e) of GSTR-3B.</p>
+          </div>
+          <div class="field"><label for="gstfDefaultHsn">Default HSN / SAC code</label>
+            <input type="text" id="gstfDefaultHsn" inputmode="numeric" maxlength="8" value="${escapeAttr(d.defaultHsn)}" placeholder="e.g. 998231">
+            <p class="muted" style="font-size:11.5px;margin:4px 0 0;">Used only where a sale has no item with its own HSN code — handy for a service business with one SAC.</p>
+          </div>
+          <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;"><input type="checkbox" id="gstfAbove5cr" ${d.above5cr?'checked':''} style="margin-top:3px;"> <span>Turnover above ₹5 crore — HSN codes must have at least 6 digits (otherwise 4)</span></label>
+          <div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn secondary" id="gstfCancelBtn" type="button">Cancel</button><button class="btn" id="gstfSaveBtn" type="button">Save settings</button></div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function viewGST(){
   const netGST = gstOutputTotal() - gstInputTotal();
   const outward = state.vouchers.filter(v=>v.type==='Sales').map(v=>({v, g:gstBreakdownForVoucher(v)})).filter(r=>r.g.totalTax>0);
@@ -40501,16 +41081,19 @@ function viewGST(){
   const gstFiltersOn = gstMonthFilter!=='all' || !!gstQ;
   const cntOut = outward.filter(({v})=> (gstMonthFilter==='all' || (v.date||'').slice(0,7)===gstMonthFilter) && (!gstQ || `${v.narration||''} ${v.date||''}`.toLowerCase().includes(gstQ))).length;
   const cntIn = inward.filter(({v})=> (gstMonthFilter==='all' || (v.date||'').slice(0,7)===gstMonthFilter) && (!gstQ || `${v.narration||''} ${v.date||''}`.toLowerCase().includes(gstQ))).length;
+  const gf = gstActiveFilingPeriod();
+  const gfd = gstReturnData(gf.period);
 
   return `
-    ${masthead('GST','Output tax, input credit, and filing-ready statements')}
+    ${masthead('GST','Output tax, input credit, and return files for the GST portal')}
     ${plainHintGST()}
 
     <div class="stmt-toolbar" id="gstStatusRow">
-      ${rd.ready ? `<span class="pill pos">✓ ${monthLabel(rdMonth)}: filing-ready</span>`
-        : rdIssues ? `<span class="pill neg">⚠ ${rdIssues} thing${rdIssues===1?'':'s'} to fix before filing ${monthLabel(rdMonth)}</span><button class="btn small secondary" type="button" data-gst-jump="gstReadinessCard" style="margin-left:0;">Review</button>`
-        : `<span class="pill">No GST vouchers in ${monthLabel(rdMonth)}</span>`}
-      <span class="muted" style="font-size:11.5px;">Pick another month in GST Return Readiness below.</span>
+      ${gfd.empty ? `<span class="pill">No GST vouchers in ${escapeHtml(gf.period.label)}</span>`
+        : gfd.ready ? `<span class="pill pos">✓ ${escapeHtml(gf.period.label)}: ready to file</span>`
+        : `<span class="pill neg">⚠ ${gfd.fixCount} thing${gfd.fixCount===1?'':'s'} to fix before filing ${escapeHtml(gf.period.label)}</span>`}
+      ${gfd.empty ? '' : `<button class="btn small secondary" type="button" data-gst-jump="gstFilingPanel" style="margin-left:0;">${gfd.ready?'File return':'Review'}</button>`}
+      <span class="muted" style="font-size:11.5px;">Pick the return period in File GST Return below.</span>
     </div>
 
     <div class="grid">
@@ -40520,10 +41103,12 @@ function viewGST(){
       <div class="stat"><div class="label">GST Vouchers Recorded</div><div class="val">${state.vouchers.filter(v=>(v.type==='Sales'||v.type==='Purchase') && gstBreakdownForVoucher(v).totalTax>0).length}</div></div>
     </div>
 
+    ${gstFilingPanel(gfd, gf.keys)}
+
     <div class="panel">
       <div class="panel-head"><h2>GST Summary</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn small" id="downloadGSTBtn" type="button">⬇ Download GST Statement (GSTR format)</button>
+          <button class="btn small" id="downloadGSTBtn" type="button" title="Whole financial year, grouped by rate — a working paper. To file a return use File GST Return above.">⬇ Year Summary (working paper)</button>
           <button class="btn secondary small ${gstShowMonthCompare?'active':''}" id="gstCompareToggleBtn" type="button">📊 ${gstShowMonthCompare?'Hide':'Compare to Last Month'}</button>
           <button class="btn secondary small" id="viewGSTFormatsBtn" type="button">📋 GST Format</button>
           <button class="btn secondary small" id="openEInvoiceBtn" type="button">📄 e-Invoice / e-Way Bill</button>
@@ -46832,6 +47417,7 @@ function attachHandlers(){
       const creditLimitRaw = document.getElementById('alterLedgerCreditLimit').value;
       const creditDaysRaw = document.getElementById('alterLedgerCreditDays').value;
       const gstinRaw = document.getElementById('alterLedgerGSTIN').value.trim().toUpperCase();
+      const partyStateRaw = (document.getElementById('alterLedgerState')?.value||'').trim();
       const addressRaw = document.getElementById('alterLedgerAddress').value.trim();
       const shipAddressRaw = document.getElementById('alterLedgerShipAddress').value.trim();
       const bankAccountRaw = document.getElementById('alterLedgerBankAccount').value.trim();
@@ -46853,6 +47439,7 @@ function attachHandlers(){
         if(creditLimitRaw){ l.creditLimit = Number(creditLimitRaw); } else { delete l.creditLimit; }
         if(creditDaysRaw){ l.creditDays = Number(creditDaysRaw); } else { delete l.creditDays; }
         if(gstinRaw){ l.gstin = gstinRaw; } else { delete l.gstin; }
+        if(partyStateRaw){ l.state = partyStateRaw; } else { delete l.state; }
         if(addressRaw){ l.address = addressRaw; } else { delete l.address; }
         if(shipAddressRaw){ l.shippingAddress = shipAddressRaw; } else { delete l.shippingAddress; }
         recordBankDetailChange(l, 'bankAccountNumber', l.bankAccountNumber, bankAccountRaw);
@@ -46871,6 +47458,7 @@ function attachHandlers(){
         if(creditLimitRaw) ledger.creditLimit = Number(creditLimitRaw);
         if(creditDaysRaw) ledger.creditDays = Number(creditDaysRaw);
         if(gstinRaw) ledger.gstin = gstinRaw;
+        if(partyStateRaw) ledger.state = partyStateRaw;
         if(addressRaw) ledger.address = addressRaw;
         if(shipAddressRaw) ledger.shippingAddress = shipAddressRaw;
         if(bankAccountRaw) ledger.bankAccountNumber = bankAccountRaw;
@@ -48177,6 +48765,22 @@ function attachHandlers(){
       render();
     });
     document.getElementById('downloadGSTBtn')?.addEventListener('click', downloadGSTStatement);
+    document.getElementById('gstr1JsonBtn')?.addEventListener('click', downloadGstr1Json);
+    document.getElementById('gstFilingXlsxBtn')?.addEventListener('click', downloadGstFilingWorkbook);
+    document.getElementById('gstFilingPeriod')?.addEventListener('change', e=>{ gstFilingPeriodKey = e.target.value; render(); });
+    document.getElementById('gstFilingFreq')?.addEventListener('change', async e=>{
+      const freq = e.target.value==='quarterly' ? 'quarterly' : 'monthly';
+      gstFilingFreqLocal = freq; gstFilingPeriodKey = null;
+      if(!isReadOnlyMode()){ currentCompany.gstFiling = { ...(currentCompany.gstFiling||{}), freq }; await saveCompanyMeta(currentCompany); }
+      render();
+    });
+    const openGstFilingSettings = ()=>{
+      const st = gstFilingSettings();
+      gstFilingSettingsDraft = { untaxed: st.untaxed, defaultHsn: st.defaultHsn, above5cr: st.above5cr };
+      modal = 'gstFilingSettings'; render();
+    };
+    document.getElementById('gstFilingSettingsBtn')?.addEventListener('click', openGstFilingSettings);
+    document.querySelectorAll('[data-gstf-settings]').forEach(el=>el.addEventListener('click', openGstFilingSettings));
     document.getElementById('viewGSTFormatsBtn')?.addEventListener('click', ()=>{
       gstFormatIndex = 0;
       modal = 'gstFormats';
@@ -48234,6 +48838,20 @@ function attachHandlers(){
       await saveCompanyMeta(currentCompany);
       toast('Invoice template saved');
       modal = null;
+      render();
+    });
+  }
+  if(modal==='gstFilingSettings'){
+    document.getElementById('gstfCancelBtn')?.addEventListener('click', ()=>{ gstFilingSettingsDraft = null; modal = null; render(); });
+    document.getElementById('gstfSaveBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const hsn = document.getElementById('gstfDefaultHsn').value.replace(/\D/g,'');
+      if(hsn && (hsn.length<4 || hsn.length>8)){ toast('An HSN / SAC code has 4 to 8 digits'); return; }
+      const untaxed = document.getElementById('gstfUntaxed').value;
+      currentCompany.gstFiling = { ...(currentCompany.gstFiling||{}), untaxed: ['nil','exempt','nongst','skip'].includes(untaxed)?untaxed:'', defaultHsn: hsn, above5cr: document.getElementById('gstfAbove5cr').checked };
+      await saveCompanyMeta(currentCompany);
+      gstFilingSettingsDraft = null; modal = null;
+      toast('GST filing settings saved');
       render();
     });
   }
