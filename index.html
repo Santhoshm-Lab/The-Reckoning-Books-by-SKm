@@ -3554,6 +3554,31 @@
   /* ===== GST filing panel (Nov 2026) ===== */
   .gstf-controls{display:flex;gap:8px;flex-wrap:wrap;}
   .gstf-controls select{min-width:150px;width:auto;}
+  [data-record-receipt]{white-space:nowrap;}
+  /* ===== Nov 2026 polish: module tour, chat panel on phones, file pickers ===== */
+  .mt-card{width:560px;max-width:calc(100vw - 24px);padding:18px 20px 16px;border-radius:24px;}
+  .mt-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .mt-step{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent1);}
+  .mt-dots{display:flex;gap:6px;margin-bottom:16px;}
+  .mt-dot{flex:1;height:6px;border:0;border-radius:999px;background:var(--border);cursor:pointer;padding:0;transition:background .2s ease,transform .3s cubic-bezier(.34,1.56,.64,1);}
+  .mt-dot.seen{background:color-mix(in srgb, var(--accent1) 45%, var(--border));}
+  .mt-dot.active{background:var(--accent1);transform:scaleY(1.5);}
+  .mt-body{text-align:left;}
+  .mt-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#34D399,#16A34A);color:#fff;box-shadow:inset 0 1px 0 rgb(255 255 255 / .5), 0 10px 22px rgb(22 163 74 / .32);margin-bottom:10px;}
+  .mt-icon svg{width:26px;height:26px;}
+  .mt-body h2{margin:0 0 2px;font-size:22px;letter-spacing:-.02em;}
+  .mt-body p{margin:0 0 12px;font-size:12.5px;}
+  .mt-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:42vh;overflow:auto;}
+  .mt-chip{font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;background:color-mix(in srgb, var(--accent1) 10%, transparent);border:1px solid color-mix(in srgb, var(--accent1) 26%, transparent);color:var(--ink);cursor:help;}
+  .mt-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  @media (max-width:640px){ .mt-actions{flex-direction:column-reverse;align-items:stretch;} .mt-actions .btn{width:100%;} }
+  @media (max-width:640px){ #diPanelEl{left:8px !important;right:8px !important;width:auto !important;max-width:none !important;bottom:72px !important;height:min(460px, calc(100vh - 150px)) !important;} }
+  .modal-card input[type=file]{font-size:12px;color:var(--ink-soft);max-width:100%;}
+  .modal-card input[type=file]::file-selector-button{font:inherit;font-weight:700;font-size:12px;margin-right:10px;padding:7px 14px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);cursor:pointer;transition:background .15s ease;}
+  .modal-card input[type=file]::file-selector-button:hover{background:var(--surface-strong);}
+  .spend-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 14px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-strong);margin-bottom:14px;}
+  .spend-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;}
+  #spendClaimsTable td:last-child,#spendReqTable td:last-child{white-space:nowrap;}
   #gstFilingPanel .panel-head{flex-wrap:wrap;gap:10px;}
   @media (max-width:640px){ #gstFilingPanel .panel-head{flex-direction:column;align-items:stretch;} .gstf-controls{width:100%;} }
   .gstf-verdict{padding:11px 14px;border-radius:10px;font-size:13px;font-weight:600;background:var(--surface-strong);color:var(--ink);margin-bottom:14px;}
@@ -6036,7 +6061,7 @@ const SIDEBAR_DEFAULT_GROUPS = [
   {id:'vouchers',   label:'Vouchers & Entry',       moduleIds:['voucher','pos','daybook','calendar']},
   {id:'masters',    label:'Masters',                moduleIds:['ledgers','coa','inventory']},
   {id:'reports',    label:'Reports & Compliance',   moduleIds:['reports','gst','reconcile']},
-  {id:'operations', label:'Operations',             moduleIds:['assets','parties','orders','payroll']},
+  {id:'operations', label:'Operations',             moduleIds:['assets','parties','orders','spend','payroll']},
 ];
 function getSidebarLayout(){
   try{
@@ -7314,6 +7339,7 @@ let state = {
   salesOrders: [],
   purchaseOrders: [],
   deliveryChallans: [],
+  spendControl: { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } },
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
   docVaultSalt: null,      // base64 random salt for the Employee Documents encryption vault (set once, on first use)
   docVaultIter: null,      // PBKDF2 rounds used for this vault's key (absent on vaults made before Nov 2026 = 150000)
@@ -8154,6 +8180,7 @@ let cameraScanRAFId = null;    // requestAnimationFrame handle for the detect-lo
 let cycleCountModalId = null;  // which state.cycleCounts[].id's count-sheet modal to show (round: Inventory Advanced Update)
 let landedCostDraft = null;    // null = not allocating | {purchaseVoucherId, charges:[{label,amount}], basis, paidFromLedgerId, date} (round: Inventory Advanced Update Phase 2)
 let barcodeLabelDraft = null;  // null = not printing labels | {itemId, count} (round: Inventory Advanced Update Phase 2)
+let receiptPrefill = null;   // {partyId, amount, narration} -- consumed by viewVoucher() to open a ready Receipt
 let reorderPrefillItemId = null; // set right before jumping to Voucher so the Purchase form pre-fills this item's reorder line
 let importState = null;    // wizard state for the Import Accounting Data modal
 let fcFlowFilter = 'all';          // Module 16 (round 3): Cash Flow Forecast events -- 'all'|'in'|'out'
@@ -8408,7 +8435,20 @@ function currencyNote(v){
   return `<div class="muted" style="font-size:10.5px;margin-top:3px;">${c?c.code:v.currency} ${fmt(v.foreignAmount)} @ ₹${v.fxRate}</div>`;
 }
 function groupOf(id){ return GROUPS.find(g=>g.id===id); }
-function ledgerOf(id){ return state.ledgers.find(l=>l.id===id); }
+/* Nov 2026 speed pass: a memo that lives only while render() is painting (rbMemo is null at every other
+   moment, so click handlers and saves always read live data). Inside one paint the books cannot change,
+   so a ledger's balance, its voucher list or the date-sorted voucher list only need computing once. */
+let rbMemo = null, rbMemoDepth = 0;
+function rbMemoGet(k, fn){ if(!rbMemo) return fn(); if(rbMemo.has(k)) return rbMemo.get(k); const v = fn(); rbMemo.set(k, v); return v; }
+function rbVouchersForLedger(id){
+  if(!rbMemo) return state.vouchers.filter(v=>(v.entries||[]).some(e=>e.ledgerId===id));
+  const idx = rbMemoGet('__ledgerVouchers', ()=>{ const m = new Map(); for(const v of state.vouchers){ const seen = new Set(); for(const e of (v.entries||[])){ if(seen.has(e.ledgerId)) continue; seen.add(e.ledgerId); if(!m.has(e.ledgerId)) m.set(e.ledgerId, []); m.get(e.ledgerId).push(v); } } return m; });
+  return idx.get(id) || [];
+}
+function ledgerOf(id){
+  if(rbMemo){ const m = rbMemoGet('__ledgerById', ()=>{ const mm = new Map(); for(const l of state.ledgers){ if(!mm.has(l.id)) mm.set(l.id, l); } return mm; }); return m.get(id); }
+  return state.ledgers.find(l=>l.id===id);
+}
 function trackLedgerUsage(voucherType, ledgerId){
   if(!voucherType || !ledgerId) return;
   const bucket = ledgerUsageHistory[voucherType] || (ledgerUsageHistory[voucherType] = {});
@@ -10147,6 +10187,7 @@ function updateSyncStatusDom(){
   if(label) label.textContent = syncStatusLabel();
 }
 function markSyncSaving(){
+  rbDataVersion++; if(rbMemo) rbMemo.clear();
   syncPendingCount++;
   syncStatus = 'saving';
   updateSyncStatusDom();
@@ -10314,7 +10355,7 @@ const MODULE_ACCESS_LIST = [
   {id:'calendar', label:'Calendar'}, {id:'ledgers', label:'Ledgers'}, {id:'coa', label:'Chart of Accounts'},
   {id:'inventory', label:'Inventory Control'}, {id:'reports', label:'Reports'}, {id:'gst', label:'GST'},
   {id:'reconcile', label:'Reconcile'}, {id:'assets', label:'Assets'}, {id:'parties', label:'Parties'},
-  {id:'orders', label:'Orders'}, {id:'payroll', label:'Payroll Management'},
+  {id:'orders', label:'Orders'}, {id:'spend', label:'Spend Control'}, {id:'payroll', label:'Payroll Management'},
 ];
 // 'full' | 'view' | 'hidden' for currentUser on the given module of the currently open company. Only
 // meaningful for a plain 'user' account working inside a company shared by their group -- the group's
@@ -11109,7 +11150,7 @@ async function refreshCurrentSession(btnId){
 async function loadState(){
   const cid = currentCompany.id;
   reconFilter='all'; reconQuery=''; reconLimit=RECON_PAGE;
-  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; gstFilingPeriodKey=null; gstFilingFreqLocal=null; gstFilingSettingsDraft=null; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
+  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; moduleTourIdx=0; spendSubTab='claims'; spendFilter='all'; spendForm=null; gst2b=null; gst2bFilter='all'; gstFilingPeriodKey=null; gstFilingFreqLocal=null; gstFilingSettingsDraft=null; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
   ordersFilter='all'; ordersLimit=ORDERS_PAGE; assetFilter='all'; assetQuery=''; calAgendaQuery=''; calAgendaSeverity='all';
   reconcileLedgerId = null; // reset so the Reconcile tab re-picks a bank ledger belonging to this company
   reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' };
@@ -11145,6 +11186,7 @@ async function loadState(){
     state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
     state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
     state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
+    state.spendControl = (data.spendControl && typeof data.spendControl==='object') ? data.spendControl : { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
     // Was missing entirely before this fix -- state.pendingVouchers never got reloaded from
     // Firestore when opening a company (it only ever held whatever was pushed into it client-side
     // in the current session, via the voucher-submission flow), so an Approvals modal opened after
@@ -11188,6 +11230,7 @@ async function loadState(){
     state.purchaseOrders = [];
     state.deliveryChallans = [];
     state.taxDeductions = [];
+    state.spendControl = { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
     state.pendingVouchers = [];
     state.docVaultSalt = null;
     state.docVaultVerifier = null;
@@ -12726,7 +12769,7 @@ function customerPaymentReliability(ledgerId){
   if(!l) return { sampleSize:0, avgDaysToPay:null, pctOnTime:null, worstDelayDays:0 };
   const creditDays = l.creditDays || 30;
   const txns = [];
-  for(const v of state.vouchers){
+  for(const v of (rbMemo ? rbVouchersForLedger(ledgerId) : state.vouchers)){
     for(const e of v.entries){
       if(e.ledgerId!==ledgerId) continue;
       if(!(e.dr||e.cr)) continue;
@@ -12844,7 +12887,7 @@ function partyOutstandingInvoices(ledgerId){
   const paymentField = isCustomer ? 'cr' : 'dr';
 
   const txns = [];
-  for(const v of state.vouchers){
+  for(const v of (rbMemo ? rbVouchersForLedger(ledgerId) : state.vouchers)){
     for(const e of v.entries){
       if(e.ledgerId!==ledgerId) continue;
       if(!(e.dr||e.cr)) continue;
@@ -13215,6 +13258,7 @@ function buildCompanyBackup(){
     purchaseOrders: state.purchaseOrders,
     deliveryChallans: state.deliveryChallans,
     taxDeductions: state.taxDeductions,
+    spendControl: state.spendControl,
     docVaultSalt: state.docVaultSalt,
     docVaultVerifier: state.docVaultVerifier,
     docVaultIter: state.docVaultIter,
@@ -13460,6 +13504,7 @@ async function restoreCompanyBackup(data){
   state.purchaseOrders = Array.isArray(data.purchaseOrders) ? data.purchaseOrders : [];
   state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
   state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
+  state.spendControl = (data.spendControl && typeof data.spendControl==='object') ? data.spendControl : { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
   state.docVaultSalt = data.docVaultSalt || null;
   state.docVaultVerifier = data.docVaultVerifier || null;
   state.docVaultIter = data.docVaultIter || null;
@@ -13478,10 +13523,14 @@ async function restoreCompanyBackup(data){
 
 /* ---------------- balance computation ---------------- */
 function ledgerBalance(ledgerId){
+  if(rbMemo) return rbMemoGet('lb|'+ledgerId, ()=>ledgerBalanceCompute(ledgerId));
+  return ledgerBalanceCompute(ledgerId);
+}
+function ledgerBalanceCompute(ledgerId){
   const l = ledgerOf(ledgerId);
   if(!l) return 0;
   let bal = l.opening || 0;
-  for(const v of state.vouchers){
+  for(const v of (rbMemo ? rbVouchersForLedger(ledgerId) : state.vouchers)){
     for(const e of v.entries){
       if(e.ledgerId === ledgerId){
         bal += (e.dr||0) - (e.cr||0);
@@ -13611,10 +13660,14 @@ function duplicatePaymentWarningFor(type, entries, date, editingVoucherId){
 // Ledger balance as of a specific date (inclusive) — a cumulative running balance up to that day,
 // ignoring anything dated after it. Passing a falsy date behaves exactly like ledgerBalance().
 function ledgerBalanceAsOf(ledgerId, asOfDate){
+  if(rbMemo) return rbMemoGet('lba|'+ledgerId+'|'+(asOfDate||''), ()=>ledgerBalanceAsOfCompute(ledgerId, asOfDate));
+  return ledgerBalanceAsOfCompute(ledgerId, asOfDate);
+}
+function ledgerBalanceAsOfCompute(ledgerId, asOfDate){
   const l = ledgerOf(ledgerId);
   if(!l) return 0;
   let bal = l.opening || 0;
-  for(const v of state.vouchers){
+  for(const v of (rbMemo ? rbVouchersForLedger(ledgerId) : state.vouchers)){
     if(asOfDate && v.date > asOfDate) continue;
     for(const e of v.entries){
       if(e.ledgerId === ledgerId) bal += (e.dr||0) - (e.cr||0);
@@ -14882,7 +14935,9 @@ function itemVoucherDirection(type){
 }
 function stockMovementForItem(itemId){
   const moves = [];
-  const sorted = state.vouchers.slice().sort((a,b)=> a.date.localeCompare(b.date));
+  const sorted = rbMemo
+    ? (rbMemoGet('__itemVouchers', ()=>{ const m = new Map(); for(const v of state.vouchers.slice().sort((a,b)=> a.date.localeCompare(b.date))){ if(!v.items) continue; const seen = new Set(); for(const it of v.items){ if(!it || seen.has(it.itemId)) continue; seen.add(it.itemId); if(!m.has(it.itemId)) m.set(it.itemId, []); m.get(it.itemId).push(v); } } return m; }).get(itemId) || [])
+    : state.vouchers.slice().sort((a,b)=> a.date.localeCompare(b.date));
   for(const v of sorted){
     if(!v.items) continue;
     const dir = itemVoucherDirection(v.type);
@@ -16680,6 +16735,37 @@ const TOUR_STEPS = [
   { tab:'voucher', selector:'[data-tab="voucher"]', title:'Record a Voucher', text:'Every transaction — sale, purchase, payment, receipt — starts here. Debits must equal credits before it saves.' },
   { tab:'reports', selector:'[data-tab="reports"]', title:'Reports', text:'Trial Balance, P&L, Balance Sheet and more — generated live from your entries, never a static template.' },
 ];
+/* Nov 2026: a first-run tour of the 10 modules -- one card per module with its features and a button that
+   opens the screen where it lives. Offered once after the spotlight tour, and any time from the
+   "Get your books started" card. Purely navigational. */
+let moduleTourIdx = 0;
+const MODULE_TOUR_TABS = { accounting:['voucher','Open Voucher entry'], compliance:['gst','Open GST'], inventory:['inventory','Open Inventory'], sales:['orders','Open Orders'], payroll:['payroll','Open Payroll'], reports:['reports','Open Reports'], ai:['reports','Open Reports & AI'], agents:['reports','Open AI Agents'], security:['dashboard','Stay on Dashboard'], productivity:['dashboard','Try Ctrl+K'] };
+function moduleTourModal(){
+  const cats = LANDING_MODULE_CATEGORIES, i = Math.max(0, Math.min(cats.length-1, moduleTourIdx)), c = cats[i];
+  const go = MODULE_TOUR_TABS[c.id] || ['dashboard','Open'];
+  return `<div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true" aria-labelledby="mtTitle">
+    <div class="modal-card mt-card">
+      <div class="mt-top"><span class="mt-step">Module ${i+1} of ${cats.length}</span><button class="btn secondary small" id="modalClose" type="button" aria-label="Close tour">✕</button></div>
+      <div class="mt-dots" role="tablist" aria-label="Modules">${cats.map((x,k)=>`<button type="button" class="mt-dot ${k===i?'active':''} ${k<i?'seen':''}" data-mt-jump="${k}" aria-label="${escapeAttr(x.label)}" title="${escapeAttr(x.label)}"></button>`).join('')}</div>
+      <div class="mt-body">
+        <div class="mt-icon">${landingFeatureIcon(c.icon)}</div>
+        <h2 id="mtTitle">${escapeHtml(c.label)}</h2>
+        <p class="muted">${c.modules.length} features in this module.</p>
+        <div class="mt-chips">${c.modules.map(m=>`<span class="mt-chip" title="${escapeAttr(m.desc)}">${escapeHtml(m.name)}</span>`).join('')}</div>
+      </div>
+      <div class="mt-actions">
+        <button class="btn secondary" id="mtSkipBtn" type="button">Skip tour</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn secondary" id="mtOpenBtn" type="button" data-mt-tab="${go[0]}">${escapeHtml(go[1])}</button>
+          ${i>0?`<button class="btn secondary" id="mtBackBtn" type="button">Back</button>`:''}
+          <button class="btn" id="mtNextBtn" type="button">${i===cats.length-1?'Finish':'Next'}</button>
+        </div>
+      </div>
+    </div></div>`;
+}
+function openModuleTour(){ moduleTourIdx = 0; modal = 'moduleTour'; render(); }
+function endModuleTour(){ try{ localStorage.setItem('rb_moduleTourDone','1'); }catch(e){} modal = null; render(); }
+function shouldOfferModuleTour(){ if(isReadOnlyMode()) return false; try{ return localStorage.getItem('rb_moduleTourDone')!=='1'; }catch(e){ return false; } }
 function shouldOfferTour(){
   if(isReadOnlyMode()) return false;
   try{ return localStorage.getItem('rb_tourDone')!=='1'; }catch(e){ return false; }
@@ -16692,6 +16778,7 @@ function startTour(){
 function endTour(markDone){
   tourStep = -1;
   if(markDone){ try{ localStorage.setItem('rb_tourDone','1'); }catch(e){} }
+  if(markDone && !modal && shouldOfferModuleTour()){ moduleTourIdx = 0; modal = 'moduleTour'; }
   render();
 }
 function tourNext(){
@@ -17055,6 +17142,11 @@ function toggleTheme(){
 }
 /* ---------------- rendering ---------------- */
 function render(){
+  rbMemoDepth++; if(rbMemoDepth===1) rbMemo = new Map();
+  try{ return renderPaint(); }
+  finally{ rbMemoDepth--; if(rbMemoDepth===0) rbMemo = null; }
+}
+function renderPaint(){
   // Read-only session (admin view-only, or the shared demo company opened by anyone but the
   // Administrator): discard whatever a click handler just pushed into `state` before painting, so a
   // blocked save() never leaves a phantom local edit on screen, even for one frame. See
@@ -17199,6 +17291,7 @@ function render(){
     ${modal==='eway' ? eWayBillTransportModal() : ''}
     ${modal==='attachments' ? attachmentsModal() : ''}
     ${modal==='invoiceSettings' ? invoiceSettingsModal() : ''}
+    ${modal==='moduleTour' ? moduleTourModal() : ''}
     ${modal==='gstFilingSettings' ? gstFilingSettingsModal() : ''}
     ${modal==='voucherHistory' ? voucherHistoryModal() : ''}
     ${modal==='approvals' ? approvalsModal() : ''}
@@ -17253,6 +17346,7 @@ function render(){
       booksFrom: currentCompany.booksFrom||currentCompany.fyStart||'',
       gstin: currentCompany.gstin||'',
       pan: currentCompany.pan||'',
+      tan: currentCompany.tan||'',
       currencySymbol: currentCompany.currencySymbol||'₹',
       currencyFormalName: currentCompany.currencyFormalName||'INR',
       decimalPlaces: currentCompany.decimalPlaces!=null ? currentCompany.decimalPlaces : 2,
@@ -17497,6 +17591,7 @@ function render(){
     document.getElementById('editCoBooksFrom').addEventListener('input', e=> editCoDraft.booksFrom = e.target.value);
     document.getElementById('editCoGSTIN').addEventListener('input', e=> editCoDraft.gstin = e.target.value);
     document.getElementById('editCoPAN').addEventListener('input', e=> editCoDraft.pan = e.target.value);
+    document.getElementById('editCoTAN')?.addEventListener('input', e=> editCoDraft.tan = e.target.value);
     document.getElementById('editCoCurrencySymbol').addEventListener('input', e=> editCoDraft.currencySymbol = e.target.value);
     document.getElementById('editCoCurrencyFormalName').addEventListener('input', e=> editCoDraft.currencyFormalName = e.target.value);
     document.getElementById('editCoDecimalPlaces').addEventListener('change', e=> editCoDraft.decimalPlaces = Number(e.target.value));
@@ -17551,6 +17646,7 @@ function render(){
         booksFrom: editCoDraft.booksFrom || editCoDraft.fyStart,
         gstin: editCoDraft.gstin.trim(),
         pan: editCoDraft.pan.trim(),
+        tan: String(editCoDraft.tan||'').trim().toUpperCase(),
         currencySymbol: editCoDraft.currencySymbol.trim() || '₹',
         currencyFormalName: editCoDraft.currencyFormalName.trim() || 'INR',
         decimalPlaces: editCoDraft.decimalPlaces,
@@ -17609,6 +17705,7 @@ function tabIcon(id){
     assets:    'domain',         // a multi-window building -- fixed-asset property.
     parties:   'groups',
     orders:    'list_alt',
+    spend:     'request_quote',  // a bill with a rupee/price tag -- claims and requisitions.
     payroll:   'payments',       // banknote with a coin.
   };
   return `<span class="tab-msym" translate="no">${icons[id]||''}</span>`;
@@ -17633,6 +17730,7 @@ const SIDEBAR_MODULE_LABELS = {
   assets:   {label:'Assets',          key:'s'},
   parties:  {label:'Parties',         key:'p'},
   orders:   {label:'Orders',          key:'O'},
+  spend:    {label:'Spend Control',   key:'x'},
   payroll:  {label:'Payroll Management',key:'y'},
 };
 const SIDEBAR_MODULE_ORDER = Object.keys(SIDEBAR_MODULE_LABELS);
@@ -17647,7 +17745,7 @@ const SIDEBAR_MODULE_ORDER = Object.keys(SIDEBAR_MODULE_LABELS);
 const SIDEBAR_ICON_HUES = {
   dashboard:'#4F46E5', voucher:'#2563EB', pos:'#7C3AED', daybook:'#D97706', calendar:'#E11D48',
   ledgers:'#059669',   coa:'#0D9488',     inventory:'#EA580C', reports:'#0284C7', gst:'#C026D3',
-  reconcile:'#16A34A', assets:'#0891B2',  parties:'#DB2777', orders:'#CA8A04', payroll:'#9333EA',
+  reconcile:'#16A34A', assets:'#0891B2',  parties:'#DB2777', orders:'#CA8A04', spend:'#0F766E', payroll:'#9333EA',
 };
 // ---- Pinned Favorites: which module ids the signed-in user has starred, pinned to the top of the
 // sidebar (see favoritesNavSection() below). Deliberately stored in localStorage, per signed-in uid,
@@ -17976,11 +18074,20 @@ function sidebarGstFilingDue(){
   const d = gstReturnReadinessData(new Date().toISOString().slice(0,7));
   return d.missingGstinVouchers.length>0 || d.missingHsnVouchers.length>0;
 }
+let rbDataVersion = 0;               // bumped on every save -- lets cheap caches know the books changed
+let sidebarCalBadgeCache = { key:'', at:0, n:0 };
 function sidebarTabBadge(id){
   if(id==='orders'){ const n = sidebarOrdersPendingCount(); return n>0 ? {type:'count', value:n} : null; }
+  if(id==='spend'){ const sd = spendData(); const n = sd.claims.filter(c=>c.status==='submitted').length + sd.requisitions.filter(r=>r.status==='submitted').length; return n>0 ? {type:'count', value:n} : null; }
   if(id==='reconcile'){ const n = sidebarReconcileUnclearedCount(); return n>0 ? {type:'count', value:n} : null; }
   if(id==='gst'){ return sidebarGstFilingDue() ? {type:'dot'} : null; }
-  if(id==='calendar'){ const n = calendarAttentionEvents().length; return n>0 ? {type:'count', value:n} : null; }
+  if(id==='calendar'){
+    // Nov 2026 speed pass: the calendar badge runs the whole attention scan (close checklist, agents, cash
+    // forecast); on big books that is seconds, so reuse the last count until the data or the day changes.
+    const key = [currentCompany&&currentCompany.id, state.vouchers.length, state.ledgers.length, rbDataVersion, new Date().toISOString().slice(0,10)].join('|');
+    if(sidebarCalBadgeCache.key!==key || Date.now()-sidebarCalBadgeCache.at>60000){ sidebarCalBadgeCache = { key, at:Date.now(), n: calendarAttentionEvents().length }; }
+    const n = sidebarCalBadgeCache.n; return n>0 ? {type:'count', value:n} : null;
+  }
   return null;
 }
 function tab(id,label,shortcutLetter,opts={}){
@@ -18495,7 +18602,7 @@ function animateSidebarIndicatorFrom(prevRect){
 /* Keyboard shortcuts (plain letter keys, no modifiers) for jumping straight to a section —
    the bold letter in each sidebar label. Only active once a company is open, when focus isn't
    inside a text field/dropdown, and no modal is covering the tabs. */
-const TAB_SHORTCUTS = { d:'dashboard', v:'voucher', b:'daybook', c:'calendar', l:'ledgers', a:'coa', i:'inventory', r:'reports', g:'gst', e:'reconcile', s:'assets', p:'parties', o:'orders', y:'payroll', q:'pos' };
+const TAB_SHORTCUTS = { d:'dashboard', v:'voucher', b:'daybook', c:'calendar', l:'ledgers', a:'coa', i:'inventory', r:'reports', g:'gst', e:'reconcile', s:'assets', p:'parties', o:'orders', x:'spend', y:'payroll', q:'pos' };
 // Accessibility: announces the new screen name into #srAnnouncer (a visually-hidden aria-live
 // region) whenever navigation actually changes what's on screen -- this app never does a real page
 // load, so without this a screen-reader user gets no feedback at all that a navigation happened.
@@ -18660,7 +18767,7 @@ const CMDK_TABS = [
   {id:'daybook', label:'Day Book'}, {id:'calendar', label:'Calendar'}, {id:'ledgers', label:'Ledgers'},
   {id:'coa', label:'Accounts'}, {id:'inventory', label:'Inventory Control'}, {id:'reports', label:'Reports'},
   {id:'gst', label:'GST'}, {id:'reconcile', label:'Reconcile'}, {id:'assets', label:'Assets'},
-  {id:'parties', label:'Parties'}, {id:'orders', label:'Orders'}, {id:'payroll', label:'Payroll Management'},
+  {id:'parties', label:'Parties'}, {id:'orders', label:'Orders'}, {id:'spend', label:'Spend Control'}, {id:'payroll', label:'Payroll Management'},
 ];
 function openCommandPalette(){
   if(modal) return; // never stack over another modal that's already open
@@ -19155,6 +19262,7 @@ function editCompanyModal(){
 
           <div class="section-title" style="margin-top:14px;">Tax Registration Details</div>
           <div class="field"><label>GSTIN / UIN (optional)</label><input type="text" id="editCoGSTIN" value="${escapeAttr(editCoDraft.gstin)}" placeholder="22AAAAA0000A1Z5"></div>
+          <div class="field"><label>TAN — for TDS returns (optional)</label><input type="text" id="editCoTAN" value="${escapeAttr(editCoDraft.tan||'')}" placeholder="e.g. CHEA12345B" maxlength="10" style="text-transform:uppercase;"></div>
           <div class="field"><label>PAN / Income Tax No. (optional)</label><input type="text" id="editCoPAN" value="${escapeAttr(editCoDraft.pan)}" placeholder="AAAAA0000A"></div>
 
           <div class="section-title" style="margin-top:14px;">Base Currency Information</div>
@@ -19585,13 +19693,14 @@ function overdueInvoicesDetailModal(){
         <div class="panel-head"><h2>Overdue Invoices</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;padding:0;">
           ${rows.length ? `<table>
-            <tr><th>Customer</th><th>Invoice Date</th><th>Due Date</th><th class="num">Days Overdue</th><th class="num">Outstanding</th></tr>
+            <tr><th>Customer</th><th>Invoice Date</th><th>Due Date</th><th class="num">Days Overdue</th><th class="num">Outstanding</th><th></th></tr>
             ${rows.map(r=>`<tr data-open-party="${r.ledger.id}" style="cursor:pointer;">
               <td>${escapeHtml(r.ledger.name)}</td>
               <td class="muted">${r.invoice.date}</td>
               <td class="muted">${r.dueDate}</td>
               <td class="num neg" style="font-weight:700;">${r.daysOverdue}</td>
               <td class="num">₹${fmt(r.invoice.remaining)}</td>
+              <td><button class="btn small secondary" type="button" data-record-receipt="${escapeAttr(r.ledger.id)}" data-amount="${r2(r.invoice.remaining)}" data-inv="${escapeAttr(r.invoice.voucherId||r.invoice.id||'')}" title="Open a Receipt voucher for this amount — you check it and save">Record payment</button></td>
             </tr>`).join('')}
           </table>` : `<div class="empty">Nothing overdue.</div>`}
         </div>
@@ -20284,6 +20393,7 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'Bank Reconciliation', desc:'Tick statement lines as cleared, see the difference against your book balance, and let AI call out stale uncleared items.' },
     { name:'Bank Rules', desc:'Rules that categorize imported statement lines for you, so repeat payees land on the right ledger every time.' },
     { name:'Opt-in Auto-Posting', desc:'Mark a recurring template "Auto" with a ceiling and it posts itself when due — everything else still waits for your review.' },
+    { name:'Petty Cash Book', desc:'A running petty cash register with an imprest float — it tells you exactly how much to top up, and opens the top-up voucher for you.' },
   ]},
   { id:'compliance', label:'GST & Compliance', icon:'gst', modules:[
     { name:'Automatic GST', desc:'CGST, SGST and IGST computed on every applicable voucher — no manual tax math.' },
@@ -20291,6 +20401,8 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'GSTR-1 File for the GST Portal', desc:'Pick a month or quarter and download GSTR-1 in the portal\'s own upload format — B2B, B2C, credit notes, HSN and documents issued — after a pre-filing check. You upload and file it yourself.' },
     { name:'e-Invoice JSON Export', desc:'Builds the e-Invoice payload for a Sales voucher, for upload through your e-invoice portal or provider.' },
     { name:'TDS/TCS Report', desc:'A dedicated summary of tax deducted and collected at source.' },
+    { name:'GSTR-2B Reconciliation', desc:'Upload GSTR-2B from the portal and see which supplier invoices match your books, which differ, and which credit is at risk.' },
+    { name:'TDS Return Data (Form 26Q / 27EQ)', desc:'Quarter-wise deductee and challan rows for the TDS return utility, with missing-PAN and short-deposit checks.' },
     { name:'Configurable Invoice Templates', desc:'Logo, accent color, template and footer note — identical on the live preview and every later reprint.' },
   ]},
   { id:'inventory', label:'Inventory & Warehousing', icon:'inventory', modules:[
@@ -20308,6 +20420,7 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'POS / Quick Sale', desc:'A fast, cart-based checkout screen for over-the-counter sales.' },
     { name:'Hold & Recall Sale', desc:'Park an in-progress sale and pick it back up exactly where you left off.' },
     { name:'Partial Order Conversion', desc:'Convert a quotation or order into an invoice in stages — each order shows Not converted, Partially converted or Converted.' },
+    { name:'Purchase Requisitions', desc:'Staff ask for what they need; once approved, one click raises the Purchase Order.' },
   ]},
   { id:'payroll', label:'Payroll & Fixed Assets', icon:'payroll', modules:[
     { name:'Payroll Management', desc:'Employee records and one-click monthly salary voucher generation.' },
@@ -20315,6 +20428,7 @@ const LANDING_MODULE_CATEGORIES = [
     { name:'Payroll Register & Tax Reports', desc:'Exportable, month by month.' },
     { name:'Fixed Asset Register', desc:'Every asset, with automatic depreciation posted by financial year.' },
     { name:'Prepaid-Expense Amortization', desc:'Defer a payment\'s future-month share and recognize it automatically as each month arrives.' },
+    { name:'Expense Claims', desc:'Staff submit what they spent, someone else approves it, and one click opens the payment voucher.' },
   ]},
   { id:'reports', label:'Reports & Analytics', icon:'dashboards', modules:[
     { name:'Trial Balance, P&L & Balance Sheet', desc:'Schedule III-ready, always current.' },
@@ -27224,6 +27338,7 @@ function renderView(){
     case 'assets': return viewAssets();
     case 'parties': return viewParties();
     case 'orders': return viewOrders();
+    case 'spend': return viewSpend();
     case 'payroll': return viewPayroll();
     case 'pos': return viewPOS();
     default: return '';
@@ -27492,7 +27607,7 @@ function collectionsReminderModal(){
 function partyHasMissingGstin(ledgerId){
   const l = ledgerOf(ledgerId);
   if(!l || l.gstin) return false;
-  return state.vouchers.some(v=>{
+  return (rbMemo ? rbVouchersForLedger(ledgerId) : state.vouchers).some(v=>{
     if((v.type!=='Sales' && v.type!=='Purchase') || !v.entries.some(e=>e.ledgerId===ledgerId)) return false;
     let g; try{ g = gstBreakdownForVoucher(v); }catch(e){ return false; }
     return g && g.totalTax>0;
@@ -27502,7 +27617,7 @@ function partyDuplicateGuardTrips(ledgerId){
   const l = ledgerOf(ledgerId);
   if(!l) return 0;
   const types = l.partyType==='supplier' ? ['Payment','Purchase'] : ['Sales'];
-  const relevant = state.vouchers.filter(v=> types.includes(v.type) && v.date && v.entries.some(e=>e.ledgerId===ledgerId));
+  const relevant = (rbMemo ? rbVouchersForLedger(ledgerId) : state.vouchers).filter(v=> types.includes(v.type) && v.date && v.entries.some(e=>e.ledgerId===ledgerId));
   let trips = 0;
   const claimed = new Set();
   for(const v of relevant){
@@ -27720,18 +27835,24 @@ function dashboardExceptionQueue(){
   // that's easy to miss just scanning the Day Book but jumps out once grouped like this.
   const sales = state.vouchers.filter(v=>v.type==='Sales' && v.date);
   const claimedForDupe = new Set();
+  // Nov 2026 speed pass: bucket the sales by customer + amount once, so each invoice is compared only
+  // with the few invoices that could be its duplicate instead of with every sale (same result).
+  const dupMeta = new Map(), dupBuckets = new Map();
+  for(const v of sales){
+    const pe = v.entries.find(e=>e.dr>0), amt = voucherAmount(v);
+    const meta = { partyId: pe ? pe.ledgerId : null, amt, t: new Date(v.date+'T00:00:00').getTime() };
+    dupMeta.set(v.id, meta);
+    if(meta.partyId){ const k = meta.partyId+'|'+Math.round(amt*100); if(!dupBuckets.has(k)) dupBuckets.set(k, []); dupBuckets.get(k).push(v); }
+  }
   for(const sv of sales){
     if(claimedForDupe.has(sv.id)) continue;
-    const partyEntry = sv.entries.find(e=>e.dr>0);
-    const partyId = partyEntry ? partyEntry.ledgerId : null;
-    const amt = voucherAmount(sv);
+    const m = dupMeta.get(sv.id), partyId = m.partyId, amt = m.amt;
     if(!partyId || !amt) continue;
-    const dupes = sales.filter(v=>{
+    const dupes = (dupBuckets.get(partyId+'|'+Math.round(amt*100))||[]).filter(v=>{
       if(v.id===sv.id || claimedForDupe.has(v.id)) return false;
-      const pe = v.entries.find(e=>e.dr>0);
-      if(!pe || pe.ledgerId!==partyId) return false;
-      if(Math.abs(voucherAmount(v)-amt) >= 0.005) return false;
-      return Math.abs(new Date(v.date+'T00:00:00') - new Date(sv.date+'T00:00:00'))/86400000 <= 2;
+      const mv = dupMeta.get(v.id);
+      if(Math.abs(mv.amt-amt) >= 0.005) return false;
+      return Math.abs(mv.t - m.t)/86400000 <= 2;
     });
     if(dupes.length){
       const group = [sv, ...dupes];
@@ -28583,7 +28704,7 @@ function firstRunHtml(){
           <h2>Get your books started</h2>
           <p>${done} of ${steps.length} done. Each step takes a minute or two, and you can do them in any order.</p>
         </div>
-        <button type="button" class="btn secondary small" data-fr-hide>Hide for now</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn secondary small" data-module-tour>Tour the 10 modules</button><button type="button" class="btn secondary small" data-fr-hide>Hide for now</button></div>
       </div>
       <div class="setup-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${steps.length}" aria-valuenow="${done}"><i style="width:${Math.round(done/steps.length*100)}%"></i></div>
       <div class="setup-list">
@@ -31833,6 +31954,14 @@ function viewVoucher(){
     vform = { type:'Payment', date:new Date().toISOString().slice(0,10), narration:'', entries:[{ledgerId:'',dr:0,cr:0,side:'dr'},{ledgerId:'',dr:0,cr:0,side:'cr'}], gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
     voucherAutofocusPending = true; // cursor starts in the first field of a brand-new voucher (see wireVoucherUx())
     { const rememberedMode = voucherRememberedMode(); if(rememberedMode) vform.mode = rememberedMode; }
+    if(receiptPrefill){
+      const rp = receiptPrefill; receiptPrefill = null;
+      const bank = state.ledgers.find(l=>l.id==='l_bank') || state.ledgers.find(l=>l.group==='bank') || state.ledgers.find(l=>l.id==='l_cash');
+      delete vform.mode;
+      vform.narration = rp.narration;
+      if(Array.isArray(rp.entries)){ vform.type = rp.type || 'Payment'; vform.entries = rp.entries.map(([id,dr,cr])=>({ledgerId:id||'', dr:dr||0, cr:cr||0, side:(dr||0)>0?'dr':'cr'})); }
+      else { vform.type = 'Receipt'; vform.entries = [{ledgerId: bank?bank.id:'', dr:rp.amount, cr:0, side:'dr'}, {ledgerId: rp.partyId, dr:0, cr:rp.amount, side:'cr'}]; }
+    }
     if(reorderPrefillItemId){
       const item = state.items.find(i=>i.id===reorderPrefillItemId);
       if(item){
@@ -32564,7 +32693,7 @@ function alterLedgerModal(){
   if(editing && !l){ return ''; }
   const openingAbs = l ? Math.abs(l.opening||0) : 0;
   const openingSign = l && (l.opening||0) < 0 ? -1 : 1;
-  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.isIntercompany || l.currency || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.state || l.address || l.shippingAddress || l.bankAccountNumber || l.bankIFSC));
+  const hasAdvanced = !!(l && (l.gstRate!=null || l.isMSME || l.partyType || l.isIntercompany || l.currency || l.creditLimit!=null || l.creditDays!=null || l.gstin || l.pan || l.state || l.gstCategory || l.address || l.shippingAddress || l.bankAccountNumber || l.bankIFSC));
   return `
     <div class="modal-overlay" id="modalOverlayBg" role="dialog" aria-modal="true">
       <div class="modal-card" style="width:560px;">
@@ -32630,7 +32759,9 @@ function alterLedgerModal(){
                 <div class="field" style="max-width:160px;"><label>Credit Limit (optional)</label><input type="number" id="alterLedgerCreditLimit" value="${l&&l.creditLimit!=null?l.creditLimit:''}" step="0.01" placeholder="e.g. 100000"></div>
                 <div class="field" style="max-width:180px;"><label>Credit Period, days (optional)</label><input type="number" id="alterLedgerCreditDays" value="${l&&l.creditDays!=null?l.creditDays:''}" step="1" placeholder="e.g. 30"></div>
                 <div class="field"><label>GSTIN (optional, for parties)</label><input type="text" id="alterLedgerGSTIN" value="${escapeAttr(l&&l.gstin?l.gstin:'')}" placeholder="e.g. 33ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase;"></div>
+                <div class="field" style="max-width:200px;"><label>PAN (for TDS returns)</label><input type="text" id="alterLedgerPAN" value="${escapeAttr(l&&l.pan?l.pan:'')}" placeholder="AAAAA0000A" maxlength="10" style="text-transform:uppercase;"></div>
                 <div class="field" style="max-width:220px;"><label>State (for parties without a GSTIN)</label><select id="alterLedgerState"><option value="">Same State as this company</option>${INDIAN_STATES.map(st=>`<option value="${escapeAttr(st)}" ${l&&l.state===st?'selected':''}>${escapeHtml(st)}</option>`).join('')}</select></div>
+                <div class="field" style="max-width:240px;"><label>GST category (for GSTR-1)</label><select id="alterLedgerGstCat">${[['','Regular / unregistered (India)'],['overseas','Overseas — exports'],['sez','SEZ unit / developer'],['deemed','Deemed export']].map(([k,t])=>`<option value="${k}" ${(l&&l.gstCategory||'')===k?'selected':''}>${t}</option>`).join('')}</select></div>
               </div>
               <div class="row">
                 <div class="field"><label>Billing Address (optional, prints on invoices)</label><textarea id="alterLedgerAddress" rows="2" placeholder="Building, street, area, city, state, pincode">${escapeHtml(l&&l.address?l.address:'')}</textarea></div>
@@ -33529,11 +33660,20 @@ function archivedFYModal(){
 // A stable-enough invoice number derived from position among all Sales vouchers ordered by date —
 // there's no separate persisted invoice-numbering sequence, so this is recomputed each time from the
 // voucher list itself (stable as long as vouchers aren't deleted/reordered in between reprints).
+// GST rule: an invoice number, once issued, is never reused. When a Sales invoice is deleted its sequence
+// number is kept in currentCompany.cancelledInvoices and skipped, so every later invoice keeps its number
+// and the gap shows as "cancelled" in GSTR-1 Table 13. No cancelled list = the original numbering exactly.
+function invoiceSeqSkipping(n){
+  const skips = ((currentCompany && currentCompany.cancelledInvoices) || []).map(c=>Number(c.seq)).filter(x=>x>0).sort((a,b)=>a-b);
+  let seq = n;
+  for(const s of skips){ if(s<=seq) seq++; else break; }
+  return seq;
+}
 function salesVoucherInvoiceNumber(v){
   const sales = state.vouchers.filter(x=>x.type==='Sales')
     .sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
   const idx = sales.findIndex(x=>x.id===v.id);
-  const seq = idx>-1 ? idx+1 : sales.length+1;
+  const seq = invoiceSeqSkipping(idx>-1 ? idx+1 : sales.length+1);
   // A company can set its own invoice number prefix under Invoice Template settings (e.g.
   // "SKM/24-25/") -- it's prepended straight onto the padded sequence number as-is, since a prefix
   // like that already carries its own FY. No prefix set (the default for every older/existing
@@ -33650,6 +33790,151 @@ function orderDocForm(){
     </div>
   `;
 }
+/* ====== Spend Control (Nov 2026): expense claims, petty cash book, purchase requisitions ======
+   Claims and requisitions are approval records only (state.spendControl, saved on the company document).
+   Money moves only when the user saves a voucher that this screen opens pre-filled -- the normal voucher
+   rules apply to it. "Posted" / "PO raised" is read back from the books: a voucher (or purchase order) whose
+   narration carries the claim / requisition number. The petty cash book is read straight from the ledger. */
+let spendSubTab = 'claims';      // 'claims' | 'petty' | 'reqs'
+let spendFilter = 'all';
+let spendForm = null;            // the add form being filled in, or null
+function spendData(){
+  const s = state.spendControl || (state.spendControl = {});
+  if(!Array.isArray(s.claims)) s.claims = [];
+  if(!Array.isArray(s.requisitions)) s.requisitions = [];
+  if(!s.pettyCash || typeof s.pettyCash!=='object') s.pettyCash = { ledgerId:'', imprest:0 };
+  return s;
+}
+async function saveSpendControl(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ spendControl: spendData() }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save Spend Control records'); markSyncError(); }
+}
+function spendNextNo(prefix, list){ const n = list.reduce((m,x)=>Math.max(m, Number(String(x.no||'').split('-')[1])||0), 0) + 1; return `${prefix}-${String(n).padStart(4,'0')}`; }
+function spendClaimStatus(c){
+  if(c.status==='approved' && state.vouchers.some(v=>(v.narration||'').includes(c.no))) return 'posted';
+  return c.status;   // submitted | approved | rejected
+}
+function spendReqStatus(r){
+  if(r.status==='approved' && (state.purchaseOrders||[]).some(o=>(o.narration||'').includes(r.no))) return 'ordered';
+  return r.status;
+}
+function spendIsSoloCompany(){ return !((currentCompany.teamMemberIds||[]).length) && !currentCompany.groupId; }
+function spendCanDecide(rec){ return !isReadOnlyMode() && (rec.submittedBy!==(currentUser&&currentUser.id) || spendIsSoloCompany()); }
+const SPEND_STATUS_PILL = { submitted:['','Waiting for approval'], approved:['pos','Approved'], rejected:['neg','Rejected'], posted:['pos','Paid — voucher posted'], ordered:['pos','PO raised'] };
+function spendPill(st){ const p = SPEND_STATUS_PILL[st]||['',st]; return `<span class="pill ${p[0]}">${p[1]}</span>`; }
+// Petty cash book: every voucher line on the petty cash ledger, with a running balance.
+function pettyCashBook(){
+  const pc = spendData().pettyCash, l = pc.ledgerId ? ledgerOf(pc.ledgerId) : null;
+  if(!l) return null;
+  const lines = [];
+  state.vouchers.slice().sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1)).forEach(v=>{
+    (v.entries||[]).forEach(e=>{ if(e.ledgerId===l.id && ((e.dr||0) || (e.cr||0))) lines.push({ v, date:v.date, type:v.type, narration:v.narration||'', inn:r2(e.dr||0), out:r2(e.cr||0) }); });
+  });
+  let bal = r2(Number(l.opening)||0); lines.forEach(x=>{ bal = r2(bal + x.inn - x.out); x.bal = bal; });
+  const balance = r2(ledgerBalance(l.id)), imprest = r2(Number(pc.imprest)||0);
+  const monthStart = new Date().toISOString().slice(0,8)+'01';
+  const spentMonth = r2(lines.filter(x=>x.date>=monthStart).reduce((s,x)=>s+x.out,0));
+  return { l, lines, balance, imprest, topUp: imprest>0 ? Math.max(0, r2(imprest-balance)) : 0, spentMonth };
+}
+function spendOpenVoucher(prefill){ receiptPrefill = prefill; vform = null; modal = null; goToTab('voucher'); }
+function viewSpend(){
+  const sd = spendData();
+  const claims = sd.claims.slice().sort((a,b)=>(b.no||'').localeCompare(a.no||''));
+  const reqs = sd.requisitions.slice().sort((a,b)=>(b.no||'').localeCompare(a.no||''));
+  const pendingClaims = claims.filter(c=>spendClaimStatus(c)==='submitted').length, pendingReqs = reqs.filter(r=>spendReqStatus(r)==='submitted').length;
+  const money = n => '₹'+fmt(n);
+  const tabs = `<div class="vtype-tabs" style="margin-bottom:14px;">${[['claims','Expense Claims',pendingClaims],['petty','Petty Cash Book',0],['reqs','Purchase Requisitions',pendingReqs]].map(([k,l,n])=>`<button type="button" data-spend-tab="${k}" class="${spendSubTab===k?'active':''}">${l}${n?`<span class="vt-count">${n}</span>`:''}</button>`).join('')}</div>`;
+  const expLedgers = state.ledgers.filter(l=>{ const g = groupOf(l.group); return ['dexp','iexp'].includes(l.group) || (g && ['dexp','iexp'].includes(g.parent)); });
+  let body = '';
+  if(spendSubTab==='claims'){
+    const list = spendFilter==='all' ? claims : claims.filter(c=>spendClaimStatus(c)===spendFilter);
+    const counts = k => claims.filter(c=>spendClaimStatus(c)===k).length;
+    body = `
+      <div class="panel"><div class="panel-head"><h2>Expense Claims</h2><button class="btn small" id="spendNewClaimBtn" type="button">+ New claim</button></div><div class="panel-body">
+        ${spendForm && spendForm.kind==='claim' ? `
+        <div class="spend-form">
+          <div class="field"><label>Date</label><input type="date" id="spClaimDate" value="${escapeAttr(spendForm.date)}"></div>
+          <div class="field"><label>Claimed by</label><input type="text" id="spClaimBy" value="${escapeAttr(spendForm.claimant)}" placeholder="Employee name"></div>
+          <div class="field"><label>Expense head</label><select id="spClaimLedger"><option value="">Choose…</option>${expLedgers.map(l=>`<option value="${l.id}" ${spendForm.ledgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select></div>
+          <div class="field"><label>Amount (₹)</label><input type="number" id="spClaimAmt" min="0" step="0.01" value="${escapeAttr(spendForm.amount)}"></div>
+          <div class="field" style="grid-column:1/-1;"><label>What was it for? (bill / receipt no.)</label><input type="text" id="spClaimNote" value="${escapeAttr(spendForm.note)}" placeholder="e.g. Taxi to client site, bill 4471"></div>
+          <div class="spend-form-actions"><button class="btn secondary" id="spCancelBtn" type="button">Cancel</button><button class="btn" id="spClaimSaveBtn" type="button">Submit claim</button></div>
+        </div>` : ''}
+        <div class="filter-chips" style="margin-bottom:10px;">${[['all','All',claims.length],['submitted','Waiting',counts('submitted')],['approved','Approved',counts('approved')],['posted','Paid',counts('posted')],['rejected','Rejected',counts('rejected')]].map(([k,l,n])=>`<button type="button" class="filter-chip ${spendFilter===k?'active':''}" data-spend-filter="${k}">${l} <span class="chip-count">${n}</span></button>`).join('')}</div>
+        ${list.length ? `<div class="table-scroll"><table class="rb-card-table" id="spendClaimsTable">
+          <tr><th>No.</th><th>Date</th><th>Claimed by</th><th>Expense head</th><th>Details</th><th class="num">Amount</th><th>Status</th><th></th></tr>
+          ${list.map(c=>{ const st = spendClaimStatus(c), l = ledgerOf(c.ledgerId); return `<tr>
+            <td data-label="No.">${escapeHtml(c.no)}</td><td data-label="Date">${escapeHtml(c.date)}</td><td data-label="Claimed by">${escapeHtml(c.claimant)}</td>
+            <td data-label="Expense head">${escapeHtml(l?l.name:'—')}</td><td data-label="Details">${escapeHtml(c.note||'')}${c.reason?`<div class="muted" style="font-size:11px;">Reason: ${escapeHtml(c.reason)}</div>`:''}</td>
+            <td class="num" data-label="Amount">${money(c.amount)}</td><td data-label="Status">${spendPill(st)}${c.decidedByName?`<div class="muted" style="font-size:10.5px;">by ${escapeHtml(c.decidedByName)}</div>`:''}</td>
+            <td data-label="">${st==='submitted' ? (spendCanDecide(c) ? `<button class="btn small" type="button" data-spend-approve="claim:${c.id}">Approve</button> <button class="btn small secondary" type="button" data-spend-reject="claim:${c.id}">Reject</button>` : `<span class="muted" style="font-size:11px;">Another user approves</span>`)
+              : st==='approved' ? `<button class="btn small" type="button" data-spend-pay="${c.id}">Pay / post</button>` : ''}</td></tr>`; }).join('')}
+          <tr class="totals-row"><td colspan="5" class="ccard-title">Total · ${list.length} claim${list.length===1?'':'s'}</td><td class="num">${money(r2(list.reduce((s,c)=>s+(Number(c.amount)||0),0)))}</td><td colspan="2"></td></tr>
+        </table></div>` : emptyState({icon:'🧾', title:'No expense claims yet', text:'Staff submit what they spent; you approve it; one click opens the payment voucher for it.'})}
+        <p class="muted" style="font-size:11.5px;margin:10px 0 0;">Approving does not post anything. "Pay / post" opens a Payment voucher (expense Dr, petty cash or cash Cr) with the claim number in the narration — the claim shows as Paid once you save it. Attach the bill to that voucher from the Day Book.${spendIsSoloCompany()?' You are the only user of this company, so you can approve your own claims.':' A claim is approved by someone other than the person who submitted it.'}</p>
+      </div></div>`;
+  } else if(spendSubTab==='petty'){
+    const pb = pettyCashBook();
+    const cashLedgers = state.ledgers.filter(l=>l.group==='cash' || l.id==='l_cash' || /petty/i.test(l.name));
+    body = `
+      <div class="panel"><div class="panel-head"><h2>Petty Cash Book</h2>
+        <div class="gstf-controls"><select id="spPettyLedger" aria-label="Petty cash ledger"><option value="">Choose the petty cash ledger…</option>${cashLedgers.map(l=>`<option value="${l.id}" ${sd.pettyCash.ledgerId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select>
+        ${cashLedgers.some(l=>/petty/i.test(l.name)) ? '' : `<button class="btn small secondary" id="spCreatePettyBtn" type="button">+ Create "Petty Cash" ledger</button>`}</div></div>
+      <div class="panel-body">
+        ${pb ? `
+        <div class="grid gstf-tiles" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
+          <div class="stat"><div class="label">Cash in the box</div><div class="val ${pb.balance<0?'neg':''}">${money(pb.balance)}</div><div class="gstf-sub">As per books</div></div>
+          <div class="stat"><div class="label">Imprest (float)</div><div class="val"><input type="number" id="spImprest" min="0" step="100" value="${pb.imprest||''}" placeholder="e.g. 10000" style="max-width:140px;"></div><div class="gstf-sub">The amount the box is topped back up to</div></div>
+          <div class="stat"><div class="label">Spent this month</div><div class="val">${money(pb.spentMonth)}</div><div class="gstf-sub">Paid out of petty cash</div></div>
+          <div class="stat"><div class="label">Top-up due</div><div class="val ${pb.topUp>0?'neg':'pos'}">${money(pb.topUp)}</div><div class="gstf-sub">${pb.imprest ? 'Imprest − cash in the box' : 'Set an imprest to see this'}</div></div>
+        </div>
+        <div class="gstf-actions" style="margin-bottom:12px;">
+          <button class="btn" id="spPettyExpenseBtn" type="button">+ Record petty expense</button>
+          <button class="btn secondary" id="spTopUpBtn" type="button" ${pb.topUp>0?'':'disabled'}>Top up ${pb.topUp>0?money(pb.topUp):''} from bank</button>
+        </div>
+        ${pb.lines.length ? `<div class="table-scroll"><table class="rb-card-table" id="pettyBookTable"><tr><th>Date</th><th>Voucher</th><th>Narration</th><th class="num">Received</th><th class="num">Paid</th><th class="num">Balance</th></tr>
+          ${pb.lines.slice().reverse().slice(0,120).map(x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td data-label="Date">${escapeHtml(x.date)}</td><td data-label="Voucher">${escapeHtml(x.type)}</td><td data-label="Narration">${escapeHtml(x.narration)}</td><td class="num" data-label="Received">${x.inn?money(x.inn):''}</td><td class="num" data-label="Paid">${x.out?money(x.out):''}</td><td class="num" data-label="Balance">${money(x.bal)}</td></tr>`).join('')}
+        </table></div>${pb.lines.length>120?`<div class="muted" style="font-size:11.5px;margin-top:6px;">Newest 120 of ${pb.lines.length} entries shown — the full list is in the ledger.</div>`:''}` : emptyState({icon:'🪙', title:'No petty cash entries yet', text:'Fill the box with a Contra voucher from the bank, then record small expenses from here.'})}
+        ` : `<p class="muted" style="margin:0;font-size:12.5px;line-height:1.6;">Pick the cash ledger you use for petty cash (or create one). The book then lists every receipt and payment on it with a running balance, and tells you how much to top up to keep your imprest float.</p>`}
+      </div></div>`;
+  } else {
+    const list = spendFilter==='all' ? reqs : reqs.filter(r=>spendReqStatus(r)===spendFilter);
+    const counts = k => reqs.filter(r=>spendReqStatus(r)===k).length;
+    const suppliers = state.ledgers.filter(l=>l.partyType==='supplier' || l.group==='sundcr');
+    body = `
+      <div class="panel"><div class="panel-head"><h2>Purchase Requisitions</h2><button class="btn small" id="spendNewReqBtn" type="button">+ New requisition</button></div><div class="panel-body">
+        ${spendForm && spendForm.kind==='req' ? `
+        <div class="spend-form">
+          <div class="field"><label>Date</label><input type="date" id="spReqDate" value="${escapeAttr(spendForm.date)}"></div>
+          <div class="field"><label>Requested by</label><input type="text" id="spReqBy" value="${escapeAttr(spendForm.requestedBy)}"></div>
+          <div class="field"><label>Item</label><select id="spReqItem"><option value="">Choose or type below…</option>${(state.items||[]).map(it=>`<option value="${it.id}" ${spendForm.itemId===it.id?'selected':''}>${escapeHtml(it.name)}</option>`).join('')}</select></div>
+          <div class="field"><label>Or describe it</label><input type="text" id="spReqItemName" value="${escapeAttr(spendForm.itemName)}" placeholder="e.g. Printer toner"></div>
+          <div class="field"><label>Quantity</label><input type="number" id="spReqQty" min="0" step="1" value="${escapeAttr(spendForm.qty)}"></div>
+          <div class="field"><label>Estimated rate (₹)</label><input type="number" id="spReqRate" min="0" step="0.01" value="${escapeAttr(spendForm.rate)}"></div>
+          <div class="field"><label>Suggested supplier</label><select id="spReqSupplier"><option value="">Any</option>${suppliers.map(l=>`<option value="${l.id}" ${spendForm.supplierId===l.id?'selected':''}>${escapeHtml(l.name)}</option>`).join('')}</select></div>
+          <div class="field"><label>Needed by</label><input type="date" id="spReqNeeded" value="${escapeAttr(spendForm.neededBy)}"></div>
+          <div class="field" style="grid-column:1/-1;"><label>Why is it needed?</label><input type="text" id="spReqNote" value="${escapeAttr(spendForm.note)}"></div>
+          <div class="spend-form-actions"><button class="btn secondary" id="spCancelBtn" type="button">Cancel</button><button class="btn" id="spReqSaveBtn" type="button">Submit requisition</button></div>
+        </div>` : ''}
+        <div class="filter-chips" style="margin-bottom:10px;">${[['all','All',reqs.length],['submitted','Waiting',counts('submitted')],['approved','Approved',counts('approved')],['ordered','PO raised',counts('ordered')],['rejected','Rejected',counts('rejected')]].map(([k,l,n])=>`<button type="button" class="filter-chip ${spendFilter===k?'active':''}" data-spend-filter="${k}">${l} <span class="chip-count">${n}</span></button>`).join('')}</div>
+        ${list.length ? `<div class="table-scroll"><table class="rb-card-table" id="spendReqTable">
+          <tr><th>No.</th><th>Date</th><th>Requested by</th><th>Item</th><th class="num">Qty</th><th class="num">Est. value</th><th>Needed by</th><th>Status</th><th></th></tr>
+          ${list.map(r=>{ const st = spendReqStatus(r), it = r.items[0]||{}; return `<tr>
+            <td data-label="No.">${escapeHtml(r.no)}</td><td data-label="Date">${escapeHtml(r.date)}</td><td data-label="Requested by">${escapeHtml(r.requestedBy)}</td>
+            <td data-label="Item">${escapeHtml(it.name||'')}${r.note?`<div class="muted" style="font-size:11px;">${escapeHtml(r.note)}</div>`:''}</td><td class="num" data-label="Qty">${it.qty||''}</td>
+            <td class="num" data-label="Est. value">${money(r2((Number(it.qty)||0)*(Number(it.rate)||0)))}</td><td data-label="Needed by">${escapeHtml(r.neededBy||'—')}</td>
+            <td data-label="Status">${spendPill(st)}</td>
+            <td data-label="">${st==='submitted' ? (spendCanDecide(r) ? `<button class="btn small" type="button" data-spend-approve="req:${r.id}">Approve</button> <button class="btn small secondary" type="button" data-spend-reject="req:${r.id}">Reject</button>` : `<span class="muted" style="font-size:11px;">Another user approves</span>`)
+              : st==='approved' ? `<button class="btn small" type="button" data-spend-po="${r.id}">Raise PO</button>` : ''}</td></tr>`; }).join('')}
+        </table></div>` : emptyState({icon:'📝', title:'No requisitions yet', text:'Staff ask for what they need; once approved, one click raises the Purchase Order.'})}
+        <p class="muted" style="font-size:11.5px;margin:10px 0 0;">"Raise PO" opens a new Purchase Order with the item, quantity, rate and supplier filled in and the requisition number in the narration — it shows as "PO raised" once you save it.</p>
+      </div></div>`;
+  }
+  return `${masthead('Spend Control','Expense claims, petty cash and purchase requisitions — approved before money moves')}${tabs}${body}`;
+}
+
 function viewOrders(){
   const meta = ORDER_DOC_META[ordersSubTab];
   let list = state[meta.stateKey].slice().sort((a,b)=> (Number(b.no)||0)-(Number(a.no)||0));
@@ -34178,7 +34463,7 @@ function viewPOS(){
               <span class="pill ${out?'neg':'pos'}" style="font-size:10px;">${out?'Out of stock':fmt(stock)+' in stock'}</span>
             </button>`;
           }).join('')}
-        </div>` : emptyState({icon:'🔍', title:'No items match', text:'Try a different search, or add items under Accounts → Item Master.'})}
+        </div>` : emptyState((state.items||[]).length ? {icon:'🔍', title:'No items match', text:'Try a different search, or pick another category.'} : {icon:'📦', title:'No items to sell yet', text:'Add your products under Accounts → Item Master and they appear here as tap-to-add buttons.'})}
       </div>
       <div class="panel pos-cart-panel">
         <div class="panel-head">
@@ -39711,6 +39996,99 @@ function reportESG(){
     ${!anyClassified && !data.unclassified.length ? `<div class="empty" style="margin-top:14px;">No expense or purchase activity yet to estimate from.</div>` : ''}
   `;
 }
+/* ====== Form 26Q / 27EQ quarterly TDS-TCS return data (Nov 2026) ======
+   Built from state.taxDeductions (what the voucher form already records) + the party PAN + vouchers that
+   pay the TDS/TCS payable ledgers to the government (challans). READ-ONLY. The return itself is prepared in
+   the free Protean (NSDL) Return Preparation Utility and filed on the TIN / income-tax portal: this gives the
+   deductee and challan rows to enter there, with every gap flagged. */
+const TDS_RPU_CODE = { '194C':'94C', '194H':'94H', '194Q':'94Q', '194J':'94J (choose 4JA technical / 4JB professional)', '194I':'94I (choose 4IA plant & machinery / 4IB land & building)', '194-Other':'(choose)', '206C(1H)':'6CR', '206C-Other':'(choose)' };
+let tdsQuarterKey = null;   // 'YYYY-Qn' where YYYY = FY start year
+function tdsQuarterBounds(key){
+  const [fy, q] = key.split('-Q').map(Number);
+  const start = [[fy,4],[fy,7],[fy,10],[fy+1,1]][q-1];
+  const end = new Date(start[0], start[1]+2, 0);
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const due = ['31 Jul','31 Oct','31 Jan','31 May'][q-1] + ' ' + (q===1||q===2 ? fy : fy+1);
+  return { key, fy, q, from:`${start[0]}-${String(start[1]).padStart(2,'0')}-01`, to:iso(end), label:`Q${q} FY ${fy}-${String(fy+1).slice(2)} (${['Apr–Jun','Jul–Sep','Oct–Dec','Jan–Mar'][q-1]})`, due };
+}
+function tdsQuarterKeyForDate(iso){ const [y,m] = iso.split('-').map(Number); const fy = m>=4 ? y : y-1; const q = m>=4 ? Math.floor((m-4)/3)+1 : 4; return `${fy}-Q${q}`; }
+function tdsQuarterKeys(){
+  const set = new Set(state.taxDeductions.map(t=>t.date && tdsQuarterKeyForDate(t.date)).filter(Boolean));
+  set.add(tdsQuarterKeyForDate(new Date().toISOString().slice(0,10)));
+  return Array.from(set).sort().reverse();
+}
+function partyPAN(l){
+  if(!l) return '';
+  const p = String(l.pan||'').trim().toUpperCase();
+  if(/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(p)) return p;
+  const g = String(l.gstin||'').trim().toUpperCase();
+  return isValidGSTIN(g) ? g.slice(2,12) : '';
+}
+function tdsReturnData(key, kind){
+  const Q = tdsQuarterBounds(key);
+  const rows = state.taxDeductions.filter(t=>t.kind===kind && t.date>=Q.from && t.date<=Q.to).sort((a,b)=>a.date.localeCompare(b.date));
+  const taxLedgers = new Set(rows.map(r=>r.taxLedgerId).filter(Boolean));
+  state.taxDeductions.filter(t=>t.kind===kind).forEach(t=>t.taxLedgerId && taxLedgers.add(t.taxLedgerId));
+  // challans: payments that debit the TDS/TCS payable ledger, from the quarter's 2nd month to 7 days after it ends (30 Apr for Q4)
+  const chFrom = Q.from.slice(0,5) + String(Number(Q.from.slice(5,7))+1).padStart(2,'0') + '-01';
+  const endD = new Date(Q.to); endD.setDate(endD.getDate() + (Q.q===4 ? 30 : 7));
+  const chTo = endD.toISOString().slice(0,10);
+  const challans = [];
+  for(const v of state.vouchers){
+    if(v.date<chFrom || v.date>chTo) continue;
+    const amt = (v.entries||[]).filter(e=>taxLedgers.has(e.ledgerId)).reduce((s,e)=>s+(Number(e.dr)||0)-(Number(e.cr)||0),0);
+    if(amt>0.004 && !state.taxDeductions.some(t=>t.voucherId===v.id)) challans.push({ v, date:v.date, amount:r2(amt) });
+  }
+  const deductees = rows.map((t,i)=>{
+    const l = ledgerOf(t.partyLedgerId), pan = partyPAN(l);
+    return { n:i+1, t, party:l?l.name:'(party deleted)', pan, section:t.sectionCode, rpu:TDS_RPU_CODE[t.sectionCode]||'', date:t.date, base:r2(Number(t.baseAmount)||0), tax:r2(Number(t.taxAmount)||0), rate:Number(t.rate)||0 };
+  });
+  const deducted = r2(deductees.reduce((s,d)=>s+d.tax,0)), deposited = r2(challans.reduce((s,c)=>s+c.amount,0));
+  const issues = [];
+  const noPan = deductees.filter(d=>!d.pan);
+  if(noPan.length) issues.push({ level:'fix', title:`${noPan.length} deductee${noPan.length===1?'':'s'} without a PAN`, help:'Add the PAN on the party under Ledgers (or a GSTIN, which contains it). Without a PAN the return shows "PANNOTAVBL" and TDS should have been deducted at 20% (section 206AA).', rows:noPan });
+  const choose = deductees.filter(d=>/choose/.test(d.rpu));
+  if(choose.length) issues.push({ level:'review', title:'Pick the exact section code in the utility', help:'194J and 194I have sub-codes in the return (4JA/4JB, 4IA/4IB). Choose the right one when you enter these rows.', rows:choose });
+  if(deducted - deposited > 0.5) issues.push({ level:'fix', title:`₹${fmt(r2(deducted-deposited))} deducted but not found as deposited`, help:'Record the challan payment as a voucher that debits the TDS payable ledger (dated by the 7th of the next month; 30 April for March). Late deposit attracts interest at 1.5% a month.', rows:[] });
+  if(!currentCompany.tan) issues.push({ level:'review', title:'Your TAN is not saved', help:'The return is filed under your TAN (10 characters, e.g. CHEA12345B). Keep it ready for the utility.', rows:[] });
+  return { Q, kind, deductees, challans, deducted, deposited, issues };
+}
+function tds26qPanel(){
+  const keys = tdsQuarterKeys();
+  if(!tdsQuarterKey || !keys.includes(tdsQuarterKey)) tdsQuarterKey = keys.find(k=>state.taxDeductions.some(t=>t.date && tdsQuarterKeyForDate(t.date)===k)) || keys[0];
+  const d = tdsReturnData(tdsQuarterKey, 'TDS'), tc = tdsReturnData(tdsQuarterKey, 'TCS');
+  const money = n => '₹'+fmt(n);
+  return `<div class="panel" id="tds26qPanel"><div class="panel-head"><h2>Quarterly TDS / TCS return (Form 26Q / 27EQ)</h2>
+      <div class="gstf-controls"><select id="tdsQuarterSelect" aria-label="Quarter">${keys.map(k=>`<option value="${k}" ${k===tdsQuarterKey?'selected':''}>${escapeHtml(tdsQuarterBounds(k).label)}</option>`).join('')}</select></div></div>
+    <div class="panel-body">
+      <div class="grid gstf-tiles">
+        <div class="stat"><div class="label">26Q deductee rows</div><div class="val">${d.deductees.length}</div><div class="gstf-sub">Due ${escapeHtml(d.Q.due)}</div></div>
+        <div class="stat"><div class="label">TDS deducted</div><div class="val">${money(d.deducted)}</div><div class="gstf-sub">${money(r2(d.deductees.reduce((s,x)=>s+x.base,0)))} paid / credited</div></div>
+        <div class="stat"><div class="label">TDS deposited</div><div class="val ${d.deducted-d.deposited>0.5?'neg':'pos'}">${money(d.deposited)}</div><div class="gstf-sub">${d.challans.length} challan payment${d.challans.length===1?'':'s'} found</div></div>
+        <div class="stat"><div class="label">27EQ (TCS) rows</div><div class="val">${tc.deductees.length}</div><div class="gstf-sub">${money(tc.deducted)} collected</div></div>
+      </div>
+      ${d.issues.length ? `<div class="gstf-issues">${d.issues.map(x=>`<details class="gstf-issue gstf-${x.level}"><summary><span class="gstf-tag">${x.level==='fix'?'Must fix':'Review'}</span><span class="gstf-issue-title">${escapeHtml(x.title)}</span>${x.rows.length?`<span class="chip-count">${x.rows.length}</span>`:''}</summary><div class="gstf-issue-body"><p>${escapeHtml(x.help)}</p>${x.rows.slice(0,8).map(r=>`<div class="gstf-row" data-edit-voucher="${escapeAttr(r.t.voucherId||'')}" role="button" tabindex="0"><span>${escapeHtml(r.date)} · ${escapeHtml(r.party)} · ${escapeHtml(r.section)}</span><span>${money(r.tax)}</span></div>`).join('')}</div></details>`).join('')}</div>` : (d.deductees.length ? `<div class="gstf-verdict ok">✓ Every deductee has a PAN and the TDS deducted has been deposited.</div>` : '')}
+      <div class="gstf-actions">
+        <button class="btn" id="tds26qXlsxBtn" type="button" ${d.deductees.length||tc.deductees.length?'':'disabled'}>⬇ 26Q / 27EQ data (Excel)</button>
+      </div>
+      <p class="muted" style="font-size:11.5px;margin:10px 0 0;line-height:1.55;">File the return with the free <b>Return Preparation Utility (RPU)</b> from Protean (NSDL): enter the challan rows, then the deductee rows from this file, validate with the FVU, and upload the .fvu file on the income-tax portal (or at a TIN facilitation centre). Fill the BSR code and challan serial number from your challan receipts.</p>
+    </div></div>`;
+}
+function downloadTds26qWorkbook(){
+  if(typeof XLSX==='undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  const wb = XLSX.utils.book_new();
+  const add = (name, rows, w) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = (w||[]).map(x=>({wch:x})); XLSX.utils.book_append_sheet(wb, ws, name); };
+  for(const kind of ['TDS','TCS']){
+    const d = tdsReturnData(tdsQuarterKey, kind), form = kind==='TDS' ? '26Q' : '27EQ';
+    add(`${form} Deductees`, [[`Form ${form} — ${d.Q.label} — ${currentCompany.name}`],[`TAN: ${currentCompany.tan||'(add your TAN)'}`,`PAN: ${currentCompany.pan||''}`,`Due date: ${d.Q.due}`],[],
+      ['Sr No','Section','RPU section code','Party PAN','Party name','Date of payment / credit','Amount paid / credited','Rate %',kind==='TDS'?'TDS':'TCS','Surcharge','Cess','Total tax','Date of deduction','Remark'],
+      ...d.deductees.map(x=>[x.n, x.section, x.rpu, x.pan||'PANNOTAVBL', x.party, x.date, x.base, x.rate, x.tax, 0, 0, x.tax, x.date, x.pan?'':'PAN missing — 20% rate applies (206AA)'])], [6,10,22,13,28,14,16,8,12,10,8,12,14,34]);
+    add(`${form} Challans`, [['Sr No','Date of deposit','Amount','BSR code','Challan serial no.','Voucher narration'], ...d.challans.map((c,i)=>[i+1, c.date, c.amount, '', '', c.v.narration||''])], [6,14,14,12,16,40]);
+  }
+  XLSX.writeFile(wb, `Form26Q_27EQ_${tdsQuarterKey}.xlsx`);
+  toast('Quarterly TDS / TCS return data downloaded');
+}
+
 function reportTdsTcs(){
   const { rows, totalsByKind } = tdsTcsSummaryData();
   return `
@@ -39745,6 +40123,7 @@ function reportTdsTcs(){
       </table>` : `<div class="empty">No TDS/TCS applied yet — switch a Payment or Receipt voucher to Single Entry and turn on the TDS/TCS panel to start tracking it here.</div>`}
     </div></div>
     <p class="muted" style="font-size:11px;">Pay these amounts to the government within the statutory due date for each section, then record that payment as its own voucher against the TDS/TCS Payable ledger — this report doesn't track filing/challan status.</p>
+    ${tds26qPanel()}
     ${narrativePanel(tdsTcsNarrative(rows, totalsByKind))}
   `;
 }
@@ -40625,10 +41004,17 @@ function gstDocNumberMaps(){
   const p4 = n => String(n).padStart(4,'0');
   const prefix = (currentCompany && currentCompany.invoiceSettings && currentCompany.invoiceSettings.numberPrefix || '').trim();
   const inv = new Map(), cn = new Map(), dn = new Map();
-  state.vouchers.filter(x=>x.type==='Sales').sort(cmp).forEach((x,i)=>inv.set(x.id, prefix ? `${prefix}${p4(i+1)}` : `INV/${fyLabelForDate(x.date)}/${p4(i+1)}`));
+  state.vouchers.filter(x=>x.type==='Sales').sort(cmp).forEach((x,i)=>{ const q = invoiceSeqSkipping(i+1); inv.set(x.id, prefix ? `${prefix}${p4(q)}` : `INV/${fyLabelForDate(x.date)}/${p4(q)}`); });
   state.vouchers.filter(x=>x.type==='Credit Note').sort(cmp).forEach((x,i)=>cn.set(x.id, `CN/${fyLabelForDate(x.date)}/${p4(i+1)}`));
   state.vouchers.filter(x=>x.type==='Debit Note' && gstVoucherTax(x).outTot>0.004).sort(cmp).forEach((x,i)=>dn.set(x.id, `DN/${fyLabelForDate(x.date)}/${p4(i+1)}`));
   return { inv, cn, dn };
+}
+function recordCancelledInvoice(v){
+  const sales = state.vouchers.filter(x=>x.type==='Sales').sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
+  const idx = sales.findIndex(x=>x.id===v.id); if(idx<0) return null;
+  const rec = { voucherId:v.id, seq:invoiceSeqSkipping(idx+1), no:salesVoucherInvoiceNumber(v), date:v.date, at:new Date().toISOString() };
+  currentCompany.cancelledInvoices = [...(currentCompany.cancelledInvoices||[]).filter(c=>c.voucherId!==v.id), rec];
+  return rec;
 }
 function gstSnapRate(taxable, tax){
   if(!(taxable>0)) return null;
@@ -40654,16 +41040,20 @@ function gstBuildOutwardDoc(v, kind, t, ctx){
   const c = r2(sign*t.out.c), s = r2(sign*t.out.s), i = r2(sign*t.out.i);
   const tax = r2(c+s+i), val = r2(voucherAmount(v)), taxable = r2(val-tax);
   const party = gstVoucherParty(v, kind==='CN'?'cr':'dr', ctx.ledgerMap);
-  const gstinRaw = ((party&&party.gstin)||'').trim().toUpperCase();
+  const cat = (party && ['overseas','sez','deemed'].includes(party.gstCategory)) ? party.gstCategory : '';
+  const gstinRaw = cat==='overseas' ? '' : ((party&&party.gstin)||'').trim().toUpperCase();
   const ctin = isValidGSTIN(gstinRaw) ? gstinRaw : '';
   const issues = [];
   if(gstinRaw && !ctin) issues.push('gstinBad');
+  if(cat==='sez' && !ctin) issues.push('sezGstin');
   const hasI = Math.abs(i)>0.004, hasCS = Math.abs(c)+Math.abs(s)>0.004;
   if(hasI && hasCS) issues.push('mixedHeads');
-  const inter = hasI && !hasCS;
-  const pos = ctin ? ctin.slice(0,2) : ((party && party.state && GST_STATE_CODES[party.state]) || (!inter ? ctx.home.code : ''));
+  // exports and SEZ supplies are inter-State supplies (IGST or zero-rated) wherever the buyer is
+  const inter = (cat==='overseas' || cat==='sez') ? true : (hasI && !hasCS);
+  if((cat==='overseas' || cat==='sez') && hasCS) issues.push('zeroRatedTax');
+  const pos = cat==='overseas' ? '96' : ctin ? ctin.slice(0,2) : ((party && party.state && GST_STATE_CODES[party.state]) || (!inter ? ctx.home.code : ''));
   if(!pos) issues.push('pos');
-  else if(ctx.home.code && !issues.includes('mixedHeads')){ if((pos===ctx.home.code && inter) || (pos!==ctx.home.code && !inter)) issues.push('posTax'); }
+  else if(!cat && ctx.home.code && !issues.includes('mixedHeads')){ if((pos===ctx.home.code && inter) || (pos!==ctx.home.code && !inter)) issues.push('posTax'); }
   const num = (kind==='INV' ? ctx.nums.inv : kind==='CN' ? ctx.nums.cn : ctx.nums.dn).get(v.id) || '';
   if(!num || num.length>16 || !/^[A-Za-z0-9\/-]+$/.test(num)) issues.push('docnum');
 
@@ -40707,14 +41097,29 @@ function gstBuildOutwardDoc(v, kind, t, ctx){
   // rate-wise lines = the HSN lines grouped by rate (so both always add up to the same document totals)
   const byRate = new Map();
   hsn.forEach(h=>{ const r = byRate.get(h.rt) || {rt:h.rt, txval:0, c:0, s:0, i:0}; r.txval = r2(r.txval+h.txval); r.c = r2(r.c+h.c); r.s = r2(r.s+h.s); r.i = r2(r.i+h.i); byRate.set(h.rt, r); });
-  return { id:v.id, kind, sign, num, date:v.date, val, taxable, c, s, i, tax, partyName: party ? party.name : '', partyId: party ? party.id : '', ctin, pos, inter,
+  return { id:v.id, kind, sign, num, date:v.date, val, taxable, c, s, i, tax, partyName: party ? party.name : '', partyId: party ? party.id : '', ctin, pos, inter, cat,
     lines: Array.from(byRate.values()).sort((a,b)=>a.rt-b.rt), hsn, issues, section:'' };
+}
+function gstZeroRatedParty(v, side, ctx){
+  const p = gstVoucherParty(v, side, ctx.ledgerMap);
+  return !!(p && (p.gstCategory==='overseas' || p.gstCategory==='sez'));
+}
+// A Receipt voucher that credits the output GST ledgers = tax paid on an advance received (GSTR-1 Table 11A).
+function gstBuildAdvance(v, t, ctx){
+  const party = gstVoucherParty(v, 'cr', ctx.ledgerMap);
+  const c = r2(t.out.c), s = r2(t.out.s), i = r2(t.out.i), tax = r2(c+s+i);
+  const txval = r2(voucherAmount(v) - tax);
+  const inter = Math.abs(i)>0.004;
+  const g = ((party&&party.gstin)||'').trim().toUpperCase();
+  const pos = isValidGSTIN(g) ? g.slice(0,2) : ((party&&party.state&&GST_STATE_CODES[party.state]) || ctx.home.code || '');
+  const rt = gstSnapRate(txval, tax) ?? r2(tax/Math.max(txval,1)*100);
+  return { v, id:v.id, date:v.date, txval, c, s, i, rt, pos, inter, partyName: party ? party.name : '' };
 }
 // The whole return for one period. Pure function of the books + GST filing settings.
 function gstReturnData(period){
   const settings = gstFilingSettings(), home = gstHome();
   const ctx = { settings, home, nums: gstDocNumberMaps(), ledgerMap: new Map(state.ledgers.map(l=>[l.id,l])), itemMap: new Map((state.items||[]).map(m=>[m.id,m])) };
-  const docs = [], untaxed = [], excluded = [], itcRows = [], salesInPeriod = [], cnInPeriod = [];
+  const docs = [], untaxed = [], excluded = [], itcRows = [], salesInPeriod = [], cnInPeriod = [], rcmRows = [], advRows = [];
   const books = { c:0, s:0, i:0 };
   for(const v of state.vouchers){
     if(!v.date || v.date<period.from || v.date>period.to) continue;
@@ -40723,12 +41128,12 @@ function gstReturnData(period){
     const amt = () => r2(voucherAmount(v));
     if(v.type==='Sales'){
       salesInPeriod.push(v);
-      if(t.outTot>0.004) docs.push(gstBuildOutwardDoc(v,'INV',t,ctx));
+      if(t.outTot>0.004 || (!t.touchesOut && gstZeroRatedParty(v,'dr',ctx))) docs.push(gstBuildOutwardDoc(v,'INV',t,ctx));
       else if(!t.touchesOut) untaxed.push({v, sign:1});
       else excluded.push({v, reason:'Sales voucher with a net debit on the output GST ledgers', out:t.out});
     } else if(v.type==='Credit Note'){
       cnInPeriod.push(v);
-      if(t.outTot<-0.004) docs.push(gstBuildOutwardDoc(v,'CN',t,ctx));
+      if(t.outTot<-0.004 || (!t.touchesOut && gstZeroRatedParty(v,'cr',ctx))) docs.push(gstBuildOutwardDoc(v,'CN',t,ctx));
       else if(!t.touchesOut) untaxed.push({v, sign:-1});
       else excluded.push({v, reason:'Credit Note that adds to output GST instead of reversing it', out:t.out});
     } else if(v.type==='Debit Note'){
@@ -40736,10 +41141,14 @@ function gstReturnData(period){
       else if(t.touchesOut && Math.abs(t.outTot)>0.004) excluded.push({v, reason:'Debit Note with a net debit on the output GST ledgers', out:t.out});
       if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), party: gstVoucherParty(v,'dr',ctx.ledgerMap)});
     } else if(v.type==='Purchase'){
-      if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), party: gstVoucherParty(v,'cr',ctx.ledgerMap)});
-      if(Math.abs(t.outTot)>0.004) excluded.push({v, reason:'Output GST posted in a Purchase voucher (for example reverse charge) — report it by hand', out:t.out});
+      const rcm = t.outTot>0.004;   // output GST credited on a purchase = tax payable by the buyer under reverse charge
+      if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), rcm, party: gstVoucherParty(v,'cr',ctx.ledgerMap)});
+      if(rcm) rcmRows.push({v, txval:r2(voucherAmount(v)-Math.max(0,t.inTot)), c:r2(t.out.c), s:r2(t.out.s), i:r2(t.out.i), party: gstVoucherParty(v,'cr',ctx.ledgerMap)});
+      else if(Math.abs(t.outTot)>0.004) excluded.push({v, reason:'Purchase voucher that reduces output GST — check it', out:t.out});
+    } else if(v.type==='Receipt' && t.outTot>0.004){
+      advRows.push(gstBuildAdvance(v, t, ctx));   // tax on an advance received (Table 11A)
     } else {
-      if(t.outTot<-0.004) excluded.push({v, reason:'GST payment or set-off entry (not a supply)', out:t.out, setoff:true});
+      if(t.outTot<-0.004) excluded.push({v, reason:'GST payment, set-off or advance adjustment (not a supply)', out:t.out, setoff:true});
       else {
         if(t.outTot>0.004) excluded.push({v, reason:`Output GST posted in a ${v.type} voucher, not in a Sales, Credit Note or Debit Note voucher`, out:t.out});
         if(Math.abs(t.inTot)>0.004) itcRows.push({v, c:r2(t.inp.c), s:r2(t.inp.s), i:r2(t.inp.i), party: gstVoucherParty(v,'cr',ctx.ledgerMap)});
@@ -40747,16 +41156,18 @@ function gstReturnData(period){
     }
   }
   // ---- sections ----
-  const b2b = new Map(), b2cl = new Map(), b2cs = new Map(), cdnr = new Map(), cdnur = [];
+  const b2b = new Map(), b2cl = new Map(), b2cs = new Map(), cdnr = new Map(), cdnur = [], exp = new Map(); const zr = { txval:0, i:0 };
   const hsnB2B = new Map(), hsnB2C = new Map(), t32 = new Map();
   const tot = { txval:0, c:0, s:0, i:0 };
-  const sec = { b2b:{n:0,txval:0,tax:0}, b2cl:{n:0,txval:0,tax:0}, b2cs:{n:0,txval:0,tax:0}, cdnr:{n:0,txval:0,tax:0}, cdnur:{n:0,txval:0,tax:0} };
+  const sec = { b2b:{n:0,txval:0,tax:0}, b2cl:{n:0,txval:0,tax:0}, b2cs:{n:0,txval:0,tax:0}, cdnr:{n:0,txval:0,tax:0}, cdnur:{n:0,txval:0,tax:0}, exp:{n:0,txval:0,tax:0}, at:{n:0,txval:0,tax:0} };
   const push = (map,key,d)=>{ if(!map.has(key)) map.set(key,[]); map.get(key).push(d); };
   const addHsn = (map,h,sign)=>{ const key = `${h.hsn}|${h.uqc}|${h.rt}`; const r = map.get(key) || {hsn:h.hsn, uqc:h.uqc, rt:h.rt, qty:0, txval:0, c:0, s:0, i:0}; r.qty = Number((r.qty+sign*h.qty).toFixed(3)); r.txval = r2(r.txval+sign*h.txval); r.c = r2(r.c+sign*h.c); r.s = r2(r.s+sign*h.s); r.i = r2(r.i+sign*h.i); map.set(key,r); };
   for(const d of docs){
     const large = d.inter && d.val>GST_B2CL_LIMIT;
-    d.section = d.ctin ? (d.kind==='INV' ? 'b2b' : 'cdnr') : large ? (d.kind==='INV' ? 'b2cl' : 'cdnur') : 'b2cs';
-    if(d.section==='b2b') push(b2b, d.ctin, d);
+    d.section = d.cat==='overseas' ? (d.kind==='INV' ? 'exp' : 'cdnur') : d.ctin ? (d.kind==='INV' ? 'b2b' : 'cdnr') : large ? (d.kind==='INV' ? 'b2cl' : 'cdnur') : 'b2cs';
+    if(d.cat==='overseas' || d.cat==='sez'){ zr.txval += d.sign*d.taxable; zr.i += d.sign*d.i; }
+    if(d.section==='exp') push(exp, d.i>0.004 ? 'WPAY' : 'WOPAY', d);
+    else if(d.section==='b2b') push(b2b, d.ctin, d);
     else if(d.section==='cdnr') push(cdnr, d.ctin, d);
     else if(d.section==='b2cl') push(b2cl, d.pos||'??', d);
     else if(d.section==='cdnur') cdnur.push(d);
@@ -40764,7 +41175,13 @@ function gstReturnData(period){
     d.hsn.forEach(h=>addHsn(d.ctin ? hsnB2B : hsnB2C, h, d.sign));
     tot.txval += d.sign*d.taxable; tot.c += d.sign*d.c; tot.s += d.sign*d.s; tot.i += d.sign*d.i;
     const sx = sec[d.section]; sx.n++; sx.txval += d.sign*d.taxable; sx.tax += d.sign*d.tax;
-    if(!d.ctin && d.inter){ const r = t32.get(d.pos||'??') || {pos:d.pos||'', txval:0, i:0}; r.txval = r2(r.txval+d.sign*d.taxable); r.i = r2(r.i+d.sign*d.i); t32.set(d.pos||'??', r); }
+    if(!d.ctin && d.inter && !d.cat){ const r = t32.get(d.pos||'??') || {pos:d.pos||'', txval:0, i:0}; r.txval = r2(r.txval+d.sign*d.taxable); r.i = r2(r.i+d.sign*d.i); t32.set(d.pos||'??', r); }
+  }
+  const atMap = new Map();
+  for(const a of advRows){
+    tot.txval += a.txval; tot.c += a.c; tot.s += a.s; tot.i += a.i; sec.at.n++; sec.at.txval += a.txval; sec.at.tax += a.c+a.s+a.i;
+    const key = `${a.pos}|${a.inter?'INTER':'INTRA'}|${a.rt}`; const r = atMap.get(key) || { pos:a.pos, sply_ty:a.inter?'INTER':'INTRA', rt:a.rt, ad_amt:0, c:0, s:0, i:0 };
+    r.ad_amt = r2(r.ad_amt+a.txval); r.c = r2(r.c+a.c); r.s = r2(r.s+a.s); r.i = r2(r.i+a.i); atMap.set(key, r);
   }
   // ---- supplies with no GST on them (Table 8), reported the way the company has chosen ----
   const nil = { INTRB2B:{nil:0,expt:0,ngsup:0}, INTRAB2B:{nil:0,expt:0,ngsup:0}, INTRB2C:{nil:0,expt:0,ngsup:0}, INTRAB2C:{nil:0,expt:0,ngsup:0} };
@@ -40792,9 +41209,10 @@ function gstReturnData(period){
   }
   Object.values(nil).forEach(r=>{ r.nil = r2(r.nil); r.expt = r2(r.expt); r.ngsup = r2(r.ngsup); });
   // ---- Table 13: documents issued ----
-  const series = (list, map) => { const nums = list.map(v=>map.get(v.id)).filter(Boolean).sort(); return nums.length ? { from:nums[0], to:nums[nums.length-1], totnum:nums.length, cancel:0, net_issue:nums.length } : null; };
+  const series = (list, map, cancelledNos) => { const live = list.map(v=>map.get(v.id)).filter(Boolean); const can = cancelledNos||[]; const nums = live.concat(can).sort(); return nums.length ? { from:nums[0], to:nums[nums.length-1], totnum:nums.length, cancel:can.length, net_issue:live.length } : null; };
   const docIssue = [];
-  const sInv = series(salesInPeriod, ctx.nums.inv); if(sInv) docIssue.push({doc_num:1, name:'Invoices for outward supply', ...sInv});
+  const cancelledInPeriod = ((currentCompany && currentCompany.cancelledInvoices) || []).filter(c=>c.date>=period.from && c.date<=period.to);
+  const sInv = series(salesInPeriod, ctx.nums.inv, cancelledInPeriod.map(c=>c.no)); if(sInv) docIssue.push({doc_num:1, name:'Invoices for outward supply', ...sInv});
   const sDn = series(docs.filter(d=>d.kind==='DN').map(d=>({id:d.id})), ctx.nums.dn); if(sDn) docIssue.push({doc_num:4, name:'Debit Note', ...sDn});
   const sCn = series(cnInPeriod, ctx.nums.cn); if(sCn) docIssue.push({doc_num:5, name:'Credit Note', ...sCn});
   // ---- ITC as per books + GSTR-3B figures ----
@@ -40803,8 +41221,17 @@ function gstReturnData(period){
   const cr = { i:Math.max(0,r2(itc.i)), c:Math.max(0,r2(itc.c)), s:Math.max(0,r2(itc.s)) };
   const due = {...pay}, left = {...cr}; const use = (credit, head)=>{ const x = Math.min(due[head], left[credit]); due[head] = r2(due[head]-x); left[credit] = r2(left[credit]-x); };
   use('i','i'); use('i','c'); use('i','s'); use('c','c'); use('c','i'); use('s','s'); use('s','i');   // statutory order of using credit
+  const rcm = rcmRows.reduce((a,r)=>({txval:a.txval+r.txval, c:a.c+r.c, s:a.s+r.s, i:a.i+r.i}), {txval:0,c:0,s:0,i:0});
+  const itcRcm = itcRows.filter(r=>r.rcm).reduce((a,r)=>({c:a.c+r.c, s:a.s+r.s, i:a.i+r.i}), {c:0,s:0,i:0});
+  // reverse-charge tax is paid in cash (it cannot be paid from input credit), so it is added after the set-off
+  const rcmCash = { i:Math.max(0,r2(rcm.i)), c:Math.max(0,r2(rcm.c)), s:Math.max(0,r2(rcm.s)) };
+  due.i = r2(due.i+rcmCash.i); due.c = r2(due.c+rcmCash.c); due.s = r2(due.s+rcmCash.s);
+  pay.i = r2(pay.i+rcmCash.i); pay.c = r2(pay.c+rcmCash.c); pay.s = r2(pay.s+rcmCash.s);
   const g3b = {
-    t31a:{ txval:r2(tot.txval), i:r2(tot.i), c:r2(tot.c), s:r2(tot.s) },
+    t31a:{ txval:r2(tot.txval-zr.txval), i:r2(tot.i-zr.i), c:r2(tot.c), s:r2(tot.s) },
+    t31b:{ txval:r2(zr.txval), i:r2(zr.i) },
+    t31d:{ txval:r2(rcm.txval), i:r2(rcm.i), c:r2(rcm.c), s:r2(rcm.s) },
+    itcRcm:{ i:r2(itcRcm.i), c:r2(itcRcm.c), s:r2(itcRcm.s) },
     t31c: r2(nil.INTRB2B.nil+nil.INTRAB2B.nil+nil.INTRB2C.nil+nil.INTRAB2C.nil + nil.INTRB2B.expt+nil.INTRAB2B.expt+nil.INTRB2C.expt+nil.INTRAB2C.expt),
     t31e: r2(nil.INTRB2B.ngsup+nil.INTRAB2B.ngsup+nil.INTRB2C.ngsup+nil.INTRAB2C.ngsup),
     t32: Array.from(t32.values()).filter(r=>r.txval||r.i).sort((a,b)=>a.pos.localeCompare(b.pos)),
@@ -40824,6 +41251,8 @@ function gstReturnData(period){
   add('fix','rate', 'GST rate is not a valid slab', 'The tax on this voucher does not work out to a GST rate the portal accepts. Correct the voucher, or give each item its own GST rate under Inventory.', withIssue('rate'));
   add('fix','hsn', `HSN / SAC code missing or shorter than ${settings.above5cr?6:4} digits`, 'Add the HSN code to the item under Inventory, or set a default HSN/SAC in GST filing settings (useful for a service business with one SAC).', [...withIssue('hsn'), ...untaxedHsnBad.map(v=>fromV(v, ctx.nums.inv.get(v.id)))]);
   add('fix','docnum', 'Document number longer than 16 characters or using other symbols', 'GST allows up to 16 characters: letters, digits, "/" and "-". Shorten the invoice number prefix under Invoice Template.', withIssue('docnum'));
+  add('fix','sezGstin', 'SEZ buyer without a valid GSTIN', 'A supply to an SEZ unit is reported with the unit\'s GSTIN. Add it on the party under Ledgers.', withIssue('sezGstin'));
+  add('fix','zeroRatedTax', 'Export or SEZ supply carries CGST/SGST', 'Exports and supplies to SEZ are inter-State: charge IGST (with payment) or no tax under LUT/bond (without payment). Correct the voucher.', withIssue('zeroRatedTax'));
   add('fix','gstinBad', 'Party GSTIN is not in a valid format', 'Correct the GSTIN on the party under Ledgers. Until then the supply is reported as a sale to an unregistered buyer.', withIssue('gstinBad'));
   const exOut = excluded.filter(x=>!x.setoff);
   add('review','excluded', 'Output GST posted outside a sales document — not in GSTR-1', 'These vouchers move the output GST ledgers but are not invoices or notes. If any is a real supply (an advance, reverse charge), add it on the portal by hand.', exOut.map(x=>fromV(x.v)));
@@ -40832,16 +41261,20 @@ function gstReturnData(period){
   add('review','cdnur', 'Credit / debit note to an unregistered inter-State buyer above ₹1 lakh', 'Reported note-wise in Table 9B (unregistered) on the assumption that the original invoice was also above ₹1 lakh. If the original invoice was smaller, move it on the portal.', cdnur.map(vrow));
   add('review','itcNoGstin', 'Input credit claimed where the supplier has no GSTIN on file', 'Credit is available only when the supplier has reported the invoice and it appears in your GSTR-2B. Check these against GSTR-2B.', itcRows.filter(r=>(r.c+r.s+r.i)>0 && !(r.party && isValidGSTIN((r.party.gstin||'').toUpperCase()))).map(r=>fromV(r.v)));
   if(docs.some(d=>d.kind!=='INV')) add('review','noteNumbers', 'Credit and debit note numbers come from this app', 'Notes are numbered CN/<year>/0001 and DN/<year>/0001 in date order. Use the same number on the note you give the customer.', docs.filter(d=>d.kind!=='INV').map(vrow));
+  add('review','exports', 'Exports — add shipping bill details on the portal', 'Export invoices are reported in Table 6A without shipping bill number, port code and date. Add them on the portal once you have them.', docs.filter(d=>d.section==='exp').map(vrow));
+  add('review','rcm', 'Purchases under reverse charge', 'Tax you pay under reverse charge is shown in GSTR-3B 3.1(d) and must be paid in cash; the matching credit is in 4(A)(3). These are not part of GSTR-1.', rcmRows.map(r=>fromV(r.v)));
+  add('review','advances', 'Tax on advances received (Table 11A)', 'Advances with GST are reported in Table 11A. When the invoice is raised later, record the adjustment in Table 11B on the portal.', advRows.map(a=>fromV(a.v)));
+  if(cancelledInPeriod.length) add('review','cancelled', 'Cancelled invoice numbers', 'Deleted invoices keep their number and are counted as cancelled in Table 13.', cancelledInPeriod.map(c=>({ id:'', date:c.date, num:c.no, party:'Cancelled', amount:0 })));
   const fixCount = issues.filter(x=>x.level==='fix').length;
   const outRet = r2(tot.c+tot.s+tot.i), outBooks = r2(books.c+books.s+books.i);
-  return { period, settings, home, docs, sections:{b2b,b2cl,b2cs,cdnr,cdnur}, sec, nil, untaxedCount:untaxed.length, untaxedTotal:r2(untaxedTotal),
+  return { period, settings, home, docs, sections:{b2b,b2cl,b2cs,cdnr,cdnur,exp,at:Array.from(atMap.values())}, sec, rcmRows, advRows, nil, untaxedCount:untaxed.length, untaxedTotal:r2(untaxedTotal),
     hsnB2B:Array.from(hsnB2B.values()).filter(h=>h.txval||h.qty||h.c||h.s||h.i).sort((a,b)=>a.hsn.localeCompare(b.hsn)||a.rt-b.rt),
     hsnB2C:Array.from(hsnB2C.values()).filter(h=>h.txval||h.qty||h.c||h.s||h.i).sort((a,b)=>a.hsn.localeCompare(b.hsn)||a.rt-b.rt),
     docIssue, excluded, itcRows, g3b, totals:{ txval:r2(tot.txval), c:r2(tot.c), s:r2(tot.s), i:r2(tot.i), tax:outRet },
     books:{ returnTax:outRet, ledgerTax:outBooks, excludedTax:r2(outBooks-outRet) },
     issues, fixCount, reviewCount: issues.length-fixCount, ready: fixCount===0,
     // nothing to file: no GST documents and no input credit -- and sales without GST only count when the company is GST-registered
-    empty: !docs.length && !itcRows.length && (!untaxed.length || !home.gstin) };
+    empty: !docs.length && !itcRows.length && !advRows.length && !rcmRows.length && (!untaxed.length || !home.gstin) };
 }
 function gstDateDMY(iso){ const [y,m,d] = iso.split('-'); return `${d}-${m}-${y}`; }
 // GSTR-1 in the GST portal's offline-upload JSON layout. Sections with nothing to report are left out.
@@ -40854,12 +41287,15 @@ function gstr1PortalJson(d){
   });
   const o = { gstin:d.home.gstin, fp:d.period.fp, version:'GST3.0.4', hash:'hash' };   // same envelope as the widely used ERPNext India Compliance export
   const S = d.sections;
-  if(S.b2b.size) o.b2b = Array.from(S.b2b.entries()).map(([ctin,list])=>({ ctin, inv:list.map(x=>({ inum:x.num, idt:gstDateDMY(x.date), val:x.val, pos:x.pos, rchrg:'N', inv_typ:'R', itms:itms(x) })) }));
+  const invTyp = x => x.cat==='sez' ? (x.i>0.004 ? 'SEWP' : 'SEWOP') : x.cat==='deemed' ? 'DE' : 'R';
+  if(S.b2b.size) o.b2b = Array.from(S.b2b.entries()).map(([ctin,list])=>({ ctin, inv:list.map(x=>({ inum:x.num, idt:gstDateDMY(x.date), val:x.val, pos:x.pos, rchrg:'N', inv_typ:invTyp(x), itms:itms(x) })) }));
   if(S.b2cl.size) o.b2cl = Array.from(S.b2cl.entries()).map(([pos,list])=>({ pos, inv:list.map(x=>({ inum:x.num, idt:gstDateDMY(x.date), val:x.val, itms:itms(x) })) }));
   const cs = Array.from(S.b2cs.values()).filter(r=>r.txval||r.c||r.s||r.i);
   if(cs.length) o.b2cs = cs.map(r=>{ const row = { sply_ty:r.sply_ty, rt:r.rt, typ:'OE', pos:r.pos, txval:r.txval }; if(r.sply_ty==='INTER') row.iamt = r.i; else { row.camt = r.c; row.samt = r.s; } row.csamt = 0; return row; });
-  if(S.cdnr.size) o.cdnr = Array.from(S.cdnr.entries()).map(([ctin,list])=>({ ctin, nt:list.map(x=>({ ntty:x.kind==='CN'?'C':'D', nt_num:x.num, nt_dt:gstDateDMY(x.date), val:x.val, pos:x.pos, rchrg:'N', inv_typ:'R', itms:itms(x) })) }));
-  if(S.cdnur.length) o.cdnur = S.cdnur.map(x=>({ ntty:x.kind==='CN'?'C':'D', nt_num:x.num, nt_dt:gstDateDMY(x.date), val:x.val, typ:'B2CL', pos:x.pos, itms:itms(x) }));
+  if(S.exp.size) o.exp = Array.from(S.exp.entries()).map(([exp_typ,list])=>({ exp_typ, inv:list.map(x=>({ inum:x.num, idt:gstDateDMY(x.date), val:x.val, itms:x.lines.map(l=>({ txval:l.txval, rt:l.rt, iamt:l.i, csamt:0 })) })) }));
+  if(S.cdnr.size) o.cdnr = Array.from(S.cdnr.entries()).map(([ctin,list])=>({ ctin, nt:list.map(x=>({ ntty:x.kind==='CN'?'C':'D', nt_num:x.num, nt_dt:gstDateDMY(x.date), val:x.val, pos:x.pos, rchrg:'N', inv_typ:invTyp(x), itms:itms(x) })) }));
+  if(S.cdnur.length) o.cdnur = S.cdnur.map(x=>{ const typ = x.cat==='overseas' ? (x.i>0.004 ? 'EXPWP' : 'EXPWOP') : 'B2CL'; const n = { ntty:x.kind==='CN'?'C':'D', nt_num:x.num, nt_dt:gstDateDMY(x.date), val:x.val, typ }; if(typ==='B2CL') n.pos = x.pos; n.itms = itms(x); return n; });
+  if(S.at.length) o.at = Array.from(S.at.reduce((m,r)=>{ const k = r.pos+'|'+r.sply_ty; if(!m.has(k)) m.set(k,{ pos:r.pos, sply_ty:r.sply_ty, itms:[] }); const det = { rt:r.rt, ad_amt:r.ad_amt }; if(r.sply_ty==='INTER') det.iamt = r.i; else { det.camt = r.c; det.samt = r.s; } det.csamt = 0; m.get(k).itms.push(det); return m; }, new Map()).values());
   const nilRows = Object.entries(d.nil).filter(([,r])=>r.nil||r.expt||r.ngsup).map(([k,r])=>({ sply_ty:k, nil_amt:r.nil, expt_amt:r.expt, ngsup_amt:r.ngsup }));
   if(nilRows.length) o.nil = { inv:nilRows };
   const hrow = (h,k)=>({ num:k+1, hsn_sc:h.hsn, desc:'', user_desc:'', uqc:h.uqc, qty:h.qty, rt:h.rt, txval:h.txval, iamt:h.i, camt:h.c, samt:h.s, csamt:0 });
@@ -40906,6 +41342,8 @@ function buildGstFilingWorkbook(d){
     ['7','B2C others (net of credit notes)', ...tile('b2cs')],
     ['9B','Credit / debit notes — registered', ...tile('cdnr')],
     ['9B','Credit / debit notes — unregistered', ...tile('cdnur')],
+    ['6A','Exports (with and without payment of IGST)', ...tile('exp')],
+    ['11A','Tax on advances received', ...tile('at')],
     ['8','Nil-rated, exempt and non-GST supplies', d.untaxedCount, r2(g.t31c+g.t31e), 0],
     [],
     ['','Total taxable outward supplies', d.docs.length, d.totals.txval, d.totals.tax],
@@ -40930,6 +41368,10 @@ function buildGstFilingWorkbook(d){
   const cdnurRows = [['UR Type','Note Number','Note Date','Note Type','Place Of Supply','Note Value','Applicable % of Tax Rate','Rate','Taxable Value','Cess Amount']];
   S.cdnur.forEach(x=>x.lines.forEach(l=>cdnurRows.push(['B2CL', x.num, dmy(x.date), x.kind==='CN'?'C':'D', st(x.pos), x.val, '', l.rt, l.txval, 0])));
   sheet('cdnur', cdnurRows, [9,18,13,9,22,13,10,7,14,9]);
+  const expRows = [['Export Type','Invoice Number','Invoice date','Invoice Value','Port Code','Shipping Bill Number','Shipping Bill Date','Rate','Taxable Value','Cess Amount']];
+  S.exp.forEach((list,typ)=>list.forEach(x=>x.lines.forEach(l=>expRows.push([typ, x.num, dmy(x.date), x.val, '', '', '', l.rt, l.txval, 0]))));
+  sheet('exp', expRows, [11,18,13,13,10,18,16,7,14,9]);
+  sheet('at', [['Place Of Supply','Rate','Gross Advance Received','Cess Amount'], ...S.at.map(r=>[st(r.pos), r.rt, r.ad_amt, 0])], [22,7,20,10]);
   sheet('exemp', [['Description','Nil Rated Supplies','Exempted(other than nil rated/non GST supply)','Non-GST Supplies'],
     ['Inter-State supplies to registered persons', d.nil.INTRB2B.nil, d.nil.INTRB2B.expt, d.nil.INTRB2B.ngsup],
     ['Intra-State supplies to registered persons', d.nil.INTRAB2B.nil, d.nil.INTRAB2B.expt, d.nil.INTRAB2B.ngsup],
@@ -40945,24 +41387,25 @@ function buildGstFilingWorkbook(d){
     [],
     ['3.1 Outward supplies','Taxable value','IGST','CGST','SGST/UTGST','Cess'],
     ['(a) Outward taxable supplies (other than zero rated, nil rated and exempted)', g.t31a.txval, g.t31a.i, g.t31a.c, g.t31a.s, 0],
-    ['(b) Outward taxable supplies (zero rated)', 0,0,0,0,0,'Not recorded in this app — add on the portal if you export'],
+    ['(b) Outward taxable supplies (zero rated)', g.t31b.txval, g.t31b.i, 0, 0, 0],
     ['(c) Other outward supplies (nil rated, exempted)', g.t31c, '', '', '', ''],
-    ['(d) Inward supplies (liable to reverse charge)', 0,0,0,0,0,'Not recorded in this app — add on the portal if it applies'],
+    ['(d) Inward supplies (liable to reverse charge)', g.t31d.txval, g.t31d.i, g.t31d.c, g.t31d.s, 0],
     ['(e) Non-GST outward supplies', g.t31e, '', '', '', ''],
     [],
     ['3.2 Inter-State supplies to unregistered persons','Place of supply','Taxable value','IGST'],
     ...(g.t32.length ? g.t32.map(r=>['', st(r.pos), r.txval, r.i]) : [['', 'None', 0, 0]]),
     [],
     ['4 Eligible ITC (as per books — claim as per GSTR-2B)','IGST','CGST','SGST/UTGST','Cess'],
-    ['(A)(5) All other ITC, net of purchase returns', g.itc.i, g.itc.c, g.itc.s, 0],
-    ['Imports, reverse charge, ISD credit and ITC reversals', 0,0,0,0,'Not recorded in this app — add on the portal if they apply'],
+    ['(A)(3) Inward supplies liable to reverse charge', g.itcRcm.i, g.itcRcm.c, g.itcRcm.s, 0],
+    ['(A)(5) All other ITC, net of purchase returns', r2(g.itc.i-g.itcRcm.i), r2(g.itc.c-g.itcRcm.c), r2(g.itc.s-g.itcRcm.s), 0],
+    ['Imports, ISD credit and ITC reversals', 0,0,0,0,'Not recorded in this app — add on the portal if they apply'],
     [],
     ['6.1 Payment of tax (estimate)','Tax payable','Paid through ITC','To pay in cash'],
     ['Integrated Tax', g.payable.i, r2(g.payable.i-g.cash.i), g.cash.i],
     ['Central Tax', g.payable.c, r2(g.payable.c-g.cash.c), g.cash.c],
     ['State/UT Tax', g.payable.s, r2(g.payable.s-g.cash.s), g.cash.s],
     ['Total', r2(g.payable.i+g.payable.c+g.payable.s), r2(g.payable.i+g.payable.c+g.payable.s-g.cashTotal), g.cashTotal],
-    ['The estimate uses only this period\'s input credit in the order the law sets. Credit carried forward in your electronic credit ledger, interest and late fee are not included.'],
+    ['Reverse-charge tax is included above in "To pay in cash" — it cannot be paid from input credit. The estimate uses only this period\'s input credit in the order the law sets. Credit carried forward in your electronic credit ledger, interest and late fee are not included.'],
   ], [66,18,16,16,16,10,50]);
   sheet('ITC register', [['Date','Voucher type','Supplier','Supplier GSTIN','Narration','IGST','CGST','SGST/UTGST','Total credit'],
     ...d.itcRows.map(r=>[r.v.date, r.v.type, r.party?r.party.name:'', r.party?(r.party.gstin||''):'', r.v.narration||'', r.i, r.c, r.s, r2(r.i+r.c+r.s)])], [12,14,28,18,40,12,12,12,13]);
@@ -41033,7 +41476,7 @@ function gstFilingPanel(d, keys){
             <li>Submit and file GSTR-1 on the portal with DSC or EVC.</li>
             <li><b>GSTR-3B</b> then fills itself on the portal from this GSTR-1 and from GSTR-2B. Compare it with the <b>GSTR-3B</b> sheet, take input credit as per GSTR-2B, pay and file.</li>
           </ol>
-          <p class="muted">This app does not connect to the GST Network. The file is prepared from your vouchers; you upload, review and file it yourself. Exports, reverse charge, advances and e-commerce sales are not recorded here, so add them on the portal if they apply to you.</p>
+          <p class="muted">This app does not connect to the GST Network. The file is prepared from your vouchers; you upload, review and file it yourself. Exports and SEZ supplies come from the party's GST category (set it under Ledgers); add shipping bill details, advance adjustments (Table 11B) and e-commerce sales on the portal.</p>
         </details>
       </div>
     </div>`;
@@ -41064,6 +41507,131 @@ function gstFilingSettingsModal(){
         </div>
       </div>
     </div>`;
+}
+
+/* ====== GSTR-2B reconciliation (Nov 2026) ======
+   The user downloads GSTR-2B as JSON from the GST portal (Returns > GSTR-2B > Download > JSON) and uploads it here.
+   Each supplier invoice / note in 2B is matched against the purchase-side vouchers that took input credit.
+   READ-ONLY: nothing is posted or changed; the result lives only for this session (re-upload any time). */
+let gst2b = null;              // { gstin, rtnprd, docs:[...], skipped:{...}, fileName }
+let gst2bFilter = 'all';
+const GST2B_PAGE = 40; let gst2bLimit = GST2B_PAGE;
+function gst2bParse(json){
+  const root = (json && json.data) ? json.data : json;
+  if(!root || !root.docdata) throw new Error('This is not a GSTR-2B JSON file (no "docdata" section).');
+  const dd = root.docdata, docs = [];
+  const num = x => r2(Number(x)||0);
+  const dmyToIso = d => { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(String(d||'')); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  const itemsTax = items => (items||[]).reduce((a,it)=>({ txval:a.txval+num(it.txval), i:a.i+num(it.igst), c:a.c+num(it.cgst), s:a.s+num(it.sgst) }), {txval:0,i:0,c:0,s:0});
+  (dd.b2b||[]).forEach(sup=>(sup.inv||[]).forEach(inv=>{ const t = itemsTax(inv.items); docs.push({ kind:'INV', ctin:String(sup.ctin||'').toUpperCase(), trdnm:sup.trdnm||'', num:String(inv.inum||''), date:dmyToIso(inv.dt), val:num(inv.val), txval:r2(t.txval), i:r2(t.i), c:r2(t.c), s:r2(t.s), tax:r2(t.i+t.c+t.s), itcavl:(inv.itcavl||'Y').toUpperCase()!=='N', rev:(inv.rev||'N').toUpperCase()==='Y', sign:1 }); }));
+  (dd.cdnr||[]).forEach(sup=>(sup.nt||[]).forEach(nt=>{ const t = itemsTax(nt.items); const credit = String(nt.typ||'C').toUpperCase()==='C'; docs.push({ kind:credit?'CN':'DN', ctin:String(sup.ctin||'').toUpperCase(), trdnm:sup.trdnm||'', num:String(nt.ntnum||''), date:dmyToIso(nt.dt), val:num(nt.val), txval:r2(t.txval), i:r2(t.i), c:r2(t.c), s:r2(t.s), tax:r2(t.i+t.c+t.s), itcavl:(nt.itcavl||'Y').toUpperCase()!=='N', rev:(nt.rev||'N').toUpperCase()==='Y', sign:credit?-1:1 }); }));
+  const skipped = {}; ['b2ba','cdnra','isd','isda','impg','impgsez'].forEach(k=>{ if(Array.isArray(dd[k]) && dd[k].length) skipped[k] = dd[k].length; });
+  return { gstin:String(root.gstin||'').toUpperCase(), rtnprd:String(root.rtnprd||''), docs, skipped };
+}
+function gst2bPeriodBounds(rtnprd){
+  const m = /^(\d{2})(\d{4})$/.exec(rtnprd||''); if(!m) return null;
+  const y = Number(m[2]), mo = Number(m[1]); const last = new Date(y, mo, 0).getDate();
+  return { from:`${y}-${m[1]}-01`, to:`${y}-${m[1]}-${String(last).padStart(2,'0')}`, label:new Date(y, mo-1, 1).toLocaleDateString('en-IN',{month:'long',year:'numeric'}) };
+}
+// Purchase-side vouchers that took input credit (Purchase, Debit Note, or any voucher debiting input GST)
+function gst2bBooksRows(){
+  const ledgerMap = new Map(state.ledgers.map(l=>[l.id,l]));
+  const out = [];
+  for(const v of state.vouchers){
+    const t = gstVoucherTax(v); if(Math.abs(t.inTot)<=0.004) continue;
+    if(v.type==='Sales' || v.type==='Credit Note') continue;
+    if(t.outTot>0.004) continue;   // reverse-charge credit is not in GSTR-2B (it comes from your own RCM payment)
+    const party = gstVoucherParty(v, v.type==='Debit Note'?'dr':'cr', ledgerMap);
+    const g = ((party&&party.gstin)||'').trim().toUpperCase();
+    out.push({ v, id:v.id, date:v.date, ctin:isValidGSTIN(g)?g:'', party:party?party.name:'', narration:v.narration||'', i:r2(t.inp.i), c:r2(t.inp.c), s:r2(t.inp.s), tax:r2(t.inTot), sign:t.inTot<0?-1:1, val:r2(voucherAmount(v)) });
+  }
+  return out;
+}
+function gst2bReconcile(data){
+  const per = gst2bPeriodBounds(data.rtnprd);
+  const books = gst2bBooksRows();
+  const used = new Set(), rows = [];
+  const norm = x => String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const days = (a,b) => (a&&b) ? Math.abs((new Date(a)-new Date(b))/86400000) : 999;
+  const windowFrom = per ? new Date(new Date(per.from).getFullYear(), new Date(per.from).getMonth()-12, 1).toISOString().slice(0,10) : '0000';
+  for(const d of data.docs){
+    const cands = books.filter(b=>!used.has(b.id) && b.ctin===d.ctin && b.date>=windowFrom && (!per || b.date<=per.to) && Math.sign(b.tax||1)===d.sign);
+    let best = null, bestScore = -1e9;
+    for(const b of cands){
+      const taxDiff = Math.abs(Math.abs(b.tax)-d.tax);
+      let sc = -days(b.date,d.date)*0.5 - taxDiff*0.2;
+      if(d.num && norm(b.narration).includes(norm(d.num))) sc += 100;
+      if(taxDiff<=1) sc += 50;
+      if(sc>bestScore){ bestScore = sc; best = b; }
+    }
+    let status, b = null;
+    if(best){
+      b = best; used.add(best.id);
+      const taxDiff = r2(Math.abs(best.tax)-d.tax);
+      status = Math.abs(taxDiff)<=1 ? 'matched' : 'mismatch';
+    } else status = 'only2b';
+    rows.push({ status, d, b, diff: b ? r2(Math.abs(b.tax)-d.tax) : null });
+  }
+  if(per){
+    books.filter(b=>!used.has(b.id) && b.date>=per.from && b.date<=per.to).forEach(b=>rows.push({ status: b.ctin ? 'onlybooks' : 'nogstin', d:null, b, diff:null }));
+  }
+  const sum = k => rows.filter(r=>r.status===k);
+  const taxOf = list => r2(list.reduce((a,r)=>a + (r.d ? r.d.sign*r.d.tax : r.b.tax), 0));
+  const itc2b = r2(data.docs.filter(d=>d.itcavl && !d.rev).reduce((a,d)=>a+d.sign*d.tax,0));
+  const itcBooks = r2(books.filter(b=>per && b.date>=per.from && b.date<=per.to).reduce((a,b)=>a+b.tax,0));
+  return { per, rows, itc2b, itcBooks, notAvail: data.docs.filter(d=>!d.itcavl),
+    counts:{ all:rows.length, matched:sum('matched').length, mismatch:sum('mismatch').length, only2b:sum('only2b').length, onlybooks:sum('onlybooks').length, nogstin:sum('nogstin').length },
+    tax:{ matched:taxOf(sum('matched')), mismatch:taxOf(sum('mismatch')), only2b:taxOf(sum('only2b')), onlybooks:taxOf(sum('onlybooks').concat(sum('nogstin'))) } };
+}
+const GST2B_LABEL = { matched:'Matched', mismatch:'Amount differs', only2b:'In GSTR-2B, not in books', onlybooks:'In books, not in GSTR-2B', nogstin:'Supplier GSTIN missing' };
+function gst2bPanel(){
+  const head = `<div class="panel-head"><h2>GSTR-2B Reconciliation</h2>
+      <div class="gstf-controls"><button class="btn small" id="gst2bUploadBtn" type="button">⬆ Upload GSTR-2B (JSON)</button>${gst2b?`<button class="btn small secondary" id="gst2bXlsxBtn" type="button">⬇ Excel</button><button class="btn small secondary" id="gst2bClearBtn" type="button">Clear</button>`:''}</div>
+      <input type="file" id="gst2bFile" accept=".json,application/json" hidden></div>`;
+  if(!gst2b) return `<div class="panel" id="gst2bPanel">${head}<div class="panel-body"><p class="muted" style="margin:0;font-size:12.5px;line-height:1.6;">Check your input credit before filing GSTR-3B. On the GST portal open <b>Returns → GSTR-2B</b> for the month, download it as <b>JSON</b>, and upload it here. Every supplier invoice is matched against your purchase vouchers by supplier GSTIN, amount and date (and the invoice number, if it is in the narration).</p></div></div>`;
+  const R = gst2bReconcile(gst2b);
+  const c = R.counts, money = n => (n<-0.004?'−':'')+'₹'+fmt(Math.abs(n));
+  const list = gst2bFilter==='all' ? R.rows : R.rows.filter(r=>r.status===gst2bFilter || (gst2bFilter==='onlybooks' && r.status==='nogstin'));
+  const shown = list.slice(0, gst2bLimit);
+  const chip = (k,l,n) => `<button type="button" class="filter-chip ${gst2bFilter===k?'active':''}" data-gst2b-filter="${k}">${l} <span class="chip-count">${n}</span></button>`;
+  const wrongGstin = gst2b.gstin && gstHome().gstin && gst2b.gstin!==gstHome().gstin;
+  return `<div class="panel" id="gst2bPanel">${head}<div class="panel-body">
+    <div class="gstf-verdict ${wrongGstin?'bad':(c.mismatch||c.only2b||c.onlybooks||c.nogstin)?'':'ok'}">${wrongGstin ? `⚠ This GSTR-2B is for GSTIN ${escapeHtml(gst2b.gstin)}, not your company's ${escapeHtml(gstHome().gstin)}.` : `GSTR-2B for ${escapeHtml(R.per?R.per.label:gst2b.rtnprd)} · ${gst2b.docs.length} supplier document${gst2b.docs.length===1?'':'s'}${(c.mismatch||c.only2b||c.onlybooks||c.nogstin)?' — differences below need a look before you claim credit.':' — everything matches your books.'}`}</div>
+    <div class="grid gstf-tiles">
+      <div class="stat"><div class="label">ITC available in 2B</div><div class="val pos">${money(R.itc2b)}</div><div class="gstf-sub">Claim up to this in GSTR-3B 4(A)(5)</div></div>
+      <div class="stat"><div class="label">ITC in your books</div><div class="val">${money(R.itcBooks)}</div><div class="gstf-sub">Vouchers dated in the 2B month</div></div>
+      <div class="stat"><div class="label">Matched</div><div class="val">${c.matched}</div><div class="gstf-sub">${money(R.tax.matched)} tax</div></div>
+      <div class="stat"><div class="label">Amount differs</div><div class="val ${c.mismatch?'neg':''}">${c.mismatch}</div><div class="gstf-sub">${money(R.tax.mismatch)} as per 2B</div></div>
+      <div class="stat"><div class="label">Not in your books</div><div class="val">${c.only2b}</div><div class="gstf-sub">${money(R.tax.only2b)} tax — record if genuine</div></div>
+      <div class="stat"><div class="label">Not in GSTR-2B</div><div class="val ${c.onlybooks+c.nogstin?'neg':''}">${c.onlybooks+c.nogstin}</div><div class="gstf-sub">${money(R.tax.onlybooks)} credit at risk</div></div>
+    </div>
+    ${R.notAvail.length ? `<div class="muted gstf-books">${R.notAvail.length} document${R.notAvail.length===1?' is':'s are'} marked "ITC not available" in GSTR-2B and left out of the 2B credit above.</div>` : ''}
+    ${Object.keys(gst2b.skipped).length ? `<div class="muted gstf-books">Not matched here: ${Object.entries(gst2b.skipped).map(([k,n])=>`${n} ${k.toUpperCase()}`).join(', ')} (amendments, ISD and imports) — check them on the portal.</div>` : ''}
+    <div class="filter-chips" style="margin-bottom:10px;">${chip('all','All',c.all)}${chip('matched','Matched',c.matched)}${chip('mismatch','Amount differs',c.mismatch)}${chip('only2b','Not in books',c.only2b)}${chip('onlybooks','Not in 2B',c.onlybooks+c.nogstin)}</div>
+    <div class="table-scroll"><table class="rb-card-table" id="gst2bTable">
+      <tr><th>Status</th><th>Supplier</th><th>2B document</th><th class="num">2B tax</th><th>Your voucher</th><th class="num">Books tax</th><th class="num">Difference</th></tr>
+      ${shown.map(r=>`<tr ${r.b?`data-edit-voucher="${escapeAttr(r.b.id)}" style="cursor:pointer;"`:''}>
+        <td data-label="Status"><span class="pill ${r.status==='matched'?'pos':r.status==='mismatch'||r.status==='onlybooks'||r.status==='nogstin'?'neg':''}">${GST2B_LABEL[r.status]}</span></td>
+        <td data-label="Supplier">${escapeHtml(r.d ? (r.d.trdnm||r.d.ctin) : (r.b.party||'—'))}<div class="muted" style="font-size:11px;">${escapeHtml(r.d ? r.d.ctin : (r.b.ctin||'no GSTIN on file'))}</div></td>
+        <td data-label="2B document">${r.d ? `${escapeHtml(r.d.kind==='INV'?'':r.d.kind+' ')}${escapeHtml(r.d.num)} · ${escapeHtml(r.d.date)}${r.d.itcavl?'':' · ITC not available'}` : '—'}</td>
+        <td class="num" data-label="2B tax">${r.d ? money(r.d.sign*r.d.tax) : '—'}</td>
+        <td data-label="Your voucher">${r.b ? `${escapeHtml(r.b.date)} · ${escapeHtml(r.b.v.type)}${r.b.narration?` · ${escapeHtml(r.b.narration.slice(0,40))}`:''}` : '—'}</td>
+        <td class="num" data-label="Books tax">${r.b ? money(r.b.tax) : '—'}</td>
+        <td class="num" data-label="Difference">${r.diff===null ? '—' : money(r.diff)}</td></tr>`).join('')}
+    </table></div>
+    ${list.length>shown.length ? `<div class="table-more"><button class="btn secondary" id="gst2bMoreBtn" type="button">Show ${Math.min(GST2B_PAGE, list.length-shown.length)} more (${list.length-shown.length} not shown)</button></div>` : ''}
+    <p class="muted" style="font-size:11.5px;margin:10px 0 0;">Matching uses supplier GSTIN, tax amount (₹1 tolerance), date (purchases up to 12 months before the 2B month) and the invoice number when it appears in your voucher narration. Nothing in your books is changed.</p>
+  </div></div>`;
+}
+function downloadGst2bWorkbook(){
+  if(!gst2b) return; if(typeof XLSX==='undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  const R = gst2bReconcile(gst2b), wb = XLSX.utils.book_new();
+  const rows = [['Status','Supplier GSTIN','Supplier','2B document type','2B number','2B date','2B taxable','2B IGST','2B CGST','2B SGST','ITC available','Voucher date','Voucher type','Narration','Books IGST','Books CGST','Books SGST','Tax difference']];
+  R.rows.forEach(r=>rows.push([GST2B_LABEL[r.status], r.d?r.d.ctin:(r.b.ctin||''), r.d?r.d.trdnm:(r.b.party||''), r.d?r.d.kind:'', r.d?r.d.num:'', r.d?r.d.date:'', r.d?r.d.sign*r.d.txval:'', r.d?r.d.sign*r.d.i:'', r.d?r.d.sign*r.d.c:'', r.d?r.d.sign*r.d.s:'', r.d?(r.d.itcavl?'Y':'N'):'', r.b?r.b.date:'', r.b?r.b.v.type:'', r.b?r.b.narration:'', r.b?r.b.i:'', r.b?r.b.c:'', r.b?r.b.s:'', r.diff===null?'':r.diff]));
+  const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = rows[0].map((_,i)=>({wch:i===13?40:14})); XLSX.utils.book_append_sheet(wb, ws, 'Reconciliation');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['GSTR-2B period', gst2b.rtnprd],['ITC available in 2B', R.itc2b],['ITC in books (2B month)', R.itcBooks],[],['Matched', R.counts.matched],['Amount differs', R.counts.mismatch],['In 2B, not in books', R.counts.only2b],['In books, not in 2B', R.counts.onlybooks+R.counts.nogstin]]), 'Summary');
+  XLSX.writeFile(wb, `GSTR2B_Reconciliation_${gst2b.rtnprd||'period'}.xlsx`);
+  toast('GSTR-2B reconciliation downloaded');
 }
 
 function viewGST(){
@@ -41104,6 +41672,8 @@ function viewGST(){
     </div>
 
     ${gstFilingPanel(gfd, gf.keys)}
+
+    ${gst2bPanel()}
 
     <div class="panel">
       <div class="panel-head"><h2>GST Summary</h2>
@@ -45228,6 +45798,15 @@ function attachHandlers(){
 
   // Generic: opens the party detail modal from anywhere a party row is clickable (Parties tab,
   // or the Dashboard's Overdue Invoices modal), not just from within the Parties tab itself.
+  document.querySelectorAll('[data-record-receipt]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      const inv = el.dataset.inv ? state.vouchers.find(v=>v.id===el.dataset.inv) : null;
+      receiptPrefill = { partyId: el.dataset.recordReceipt, amount: Number(el.dataset.amount)||0, narration: inv ? `Received against ${salesVoucherInvoiceNumber(inv)}` : 'Payment received' };
+      vform = null; modal = null;
+      goToTab('voucher');
+    });
+  });
   document.querySelectorAll('[data-open-party]').forEach(el=>{
     el.addEventListener('click', ()=>{
       partyDetailLedgerId = el.dataset.openParty;
@@ -45349,6 +45928,64 @@ function attachHandlers(){
     });
   }
 
+  if(view==='spend'){
+    const sd = spendData();
+    const byId = (k,id) => (k==='claim' ? sd.claims : sd.requisitions).find(x=>x.id===id);
+    document.querySelectorAll('[data-spend-tab]').forEach(el=>el.addEventListener('click', ()=>{ spendSubTab = el.dataset.spendTab; spendFilter = 'all'; spendForm = null; render(); }));
+    document.querySelectorAll('[data-spend-filter]').forEach(el=>el.addEventListener('click', ()=>{ spendFilter = el.dataset.spendFilter; render(); }));
+    document.getElementById('spCancelBtn')?.addEventListener('click', ()=>{ spendForm = null; render(); });
+    const today = ()=>new Date().toISOString().slice(0,10);
+    document.getElementById('spendNewClaimBtn')?.addEventListener('click', ()=>{ if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; } spendForm = { kind:'claim', date:today(), claimant:(currentUser&&currentUser.name)||'', ledgerId:'', amount:'', note:'' }; render(); });
+    document.getElementById('spendNewReqBtn')?.addEventListener('click', ()=>{ if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; } spendForm = { kind:'req', date:today(), requestedBy:(currentUser&&currentUser.name)||'', itemId:'', itemName:'', qty:'', rate:'', supplierId:'', neededBy:'', note:'' }; render(); });
+    document.getElementById('spClaimSaveBtn')?.addEventListener('click', async ()=>{
+      const amount = r2(Number(document.getElementById('spClaimAmt').value)||0), ledgerId = document.getElementById('spClaimLedger').value, claimant = document.getElementById('spClaimBy').value.trim();
+      if(!claimant){ toast('Enter who is claiming'); return; } if(!ledgerId){ toast('Choose the expense head'); return; } if(!(amount>0)){ toast('Enter the amount spent'); return; }
+      sd.claims.push({ id:uid('clm'), no:spendNextNo('CLM', sd.claims), date:document.getElementById('spClaimDate').value||today(), claimant, ledgerId, amount, note:document.getElementById('spClaimNote').value.trim(), status:'submitted', submittedBy:currentUser&&currentUser.id, submittedAt:new Date().toISOString() });
+      spendForm = null; await saveSpendControl(); toast('Claim submitted for approval'); render();
+    });
+    document.getElementById('spReqSaveBtn')?.addEventListener('click', async ()=>{
+      const itemId = document.getElementById('spReqItem').value, item = itemId ? (state.items||[]).find(i=>i.id===itemId) : null;
+      const name = item ? item.name : document.getElementById('spReqItemName').value.trim(), qty = Number(document.getElementById('spReqQty').value)||0;
+      const requestedBy = document.getElementById('spReqBy').value.trim();
+      if(!requestedBy){ toast('Enter who is asking'); return; } if(!name){ toast('Choose an item or describe it'); return; } if(!(qty>0)){ toast('Enter the quantity needed'); return; }
+      sd.requisitions.push({ id:uid('req'), no:spendNextNo('REQ', sd.requisitions), date:document.getElementById('spReqDate').value||today(), requestedBy, items:[{ itemId:item?item.id:'', name, qty, rate:r2(Number(document.getElementById('spReqRate').value)||(item&&item.rate)||0) }], supplierId:document.getElementById('spReqSupplier').value, neededBy:document.getElementById('spReqNeeded').value, note:document.getElementById('spReqNote').value.trim(), status:'submitted', submittedBy:currentUser&&currentUser.id, submittedAt:new Date().toISOString() });
+      spendForm = null; await saveSpendControl(); toast('Requisition submitted for approval'); render();
+    });
+    const decide = async (ref, status)=>{
+      const [k,id] = ref.split(':'); const rec = byId(k,id); if(!rec) return;
+      if(!spendCanDecide(rec)){ toast('Someone other than the person who submitted it must approve this'); return; }
+      let reason = '';
+      if(status==='rejected'){ reason = (window.prompt('Reason for rejecting (shown on the record):','')||'').trim(); }
+      rec.status = status; rec.decidedBy = currentUser&&currentUser.id; rec.decidedByName = (currentUser&&currentUser.name)||''; rec.decidedAt = new Date().toISOString(); if(reason) rec.reason = reason;
+      await saveSpendControl(); toast(status==='approved' ? `${rec.no} approved` : `${rec.no} rejected`); render();
+    };
+    document.querySelectorAll('[data-spend-approve]').forEach(el=>el.addEventListener('click', ()=>decide(el.dataset.spendApprove,'approved')));
+    document.querySelectorAll('[data-spend-reject]').forEach(el=>el.addEventListener('click', ()=>decide(el.dataset.spendReject,'rejected')));
+    document.querySelectorAll('[data-spend-pay]').forEach(el=>el.addEventListener('click', ()=>{
+      const c = byId('claim', el.dataset.spendPay); if(!c) return;
+      const pc = sd.pettyCash.ledgerId && ledgerOf(sd.pettyCash.ledgerId) ? sd.pettyCash.ledgerId : (state.ledgers.find(l=>l.id==='l_cash')||{}).id;
+      spendOpenVoucher({ type:'Payment', entries:[[c.ledgerId, c.amount, 0],[pc, 0, c.amount]], narration:`Expense claim ${c.no} — ${c.claimant}${c.note?': '+c.note:''}` });
+    }));
+    document.querySelectorAll('[data-spend-po]').forEach(el=>el.addEventListener('click', ()=>{
+      const r = byId('req', el.dataset.spendPo); if(!r) return;
+      ordersSubTab = 'purchaseOrder';
+      oform = { docType:'purchaseOrder', partyLedgerId:r.supplierId||'', date:new Date().toISOString().slice(0,10), narration:`Against requisition ${r.no}${r.note?' — '+r.note:''}`, items:r.items.map(it=>({ itemId:it.itemId||'__custom__', name:it.name, qty:it.qty, rate:it.rate||0, disc:0 })), status:'open' };
+      goToTab('orders');
+    }));
+    document.getElementById('spPettyLedger')?.addEventListener('change', async e=>{ sd.pettyCash.ledgerId = e.target.value; await saveSpendControl(); render(); });
+    document.getElementById('spImprest')?.addEventListener('change', async e=>{ sd.pettyCash.imprest = Math.max(0, r2(Number(e.target.value)||0)); await saveSpendControl(); render(); });
+    document.getElementById('spCreatePettyBtn')?.addEventListener('click', async ()=>{
+      if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+      const l = { id:uid('l'), name:'Petty Cash', group:'cash', opening:0 }; state.ledgers.push(l); await saveLedgers();
+      sd.pettyCash.ledgerId = l.id; await saveSpendControl(); toast('"Petty Cash" ledger created'); render();
+    });
+    document.getElementById('spPettyExpenseBtn')?.addEventListener('click', ()=>spendOpenVoucher({ type:'Payment', entries:[['',0,0],[sd.pettyCash.ledgerId,0,0]], narration:'Petty expense: ' }));
+    document.getElementById('spTopUpBtn')?.addEventListener('click', ()=>{
+      const pb = pettyCashBook(); if(!pb || !(pb.topUp>0)) return;
+      const bank = state.ledgers.find(l=>l.id==='l_bank') || state.ledgers.find(l=>l.group==='bank');
+      spendOpenVoucher({ type:'Contra', entries:[[pb.l.id, pb.topUp, 0],[bank?bank.id:'', 0, pb.topUp]], narration:`Petty cash top-up to imprest of ₹${fmt(pb.imprest)}` });
+    });
+  }
   if(view==='orders'){
     document.querySelectorAll('[data-orders-subtab]').forEach(el=>{
       el.addEventListener('click', ()=>{
@@ -46237,8 +46874,10 @@ function attachHandlers(){
       const idx = state.vouchers.findIndex(x=>x.id===id);
       const removed = state.vouchers[idx];
       const removedSnap = voucherAuditSnapshot(removed);
+      const cancelledInv = removed.type==='Sales' ? recordCancelledInvoice(removed) : null;
       state.vouchers = state.vouchers.filter(x=>x.id!==id);
       await saveVouchers();
+      if(cancelledInv && !isReadOnlyMode()) await saveCompanyMeta(currentCompany);
       logVoucherAudit('delete', id, removedSnap, null);
       let removedTax = [];
       if(state.taxDeductions.some(t=>t.voucherId===id)){
@@ -46247,8 +46886,9 @@ function attachHandlers(){
         await saveTaxDeductions();
       }
       render();
-      toast(`${v.type} voucher deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
+      toast(cancelledInv ? `Invoice ${cancelledInv.no} deleted — its number is kept as cancelled for GST (Table 13)` : `${v.type} voucher deleted`, {type:'success', action:{ label:'Undo', run: async ()=>{
         state.vouchers.splice(Math.min(idx, state.vouchers.length), 0, removed);
+        if(cancelledInv){ currentCompany.cancelledInvoices = (currentCompany.cancelledInvoices||[]).filter(c=>c.voucherId!==removed.id); if(!isReadOnlyMode()) await saveCompanyMeta(currentCompany); }
         if(removedTax.length){ state.taxDeductions = state.taxDeductions.concat(removedTax); await saveTaxDeductions(); }
         await saveVouchers();
         logVoucherAudit('create', id, null, removedSnap);
@@ -47417,7 +48057,10 @@ function attachHandlers(){
       const creditLimitRaw = document.getElementById('alterLedgerCreditLimit').value;
       const creditDaysRaw = document.getElementById('alterLedgerCreditDays').value;
       const gstinRaw = document.getElementById('alterLedgerGSTIN').value.trim().toUpperCase();
+      const panRaw = (document.getElementById('alterLedgerPAN')?.value||'').trim().toUpperCase();
+      if(panRaw && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panRaw)){ toast('PAN should look like AAAAA0000A (10 characters)'); return; }
       const partyStateRaw = (document.getElementById('alterLedgerState')?.value||'').trim();
+      const gstCatRaw = (document.getElementById('alterLedgerGstCat')?.value||'').trim();
       const addressRaw = document.getElementById('alterLedgerAddress').value.trim();
       const shipAddressRaw = document.getElementById('alterLedgerShipAddress').value.trim();
       const bankAccountRaw = document.getElementById('alterLedgerBankAccount').value.trim();
@@ -47439,7 +48082,9 @@ function attachHandlers(){
         if(creditLimitRaw){ l.creditLimit = Number(creditLimitRaw); } else { delete l.creditLimit; }
         if(creditDaysRaw){ l.creditDays = Number(creditDaysRaw); } else { delete l.creditDays; }
         if(gstinRaw){ l.gstin = gstinRaw; } else { delete l.gstin; }
+        if(panRaw){ l.pan = panRaw; } else { delete l.pan; }
         if(partyStateRaw){ l.state = partyStateRaw; } else { delete l.state; }
+        if(['overseas','sez','deemed'].includes(gstCatRaw)){ l.gstCategory = gstCatRaw; } else { delete l.gstCategory; }
         if(addressRaw){ l.address = addressRaw; } else { delete l.address; }
         if(shipAddressRaw){ l.shippingAddress = shipAddressRaw; } else { delete l.shippingAddress; }
         recordBankDetailChange(l, 'bankAccountNumber', l.bankAccountNumber, bankAccountRaw);
@@ -47458,7 +48103,9 @@ function attachHandlers(){
         if(creditLimitRaw) ledger.creditLimit = Number(creditLimitRaw);
         if(creditDaysRaw) ledger.creditDays = Number(creditDaysRaw);
         if(gstinRaw) ledger.gstin = gstinRaw;
+        if(panRaw) ledger.pan = panRaw;
         if(partyStateRaw) ledger.state = partyStateRaw;
+        if(['overseas','sez','deemed'].includes(gstCatRaw)) ledger.gstCategory = gstCatRaw;
         if(addressRaw) ledger.address = addressRaw;
         if(shipAddressRaw) ledger.shippingAddress = shipAddressRaw;
         if(bankAccountRaw) ledger.bankAccountNumber = bankAccountRaw;
@@ -48454,6 +49101,8 @@ function attachHandlers(){
   }
 
   if(view==='reports'){
+    document.getElementById('tdsQuarterSelect')?.addEventListener('change', e=>{ tdsQuarterKey = e.target.value; render(); });
+    document.getElementById('tds26qXlsxBtn')?.addEventListener('click', downloadTds26qWorkbook);
     const reportsAskInput = document.getElementById('reportsAskInput');
     const sendReportsAsk = ()=>{ askReportsBooks(reportsAskInput?.value||''); };
     document.getElementById('reportsAskBtn')?.addEventListener('click', sendReportsAsk);
@@ -48766,6 +49415,20 @@ function attachHandlers(){
     });
     document.getElementById('downloadGSTBtn')?.addEventListener('click', downloadGSTStatement);
     document.getElementById('gstr1JsonBtn')?.addEventListener('click', downloadGstr1Json);
+    document.getElementById('gst2bUploadBtn')?.addEventListener('click', ()=>document.getElementById('gst2bFile')?.click());
+    document.getElementById('gst2bFile')?.addEventListener('change', e=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = ()=>{
+        try{ const parsed = gst2bParse(JSON.parse(rd.result)); parsed.fileName = f.name; gst2b = parsed; gst2bFilter = 'all'; gst2bLimit = GST2B_PAGE; toast(`GSTR-2B loaded — ${parsed.docs.length} supplier documents`); render(); setTimeout(()=>document.getElementById('gst2bPanel')?.scrollIntoView({block:'start'}),60); }
+        catch(err){ toast('Could not read that file: '+(err && err.message ? err.message : 'not valid JSON'), {type:'error'}); }
+      };
+      rd.readAsText(f);
+    });
+    document.getElementById('gst2bXlsxBtn')?.addEventListener('click', downloadGst2bWorkbook);
+    document.getElementById('gst2bClearBtn')?.addEventListener('click', ()=>{ gst2b = null; render(); });
+    document.getElementById('gst2bMoreBtn')?.addEventListener('click', ()=>{ gst2bLimit += GST2B_PAGE; render(); });
+    document.querySelectorAll('[data-gst2b-filter]').forEach(el=>el.addEventListener('click', ()=>{ gst2bFilter = el.dataset.gst2bFilter; gst2bLimit = GST2B_PAGE; render(); }));
     document.getElementById('gstFilingXlsxBtn')?.addEventListener('click', downloadGstFilingWorkbook);
     document.getElementById('gstFilingPeriod')?.addEventListener('change', e=>{ gstFilingPeriodKey = e.target.value; render(); });
     document.getElementById('gstFilingFreq')?.addEventListener('change', async e=>{
@@ -48839,6 +49502,25 @@ function attachHandlers(){
       toast('Invoice template saved');
       modal = null;
       render();
+    });
+  }
+  document.querySelectorAll('[data-module-tour]').forEach(el=>el.addEventListener('click', openModuleTour));
+  if(modal==='moduleTour'){
+    const n = LANDING_MODULE_CATEGORIES.length;
+    document.getElementById('mtNextBtn')?.addEventListener('click', ()=>{ if(moduleTourIdx>=n-1){ endModuleTour(); return; } moduleTourIdx++; render(); });
+    document.getElementById('mtBackBtn')?.addEventListener('click', ()=>{ moduleTourIdx = Math.max(0, moduleTourIdx-1); render(); });
+    document.getElementById('mtSkipBtn')?.addEventListener('click', endModuleTour);
+    document.querySelectorAll('[data-mt-jump]').forEach(el=>el.addEventListener('click', ()=>{ moduleTourIdx = Number(el.dataset.mtJump)||0; render(); }));
+    document.getElementById('mtOpenBtn')?.addEventListener('click', e=>{
+      const tab = e.currentTarget.dataset.mtTab; try{ localStorage.setItem('rb_moduleTourDone','1'); }catch(err){}
+      modal = null;
+      if(MODULE_TOUR_TABS.productivity[0]===tab && LANDING_MODULE_CATEGORIES[moduleTourIdx].id==='productivity'){ render(); setTimeout(()=>{ try{ openCommandPalette(); }catch(err){} }, 50); return; }
+      if(view===tab) render(); else goToTab(tab);
+    });
+    document.addEventListener('keydown', function mtKeys(ev){
+      if(modal!=='moduleTour'){ document.removeEventListener('keydown', mtKeys); return; }
+      if(ev.key==='ArrowRight'){ ev.preventDefault(); document.removeEventListener('keydown', mtKeys); document.getElementById('mtNextBtn')?.click(); }
+      else if(ev.key==='ArrowLeft'){ ev.preventDefault(); document.removeEventListener('keydown', mtKeys); document.getElementById('mtBackBtn')?.click(); }
     });
   }
   if(modal==='gstFilingSettings'){
