@@ -3554,6 +3554,11 @@
   /* ===== GST filing panel (Nov 2026) ===== */
   .gstf-controls{display:flex;gap:8px;flex-wrap:wrap;}
   .gstf-controls select{min-width:150px;width:auto;}
+  .ab-panel{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-strong);font-size:12.5px;}
+  .recon-stmt{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 16px 14px;padding:10px 12px;border:1px dashed var(--border-strong);border-radius:10px;font-size:12.5px;}
+  .recon-stmt-result{flex-basis:100%;display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+  .recon-stmt-list{font-size:11.5px;display:flex;flex-direction:column;gap:2px;}
+  .einv-upload{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 12px;margin:0 0 12px;border:1px dashed var(--border-strong);border-radius:10px;font-size:12px;}
   [data-record-receipt]{white-space:nowrap;}
   /* ===== Nov 2026 polish: module tour, chat panel on phones, file pickers ===== */
   .mt-card{width:560px;max-width:calc(100vw - 24px);padding:18px 20px 16px;border-radius:24px;}
@@ -6360,12 +6365,14 @@ const VOUCHER_TYPE_META = {
 // (PAN on file, lower-deduction certificate, etc.) which this app doesn't track.
 const TDS_TCS_SECTIONS = [
   { code:'194C', kind:'TDS', label:'194C — Payment to Contractors', rate:1 },
-  { code:'194J', kind:'TDS', label:'194J — Professional/Technical Fees', rate:10 },
-  { code:'194H', kind:'TDS', label:'194H — Commission or Brokerage', rate:5 },
-  { code:'194I', kind:'TDS', label:'194I — Rent', rate:10 },
+  { code:'194J', kind:'TDS', label:'194J — Professional Fees', rate:10 },
+  { code:'194J-T', kind:'TDS', label:'194J — Technical Services', rate:2 },
+  { code:'194H', kind:'TDS', label:'194H — Commission or Brokerage', rate:2 },
+  { code:'194I', kind:'TDS', label:'194I — Rent: Land, Building or Furniture', rate:10 },
+  { code:'194I-PM', kind:'TDS', label:'194I — Rent: Plant or Machinery', rate:2 },
   { code:'194Q', kind:'TDS', label:'194Q — Purchase of Goods', rate:0.1 },
   { code:'194-Other', kind:'TDS', label:'Other TDS Section', rate:10 },
-  { code:'206C(1H)', kind:'TCS', label:'206C(1H) — Sale of Goods', rate:0.1 },
+  { code:'206C(1H)', kind:'TCS', label:'206C(1H) — Sale of Goods (up to 31 Mar 2025)', rate:0.1 },
   { code:'206C-Other', kind:'TCS', label:'Other TCS Section', rate:1 },
 ];
 
@@ -7340,6 +7347,7 @@ let state = {
   purchaseOrders: [],
   deliveryChallans: [],
   spendControl: { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } },
+  einvoiceRegister: {},
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
   docVaultSalt: null,      // base64 random salt for the Employee Documents encryption vault (set once, on first use)
   docVaultIter: null,      // PBKDF2 rounds used for this vault's key (absent on vaults made before Nov 2026 = 150000)
@@ -11150,10 +11158,10 @@ async function refreshCurrentSession(btnId){
 async function loadState(){
   const cid = currentCompany.id;
   reconFilter='all'; reconQuery=''; reconLimit=RECON_PAGE;
-  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; moduleTourIdx=0; spendSubTab='claims'; spendFilter='all'; spendForm=null; gst2b=null; gst2bFilter='all'; gstFilingPeriodKey=null; gstFilingFreqLocal=null; gstFilingSettingsDraft=null; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
+  fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; auditTrailFilter='all'; auditTrailQuery=''; auditTrailFrom=''; auditTrailTo=''; moduleTourIdx=0; spendSubTab='claims'; spendFilter='all'; spendForm=null; gst2b=null; gst2bFilter='all'; gstFilingPeriodKey=null; gstFilingFreqLocal=null; gstFilingSettingsDraft=null; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
   ordersFilter='all'; ordersLimit=ORDERS_PAGE; assetFilter='all'; assetQuery=''; calAgendaQuery=''; calAgendaSeverity='all';
   reconcileLedgerId = null; // reset so the Reconcile tab re-picks a bank ledger belonging to this company
-  reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' };
+  reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' }; reconStmtResult = null; abStatus = '';
   try{
     const doc = await db.collection('companies').doc(cid).get();
     const data = doc.exists ? doc.data() : {};
@@ -11187,6 +11195,7 @@ async function loadState(){
     state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
     state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
     state.spendControl = (data.spendControl && typeof data.spendControl==='object') ? data.spendControl : { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
+    state.einvoiceRegister = (data.einvoiceRegister && typeof data.einvoiceRegister==='object') ? data.einvoiceRegister : {};
     // Was missing entirely before this fix -- state.pendingVouchers never got reloaded from
     // Firestore when opening a company (it only ever held whatever was pushed into it client-side
     // in the current session, via the voucher-submission flow), so an Approvals modal opened after
@@ -11231,6 +11240,7 @@ async function loadState(){
     state.deliveryChallans = [];
     state.taxDeductions = [];
     state.spendControl = { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
+    state.einvoiceRegister = {};
     state.pendingVouchers = [];
     state.docVaultSalt = null;
     state.docVaultVerifier = null;
@@ -11258,6 +11268,7 @@ async function loadState(){
   }
   if(!state.ledgers.length) state.ledgers = DEFAULT_LEDGERS.slice();
   if(ensureCoreLedgers()) await saveLedgers();
+  setTimeout(()=>{ abOnCompanyOpen().catch(()=>{}); }, 1500); // daily automatic backup, when turned on
 }
 // Shared "open this company" flow — used from the main company-selection screen, right after
 // creating a brand-new company, and from the admin's read-only "view company" action. Loads the
@@ -13259,6 +13270,7 @@ function buildCompanyBackup(){
     deliveryChallans: state.deliveryChallans,
     taxDeductions: state.taxDeductions,
     spendControl: state.spendControl,
+    einvoiceRegister: state.einvoiceRegister,
     docVaultSalt: state.docVaultSalt,
     docVaultVerifier: state.docVaultVerifier,
     docVaultIter: state.docVaultIter,
@@ -13505,6 +13517,7 @@ async function restoreCompanyBackup(data){
   state.deliveryChallans = Array.isArray(data.deliveryChallans) ? data.deliveryChallans : [];
   state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
   state.spendControl = (data.spendControl && typeof data.spendControl==='object') ? data.spendControl : { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
+  state.einvoiceRegister = (data.einvoiceRegister && typeof data.einvoiceRegister==='object') ? data.einvoiceRegister : {};
   state.docVaultSalt = data.docVaultSalt || null;
   state.docVaultVerifier = data.docVaultVerifier || null;
   state.docVaultIter = data.docVaultIter || null;
@@ -15672,7 +15685,7 @@ function eInvoicePayloadForVoucher(voucherId){
   const sumLines = lineValues.reduce((s,x)=>s+x,0) || taxable;
   return {
     Version: '1.1',
-    TranDtls: { TaxSch:'GST', SupTyp:'B2B', RegRev:'N', IgstOnIntra: supplyIntra?'N':'Y' },
+    TranDtls: { TaxSch:'GST', SupTyp: (party&&party.gstCategory==='overseas') ? (g.igst>0?'EXPWP':'EXPWOP') : (party&&party.gstCategory==='sez') ? (g.igst>0?'SEZWP':'SEZWOP') : (party&&party.gstCategory==='deemed') ? 'DEXP' : 'B2B', RegRev:'N', IgstOnIntra: (party&&party.gstCategory) ? 'N' : (supplyIntra?'N':'Y') },
     DocDtls: { Typ:'INV', No: salesVoucherInvoiceNumber(v), Dt: formatDateDDMMYYYY(v.date) },
     SellerDtls: {
       Gstin: currentCompany.gstin || 'FILL_SELLER_GSTIN',
@@ -15683,11 +15696,11 @@ function eInvoicePayloadForVoucher(voucherId){
       Stcd: currentCompany.gstin ? currentCompany.gstin.slice(0,2) : 'FILL_STATE_CODE',
     },
     BuyerDtls: {
-      Gstin: party?.gstin || 'FILL_BUYER_GSTIN',
+      Gstin: party?.gstCategory==='overseas' ? 'URP' : (party?.gstin || 'FILL_BUYER_GSTIN'),
       LglNm: party?.name || '',
-      Pos: party?.gstin ? party.gstin.slice(0,2) : 'FILL_STATE_CODE',
-      Addr1: '',
-      Stcd: party?.gstin ? party.gstin.slice(0,2) : 'FILL_STATE_CODE',
+      Pos: party?.gstCategory==='overseas' ? '96' : (party?.gstin ? party.gstin.slice(0,2) : 'FILL_STATE_CODE'),
+      Addr1: party?.address || '',
+      Stcd: party?.gstCategory==='overseas' ? '96' : (party?.gstin ? party.gstin.slice(0,2) : 'FILL_STATE_CODE'),
     },
     ItemList: items.map((it,i)=>{
       const master = it.itemId ? state.items.find(m=>m.id===it.itemId) : null;
@@ -15814,6 +15827,53 @@ function invoiceSettingsModal(){
     </div>
   `;
 }
+/* ====== e-Invoice IRN register (Nov 2026) ======
+   After an invoice is registered on the e-invoice portal (IRP), the portal / your provider gives back a
+   response with the IRN, Ack No, Ack Date and the signed QR code. Upload that JSON here: each response is
+   matched to its Sales invoice by the invoice number inside the signed QR, saved in state.einvoiceRegister,
+   and printed on the tax invoice (IRN + scannable signed QR), as an e-invoice must show. Read-only for the
+   books -- it never changes a voucher. */
+function einvDecodeJwtPayload(tok){
+  try{ const part = String(tok||'').split('.')[1]; if(!part) return null; const b64 = part.replace(/-/g,'+').replace(/_/g,'/') + '==='.slice((part.length+3)%4); return JSON.parse(decodeURIComponent(escape(atob(b64)))); }catch(e){ return null; }
+}
+function einvRegister(){ return state.einvoiceRegister || (state.einvoiceRegister = {}); }
+async function saveEinvoiceRegister(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ einvoiceRegister: einvRegister() }, {merge:true}); markSyncSaved(); }
+  catch(e){ toast('Could not save the e-invoice register'); markSyncError(); }
+}
+// Accepts one response object, an array of them, or {data:...}/{results:[...]} wrappers.
+function einvImportResponses(json){
+  let list = Array.isArray(json) ? json : (json && Array.isArray(json.results) ? json.results : json && Array.isArray(json.data) ? json.data : json && json.data && typeof json.data==='object' ? [json.data] : [json]);
+  const byNo = new Map(state.vouchers.filter(v=>v.type==='Sales').map(v=>[salesVoucherInvoiceNumber(v).toUpperCase(), v]));
+  const out = { matched:[], unmatched:[] };
+  for(const r0 of list){
+    const r = r0 && (r0.Data || r0.data || r0);
+    if(!r || typeof r!=='object') continue;
+    const irn = r.Irn || r.IRN || r.irn, qr = r.SignedQRCode || r.signedQRCode || r.SignedQrCode;
+    if(!irn) continue;
+    const payload = einvDecodeJwtPayload(qr); const inner = payload && payload.data ? (typeof payload.data==='string' ? (()=>{ try{ return JSON.parse(payload.data); }catch(e){ return {}; } })() : payload.data) : (payload||{});
+    const docNo = String(r.DocNo || inner.DocNo || '').toUpperCase();
+    const v = byNo.get(docNo);
+    if(!v){ out.unmatched.push(docNo || irn.slice(0,12)+'…'); continue; }
+    einvRegister()[v.id] = { irn, ackNo: String(r.AckNo||r.ackNo||''), ackDt: String(r.AckDt||r.ackDt||''), qr: qr||'', docNo, at:new Date().toISOString() };
+    out.matched.push(docNo);
+  }
+  return out;
+}
+// Export / SEZ wording printed on the invoice (party GST category), with the LUT number when supplied.
+function exportInvoiceNote(party, igst){
+  const cat = party && party.gstCategory;
+  if(cat!=='overseas' && cat!=='sez') return '';
+  const s = gstFilingSettings(), lut = (currentCompany.gstFiling||{}).lutNo || '', lutTill = (currentCompany.gstFiling||{}).lutValidTill || '';
+  const withPay = igst>0.004;
+  const head = cat==='overseas' ? (withPay ? 'SUPPLY MEANT FOR EXPORT WITH PAYMENT OF INTEGRATED TAX' : 'SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX')
+                                  : (withPay ? 'SUPPLY TO SEZ UNIT / DEVELOPER FOR AUTHORISED OPERATIONS WITH PAYMENT OF INTEGRATED TAX' : 'SUPPLY TO SEZ UNIT / DEVELOPER FOR AUTHORISED OPERATIONS UNDER BOND OR LUT WITHOUT PAYMENT OF INTEGRATED TAX');
+  const cur = party.currency && party.currency!=='INR' ? ` · Buyer currency: ${party.currency}` : '';
+  return `<div class="export-note"><strong>${head}</strong>${!withPay && lut ? `<div>LUT ARN: ${escapeHtml(lut)}${lutTill?` (valid till ${escapeHtml(lutTill)})`:''}</div>` : (!withPay ? '<div>LUT ARN: ________ (add it under GST filing settings)</div>' : '')}${cur?`<div>${escapeHtml(cur.slice(3))}</div>`:''}</div>`;
+}
+
 function eInvoiceModal(){
   const rows = eInvoiceEligibleVouchers();
   return `
@@ -15822,11 +15882,13 @@ function eInvoiceModal(){
         <div class="panel-head" style="padding:16px 20px;"><h2>e-Invoice / e-Way Bill JSON</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div style="padding:0 20px 20px;overflow-y:auto;flex:1;min-height:0;">
           <p class="muted" style="font-size:12px;">This app can't reach the government's IRP/e-Way Bill systems directly (that needs registered GSP credentials), so it builds the JSON payload those systems expect from each Sales voucher — download it, fill in anything marked <code>FILL_…</code>, then upload it through your GSP's tool or the e-Way Bill portal's bulk-JSON option.</p>
+          <div class="einv-upload"><div><strong>Already registered on the IRP?</strong> Upload the IRP response JSON (IRN, Ack No and signed QR) and the IRN and QR code print on the tax invoice.</div><button class="btn small" id="einvUploadBtn" type="button">⬆ Upload IRP response</button><input type="file" id="einvFile" accept=".json,application/json" hidden></div>
           ${rows.length ? `<table>
-            <tr><th>Date</th><th>Invoice No.</th><th class="num">Amount</th><th></th></tr>
+            <tr><th>Date</th><th>Invoice No.</th><th class="num">Amount</th><th>IRN</th><th></th></tr>
             ${rows.map(({v})=>`<tr>
               <td class="muted">${v.date}</td>
               <td>${salesVoucherInvoiceNumber(v)}</td>
+              <td>${einvRegister()[v.id] ? `<span class="pill pos" title="${escapeAttr(einvRegister()[v.id].irn)}">IRN ✓ ${escapeHtml((einvRegister()[v.id].ackNo||'').slice(-6))}</span>` : '<span class="muted" style="font-size:11px;">Not uploaded</span>'}</td>
               <td class="num">₹${fmt(voucherAmount(v))}</td>
               <td>
                 <button class="btn small secondary" data-download-einvoice="${v.id}" type="button">e-Invoice JSON</button>
@@ -20163,6 +20225,7 @@ function backupModal(){
             Download a complete copy of <strong style="color:var(--ink);">${escapeHtml(currentCompany.name)}</strong>'s data — every ledger, voucher, item, bank reconciliation, recurring template and fixed asset — as a single file that stays on your own device, independent of this app.
           </p>
           <button class="btn" id="downloadBackupBtn" type="button" style="margin-top:6px;">⬇ Download Backup (.json)</button>
+          ${abPanelHtml()}
 
           <div style="margin-top:16px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-strong);">
             <strong style="font-size:12.5px;">🔒 Encrypted backup <span class="muted" style="font-weight:400;">(recommended for email or cloud storage)</span></strong>
@@ -32403,7 +32466,7 @@ function singleEntryPreviewText(){
 // TDS/TCS Payable ledger (see ensureTaxLedger()).
 function taxDeductionPanel(){
   const kind = vform.type==='Payment' ? 'TDS' : 'TCS';
-  const sections = TDS_TCS_SECTIONS.filter(x=>x.kind===kind);
+  const sections = tdsSectionsFor(kind, vform.date, vform.tax && vform.tax.sectionCode);
   const t = vform.tax;
   return `
     <div class="panel" style="border-color:var(--gold);margin-top:14px;">
@@ -32417,7 +32480,7 @@ function taxDeductionPanel(){
           <div class="field"><label>Section</label>
             <select id="taxSection">
               <option value="">Select section…</option>
-              ${sections.map(x=>`<option value="${x.code}" ${t.sectionCode===x.code?'selected':''}>${x.label}</option>`).join('')}
+              ${sections.map(x=>`<option value="${x.code}" ${t.sectionCode===x.code?'selected':''}>${escapeHtml(tdsSectionLabel(x.code, vform.date))}</option>`).join('')}
             </select>
           </div>
           <div class="field" style="max-width:120px;"><label>Rate %</label><input type="number" id="taxRate" value="${t.rate}" step="0.01" min="0"></div>
@@ -33101,6 +33164,14 @@ function buildInvoiceHTML(opts){
   // The QR is a plain scannable UPI "intent" link (pa/pn/am/cu/tn) rendered as an inline <svg> at
   // print time (see qrCodeSvg()/upiIntentUrl()) -- no external image host, so it still works offline
   // once the invoice is printed or saved as a PDF.
+  // e-invoice IRN + signed QR (when the IRP response has been uploaded) and export / SEZ wording
+  const einv = opts.voucherId ? einvRegister()[opts.voucherId] : null;
+  let irnBlock = '';
+  if(einv && einv.irn){
+    const qsvg = einv.qr ? qrCodeSvg(einv.qr, 2) : '';
+    irnBlock = `<div class="irn-block">${qsvg?`<div class="irn-qr">${qsvg}</div>`:''}<div class="irn-info"><div><strong>IRN:</strong> <span class="irn-text">${escapeHtml(einv.irn)}</span></div><div><strong>Ack No:</strong> ${escapeHtml(einv.ackNo||'—')} &nbsp; <strong>Ack Date:</strong> ${escapeHtml(einv.ackDt||'—')}</div><div class="muted" style="font-size:10.5px;">e-Invoice registered on the Invoice Registration Portal</div></div></div>`;
+  }
+  const exportNote = opts.partyLedger ? exportInvoiceNote(opts.partyLedger, igst) : '';
   const upiVpa = (isettings.upiVpa||'').trim();
   let upiBlock = '';
   if(upiVpa && total>0){
@@ -33197,6 +33268,10 @@ function buildInvoiceHTML(opts){
   .grand-total td{font-weight:800;font-size:16px;background:color-mix(in srgb, var(--accent) 13%, #fff);color:var(--ink);border-top:1.5px solid var(--accent) !important;padding-top:10px;padding-bottom:10px;}
   .footer{margin-top:32px;font-size:10.5px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:12px;}
   .footer-note{margin-top:14px;font-size:12px;color:var(--ink-soft);white-space:pre-line;}
+  .irn-block{display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 12px;border:1px solid #c9d3cc;border-radius:8px;font-size:11.5px;}
+  .irn-qr svg{width:120px;height:120px;display:block;}
+  .irn-text{word-break:break-all;font-family:monospace;font-size:10.5px;}
+  .export-note{margin-top:14px;padding:8px 12px;border:1.5px solid #222;border-radius:6px;font-size:11.5px;line-height:1.5;}
   .upi-pay-block{display:flex;align-items:center;gap:12px;margin-top:16px;padding:10px 12px;border:1px dashed var(--accent);border-radius:8px;width:fit-content;background:var(--tint);}
   .upi-pay-block .upi-qr svg{display:block;width:88px;height:88px;}
   .invoice-bottom-blocks{display:flex;gap:20px;margin-top:18px;flex-wrap:wrap;}
@@ -33241,6 +33316,8 @@ function buildInvoiceHTML(opts){
     ${taxTotalsRows}
     <tr class="grand-total"><td>Grand Total</td><td style="text-align:right;">₹${fmt(total)}</td></tr>
   </table>
+  ${exportNote}
+  ${irnBlock}
   ${upiBlock}
   ${narration?`<div style="font-size:12px;color:var(--ink-soft);"><strong style="color:var(--ink);">Notes:</strong> ${escapeHtml(narration)}</div>`:''}
   ${termsBankBlock}
@@ -33704,6 +33781,7 @@ function invoiceHTMLForVoucher(voucherId){
     items: items.map(it=>invoiceLineFromItem(it)),
     subtotal, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total, narration: v.narration,
     billingAddress: party.address||'', shippingAddress: party.shippingAddress||'',
+    voucherId: v.id, partyLedger: party,
   });
 }
 // Printable GST tax invoice for an already-saved Sales voucher — reachable from the Day Book, unlike
@@ -36725,6 +36803,7 @@ function viewReports(){
   if(reportsSelected==='forexRealized') return reportForexRealized();
   if(reportsSelected==='eclProvision') return reportECLProvision();
   if(reportsSelected==='tdsTcs') return reportTdsTcs();
+  if(reportsSelected==='auditTrail') return reportAuditTrail();
   if(reportsSelected==='dataIntegrity') return reportDataIntegrity();
   if(reportsSelected==='internalAudit') return reportInternalAudit();
   if(reportsSelected==='gstCompliance') return reportGstComplianceWatch();
@@ -36800,6 +36879,7 @@ const REPORT_CARDS = [
   // Company") keeps that "this leaves this company" distinction visible rather than burying it inside
   // Management Reports as if it were scoped like everything else here.
   {id:'consolidated', icon:'workspaces', title:'Consolidated Financials', desc:'Combine P&L and Balance Sheet across every company you can access, with intercompany balances eliminated. Opens across all your companies, not just this one.', group:'Multi-Company'},
+  {id:'auditTrail', icon:'history', title:'Audit Trail (Edit Log)', desc:'Every voucher created, edited or deleted — who, when and what changed — sealed and exportable for your auditor.', group:'Compliance & Data Quality'},
   {id:'tdsTcs', icon:'receipt_long', title:'TDS / TCS Summary', desc:'Every tax deducted or collected at source via the voucher form, by section.', group:'Compliance & Data Quality'},
   {id:'dataIntegrity', icon:'fact_check', title:'Data Integrity Checker', desc:'Scans your ledgers, vouchers and cross-references for unbalanced entries, orphaned references and duplicate names.', group:'Compliance & Data Quality'},
   // Nov 2026 -- a genuinely new report, not a wiring exercise like most of this round. Spend-based
@@ -40001,6 +40081,142 @@ function reportESG(){
    pay the TDS/TCS payable ledgers to the government (challans). READ-ONLY. The return itself is prepared in
    the free Protean (NSDL) Return Preparation Utility and filed on the TIN / income-tax portal: this gives the
    deductee and challan rows to enter there, with every gap flagged. */
+/* ====== Nov 2026 compliance: Income-tax Act, 2025 TDS/TCS references ======
+   From 1 April 2026 the Income-tax Act, 2025 replaces the 1961 Act. Non-salary TDS sits in section 393,
+   TCS in section 394, and the quarterly statements are Form 140 (was 26Q) and Form 143 (was 27EQ).
+   The app keeps the familiar internal codes (194C ...) so older records keep working; what is shown and
+   exported depends on the voucher / quarter date. Return codes come from published guidance -- the user is
+   told to confirm them in the return utility before filing. */
+const TDS_ACT2025_FROM = '2026-04-01';
+const TDS_NEW_ACT = {
+  '194C':      { ref:'Sec 393 — Payment to contractors',             code:'1623' },
+  '194J':      { ref:'Sec 393 — Fees for professional services',     code:'1627' },
+  '194J-T':    { ref:'Sec 393 — Fees for technical services',        code:'1627' },
+  '194H':      { ref:'Sec 393 — Commission or brokerage',            code:'1606' },
+  '194I':      { ref:'Sec 393 — Rent: land, building or furniture',  code:'1609' },
+  '194I-PM':   { ref:'Sec 393 — Rent: plant or machinery',           code:'1610' },
+  '194Q':      { ref:'Sec 393 — Purchase of goods',                  code:'1631' },
+  '194-Other': { ref:'Sec 393 — Other payment',                      code:'' },
+  '206C(1H)':  { ref:'TCS on sale of goods — withdrawn from 1 Apr 2025', code:'' },
+  '206C-Other':{ ref:'Sec 394 — Other TCS',                           code:'' },
+};
+function tdsUsesNewAct(dateIso){ return (dateIso||'') >= TDS_ACT2025_FROM; }
+function tdsSectionLabel(code, dateIso){
+  const meta = TDS_TCS_SECTIONS.find(x=>x.code===code);
+  if(tdsUsesNewAct(dateIso) && TDS_NEW_ACT[code]) return `${TDS_NEW_ACT[code].ref} (old ${code.replace(/-.*$/,'')})`;
+  return meta ? meta.label : code;
+}
+function tdsSectionsFor(kind, dateIso, selected){
+  return TDS_TCS_SECTIONS.filter(x=>x.kind===kind && (x.code!=='206C(1H)' || (dateIso||'') < '2025-04-01' || x.code===selected));
+}
+function tdsFormName(kind, fy){ return fy>=2026 ? (kind==='TDS' ? 'Form 140' : 'Form 143') : (kind==='TDS' ? '26Q' : '27EQ'); }
+
+/* ====== Labour Codes check (Code on Wages / Code on Social Security, in force from 21 Nov 2025) ======
+   "Wages" = basic pay (+ DA); if the excluded parts (HRA, allowances, bonus ...) are more than 50% of total
+   remuneration, the excess is added back to wages. Statutory wages drive PF and gratuity. Read-only check:
+   it never changes a salary structure or a payslip. */
+const LABOUR_CODES_FROM = '2025-11-21';
+function labourCodeWage(emp){
+  const s = emp.salary || {};
+  const basic = Number(s.basic)||0, excl = (Number(s.hra)||0) + (Number(s.allowances)||0) + (Number(s.bonus)||0);
+  const total = basic + excl, cap = total*0.5;
+  const addBack = Math.max(0, excl - cap);
+  const wage = r2(basic + addBack);
+  const pfWage = Math.min(wage, 15000);
+  const yrs = emp.joinDate ? (Date.now() - new Date(emp.joinDate).getTime())/(365.25*86400000) : 0;
+  const completed = Math.floor(yrs) + ((yrs - Math.floor(yrs)) > 0.5 ? 1 : 0);
+  const fixedTerm = /fixed|contract/i.test(emp.employmentType||'');
+  const gratuity = Math.min(2000000, r2(wage * 15/26 * completed));
+  return { basic, excl, total, wage, addBack:r2(addBack), excludedPct: total ? Math.round(excl/total*100) : 0,
+    pfDue: r2(pfWage*0.12), pfNow: Number(s.pf)||0, completed, fixedTerm,
+    gratuityEligible: fixedTerm ? yrs>=1 : completed>=5, gratuity };
+}
+function labourCodePanel(){
+  const emps = state.employees.filter(e=>e.active!==false);
+  if(!emps.length) return '';
+  const rows = emps.map(e=>({ e, w:labourCodeWage(e) }));
+  const over = rows.filter(r=>r.w.addBack>0), pfShort = rows.filter(r=>r.w.pfNow>0 && r.w.pfNow < r.w.pfDue - 0.5);
+  const money = n => '₹'+fmt(n);
+  return `<div class="panel" id="labourCodePanel"><div class="panel-head"><h2>Labour Codes check</h2><span class="muted" style="font-size:11.5px;">Code on Wages &amp; Social Security — in force from 21 Nov 2025</span></div><div class="panel-body">
+    <div class="gstf-verdict ${over.length||pfShort.length?'bad':'ok'}">${over.length ? `⚠ ${over.length} salary structure${over.length===1?' pays':'s pay'} more than 50% as allowances — the excess counts as wages for PF and gratuity.` : '✓ Every salary structure keeps allowances within 50% of total pay.'}${pfShort.length?` ${pfShort.length} employee${pfShort.length===1?"'s":"s'"} PF is below 12% of statutory wages.`:''}</div>
+    <div class="table-scroll"><table class="rb-card-table" id="labourCodeTable"><tr><th>Employee</th><th class="num">Total pay</th><th class="num">Allowances %</th><th class="num">Statutory wages</th><th class="num">PF now</th><th class="num">PF on wages (12%, ₹15,000 cap)</th><th>Gratuity</th></tr>
+      ${rows.map(({e,w})=>`<tr><td data-label="Employee">${escapeHtml(e.name)}<div class="muted" style="font-size:11px;">${escapeHtml(e.employmentType||'')}</div></td>
+        <td class="num" data-label="Total pay">${money(w.total)}</td>
+        <td class="num" data-label="Allowances %"><span class="pill ${w.addBack>0?'neg':'pos'}">${w.excludedPct}%</span></td>
+        <td class="num" data-label="Statutory wages">${money(w.wage)}${w.addBack>0?`<div class="muted" style="font-size:11px;">basic + ${money(w.addBack)} added back</div>`:''}</td>
+        <td class="num" data-label="PF now">${money(w.pfNow)}</td>
+        <td class="num" data-label="PF on wages"><span class="${w.pfNow < w.pfDue-0.5 ? 'neg' : ''}">${money(w.pfDue)}</span></td>
+        <td data-label="Gratuity">${w.gratuityEligible ? `${money(w.gratuity)} <span class="muted" style="font-size:11px;">(${w.completed} yr${w.completed===1?'':'s'})</span>` : `<span class="muted" style="font-size:11.5px;">${w.fixedTerm?'After 1 year (fixed-term)':'After 5 years'}</span>`}</td></tr>`).join('')}
+    </table></div>
+    <p class="muted" style="font-size:11.5px;margin:10px 0 0;line-height:1.55;">Statutory wages = basic pay + any amount by which HRA, allowances and bonus exceed 50% of total pay. Gratuity = 15 days' wages (wages × 15/26) per completed year (more than six months counts as a year), capped at ₹20 lakh; fixed-term employees qualify pro rata after one year. PF is shown at 12% of wages up to the ₹15,000 ceiling — confirm ceilings and any state rules with your payroll adviser. This check changes nothing; edit the employee's salary to apply it.</p>
+  </div></div>`;
+}
+
+/* ====== Audit Trail (edit log) report ======
+   Reads state.voucherAuditLog (written by logVoucherAudit(), hash-sealed by the security layer). READ-ONLY. */
+let auditTrailFilter = 'all', auditTrailQuery = '', auditTrailFrom = '', auditTrailTo = '', auditTrailLimit = 100;
+function auditTrailRows(){
+  const q = auditTrailQuery.trim().toLowerCase();
+  return (state.voucherAuditLog||[]).filter(e=>{
+    if(auditTrailFilter!=='all' && e.action!==auditTrailFilter) return false;
+    const d = (e.at||'').slice(0,10);
+    if(auditTrailFrom && d < auditTrailFrom) return false;
+    if(auditTrailTo && d > auditTrailTo) return false;
+    if(q){ const s = [e.byName, e.action, e.before&&e.before.narration, e.after&&e.after.narration, e.before&&e.before.type, e.after&&e.after.type].join(' ').toLowerCase(); if(!s.includes(q)) return false; }
+    return true;
+  });
+}
+function auditTrailChange(e){
+  const b = e.before, a = e.after;
+  if(!b && a) return `Created: ${a.type} ${a.date}, ₹${fmt(a.total)}`;
+  if(b && !a) return `Deleted: ${b.type} ${b.date}, ₹${fmt(b.total)}`;
+  if(!b || !a) return '';
+  const ch = [];
+  if(b.date!==a.date) ch.push(`date ${b.date} → ${a.date}`);
+  if(b.type!==a.type) ch.push(`type ${b.type} → ${a.type}`);
+  if(Math.abs((b.total||0)-(a.total||0))>0.004) ch.push(`amount ₹${fmt(b.total)} → ₹${fmt(a.total)}`);
+  if((b.narration||'')!==(a.narration||'')) ch.push('narration changed');
+  const sig = x => (x.entries||[]).map(e=>`${e.ledger}:${e.dr}/${e.cr}`).sort().join('|');
+  if(sig(b)!==sig(a) && !ch.some(x=>x.startsWith('amount'))) ch.push('ledger lines changed');
+  else if(sig(b)!==sig(a)) ch.push('ledger lines changed');
+  return ch.length ? 'Edited: '+ch.join(', ') : 'Saved with no change';
+}
+function reportAuditTrail(){
+  const all = state.voucherAuditLog||[], rows = auditTrailRows(), shown = rows.slice(0, auditTrailLimit);
+  const cnt = k => all.filter(e=>e.action===k).length;
+  const chip = (k,l,n) => `<button type="button" class="filter-chip ${auditTrailFilter===k?'active':''}" data-audit-filter="${k}">${l} <span class="chip-count">${n}</span></button>`;
+  return `${reportHeader('Audit Trail (Edit Log)')}
+    <div class="panel"><div class="panel-body">
+      <div class="gstf-verdict">Every voucher created, edited or deleted is recorded with the time, the user and the before/after figures, and each entry is sealed to the one before it. The log cannot be switched off. The app keeps the latest 1,000 entries — download the Excel copy each month and keep it with your records.</div>
+      <div class="module-toolbar" style="margin-bottom:10px;">
+        <div class="filter-chips">${chip('all','All',all.length)}${chip('create','Created',cnt('create'))}${chip('edit','Edited',cnt('edit'))}${chip('delete','Deleted',cnt('delete'))}</div>
+        ${moduleSearchBox('auditTrailSearch','Search user, voucher type or narration…',auditTrailQuery)}
+        <label class="muted" style="font-size:12px;">From <input type="date" id="auditTrailFrom" value="${escapeAttr(auditTrailFrom)}"></label>
+        <label class="muted" style="font-size:12px;">To <input type="date" id="auditTrailTo" value="${escapeAttr(auditTrailTo)}"></label>
+        <button class="btn small" id="auditTrailXlsxBtn" type="button" ${rows.length?'':'disabled'}>⬇ Excel</button>
+      </div>
+      <div class="results-line">Showing ${shown.length} of ${rows.length} entr${rows.length===1?'y':'ies'}${rows.length!==all.length?` (${all.length} in the log)`:''}</div>
+      ${rows.length ? `<div class="table-scroll"><table class="rb-card-table" id="auditTrailTable"><tr><th>When</th><th>User</th><th>Action</th><th>Voucher</th><th>What changed</th><th>Sealed</th></tr>
+        ${shown.map(e=>{ const v = e.after||e.before||{}; return `<tr ${e.action!=='delete' && state.vouchers.some(x=>x.id===e.voucherId)?`data-edit-voucher="${escapeAttr(e.voucherId)}" style="cursor:pointer;"`:''}>
+          <td data-label="When">${escapeHtml(new Date(e.at).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}))}</td>
+          <td data-label="User">${escapeHtml(e.byName||'—')}</td>
+          <td data-label="Action"><span class="pill ${e.action==='delete'?'neg':e.action==='create'?'pos':''}">${escapeHtml(e.action)}</span></td>
+          <td data-label="Voucher">${escapeHtml(v.type||'')} · ${escapeHtml(v.date||'')}${v.narration?`<div class="muted" style="font-size:11px;">${escapeHtml(v.narration.slice(0,50))}</div>`:''}</td>
+          <td data-label="What changed">${escapeHtml(auditTrailChange(e))}</td>
+          <td data-label="Sealed">${e.hash?'✓':'<span class="muted">—</span>'}</td></tr>`; }).join('')}
+      </table></div>${rows.length>shown.length?`<div class="table-more"><button class="btn secondary" id="auditTrailMoreBtn" type="button">Show ${Math.min(100, rows.length-shown.length)} more</button></div>`:''}` : emptyState({icon:'🧾', title:'No entries match', text:'Voucher changes appear here as soon as they happen.'})}
+    </div></div>`;
+}
+function downloadAuditTrail(){
+  if(typeof XLSX==='undefined'){ toast('Excel export library did not load — check your connection'); return; }
+  const rows = auditTrailRows();
+  const aoa = [['Date & time','User','Action','Voucher type','Voucher date','Narration','Amount before','Amount after','What changed','Sealed']];
+  rows.forEach(e=>{ const v = e.after||e.before||{}; aoa.push([e.at, e.byName||'', e.action, v.type||'', v.date||'', v.narration||'', e.before?e.before.total:'', e.after?e.after.total:'', auditTrailChange(e), e.hash?'Yes':'No']); });
+  const wb = XLSX.utils.book_new(), ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [22,18,9,12,12,40,14,14,50,8].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Audit trail'); XLSX.writeFile(wb, `Audit_Trail_${(currentCompany.name||'company').replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Audit trail downloaded');
+}
+
 const TDS_RPU_CODE = { '194C':'94C', '194H':'94H', '194Q':'94Q', '194J':'94J (choose 4JA technical / 4JB professional)', '194I':'94I (choose 4IA plant & machinery / 4IB land & building)', '194-Other':'(choose)', '206C(1H)':'6CR', '206C-Other':'(choose)' };
 let tdsQuarterKey = null;   // 'YYYY-Qn' where YYYY = FY start year
 function tdsQuarterBounds(key){
@@ -40041,14 +40257,16 @@ function tdsReturnData(key, kind){
   }
   const deductees = rows.map((t,i)=>{
     const l = ledgerOf(t.partyLedgerId), pan = partyPAN(l);
-    return { n:i+1, t, party:l?l.name:'(party deleted)', pan, section:t.sectionCode, rpu:TDS_RPU_CODE[t.sectionCode]||'', date:t.date, base:r2(Number(t.baseAmount)||0), tax:r2(Number(t.taxAmount)||0), rate:Number(t.rate)||0 };
+    return { n:i+1, t, party:l?l.name:'(party deleted)', pan, section:t.sectionCode, rpu: Q.fy>=2026 ? ((TDS_NEW_ACT[t.sectionCode]||{}).code || '(choose in utility)') : (TDS_RPU_CODE[t.sectionCode]||''), date:t.date, base:r2(Number(t.baseAmount)||0), tax:r2(Number(t.taxAmount)||0), rate:Number(t.rate)||0 };
   });
   const deducted = r2(deductees.reduce((s,d)=>s+d.tax,0)), deposited = r2(challans.reduce((s,c)=>s+c.amount,0));
   const issues = [];
   const noPan = deductees.filter(d=>!d.pan);
-  if(noPan.length) issues.push({ level:'fix', title:`${noPan.length} deductee${noPan.length===1?'':'s'} without a PAN`, help:'Add the PAN on the party under Ledgers (or a GSTIN, which contains it). Without a PAN the return shows "PANNOTAVBL" and TDS should have been deducted at 20% (section 206AA).', rows:noPan });
+  if(noPan.length) issues.push({ level:'fix', title:`${noPan.length} deductee${noPan.length===1?'':'s'} without a PAN`, help:`Add the PAN on the party under Ledgers (or a GSTIN, which contains it). Without a PAN the return shows "PANNOTAVBL" and TDS should have been deducted at the higher rate of 20% (${Q.fy>=2026?'Income-tax Act, 2025':'section 206AA'}).`, rows:noPan });
   const choose = deductees.filter(d=>/choose/.test(d.rpu));
   if(choose.length) issues.push({ level:'review', title:'Pick the exact section code in the utility', help:'194J and 194I have sub-codes in the return (4JA/4JB, 4IA/4IB). Choose the right one when you enter these rows.', rows:choose });
+  if(Q.fy>=2026 && deductees.length) issues.push({ level:'review', title:'New Income-tax Act, 2025 codes — confirm in the utility', help:'From FY 2026-27 the statement is Form 140 (was 26Q) / Form 143 (was 27EQ) and each payment carries a new section code. The codes here follow published guidance; confirm each in the return utility before you file.', rows:[] });
+  if(kind==='TCS' && rows.some(r=>r.sectionCode==='206C(1H)' && r.date>='2025-04-01')) issues.push({ level:'fix', title:'TCS on sale of goods recorded after 31 Mar 2025', help:'TCS on sale of goods (old 206C(1H)) was withdrawn from 1 April 2025 — the buyer deducts TDS on purchase of goods instead. Check these receipts.', rows:[] });
   if(deducted - deposited > 0.5) issues.push({ level:'fix', title:`₹${fmt(r2(deducted-deposited))} deducted but not found as deposited`, help:'Record the challan payment as a voucher that debits the TDS payable ledger (dated by the 7th of the next month; 30 April for March). Late deposit attracts interest at 1.5% a month.', rows:[] });
   if(!currentCompany.tan) issues.push({ level:'review', title:'Your TAN is not saved', help:'The return is filed under your TAN (10 characters, e.g. CHEA12345B). Keep it ready for the utility.', rows:[] });
   return { Q, kind, deductees, challans, deducted, deposited, issues };
@@ -40058,18 +40276,19 @@ function tds26qPanel(){
   if(!tdsQuarterKey || !keys.includes(tdsQuarterKey)) tdsQuarterKey = keys.find(k=>state.taxDeductions.some(t=>t.date && tdsQuarterKeyForDate(t.date)===k)) || keys[0];
   const d = tdsReturnData(tdsQuarterKey, 'TDS'), tc = tdsReturnData(tdsQuarterKey, 'TCS');
   const money = n => '₹'+fmt(n);
-  return `<div class="panel" id="tds26qPanel"><div class="panel-head"><h2>Quarterly TDS / TCS return (Form 26Q / 27EQ)</h2>
+  const fyQ = tdsQuarterBounds(tdsQuarterKey).fy, f1 = tdsFormName('TDS', fyQ), f2 = tdsFormName('TCS', fyQ);
+  return `<div class="panel" id="tds26qPanel"><div class="panel-head"><h2>Quarterly TDS / TCS return (${f1}${fyQ>=2026?' — was 26Q':''} / ${f2}${fyQ>=2026?' — was 27EQ':''})</h2>
       <div class="gstf-controls"><select id="tdsQuarterSelect" aria-label="Quarter">${keys.map(k=>`<option value="${k}" ${k===tdsQuarterKey?'selected':''}>${escapeHtml(tdsQuarterBounds(k).label)}</option>`).join('')}</select></div></div>
     <div class="panel-body">
       <div class="grid gstf-tiles">
-        <div class="stat"><div class="label">26Q deductee rows</div><div class="val">${d.deductees.length}</div><div class="gstf-sub">Due ${escapeHtml(d.Q.due)}</div></div>
+        <div class="stat"><div class="label">${f1} deductee rows</div><div class="val">${d.deductees.length}</div><div class="gstf-sub">Due ${escapeHtml(d.Q.due)}</div></div>
         <div class="stat"><div class="label">TDS deducted</div><div class="val">${money(d.deducted)}</div><div class="gstf-sub">${money(r2(d.deductees.reduce((s,x)=>s+x.base,0)))} paid / credited</div></div>
         <div class="stat"><div class="label">TDS deposited</div><div class="val ${d.deducted-d.deposited>0.5?'neg':'pos'}">${money(d.deposited)}</div><div class="gstf-sub">${d.challans.length} challan payment${d.challans.length===1?'':'s'} found</div></div>
-        <div class="stat"><div class="label">27EQ (TCS) rows</div><div class="val">${tc.deductees.length}</div><div class="gstf-sub">${money(tc.deducted)} collected</div></div>
+        <div class="stat"><div class="label">${f2} (TCS) rows</div><div class="val">${tc.deductees.length}</div><div class="gstf-sub">${money(tc.deducted)} collected</div></div>
       </div>
       ${d.issues.length ? `<div class="gstf-issues">${d.issues.map(x=>`<details class="gstf-issue gstf-${x.level}"><summary><span class="gstf-tag">${x.level==='fix'?'Must fix':'Review'}</span><span class="gstf-issue-title">${escapeHtml(x.title)}</span>${x.rows.length?`<span class="chip-count">${x.rows.length}</span>`:''}</summary><div class="gstf-issue-body"><p>${escapeHtml(x.help)}</p>${x.rows.slice(0,8).map(r=>`<div class="gstf-row" data-edit-voucher="${escapeAttr(r.t.voucherId||'')}" role="button" tabindex="0"><span>${escapeHtml(r.date)} · ${escapeHtml(r.party)} · ${escapeHtml(r.section)}</span><span>${money(r.tax)}</span></div>`).join('')}</div></details>`).join('')}</div>` : (d.deductees.length ? `<div class="gstf-verdict ok">✓ Every deductee has a PAN and the TDS deducted has been deposited.</div>` : '')}
       <div class="gstf-actions">
-        <button class="btn" id="tds26qXlsxBtn" type="button" ${d.deductees.length||tc.deductees.length?'':'disabled'}>⬇ 26Q / 27EQ data (Excel)</button>
+        <button class="btn" id="tds26qXlsxBtn" type="button" ${d.deductees.length||tc.deductees.length?'':'disabled'}>⬇ ${f1} / ${f2} data (Excel)</button>
       </div>
       <p class="muted" style="font-size:11.5px;margin:10px 0 0;line-height:1.55;">File the return with the free <b>Return Preparation Utility (RPU)</b> from Protean (NSDL): enter the challan rows, then the deductee rows from this file, validate with the FVU, and upload the .fvu file on the income-tax portal (or at a TIN facilitation centre). Fill the BSR code and challan serial number from your challan receipts.</p>
     </div></div>`;
@@ -40079,13 +40298,13 @@ function downloadTds26qWorkbook(){
   const wb = XLSX.utils.book_new();
   const add = (name, rows, w) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = (w||[]).map(x=>({wch:x})); XLSX.utils.book_append_sheet(wb, ws, name); };
   for(const kind of ['TDS','TCS']){
-    const d = tdsReturnData(tdsQuarterKey, kind), form = kind==='TDS' ? '26Q' : '27EQ';
+    const d = tdsReturnData(tdsQuarterKey, kind), form = tdsFormName(kind, d.Q.fy).replace('Form ','');
     add(`${form} Deductees`, [[`Form ${form} — ${d.Q.label} — ${currentCompany.name}`],[`TAN: ${currentCompany.tan||'(add your TAN)'}`,`PAN: ${currentCompany.pan||''}`,`Due date: ${d.Q.due}`],[],
-      ['Sr No','Section','RPU section code','Party PAN','Party name','Date of payment / credit','Amount paid / credited','Rate %',kind==='TDS'?'TDS':'TCS','Surcharge','Cess','Total tax','Date of deduction','Remark'],
-      ...d.deductees.map(x=>[x.n, x.section, x.rpu, x.pan||'PANNOTAVBL', x.party, x.date, x.base, x.rate, x.tax, 0, 0, x.tax, x.date, x.pan?'':'PAN missing — 20% rate applies (206AA)'])], [6,10,22,13,28,14,16,8,12,10,8,12,14,34]);
+      ['Sr No','Section', d.Q.fy>=2026 ? 'Section code (Income-tax Act, 2025)' : 'RPU section code','Party PAN','Party name','Date of payment / credit','Amount paid / credited','Rate %',kind==='TDS'?'TDS':'TCS','Surcharge','Cess','Total tax','Date of deduction','Remark'],
+      ...d.deductees.map(x=>[x.n, d.Q.fy>=2026 ? tdsSectionLabel(x.section, d.Q.from) : x.section, x.rpu, x.pan||'PANNOTAVBL', x.party, x.date, x.base, x.rate, x.tax, 0, 0, x.tax, x.date, x.pan?'':'PAN missing — higher 20% rate applies'])], [6,10,22,13,28,14,16,8,12,10,8,12,14,34]);
     add(`${form} Challans`, [['Sr No','Date of deposit','Amount','BSR code','Challan serial no.','Voucher narration'], ...d.challans.map((c,i)=>[i+1, c.date, c.amount, '', '', c.v.narration||''])], [6,14,14,12,16,40]);
   }
-  XLSX.writeFile(wb, `Form26Q_27EQ_${tdsQuarterKey}.xlsx`);
+  XLSX.writeFile(wb, `TDS_TCS_Return_${tdsQuarterKey}.xlsx`);
   toast('Quarterly TDS / TCS return data downloaded');
 }
 
@@ -41502,6 +41721,7 @@ function gstFilingSettingsModal(){
             <input type="text" id="gstfDefaultHsn" inputmode="numeric" maxlength="8" value="${escapeAttr(d.defaultHsn)}" placeholder="e.g. 998231">
             <p class="muted" style="font-size:11.5px;margin:4px 0 0;">Used only where a sale has no item with its own HSN code — handy for a service business with one SAC.</p>
           </div>
+          <div class="row" style="gap:10px;"><div class="field" style="flex:1;"><label for="gstfLut">LUT ARN (exports / SEZ without IGST)</label><input type="text" id="gstfLut" value="${escapeAttr(d.lutNo||'')}" placeholder="e.g. AD330326012345X"></div><div class="field" style="flex:1;"><label for="gstfLutTill">LUT valid till</label><input type="date" id="gstfLutTill" value="${escapeAttr(d.lutValidTill||'')}"></div></div>
           <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;"><input type="checkbox" id="gstfAbove5cr" ${d.above5cr?'checked':''} style="margin-top:3px;"> <span>Turnover above ₹5 crore — HSN codes must have at least 6 digits (otherwise 4)</span></label>
           <div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn secondary" id="gstfCancelBtn" type="button">Cancel</button><button class="btn" id="gstfSaveBtn" type="button">Save settings</button></div>
         </div>
@@ -43663,6 +43883,146 @@ function reconcileDateLabel(d){
   try{ return new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); }
   catch(e){ return d; }
 }
+/* ====== Automatic backup to a folder (Nov 2026) ======
+   Uses the browser's folder access (Chrome / Edge on a computer): pick a folder once -- for example your
+   Google Drive / OneDrive / Dropbox folder on the computer, which then syncs it to the cloud -- and the app
+   writes a backup of the open company there once a day, keeping the newest 14 per company. Other browsers
+   get a daily reminder with a one-click download instead. The backup is the same file as Backup & Restore
+   → Download Backup. Nothing is sent anywhere by the app itself. */
+const AB_DB = 'rb_autobackup', AB_KEEP = 14;
+function abSupported(){ return typeof window!=='undefined' && 'showDirectoryPicker' in window; }
+function abIdb(){ return new Promise((res,rej)=>{ const r = indexedDB.open(AB_DB, 1); r.onupgradeneeded = ()=>r.result.createObjectStore('h'); r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error); }); }
+async function abGetHandle(){ try{ const db = await abIdb(); return await new Promise(res=>{ const t = db.transaction('h').objectStore('h').get('dir'); t.onsuccess = ()=>res(t.result||null); t.onerror = ()=>res(null); }); }catch(e){ return null; } }
+async function abSetHandle(h){ const db = await abIdb(); await new Promise(res=>{ const t = db.transaction('h','readwrite').objectStore('h').put(h,'dir'); t.onsuccess = ()=>res(); t.onerror = ()=>res(); }); }
+function abPrefs(){ try{ return JSON.parse(localStorage.getItem('rb_autobackup')||'{}')||{}; }catch(e){ return {}; } }
+function abSavePrefs(p){ try{ localStorage.setItem('rb_autobackup', JSON.stringify(p)); }catch(e){} }
+function abLastKey(){ return 'co_'+(currentCompany&&currentCompany.id||''); }
+function abFileName(){ return `${(currentCompany.name||'company').replace(/[^a-z0-9]+/gi,'_')}_Backup_${new Date().toISOString().slice(0,10)}.json`; }
+let abStatus = '';   // shown in the Backup dialog
+async function abChooseFolder(){
+  if(!abSupported()){ toast('This browser cannot save to a folder automatically — use Chrome or Edge on a computer, or download backups by hand'); return; }
+  try{
+    const dir = await window.showDirectoryPicker({ id:'rb-backups', mode:'readwrite' });
+    await abSetHandle(dir);
+    const p = abPrefs(); p.enabled = true; p.folderName = dir.name; abSavePrefs(p);
+    await abRun(true);
+  }catch(e){ if(e && e.name!=='AbortError') toast('Could not use that folder: '+e.message); }
+}
+async function abRun(force){
+  if(!currentCompany || isReadOnlyMode()) return false;
+  const p = abPrefs(); if(!p.enabled) return false;
+  const today = new Date().toISOString().slice(0,10);
+  p.last = p.last || {};
+  if(!force && p.last[abLastKey()]===today) return false;
+  if(!abSupported()){ abStatus = 'due'; return false; }
+  const dir = await abGetHandle(); if(!dir){ abStatus = 'nofolder'; return false; }
+  let perm = 'denied';
+  try{ perm = await dir.queryPermission({ mode:'readwrite' }); if(perm!=='granted' && force) perm = await dir.requestPermission({ mode:'readwrite' }); }catch(e){}
+  if(perm!=='granted'){ abStatus = 'permission'; return false; }
+  try{
+    const fh = await dir.getFileHandle(abFileName(), { create:true });
+    const w = await fh.createWritable(); await w.write(JSON.stringify(buildCompanyBackup(), null, 2)); await w.close();
+    // keep the newest AB_KEEP backups of this company
+    const prefix = `${(currentCompany.name||'company').replace(/[^a-z0-9]+/gi,'_')}_Backup_`, names = [];
+    for await (const [name, h] of dir.entries()){ if(h.kind==='file' && name.startsWith(prefix) && name.endsWith('.json')) names.push(name); }
+    names.sort().reverse().slice(AB_KEEP).forEach(n=>{ dir.removeEntry(n).catch(()=>{}); });
+    p.last[abLastKey()] = today; p.lastAt = new Date().toISOString(); abSavePrefs(p); abStatus = 'ok';
+    if(force) toast(`Backup saved to the "${dir.name}" folder`);
+    return true;
+  }catch(e){ abStatus = 'error'; if(force) toast('Backup could not be written: '+e.message); return false; }
+}
+function abPanelHtml(){
+  const p = abPrefs(), last = p.last && p.last[abLastKey()];
+  return `<div class="ab-panel">
+    <div style="font-weight:700;">🔁 Automatic daily backup ${p.enabled?'<span class="pill pos">On</span>':'<span class="pill">Off</span>'}</div>
+    <div class="muted" style="font-size:11.5px;line-height:1.5;margin:4px 0 8px;">${abSupported() ? `Pick a folder once — choose your <b>Google Drive</b>, OneDrive or Dropbox folder on this computer and the backup is copied to the cloud by that app. A backup of this company is written there once a day when you open it (newest ${AB_KEEP} kept).` : `This browser can't write to a folder by itself, so you'll get a reminder once a day with a one-click download. Chrome or Edge on a computer can save automatically.`}</div>
+    <div class="muted" style="font-size:11.5px;margin-bottom:8px;">${p.enabled ? `Folder: <b>${escapeHtml(p.folderName||'—')}</b> · Last backup of this company: <b>${escapeHtml(last||'not yet')}</b>${abStatus==='permission'?' · <span class="neg">Allow access again to continue</span>':''}` : ''}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${abSupported() ? `<button class="btn small" id="abChooseBtn" type="button">${p.enabled?'Change folder':'Choose backup folder'}</button>` : `<button class="btn small" id="abEnableRemindBtn" type="button" ${p.enabled?'disabled':''}>Remind me daily</button>`}
+      ${p.enabled ? `<button class="btn small secondary" id="abRunBtn" type="button">Back up now</button><button class="btn small secondary" id="abOffBtn" type="button">Turn off</button>` : ''}
+    </div>
+  </div>`;
+}
+// Called after a company opens: writes today's backup silently when allowed, otherwise nudges once a day.
+async function abOnCompanyOpen(){
+  const p = abPrefs(); if(!p.enabled || !currentCompany) return;
+  const done = await abRun(false);
+  if(!done && (abStatus==='permission' || abStatus==='due')){
+    const k = 'rb_ab_nudge_'+abLastKey()+'_'+new Date().toISOString().slice(0,10);
+    try{ if(localStorage.getItem(k)) return; localStorage.setItem(k,'1'); }catch(e){}
+    toast(abStatus==='permission' ? 'Daily backup is waiting for permission to use your backup folder' : 'Time for today\'s backup', { action:{ label: abStatus==='permission' ? 'Allow' : 'Download', run: async ()=>{ if(abStatus==='permission') await abRun(true); else { downloadCompanyBackup(); const q = abPrefs(); q.last = q.last||{}; q.last[abLastKey()] = new Date().toISOString().slice(0,10); abSavePrefs(q); } } } });
+  }
+}
+
+/* ====== Match a bank statement (Reconcile) ======
+   Upload the bank's statement (CSV or Excel): each statement line is matched to an un-ticked entry on this
+   bank ledger with the same amount and direction, within 5 days (a cheque / UTR number found in both the
+   statement and the voucher narration makes it a sure match), and ticked Cleared -- the same tick a person
+   would make by hand. No voucher is created or changed. Lines with no match are listed so you can record
+   them (Smart Import can create them from the same file). */
+let reconStmtResult = null;
+function reconStmtDetectCols(headers){
+  const find = re => headers.findIndex(h=>re.test(String(h).toLowerCase()));
+  return { date: find(/date/), desc: find(/narration|description|particular|remark|details/), debit: find(/withdraw|debit|dr\b|paid out/), credit: find(/deposit|credit|cr\b|paid in/), amount: find(/^amount|txn amount|transaction amount/), balance: find(/balance/), ref: find(/ref|chq|cheque|utr/) };
+}
+function reconStmtLines(parsed){
+  const c = reconStmtDetectCols(parsed.headers), out = [];
+  if(c.date<0 || (c.debit<0 && c.credit<0 && c.amount<0)) throw new Error('Could not find the date and amount columns in that file');
+  parsed.rows.forEach(r=>{
+    const date = parseImportDate(r[c.date]); if(!date) return;
+    let amount = 0, side = '';
+    const deb = c.debit>-1 ? parseImportAmount(r[c.debit]) : 0, cred = c.credit>-1 ? parseImportAmount(r[c.credit]) : 0;
+    if(deb>0){ amount = deb; side = 'out'; } else if(cred>0){ amount = cred; side = 'in'; }
+    else if(c.amount>-1){ const a = parseImportAmount(r[c.amount]); amount = Math.abs(a); side = a<0 ? 'out' : 'in'; }
+    if(!(amount>0)) return;
+    out.push({ date, amount:r2(amount), side, desc: String((c.desc>-1?r[c.desc]:'')||'').trim(), ref: String((c.ref>-1?r[c.ref]:'')||'').trim(), balance: c.balance>-1 ? parseImportAmount(r[c.balance]) : null });
+  });
+  return out;
+}
+function reconStmtMatch(ledgerId, lines){
+  const all = bankReconcileEntries(ledgerId, null), book = all.filter(r=>!r.cleared);
+  const used = new Set(), res = { matched:[], unmatched:[] };
+  const days = (a,b)=> Math.abs(new Date(a+'T00:00:00') - new Date(b+'T00:00:00'))/86400000;
+  const refs = s => (String(s).match(/\d{5,}/g)||[]);
+  lines.forEach(l=>{
+    let cands = book.filter(b=>!used.has(b.voucherId) && Math.abs((l.side==='in'?b.dr:b.cr) - l.amount)<0.005 && days(b.date,l.date)<=5);
+    // A cheque / UTR number on the statement that is written on a voucher pins the line to that voucher only
+    // (so cheque 000713 is never matched to cheque 000712 of the same amount, even once 000713 is ticked).
+    const lineRefs = refs(l.desc+' '+l.ref);
+    if(lineRefs.length && all.some(b=>lineRefs.some(x=>(b.narration||'').includes(x)))) cands = cands.filter(b=>lineRefs.some(x=>(b.narration||'').includes(x)));
+    let best = null, score = -1e9, why = '';
+    cands.forEach(b=>{
+      const shared = refs(l.desc+' '+l.ref).filter(x=>(b.narration||'').includes(x));
+      const sc = (shared.length?100:0) - days(b.date,l.date);
+      if(sc>score){ score = sc; best = b; why = shared.length ? `Reference ${shared[0]} and amount match` : (days(b.date,l.date)===0 ? 'Same date and amount' : `Same amount, ${Math.round(days(b.date,l.date))} day(s) apart`); }
+    });
+    if(best){ used.add(best.voucherId); res.matched.push({ l, b:best, why, conf: score>=100 ? 100 : score>=0 ? 95 : Math.max(80, 95+Math.round(score*3)) }); }
+    else res.unmatched.push(l);
+  });
+  return res;
+}
+async function reconStmtApply(ledgerId, lines){
+  const res = reconStmtMatch(ledgerId, lines);
+  // Same record a manual tick or Smart Import's auto-match writes; pushed together so there is one save, not one per line.
+  res.matched.forEach(m=>state.bankClears.push({ ledgerId, voucherId:m.b.voucherId, clearedDate:m.l.date, autoMatched:true, matchConfidence:m.conf, matchReason:`Bank statement upload — ${m.why}` }));
+  if(res.matched.length) await saveBankClears();
+  const withBal = lines.filter(l=>l.balance!=null && !isNaN(l.balance));
+  const last = lines.slice().sort((a,b)=>a.date.localeCompare(b.date)).pop();
+  if(last){ reconcileDraft.date = last.date; const lb = withBal.slice().sort((a,b)=>a.date.localeCompare(b.date)).pop(); if(lb) reconcileDraft.balance = String(lb.balance); }
+  reconStmtResult = { ledgerId, total:lines.length, matched:res.matched.length, unmatched:res.unmatched, at:new Date().toISOString() };
+  if(res.matched.length) logAutomation('🔗', `Bank statement upload: ticked ${res.matched.length} matching entr${res.matched.length===1?'y':'ies'} Cleared on Reconcile`, async ()=>{ const ids = new Set(res.matched.map(m=>m.b.voucherId)); state.bankClears = state.bankClears.filter(c=>!(c.ledgerId===ledgerId && ids.has(c.voucherId) && c.autoMatched)); await saveBankClears(); });
+  return res;
+}
+function reconStmtPanel(ledgerId){
+  const r = reconStmtResult && reconStmtResult.ledgerId===ledgerId ? reconStmtResult : null;
+  return `<div class="recon-stmt">
+    <div><strong>Match a bank statement</strong><div class="muted" style="font-size:11.5px;">Upload the statement (CSV or Excel) — matching entries are ticked Cleared automatically; nothing is posted.</div></div>
+    <div style="display:flex;gap:8px;align-items:center;"><button class="btn small" id="reconStmtBtn" type="button">⬆ Upload statement</button><input type="file" id="reconStmtFile" accept=".csv,.txt,.xlsx,.xls" hidden></div>
+    ${r ? `<div class="recon-stmt-result"><span class="pill pos">${r.matched} of ${r.total} statement lines matched and ticked</span>${r.unmatched.length?` <span class="pill neg">${r.unmatched.length} not in your books</span>`:''}
+      ${r.unmatched.length ? `<div class="recon-stmt-list">${r.unmatched.slice(0,8).map(l=>`<div>${escapeHtml(l.date)} · ${escapeHtml(l.desc||l.ref||'—')} · <b>${l.side==='in'?'+':'−'}₹${fmt(l.amount)}</b></div>`).join('')}${r.unmatched.length>8?`<div class="muted">and ${r.unmatched.length-8} more</div>`:''}<div class="muted" style="margin-top:4px;">Record these (bank charges, interest, receipts you haven't entered) — Smart Import can create them from the same file.</div></div>` : ''}</div>` : ''}
+  </div>`;
+}
+
 function viewReconcile(){
   const bankLedgers = state.ledgers.filter(l=>bucketOf(l)==='bank');
   if(!bankLedgers.length){
@@ -43719,6 +44079,7 @@ function viewReconcile(){
         <div class="field"><label>Statement Closing Balance (₹)</label><input type="number" step="0.01" id="reconcileBalance" placeholder="As shown on your bank statement" value="${escapeAttr(String(reconcileDraft.balance))}"></div>
         <button class="btn" id="saveReconcileBtn" type="button" ${hasBalance?'':'disabled'}>💾 Save Reconciliation</button>
       </div>
+      ${isReadOnlyMode() ? '' : reconStmtPanel(reconcileLedgerId)}
     </div>
 
     <div class="panel">
@@ -44581,6 +44942,7 @@ function viewPayroll(){
     </div>
     ` : ''}
 
+    ${payrollSubTab==='statutory' ? labourCodePanel() : ''}
     ${payrollSubTab==='statutory' ? (()=>{
       const statMonthsWithPayroll = Array.from(new Set(state.salaryVouchers.map(sv=>sv.month))).sort((a,b)=>b.localeCompare(a));
       const ecrRows = statMonthsWithPayroll.length ? pfEcrRowsForMonth(statutoryFileMonth||statMonthsWithPayroll[0]) : [];
@@ -45771,6 +46133,10 @@ function attachHandlers(){
 
   if(modal==='backup'){
     document.getElementById('downloadBackupBtn')?.addEventListener('click', downloadCompanyBackup);
+    document.getElementById('abChooseBtn')?.addEventListener('click', async ()=>{ await abChooseFolder(); render(); });
+    document.getElementById('abRunBtn')?.addEventListener('click', async ()=>{ if(abSupported()) await abRun(true); else { downloadCompanyBackup(); const q = abPrefs(); q.last = q.last||{}; q.last[abLastKey()] = new Date().toISOString().slice(0,10); abSavePrefs(q); } render(); });
+    document.getElementById('abOffBtn')?.addEventListener('click', ()=>{ const q = abPrefs(); q.enabled = false; abSavePrefs(q); toast('Automatic backup turned off'); render(); });
+    document.getElementById('abEnableRemindBtn')?.addEventListener('click', ()=>{ const q = abPrefs(); q.enabled = true; q.folderName = 'Downloads (reminder)'; abSavePrefs(q); toast('You\'ll be reminded once a day to download a backup'); render(); });
     document.getElementById('downloadEncBackupBtn')?.addEventListener('click', downloadEncryptedBackup);
     document.getElementById('restoreEncUnlockBtn')?.addEventListener('click', restoreUnlockEnvelope);
     document.getElementById('restoreFileInput')?.addEventListener('change', e=>{
@@ -47602,7 +47968,7 @@ function attachHandlers(){
           ];
         }
         pendingTaxRecord = {
-          kind, sectionCode: sectionMeta.code, sectionLabel: sectionMeta.label, rate,
+          kind, sectionCode: sectionMeta.code, sectionLabel: tdsSectionLabel(sectionMeta.code, vform.date), rate,
           baseAmount: base, taxAmount: taxAmt, partyLedgerId: s.ledgerB, taxLedgerId,
         };
       }
@@ -49103,6 +49469,12 @@ function attachHandlers(){
   if(view==='reports'){
     document.getElementById('tdsQuarterSelect')?.addEventListener('change', e=>{ tdsQuarterKey = e.target.value; render(); });
     document.getElementById('tds26qXlsxBtn')?.addEventListener('click', downloadTds26qWorkbook);
+    document.querySelectorAll('[data-audit-filter]').forEach(el=>el.addEventListener('click', ()=>{ auditTrailFilter = el.dataset.auditFilter; auditTrailLimit = 100; render(); }));
+    document.getElementById('auditTrailFrom')?.addEventListener('change', e=>{ auditTrailFrom = e.target.value; auditTrailLimit = 100; render(); });
+    document.getElementById('auditTrailTo')?.addEventListener('change', e=>{ auditTrailTo = e.target.value; auditTrailLimit = 100; render(); });
+    document.getElementById('auditTrailMoreBtn')?.addEventListener('click', ()=>{ auditTrailLimit += 100; render(); });
+    document.getElementById('auditTrailXlsxBtn')?.addEventListener('click', downloadAuditTrail);
+    document.getElementById('auditTrailSearch')?.addEventListener('input', e=>{ auditTrailQuery = e.target.value; auditTrailLimit = 100; const c = e.target.selectionStart; render(); const el = document.getElementById('auditTrailSearch'); if(el){ el.focus(); try{ el.setSelectionRange(c,c); }catch(err){} } });
     const reportsAskInput = document.getElementById('reportsAskInput');
     const sendReportsAsk = ()=>{ askReportsBooks(reportsAskInput?.value||''); };
     document.getElementById('reportsAskBtn')?.addEventListener('click', sendReportsAsk);
@@ -49439,7 +49811,7 @@ function attachHandlers(){
     });
     const openGstFilingSettings = ()=>{
       const st = gstFilingSettings();
-      gstFilingSettingsDraft = { untaxed: st.untaxed, defaultHsn: st.defaultHsn, above5cr: st.above5cr };
+      gstFilingSettingsDraft = { untaxed: st.untaxed, defaultHsn: st.defaultHsn, above5cr: st.above5cr, lutNo:(currentCompany.gstFiling||{}).lutNo||'', lutValidTill:(currentCompany.gstFiling||{}).lutValidTill||'' };
       modal = 'gstFilingSettings'; render();
     };
     document.getElementById('gstFilingSettingsBtn')?.addEventListener('click', openGstFilingSettings);
@@ -49530,7 +49902,7 @@ function attachHandlers(){
       const hsn = document.getElementById('gstfDefaultHsn').value.replace(/\D/g,'');
       if(hsn && (hsn.length<4 || hsn.length>8)){ toast('An HSN / SAC code has 4 to 8 digits'); return; }
       const untaxed = document.getElementById('gstfUntaxed').value;
-      currentCompany.gstFiling = { ...(currentCompany.gstFiling||{}), untaxed: ['nil','exempt','nongst','skip'].includes(untaxed)?untaxed:'', defaultHsn: hsn, above5cr: document.getElementById('gstfAbove5cr').checked };
+      currentCompany.gstFiling = { ...(currentCompany.gstFiling||{}), untaxed: ['nil','exempt','nongst','skip'].includes(untaxed)?untaxed:'', defaultHsn: hsn, above5cr: document.getElementById('gstfAbove5cr').checked, lutNo: (document.getElementById('gstfLut')?.value||'').trim().toUpperCase(), lutValidTill: document.getElementById('gstfLutTill')?.value||'' };
       await saveCompanyMeta(currentCompany);
       gstFilingSettingsDraft = null; modal = null;
       toast('GST filing settings saved');
@@ -49538,6 +49910,21 @@ function attachHandlers(){
     });
   }
   if(modal==='eInvoice'){
+    document.getElementById('einvUploadBtn')?.addEventListener('click', ()=>document.getElementById('einvFile')?.click());
+    document.getElementById('einvFile')?.addEventListener('change', e=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      const rd = new FileReader();
+      rd.onload = async ()=>{
+        try{
+          const res = einvImportResponses(JSON.parse(rd.result));
+          if(!res.matched.length){ toast(res.unmatched.length ? `No matching invoice for ${res.unmatched.slice(0,3).join(', ')}` : 'No IRN found in that file', {type:'error'}); return; }
+          await saveEinvoiceRegister();
+          toast(`IRN saved for ${res.matched.length} invoice${res.matched.length===1?'':'s'}${res.unmatched.length?` · ${res.unmatched.length} not matched`:''}`);
+          render();
+        }catch(err){ toast('Could not read that file — upload the JSON response from the IRP', {type:'error'}); }
+      };
+      rd.readAsText(f);
+    });
     document.querySelectorAll('[data-download-einvoice]').forEach(el=>{
       el.addEventListener('click', ()=>{ downloadEInvoiceJSON(el.dataset.downloadEinvoice); });
     });
@@ -49588,6 +49975,17 @@ function attachHandlers(){
     document.getElementById('reconcileHelpBtn')?.addEventListener('click', ()=>{
       modal = 'reconcileHelp';
       render();
+    });
+    document.getElementById('reconStmtBtn')?.addEventListener('click', ()=> document.getElementById('reconStmtFile')?.click());
+    document.getElementById('reconStmtFile')?.addEventListener('change', async e=>{
+      const file = e.target.files && e.target.files[0]; if(!file) return;
+      try{
+        const lines = reconStmtLines(await parseImportFile(file));
+        if(!lines.length){ toast('No transactions found in that file'); return; }
+        const res = await reconStmtApply(reconcileLedgerId, lines);
+        toast(`${res.matched.length} of ${lines.length} statement lines matched and ticked Cleared`, {type: res.matched.length?'success':'info'});
+        render();
+      }catch(err){ toast(err.message || 'Could not read that statement'); }
     });
     document.getElementById('reconcileBalance')?.addEventListener('input', e=>{
       reconcileDraft.balance = e.target.value;
