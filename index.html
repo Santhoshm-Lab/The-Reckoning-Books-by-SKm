@@ -15016,7 +15016,7 @@ function buildCostCenterPLSheet(){
   data.push(['Total', r2(ti), r2(te), r2(ti-te)]);
   return XLSX.utils.aoa_to_sheet(data);
 }
-function exportCostCenterToExcel(){
+function exportCostCenterToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, buildCostCenterPLSheet(), 'Cost Center PL');
@@ -15032,7 +15032,7 @@ function buildBudgetVsActualSheet(fy){
   });
   return XLSX.utils.aoa_to_sheet(data);
 }
-function exportBudgetVsActualToExcel(){
+function exportBudgetVsActualToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   if(!budgetReportFY) budgetReportFY = fyLabelForDate(new Date().toISOString().slice(0,10));
   const wb = XLSX.utils.book_new();
@@ -15062,7 +15062,7 @@ function buildReportsWorkbook(){
 
   return wb;
 }
-function exportReportsToExcel(){
+function exportReportsToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const wb = buildReportsWorkbook();
   const safeName = (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_');
@@ -15070,7 +15070,7 @@ function exportReportsToExcel(){
   XLSX.writeFile(wb, filename);
   toast('Reports exported to Excel');
 }
-function exportTrialBalanceToExcel(){
+function exportTrialBalanceToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, buildTrialBalanceSheet(), 'Trial Balance');
@@ -15078,7 +15078,7 @@ function exportTrialBalanceToExcel(){
   XLSX.writeFile(wb, `${safeName}_Trial_Balance_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Trial Balance exported to Excel');
 }
-function exportPLToExcel(){
+function exportPLToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const fyData = currentAndPriorFYData(activeFY);
   const wb = XLSX.utils.book_new();
@@ -15087,7 +15087,7 @@ function exportPLToExcel(){
   XLSX.writeFile(wb, `${safeName}_Income_Statement_ScheduleIII_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Income Statement (Schedule III) exported to Excel');
 }
-function exportBalanceSheetToExcel(){
+function exportBalanceSheetToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const fyData = currentAndPriorFYData(activeFY);
   const wb = XLSX.utils.book_new();
@@ -15096,7 +15096,7 @@ function exportBalanceSheetToExcel(){
   XLSX.writeFile(wb, `${safeName}_Balance_Sheet_ScheduleIII_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Balance Sheet (Schedule III) exported to Excel');
 }
-function exportRatiosToExcel(){
+function exportRatiosToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const is = incomeStatementData();
   const bs = balanceSheetIFRSData(is.profitForPeriod);
@@ -15107,7 +15107,7 @@ function exportRatiosToExcel(){
   XLSX.writeFile(wb, `${safeName}_Ratio_Analysis_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Ratio Analysis exported to Excel');
 }
-function exportCashFlowToExcel(){
+function exportCashFlowToExcelPlain(){
   if(typeof XLSX === 'undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const cf = cashFlowData();
   const wb = XLSX.utils.book_new();
@@ -15116,6 +15116,1361 @@ function exportCashFlowToExcel(){
   XLSX.writeFile(wb, `${safeName}_Cash_Flow_Statement_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('Cash Flow Statement exported to Excel');
 }
+
+/* ====== RBX — a small, dependency-free .xlsx writer for formatted report workbooks (Nov 2026) ======
+   SheetJS (already loaded for imports and the other exports) cannot write cell styles in its free build,
+   which is why the Reports downloads used to come out as plain, unformatted grids. RBX writes the Office
+   Open XML package directly: fonts, fills, borders, number formats (₹ amounts with negatives in red
+   brackets, %, ×, dates), merged title blocks, frozen header rows, filters, grouped (collapsible) rows,
+   live SUM/SUBTOTAL formulas with their values cached, conditional formatting, data bars, internal
+   hyperlinks, native column charts, print setup (A4, fit to width, repeating header rows, page X of Y
+   footer) and document properties. Text is always written as text, never as a formula, so a narration
+   that starts with "=" can't run anything when the file is opened. Read-only: it only formats numbers
+   the app has already worked out. */
+const RBX = (function(){
+  const XMLNS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const RNS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const esc = s => String(s==null?'':s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const colName = i => { let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); } return s; };
+  const ref = (r,c) => colName(c)+(r+1);                 // 0-based row/col -> "B6"
+  const aref = (r,c) => '$'+colName(c)+'$'+(r+1);
+  const range = (r1,c1,r2,c2) => ref(r1,c1)+':'+ref(r2,c2);
+  const qs = name => "'"+String(name).replace(/'/g,"''")+"'";  // quoted sheet name for formulas
+  const serial = d => { // 'YYYY-MM-DD' or Date -> Excel serial day
+    let y,m,dd,frac=0;
+    if(d instanceof Date){ y=d.getFullYear(); m=d.getMonth()+1; dd=d.getDate(); frac=(d.getHours()*3600+d.getMinutes()*60+d.getSeconds())/86400; }
+    else { const p=String(d).slice(0,10).split('-').map(Number); y=p[0]; m=p[1]; dd=p[2]; }
+    return (Date.UTC(y,m-1,dd) - Date.UTC(1899,11,30))/86400000 + frac;
+  };
+  const PAL = { ink:'1B2420', acc:'1F6B45', accD:'14432C', band:'E6F0EA', band2:'F3F7F4', line:'C5D3CA', muted:'66756D', neg:'B42318', pos:'1E7B45', warn:'9A6700', link:'0B57D0', white:'FFFFFF' };
+  const FMT = {
+    amt:'#,##0.00;[Red](#,##0.00);"–"', amt0:'#,##0;[Red](#,##0);"–"', int:'#,##0', pct:'0.0%;[Red]-0.0%;"–"',
+    ratio:'0.00"×";[Red]-0.00"×";"–"', days:'0" days";[Red]-0" days";"–"', date:'dd-mmm-yyyy', dt:'dd-mmm-yyyy hh:mm', mon:'mmm-yyyy',
+    drcr:'#,##0.00" Dr";#,##0.00" Cr";"–"'
+  };
+  // Style atoms, combined with "+" (e.g. 'amt+b+tot'); later atoms win.
+  const A = {
+    b:{font:{b:1}}, i:{font:{i:1}}, u:{font:{u:1}}, muted:{font:{color:PAL.muted}}, white:{font:{color:PAL.white}}, acc:{font:{color:PAL.accD}}, accl:{font:{color:PAL.acc}},
+    posc:{font:{color:PAL.pos}}, negc:{font:{color:PAL.neg}}, warnc:{font:{color:PAL.warn}}, link:{font:{color:PAL.link,u:1}},
+    sm:{font:{sz:9}}, md:{font:{sz:11}}, lg:{font:{sz:12}}, xl:{font:{sz:16}}, xxl:{font:{sz:20}},
+    fhdr:{fill:PAL.accD}, fsec:{fill:PAL.band}, fband:{fill:PAL.band2}, fgood:{fill:'E7F4EC'}, fbad:{fill:'FDECEA'}, fwarn:{fill:'FFF4DB'}, fkpi:{fill:'F6FAF7'},
+    amt:{fmt:FMT.amt,h:'right'}, amt0:{fmt:FMT.amt0,h:'right'}, int:{fmt:FMT.int,h:'right'}, pct:{fmt:FMT.pct,h:'right'}, ratio:{fmt:FMT.ratio,h:'right'}, days:{fmt:FMT.days,h:'right'},
+    date:{fmt:FMT.date,h:'left'}, drcr:{fmt:FMT.drcr,h:'right'}, dt:{fmt:FMT.dt,h:'left'}, mon:{fmt:FMT.mon,h:'left'},
+    l:{h:'left'}, c:{h:'center'}, r:{h:'right'}, wrap:{wrap:1}, top:{v:'top'}, vc:{v:'center'},
+    in1:{indent:1,h:'left'}, in2:{indent:2,h:'left'}, in3:{indent:3,h:'left'}, in4:{indent:4,h:'left'},
+    bt:{border:{top:'thin'}}, bb:{border:{bottom:'thin'}}, bdbl:{border:{top:'thin',bottom:'double'}}, box:{border:{top:'thin',bottom:'thin',left:'thin',right:'thin'}}, bm:{border:{bottom:'medium'}},
+  };
+  A.hdr = {font:{b:1,color:PAL.white}, fill:PAL.accD, h:'center', v:'center', wrap:1, border:{top:'thin',bottom:'thin',left:'thin',right:'thin'}};
+  A.hdrl = {...A.hdr, h:'left'};
+  A.sec = {font:{b:1,color:PAL.accD}, fill:PAL.band};
+  A.tot = {font:{b:1}, border:{top:'thin'}};
+  A.grand = {font:{b:1}, fill:PAL.band, border:{top:'thin',bottom:'double'}};
+  A.title = {font:{b:1,sz:16,color:PAL.accD}};
+  A.sub = {font:{b:1,sz:12,color:PAL.acc}};
+  A.meta = {font:{i:1,sz:9,color:PAL.muted}};
+  A.note = {font:{i:1,sz:9,color:PAL.muted}, wrap:1, v:'top'};
+  A.kpil = {font:{sz:9,color:PAL.muted}, fill:'F6FAF7', border:{top:'thin',left:'thin',right:'thin'}};
+  A.kpiv = {font:{b:1,sz:14,color:PAL.accD}, fill:'F6FAF7', fmt:FMT.amt0, h:'left', border:{bottom:'thin',left:'thin',right:'thin'}};
+  function mergeDefs(key){
+    const out = {font:{}, border:{}};
+    String(key||'').split('+').filter(Boolean).forEach(k=>{ const a = A[k]; if(!a) return;
+      if(a.font) Object.assign(out.font, a.font); if(a.border) Object.assign(out.border, a.border);
+      ['fill','fmt','h','v','wrap','indent'].forEach(p=>{ if(a[p]!==undefined) out[p]=a[p]; }); });
+    return out;
+  }
+  function Book(meta){
+    this.meta = meta||{}; this.sheets = []; this.sst = []; this.sstIdx = new Map();
+    this.fonts = []; this.fills = []; this.borders = []; this.fmts = []; this.xfs = []; this.xfIdx = new Map(); this.dxfs = [];
+    this._uniq = (arr, obj) => { const k = JSON.stringify(obj); let i = arr.findIndex(x=>x.k===k); if(i<0){ arr.push({k, o:obj}); i = arr.length-1; } return i; };
+    this.style(''); // xf 0 = default
+  }
+  Book.prototype.str = function(s){ s = String(s); let i = this.sstIdx.get(s); if(i===undefined){ i = this.sst.length; this.sst.push(s); this.sstIdx.set(s,i); } return i; };
+  Book.prototype.style = function(key){
+    key = key||''; if(this.xfIdx.has(key)) return this.xfIdx.get(key);
+    const d = mergeDefs(key);
+    const font = this._uniq(this.fonts, {b:d.font.b||0, i:d.font.i||0, u:d.font.u||0, sz:d.font.sz||10, color:d.font.color||PAL.ink});
+    const fill = d.fill ? this._uniq(this.fills, {c:d.fill})+2 : 0;
+    const border = (Object.keys(d.border).length) ? this._uniq(this.borders, d.border)+1 : 0;
+    let fmtId = 0; if(d.fmt){ fmtId = 164 + this._uniq(this.fmts, d.fmt); }
+    const xf = {font, fill, border, fmtId, h:d.h||'', v:d.v||'center', wrap:d.wrap||0, indent:d.indent||0};
+    const i = this.xfs.length; this.xfs.push(xf); this.xfIdx.set(key, i); return i;
+  };
+  Book.prototype.dxf = function(o){ this.dxfs.push(o); return this.dxfs.length-1; };
+  Book.prototype.sheet = function(name, opts){
+    let nm = String(name).replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31).trim() || 'Sheet';
+    let base = nm, n = 2; while(this.sheets.some(s=>s.name.toLowerCase()===nm.toLowerCase())){ nm = (base.slice(0,28)+' '+n++); }
+    const sh = new Sheet(this, nm, opts||{}); this.sheets.push(sh); return sh;
+  };
+  function Sheet(book, name, opts){
+    this.book = book; this.name = name; this.rows = []; this.cols = []; this.merges = []; this.r = 0; this.maxC = 0;
+    this.freezeAt = null; this.filterRef = null; this.cfs = []; this.links = []; this.charts = [];
+    this.landscape = !!opts.landscape; this.tab = opts.tab || null; this.titleRows = null; this.summaryBelow = opts.summaryBelow!==false ? 1 : 0;
+    this.header = opts.header || ''; this.zoom = opts.zoom || 100; this.grid = !!opts.grid;
+    this.meta = {}; this.checks = []; this.bars = []; this.pdf = opts.pdf!==false;
+  }
+  Sheet.prototype.q = function(){ return qs(this.name); };
+  Sheet.prototype.set = function(r, c, v, s, extra){
+    const row = this.rows[r] || (this.rows[r] = {cells:[]});
+    const cell = {v, s: typeof s==='number' ? s : this.book.style(s||'')};
+    if(extra && extra.f) cell.f = extra.f;
+    row.cells[c] = cell; if(c+1>this.maxC) this.maxC = c+1; return ref(r,c);
+  };
+  // Append a row. Items: plain values, or {v, f, s}. `s` is the default style for the row; opts {lvl, ht, styles:[per-col]}.
+  Sheet.prototype.add = function(items, s, opts){
+    opts = opts||{}; const r = this.r++;
+    items = (items||[]).slice(); if(opts.fillBlank && opts.styles) while(items.length<opts.styles.length) items.push(null);
+    items.forEach((it, c)=>{
+      if(it===undefined || it===null || it==='') { const st = (opts.styles && opts.styles[c]) || s; if(st && (opts.fillBlank||/fsec|fhdr|hdr|sec|grand|fband|kpi/.test(st))) this.set(r,c,null,st); return; }
+      const st = (it && typeof it==='object' && !(it instanceof Date) && it.s) || (opts.styles && opts.styles[c]) || s;
+      if(it && typeof it==='object' && !(it instanceof Date) && ('v' in it || 'f' in it)) this.set(r, c, it.v, st, {f:it.f});
+      else this.set(r, c, it, st);
+    });
+    const row = this.rows[r] || (this.rows[r] = {cells:[]});
+    if(opts.lvl) row.lvl = opts.lvl; if(opts.ht) row.ht = opts.ht; if(opts.pdfHide) row.pdfHide = 1;
+    return r;
+  };
+  Sheet.prototype.skip = function(n){ this.r += (n||1); };
+  Sheet.prototype.merge = function(r1,c1,r2,c2){ if(r1===r2 && c1>=c2) return; this.merges.push(range(r1,c1,r2,c2)); (this.mergeList = this.mergeList||[]).push({r1,c1,r2,c2}); };
+  Sheet.prototype.widths = function(ws){ this.cols = ws.slice(); };
+  Sheet.prototype.freeze = function(r, c){ this.freezeAt = {r, c:c||0}; };
+  Sheet.prototype.filter = function(r1,c1,r2,c2){ if(r2>=r1) this.filterRef = {r1,c1,r2,c2}; };
+  Sheet.prototype.repeat = function(r1, r2){ this.titleRows = [r1, r2==null?r1:r2]; };
+  Sheet.prototype.link = function(r, c, sheetName, cell){ this.links.push({ref:ref(r,c), loc: qs(sheetName)+'!'+(cell||'A1')}); };
+  // Conditional formats. kind: 'lt0' | 'gt0' | 'expr' | 'bar'
+  Sheet.prototype.cfLess0 = function(rng){ this.cfs.push({rng, xml: p=>`<cfRule type="cellIs" dxfId="${this.book.dxf({color:PAL.neg})}" priority="${p}" operator="lessThan"><formula>0</formula></cfRule>`}); };
+  Sheet.prototype.cfExpr = function(rng, expr, look){ this.cfs.push({rng, xml: p=>`<cfRule type="expression" dxfId="${this.book.dxf(look)}" priority="${p}"><formula>${esc(expr)}</formula></cfRule>`}); };
+  Sheet.prototype.cfBar = function(rng, color){ this.bars.push(rng); this.cfs.push({rng, xml: p=>`<cfRule type="dataBar" priority="${p}"><dataBar><cfvo type="min"/><cfvo type="max"/><color rgb="FF${color||'7FB89A'}"/></dataBar></cfRule>`}); };
+  Sheet.prototype.chart = function(c){ this.charts.push(c); };
+  // A nil-check cell: green when within 0.01 of zero, red otherwise (Excel conditional format + PDF colouring).
+  Sheet.prototype.check = function(r, c){ const R = ref(r,c); this.checks.push({r,c});
+    this.cfExpr(R, `ABS(${R})<0.01`, {color:PAL.pos, fill:'E7F4EC', b:1}); this.cfExpr(R, `ABS(${R})>=0.01`, {color:PAL.neg, fill:'FDECEA', b:1}); };
+  Sheet.prototype.pageBreak = function(r){ (this.breaks = this.breaks||[]).push(r); };
+  Sheet.prototype.xml = function(sheetIndex){
+    const book = this.book; const out = [];
+    const lastR = Math.max(1, this.rows.length, this.r), lastC = Math.max(1, this.maxC, this.cols.length);
+    const anyLvl = this.rows.some(r=>r && r.lvl);
+    out.push(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="${XMLNS}" xmlns:r="${RNS}">`);
+    out.push(`<sheetPr>${this.tab?`<tabColor rgb="FF${this.tab}"/>`:''}<outlinePr summaryBelow="${this.summaryBelow}" summaryRight="1"/><pageSetUpPr fitToPage="1"/></sheetPr>`);
+    out.push(`<dimension ref="A1:${ref(lastR-1, lastC-1)}"/>`);
+    let pane = '';
+    if(this.freezeAt && (this.freezeAt.r || this.freezeAt.c)){
+      const {r, c} = this.freezeAt; const ap = r && c ? 'bottomRight' : (r ? 'bottomLeft' : 'topRight');
+      pane = `<pane ${c?`xSplit="${c}" `:''}${r?`ySplit="${r}" `:''}topLeftCell="${ref(r,c)}" activePane="${ap}" state="frozen"/><selection pane="${ap}" activeCell="${ref(r,c)}" sqref="${ref(r,c)}"/>`;
+    }
+    out.push(`<sheetViews><sheetView workbookViewId="0"${sheetIndex===0?' tabSelected="1"':''}${this.grid?'':' showGridLines="0"'}${this.zoom!==100?` zoomScale="${this.zoom}"`:''}>${pane}</sheetView></sheetViews>`);
+    out.push(`<sheetFormatPr defaultRowHeight="15"${anyLvl?' outlineLevelRow="1"':''}/>`);
+    if(this.cols.length) out.push('<cols>'+this.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols>');
+    out.push('<sheetData>');
+    for(let r=0; r<this.rows.length; r++){
+      const row = this.rows[r]; if(!row) continue;
+      const attrs = `r="${r+1}"${row.ht?` ht="${row.ht}" customHeight="1"`:''}${row.lvl?` outlineLevel="${row.lvl}"`:''}`;
+      const cs = [];
+      for(let c=0; c<row.cells.length; c++){
+        const cell = row.cells[c]; if(!cell) continue;
+        const R = ref(r,c), s = cell.s ? ` s="${cell.s}"` : '';
+        let v = cell.v;
+        if(cell.f){
+          const isNum = typeof v==='number' && isFinite(v);
+          cs.push(`<c r="${R}"${s}${isNum||v==null?'':' t="str"'}><f>${esc(cell.f)}</f>${v==null?'':`<v>${isNum?+v.toFixed(6):esc(v)}</v>`}</c>`);
+        } else if(v==null){ cs.push(`<c r="${R}"${s}/>`); }
+        else if(v instanceof Date){ cs.push(`<c r="${R}"${s}><v>${serial(v)}</v></c>`); }
+        else if(typeof v==='object' && v.date){ cs.push(`<c r="${R}"${s}><v>${serial(v.date)}</v></c>`); }
+        else if(typeof v==='number'){ cs.push(isFinite(v) ? `<c r="${R}"${s}><v>${+v.toFixed(6)}</v></c>` : `<c r="${R}"${s}/>`); }
+        else if(typeof v==='boolean'){ cs.push(`<c r="${R}"${s} t="b"><v>${v?1:0}</v></c>`); }
+        else cs.push(`<c r="${R}"${s} t="s"><v>${book.str(v)}</v></c>`);
+      }
+      out.push(`<row ${attrs}>${cs.join('')}</row>`);
+    }
+    out.push('</sheetData>');
+    if(this.filterRef){ const f=this.filterRef; out.push(`<autoFilter ref="${range(f.r1,f.c1,f.r2,f.c2)}"/>`); }
+    if(this.merges.length) out.push(`<mergeCells count="${this.merges.length}">`+this.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')+'</mergeCells>');
+    let pr = 1; this.cfs.forEach(cf=>{ out.push(`<conditionalFormatting sqref="${cf.rng}">${cf.xml(pr++)}</conditionalFormatting>`); });
+    if(this.links.length) out.push('<hyperlinks>'+this.links.map(l=>`<hyperlink ref="${l.ref}" location="${esc(l.loc)}" display="${esc(l.loc)}"/>`).join('')+'</hyperlinks>');
+    out.push('<printOptions horizontalCentered="1"/>');
+    out.push('<pageMargins left="0.45" right="0.45" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>');
+    out.push(`<pageSetup paperSize="9" orientation="${this.landscape?'landscape':'portrait'}" fitToWidth="1" fitToHeight="0"/>`);
+    const hf = s => esc(String(s||'').replace(/&/g,'&&'));
+    const m = book.meta;
+    out.push(`<headerFooter><oddHeader>&amp;L&amp;8${hf(m.company)}&amp;R&amp;8${hf(this.header||this.name)}</oddHeader><oddFooter>&amp;L&amp;8${hf(m.footer||'')}&amp;C&amp;8Page &amp;P of &amp;N&amp;R&amp;8${hf(m.generatedLabel||'')}</oddFooter></headerFooter>`);
+    if(this.breaks && this.breaks.length) out.push(`<rowBreaks count="${this.breaks.length}" manualBreakCount="${this.breaks.length}">`+this.breaks.map(b=>`<brk id="${b}" max="16383" man="1"/>`).join('')+'</rowBreaks>');
+    if(this.charts.length) out.push('<drawing r:id="rId1"/>');
+    out.push('</worksheet>');
+    return out.join('');
+  };
+  function chartXml(c){
+    const pts = arr => arr.map((v,i)=>`<c:pt idx="${i}"><c:v>${typeof v==='number'?+(+v).toFixed(2):esc(v)}</c:v></c:pt>`).join('');
+    const ser = c.series.map((s,i)=>`<c:ser><c:idx val="${i}"/><c:order val="${i}"/><c:tx><c:strRef><c:f>${esc(s.nameRef)}</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${esc(s.name)}</c:v></c:pt></c:strCache></c:strRef></c:tx><c:spPr><a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill></c:spPr><c:invertIfNegative val="0"/><c:cat><c:strRef><c:f>${esc(c.catRef)}</c:f><c:strCache><c:ptCount val="${c.cats.length}"/>${pts(c.cats)}</c:strCache></c:strRef></c:cat><c:val><c:numRef><c:f>${esc(s.ref)}</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${s.values.length}"/>${pts(s.values)}</c:numCache></c:numRef></c:val></c:ser>`).join('');
+    const txt = (sz,b)=>`<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${sz}" b="${b?1:0}"><a:solidFill><a:srgbClr val="4A5751"/></a:solidFill></a:defRPr></a:pPr><a:endParaRPr lang="en-IN"/></a:p></c:txPr>`;
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="${RNS}"><c:roundedCorners val="0"/><c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1200" b="1"/></a:pPr><a:r><a:rPr lang="en-IN" sz="1200" b="1"><a:solidFill><a:srgbClr val="14432C"/></a:solidFill></a:rPr><a:t>${esc(c.title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/><c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${ser}<c:gapWidth val="70"/><c:overlap val="-5"/><c:axId val="50010"/><c:axId val="50020"/></c:barChart><c:catAx><c:axId val="50010"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="low"/><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="C5D3CA"/></a:solidFill></a:ln></c:spPr>${txt(900,0)}<c:crossAx val="50020"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx><c:valAx><c:axId val="50020"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="E3EAE6"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="#,##0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${txt(900,0)}<c:crossAx val="50010"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/>${txt(900,0)}</c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="6350"><a:solidFill><a:srgbClr val="DDE5E0"/></a:solidFill></a:ln></c:spPr></c:chartSpace>`;
+  }
+  function drawingXml(charts, firstId){
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`+
+      charts.map((c,i)=>{ const a = c.at; return `<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${a.c1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${a.r1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${a.c2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${a.r2}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${i+2}" name="Chart ${i+1}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="${RNS}" r:id="rId${i+1}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`; }).join('')+`</xdr:wsDr>`;
+  }
+  Book.prototype.stylesXml = function(){
+    const fmts = this.fmts.map((f,i)=>`<numFmt numFmtId="${164+i}" formatCode="${esc(f.o)}"/>`).join('');
+    const fonts = this.fonts.map(f=>{ const o=f.o; return `<font>${o.b?'<b/>':''}${o.i?'<i/>':''}${o.u?'<u/>':''}<sz val="${o.sz}"/><color rgb="FF${o.color}"/><name val="Arial"/><family val="2"/></font>`; }).join('');
+    const fills = '<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' + this.fills.map(f=>`<fill><patternFill patternType="solid"><fgColor rgb="FF${f.o.c}"/><bgColor indexed="64"/></patternFill></fill>`).join('');
+    const side = (n, st) => st ? `<${n} style="${st}"><color rgb="FF${st==='double'||st==='medium'?'1B2420':PAL.line}"/></${n}>` : `<${n}/>`;
+    const borders = '<border><left/><right/><top/><bottom/><diagonal/></border>' + this.borders.map(b=>{ const o=b.o; return `<border>${side('left',o.left)}${side('right',o.right)}${side('top',o.top)}${side('bottom',o.bottom)}<diagonal/></border>`; }).join('');
+    const xfs = this.xfs.map(x=>{
+      const al = (x.h||x.v||x.wrap||x.indent) ? `<alignment${x.h?` horizontal="${x.h}"`:''}${x.v?` vertical="${x.v}"`:''}${x.wrap?' wrapText="1"':''}${x.indent?` indent="${x.indent}"`:''}/>` : '';
+      return `<xf numFmtId="${x.fmtId}" fontId="${x.font}" fillId="${x.fill}" borderId="${x.border}" xfId="0"${x.fmtId?' applyNumberFormat="1"':''} applyFont="1"${x.fill?' applyFill="1"':''}${x.border?' applyBorder="1"':''}${al?' applyAlignment="1"':''}>${al}</xf>`; }).join('');
+    const dxfs = this.dxfs.map(d=>`<dxf>${d.color||d.b?`<font>${d.b?'<b/>':''}${d.color?`<color rgb="FF${d.color}"/>`:''}</font>`:''}${d.fill?`<fill><patternFill patternType="solid"><fgColor rgb="FF${d.fill}"/><bgColor rgb="FF${d.fill}"/></patternFill></fill>`:''}</dxf>`).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="${XMLNS}">${fmts?`<numFmts count="${this.fmts.length}">${fmts}</numFmts>`:''}<fonts count="${this.fonts.length}">${fonts}</fonts><fills count="${this.fills.length+2}">${fills}</fills><borders count="${this.borders.length+1}">${borders}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${this.xfs.length}">${xfs}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="${this.dxfs.length}">${dxfs}</dxfs><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/></styleSheet>`;
+  };
+  // Build every part as text. Returns [{name, data:string}]
+  Book.prototype.parts = function(){
+    const files = [], sheets = this.sheets;
+    const sheetXml = sheets.map((s,i)=>s.xml(i)); // fills sst + dxfs as it goes
+    let chartN = 0, drawN = 0;
+    const ct = [`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`,
+      `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`,
+      `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>`,
+      `<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>`,
+      `<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>`,
+      `<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>`];
+    sheets.forEach((s,i)=>{
+      files.push({name:`xl/worksheets/sheet${i+1}.xml`, data:sheetXml[i]});
+      ct.push(`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`);
+      if(s.charts.length){
+        drawN++;
+        files.push({name:`xl/worksheets/_rels/sheet${i+1}.xml.rels`, data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${RNS}/drawing" Target="../drawings/drawing${drawN}.xml"/></Relationships>`});
+        files.push({name:`xl/drawings/drawing${drawN}.xml`, data:drawingXml(s.charts)});
+        ct.push(`<Override PartName="/xl/drawings/drawing${drawN}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
+        const rels = s.charts.map((c,k)=>{ chartN++; files.push({name:`xl/charts/chart${chartN}.xml`, data:chartXml(c)}); ct.push(`<Override PartName="/xl/charts/chart${chartN}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`); return `<Relationship Id="rId${k+1}" Type="${RNS}/chart" Target="../charts/chart${chartN}.xml"/>`; }).join('');
+        files.push({name:`xl/drawings/_rels/drawing${drawN}.xml.rels`, data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`});
+      }
+    });
+    const names = [];
+    sheets.forEach((s,i)=>{
+      if(s.titleRows) names.push(`<definedName name="_xlnm.Print_Titles" localSheetId="${i}">${esc(s.q())}!$${s.titleRows[0]+1}:$${s.titleRows[1]+1}</definedName>`);
+      if(s.filterRef){ const f=s.filterRef; names.push(`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${esc(s.q())}!${aref(f.r1,f.c1)}:${aref(f.r2,f.c2)}</definedName>`); }
+    });
+    files.push({name:'xl/workbook.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="${XMLNS}" xmlns:r="${RNS}"><workbookPr/><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="16000" activeTab="0"/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${esc(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets>${names.length?`<definedNames>${names.join('')}</definedNames>`:''}<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`});
+    files.push({name:'xl/_rels/workbook.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="${RNS}/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="${RNS}/styles" Target="styles.xml"/><Relationship Id="rId${sheets.length+2}" Type="${RNS}/sharedStrings" Target="sharedStrings.xml"/></Relationships>`});
+    files.push({name:'xl/sharedStrings.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="${XMLNS}" count="${this.sst.length}" uniqueCount="${this.sst.length}">${this.sst.map(s=>`<si><t xml:space="preserve">${esc(s)}</t></si>`).join('')}</sst>`});
+    files.push({name:'xl/styles.xml', data:this.stylesXml()});
+    const now = new Date().toISOString().replace(/\.\d+Z$/,'Z'), m = this.meta;
+    files.push({name:'docProps/core.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(m.title||'')}</dc:title><dc:subject>${esc(m.subject||'')}</dc:subject><dc:creator>${esc(m.author||'')}</dc:creator><cp:keywords>${esc(m.keywords||'')}</cp:keywords><dc:description>${esc(m.description||'')}</dc:description><cp:lastModifiedBy>${esc(m.author||'')}</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`});
+    files.push({name:'docProps/app.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Microsoft Excel</Application><Company>${esc(m.company||'')}</Company><AppVersion>16.0300</AppVersion></Properties>`});
+    files.push({name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${RNS}/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="${RNS}/extended-properties" Target="docProps/app.xml"/></Relationships>`});
+    files.unshift({name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">${ct.join('')}</Types>`});
+    return files;
+  };
+  // ---- ZIP (deflate via the browser's CompressionStream when available, otherwise stored) ----
+  let CRC = null;
+  const crc32 = u8 => { if(!CRC){ CRC = new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; CRC[n]=c>>>0; } }
+    let c = 0xFFFFFFFF; for(let i=0;i<u8.length;i++) c = CRC[(c^u8[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+  async function deflate(u8){
+    if(typeof CompressionStream==='undefined') return null;
+    try{ const cs = new CompressionStream('deflate-raw'); const buf = await new Response(new Blob([u8]).stream().pipeThrough(cs)).arrayBuffer(); return new Uint8Array(buf); }catch(e){ return null; }
+  }
+  async function zip(files){
+    const enc = new TextEncoder(), chunks = [], central = []; let offset = 0;
+    const d = new Date(), dosTime = (d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1), dosDate = ((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+    for(const f of files){
+      const name = enc.encode(f.name), raw = typeof f.data==='string' ? enc.encode(f.data) : f.data, crc = crc32(raw);
+      const comp = await deflate(raw), method = comp ? 8 : 0, body = comp || raw;
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,method,true); h.setUint16(10,dosTime,true); h.setUint16(12,dosDate,true);
+      h.setUint32(14,crc,true); h.setUint32(18,body.length,true); h.setUint32(22,raw.length,true); h.setUint16(26,name.length,true); h.setUint16(28,0,true);
+      chunks.push(new Uint8Array(h.buffer), name, body);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,method,true); c.setUint16(12,dosTime,true); c.setUint16(14,dosDate,true);
+      c.setUint32(16,crc,true); c.setUint32(20,body.length,true); c.setUint32(24,raw.length,true); c.setUint16(28,name.length,true); c.setUint32(42,offset,true);
+      central.push(new Uint8Array(c.buffer), name);
+      offset += 30 + name.length + body.length;
+    }
+    const cdSize = central.reduce((s,a)=>s+a.length,0);
+    const e = new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cdSize,true); e.setUint32(16,offset,true);
+    return new Blob([...chunks, ...central, new Uint8Array(e.buffer)], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+  Book.prototype.order = function(names){ const pick = []; names.forEach(n=>{ const s = this.sheets.find(x=>x.name===n); if(s && !pick.includes(s)) pick.push(s); }); this.sheets.forEach(s=>{ if(!pick.includes(s)) pick.push(s); }); this.sheets = pick; };
+  Book.prototype.blob = function(){ return zip(this.parts()); };
+  Book.prototype.download = async function(filename){
+    const blob = await this.blob();
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    return blob;
+  };
+  return { Book, ref, aref, range, colName, qs, serial, PAL, FMT };
+})();
+
+/* ====== Reports → Excel and PDF: formatted, audit-ready report packs (Nov 2026) ======
+   One report model, two outputs. The Reports downloads build a workbook with RBX (see above): title
+   block, styled headers, ₹ formats, live formulas, notes, checks, print setup. The PDF buttons render
+   that very same workbook as a typeset A4 document (cover, contents, statements, notes, charts, page
+   X of Y), so the Excel file and the PDF always show identical figures. Schedule III statements carry
+   numbered Notes (ledger break-up, previous year, MSME split, reserves movement), an Ageing sheet gives
+   the Schedule III receivable/payable ageing, a Monthly P&L gives the year month by month, and the
+   General Ledger lists every account with running balances. Only reads figures the report screens
+   already compute; nothing is posted or changed. If anything fails, the previous plain export is used. */
+const rbxF = (f, v) => ({f, v});
+const rbxR2 = n => Math.round((Number(n)||0)*100)/100;
+function rbxUser(){ return (typeof currentUser!=='undefined' && currentUser && (currentUser.name||currentUser.username)) || ''; }
+function rbxStamp(){ const d = new Date(); return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }
+function rbxSafeName(){ return (currentCompany.name||'Company').replace(/[^a-z0-9]+/gi,'_'); }
+function rbxBook(title, opts){
+  const stamp = rbxStamp();
+  const b = new RBX.Book({ company: currentCompany.name||'Company', title, subject: title, author: rbxUser() || 'The Reckoning Books by SKm',
+    keywords: 'accounts, financial statements, Schedule III', description: `${title} — ${currentCompany.name||''}, generated ${stamp}`,
+    footer: 'The Reckoning Books by SKm', generatedLabel: 'Generated '+stamp, stamp, pack: !!(opts && opts.pack) });
+  return b;
+}
+// Title block shared by every sheet: company, report name, period line, meta line (+ a link back to Contents in a pack).
+function rbxTitle(sh, title, periodLine, ncols){
+  const co = currentCompany || {}, pack = sh.book.meta.pack && sh.name!=='Cover';
+  let r = sh.add([co.name||'Company'], 'title', {ht:24}); sh.merge(r,0,r,Math.max(0,ncols-(pack?2:1)));
+  if(pack){ sh.set(r, ncols-1, '↩ Contents', 'link+sm+r'); sh.link(r, ncols-1, 'Cover', 'A1'); }
+  r = sh.add([title], 'sub', {ht:19}); sh.merge(r,0,r,ncols-1);
+  if(periodLine){ r = sh.add([periodLine], 'b+muted'); sh.merge(r,0,r,ncols-1); }
+  const bits = ['All amounts in ₹ (Indian Rupees)'];
+  if(co.gstin) bits.push('GSTIN '+co.gstin);
+  if(co.pan) bits.push('PAN '+co.pan);
+  bits.push('Generated '+sh.book.meta.stamp+(rbxUser()?' by '+rbxUser():''));
+  r = sh.add([bits.join('  ·  ')], 'meta'); sh.merge(r,0,r,ncols-1);
+  sh.skip(1);
+  sh.meta = { title, period: periodLine||'', ncols, bodyStart: sh.r };
+}
+function rbxNotes(sh, lines, ncols){
+  sh.skip(1);
+  lines.filter(Boolean).forEach(t=>{ const r = sh.add([t], 'note', {ht: t.length>150 ? 30 : 15}); sh.merge(r,0,r,ncols-1); });
+}
+// Signature block used under the Schedule III statements (blank lines for the user to complete).
+function rbxSignatures(sh, ncols){
+  const co = currentCompany || {}, mid = Math.max(1, Math.floor(ncols/2));
+  sh.skip(1); const sig0 = sh.r;
+  let r = sh.add(['The accompanying notes form an integral part of these financial statements.'], 'i+muted'); sh.merge(r,0,r,ncols-1);
+  sh.skip(1);
+  const L = ['As per our report of even date','For ____________________________','Chartered Accountants (FRN ____________)','','____________________________','Partner · Membership No. ____________'];
+  const R = ['For and on behalf of', co.name||'the Company','','','____________________________','Authorised Signatory / Director (DIN ____________)'];
+  for(let i=0;i<L.length;i++){ r = sh.r; sh.set(r, 0, L[i]||null, i===1||i===0?'b':'sm'); if(mid<ncols) sh.set(r, mid, R[i]||null, i<2?'b':'sm'); if(mid>1) sh.merge(r,0,r,mid-1); if(ncols-1>mid) sh.merge(r,mid,r,ncols-1); sh.r++; }
+  sh.skip(1);
+  r = sh.r; sh.set(r,0,`Place: ${co.state||'____________'}`,'sm'); if(mid<ncols) sh.set(r,mid,`Date: ${new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}`,'sm'); sh.r++;
+  sh.sig = {from: sig0, to: sh.r-1, mid};
+}
+// Net (dr − cr) per ledger over the vouchers that pass `keep` — one pass, read-only.
+function rbxNets(keep){
+  const m = new Map();
+  for(const v of state.vouchers){ if(keep && !keep(v)) continue;
+    for(const e of v.entries){ const x = (e.dr||0)-(e.cr||0); if(x) m.set(e.ledgerId, (m.get(e.ledgerId)||0)+x); } }
+  return m;
+}
+function rbxBalancesAsOf(asOf){ const nets = rbxNets(v=>!asOf || v.date<=asOf); const m = new Map(); state.ledgers.forEach(l=>m.set(l.id, (l.opening||0)+(nets.get(l.id)||0))); return m; }
+function rbxFyCtx(){
+  const fy = currentAndPriorFYData(activeFY);
+  const today = new Date().toISOString().slice(0,10);
+  fy.asOf = fy.isHistorical ? fy.curBounds.end : today;
+  return fy;
+}
+function rbxDayBefore(d){ const x = new Date(d+'T00:00:00'); x.setDate(x.getDate()-1); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; }
+function rbxLedgerDetails(ledgers, curMap, prevMap, sign){
+  return ledgers.map(l=>({label:l.name, cur: sign*(curMap.get(l.id)||0), prev: prevMap ? sign*(prevMap.get(l.id)||0) : 0}))
+    .filter(d=>Math.abs(d.cur)>0.004 || Math.abs(d.prev)>0.004);
+}
+
+/* ---------- Notes forming part of the financial statements ---------- */
+function rbxNotesSheet(book, fy){
+  const hasPrev = !!(fy.prevPl || fy.prevBs);
+  const sh = book.sheet('Notes', {tab:'2E7D5B', header:'Notes to the financial statements'});
+  const N = hasPrev ? 3 : 2; sh.widths(hasPrev ? [66,20,20] : [76,22]);
+  rbxTitle(sh, 'Notes forming part of the financial statements', `Financial year ${fy.currentFY}${hasPrev?` · previous year ${fy.priorFY}`:''}`, N);
+  let no = 0;
+  const api = { sh, hasPrev,
+    // sections: [{heading?, details:[{label,cur,prev}]}]; colHead: [current label, previous label]
+    add(title, sections, colHead, extraNote){
+      no++; const anchor = sh.r;
+      sh.add([`Note ${no}  ·  ${title}`], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+      sh.add(hasPrev ? ['Particulars', colHead[0], colHead[1]] : ['Particulars', colHead[0]], 'hdr', {ht:26});
+      const subs = []; let curT = 0, prevT = 0;
+      sections.forEach(sec=>{
+        if(sec.heading) sh.add([sec.heading], 'b');
+        const f1 = sh.r;
+        if(!sec.details.length) sh.add(['Nil', 0, hasPrev?0:undefined], '', {styles:['in1+i+muted','amt','amt']});
+        sec.details.forEach(d=>sh.add([d.label, rbxR2(d.cur), hasPrev?rbxR2(d.prev):undefined], '', {styles:[sec.heading?'in2':'in1','amt','amt']}));
+        const f2 = sh.r-1, c = sec.details.reduce((s,d)=>s+rbxR2(d.cur),0), p = sec.details.reduce((s,d)=>s+rbxR2(d.prev||0),0);
+        if(sec.heading){ const r = sh.add([`Total — ${sec.heading.replace(/^\([A-Z]\)\s*/,'')}`, rbxF(`SUM(${RBX.ref(f1,1)}:${RBX.ref(f2,1)})`, rbxR2(c)), hasPrev?rbxF(`SUM(${RBX.ref(f1,2)}:${RBX.ref(f2,2)})`, rbxR2(p)):undefined], 'tot', {styles:['tot+in1','amt+tot','amt+tot']}); subs.push({r, cur:c, prev:p}); }
+        else subs.push({r:null, f1, f2, cur:c, prev:p});
+        curT += c; prevT += p;
+      });
+      let tr;
+      if(sections.length>1 && subs.every(x=>x.r!=null)) tr = sh.add([`Total`, rbxF(subs.map(x=>RBX.ref(x.r,1)).join('+'), rbxR2(curT)), hasPrev?rbxF(subs.map(x=>RBX.ref(x.r,2)).join('+'), rbxR2(prevT)):undefined], 'grand', {styles:['grand','amt+grand','amt+grand']});
+      else { const s0 = subs[0]; tr = sh.add(['Total', rbxF(`SUM(${RBX.ref(s0.f1,1)}:${RBX.ref(s0.f2,1)})`, rbxR2(curT)), hasPrev?rbxF(`SUM(${RBX.ref(s0.f1,2)}:${RBX.ref(s0.f2,2)})`, rbxR2(prevT)):undefined], 'grand', {styles:['grand','amt+grand','amt+grand']}); }
+      if(extraNote){ const r = sh.add([extraNote], 'note'); sh.merge(r,0,r,N-1); }
+      sh.skip(1);
+      const q = sh.q();
+      return { no, anchor, cur:rbxR2(curT), prev:rbxR2(prevT), curRef:`${q}!${RBX.ref(tr,1)}`, prevRef:`${q}!${RBX.ref(tr,2)}`,
+        secs: subs.map(x=>({cur:rbxR2(x.cur), prev:rbxR2(x.prev), curRef: x.r!=null?`${q}!${RBX.ref(x.r,1)}`:null, prevRef: x.r!=null?`${q}!${RBX.ref(x.r,2)}`:null})) };
+    },
+    // Reserves and Surplus movement (opening + profit for the year = closing)
+    reserves(op, profit, prevOp, prevProfit, colHead){
+      no++; const anchor = sh.r;
+      sh.add([`Note ${no}  ·  Reserves and Surplus — Surplus in the Statement of Profit and Loss`], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+      sh.add(hasPrev ? ['Particulars', colHead[0], colHead[1]] : ['Particulars', colHead[0]], 'hdr', {ht:26});
+      const r1 = sh.add(['Opening balance', rbxR2(op), hasPrev?rbxR2(prevOp):undefined], '', {styles:['in1','amt','amt']});
+      const r2 = sh.add(['Add: Profit / (loss) for the year', rbxR2(profit), hasPrev?rbxR2(prevProfit):undefined], '', {styles:['in1','amt','amt']});
+      const tr = sh.add(['Closing balance', rbxF(`${RBX.ref(r1,1)}+${RBX.ref(r2,1)}`, rbxR2(op+profit)), hasPrev?rbxF(`${RBX.ref(r1,2)}+${RBX.ref(r2,2)}`, rbxR2(prevOp+prevProfit)):undefined], 'grand', {styles:['grand','amt+grand','amt+grand']});
+      sh.skip(1); const q = sh.q();
+      return { no, anchor, cur:rbxR2(op+profit), prev:rbxR2(prevOp+prevProfit), curRef:`${q}!${RBX.ref(tr,1)}`, prevRef:`${q}!${RBX.ref(tr,2)}` };
+    },
+  };
+  return api;
+}
+
+/* ---------- Schedule III statement writer: Particulars | Note | Current | [% rev] | [Previous | Change | Change %] ---------- */
+function rbxStmt(sh, o){
+  const hasPrev = o.hasPrev, NOTE = 1, C = 2, PCT = o.pctCol ? 3 : -1, P = o.pctCol ? 4 : 3, V = P+1, VP = P+2;
+  const W = { C, P, NOTE,
+    val(r, col){ const row = sh.rows[r]; const c = row && row.cells[col]; return c ? (typeof c.v==='number' ? c.v : 0) : 0; },
+    line(label, cur, prev, style, opts){
+      opts = opts||{}; const r = sh.r, st = style||'';
+      const curV = cur && typeof cur==='object' ? cur.v : cur, prevV = prev && typeof prev==='object' ? prev.v : prev;
+      const row = [label, opts.note ? opts.note.no : null, cur];
+      if(PCT>0){ const b = o.baseVal ? o.baseVal() : 0, br = o.baseRow(); row[PCT] = br!=null ? rbxF(`IF(${RBX.aref(br,C)}=0,"",${RBX.ref(r,C)}/${RBX.aref(br,C)})`, b ? (curV||0)/b : '') : null; }
+      if(hasPrev){ row[P] = prev; row[V] = rbxF(`${RBX.ref(r,C)}-${RBX.ref(r,P)}`, rbxR2((curV||0)-(prevV||0))); row[VP] = rbxF(`IF(${RBX.ref(r,P)}=0,"",(${RBX.ref(r,C)}-${RBX.ref(r,P)})/ABS(${RBX.ref(r,P)}))`, prevV ? ((curV||0)-prevV)/Math.abs(prevV) : ''); }
+      const amt = 'amt'+(st?'+'+st:''), pct = 'pct'+(st?'+'+st:'');
+      const styles = [((opts.labelStyle||st)?(opts.labelStyle||st)+'+wrap':'wrap'), (opts.note?'link+c':'c+muted')+(st?'+'+st:'')]; styles[C] = amt; if(PCT>0) styles[PCT] = pct; if(hasPrev){ styles[P] = amt; styles[V] = amt; styles[VP] = pct; }
+      sh.add(row, st, {styles, fillBlank: true});
+      if(opts.note) sh.link(r, NOTE, 'Notes', 'A'+(opts.note.anchor+1));
+      return r;
+    },
+    // A line whose amount comes from a note total (or a section total) on the Notes sheet.
+    noted(label, note, part, style, opts){
+      const src = part==null ? note : note.secs[part];
+      return W.line(label, rbxF(src.curRef, src.cur), hasPrev ? rbxF(src.prevRef, src.prev) : undefined, style, {...(opts||{}), note: part==null||opts&&opts.showNo ? note : null});
+    },
+    calc(label, terms, style, opts){
+      const mk = col => rbxF(terms.map((t,i)=>(t.sign<0?'-':(i?'+':''))+RBX.ref(t.r,col)).join(''), rbxR2(terms.reduce((s,t)=>s+(t.sign<0?-1:1)*(W.val(t.r,col)||0),0)));
+      return W.line(label, mk(C), hasPrev ? mk(P) : undefined, style, opts);
+    },
+  };
+  return W;
+}
+// Adds a note when there is something to break up; otherwise a nil line.
+function rbxNotedLine(W, notes, label, noteTitle, details, colHead, style, opts){
+  if(!details.length) return W.line(label, 0, notes.hasPrev?0:undefined, style, opts);
+  const n = notes.add(noteTitle, [{details}], colHead);
+  return W.noted(label, n, null, style, opts);
+}
+
+/* ---------- Balance Sheet (Schedule III, Division I) ---------- */
+function rbxSheetBalanceSheet(book, fy, notes){
+  fy = fy || rbxFyCtx(); notes = notes || rbxNotesSheet(book, fy);
+  const hasPrev = !!fy.prevBs, bs = fy.bs, pb = fy.prevBs || {};
+  const sh = book.sheet('Balance Sheet', {tab:'1F6B45', header:'Balance Sheet'});
+  const N = hasPrev ? 6 : 3; sh.widths(hasPrev ? [56,7,17,17,16,10] : [70,8,20]);
+  rbxTitle(sh, 'Balance Sheet (Schedule III, Division I, Companies Act 2013)', `As at ${fy.asOfLabel}${hasPrev?` · previous year as at ${fy.prevAsOfLabel}`:''}`, N);
+  const cur = rbxBalancesAsOf(fy.asOf), prev = hasPrev ? rbxBalancesAsOf(fy.priorBounds.end) : null;
+  const colHead = [`As at ${fy.asOfLabel} (₹)`, `As at ${fy.prevAsOfLabel||'—'} (₹)`];
+  const hdr = sh.add(hasPrev ? ['Particulars','Note',colHead[0],colHead[1],'Change (₹)','Change %'] : ['Particulars','Note',colHead[0]], 'hdr', {ht:32});
+  sh.freeze(hdr+1, 0); sh.repeat(hdr);
+  const W = rbxStmt(sh, {hasPrev, pctCol:false});
+  const det = (ls, sign) => rbxLedgerDetails(ls, cur, prev, sign);
+  const NL = (label, title, ls, sign, st, o) => rbxNotedLine(W, notes, label, title, det(ls, sign), colHead, st, {labelStyle:'in1', ...(o||{})});
+  const secRow = t => sh.add([t], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const sub = t => sh.add([t], 'b');
+  secRow('I. EQUITY AND LIABILITIES');
+  sub("(1) Shareholders' Funds");
+  const a1 = NL('(a) Share Capital', 'Share Capital / Proprietor\'s Capital', bs.shareCapitalLedgers, -1);
+  // Reserves: opening (cumulative profit to the day before the year) + profit for the year = closing
+  const opR = scheduleIIIProfitLossData(null, rbxDayBefore(fy.curBounds.start)).profitForPeriod;
+  const prOpR = hasPrev ? scheduleIIIProfitLossData(null, rbxDayBefore(fy.priorBounds.start)).profitForPeriod : 0;
+  const rn = notes.reserves(opR, bs.reservesAndSurplus-opR, prOpR, hasPrev ? pb.reservesAndSurplus-prOpR : 0, colHead);
+  const a2 = W.noted('(b) Reserves and Surplus', rn, null, '', {labelStyle:'in1'});
+  const sf = W.calc("Total Shareholders' Funds", [{r:a1},{r:a2}], 'tot');
+  const sam = W.line('(2) Share Application Money Pending Allotment', 0, hasPrev?0:undefined, 'b');
+  sub('(3) Non-Current Liabilities');
+  const n1 = NL('(a) Long-term Borrowings', 'Long-term Borrowings', bs.longTermBorrowings, -1);
+  const n2 = W.line('(b) Deferred Tax Liabilities (Net)', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const n3 = W.line('(c) Other Long-term Liabilities', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const n4 = W.line('(d) Long-term Provisions', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const ncl = W.calc('Total Non-Current Liabilities', [n1,n2,n3,n4].map(r=>({r})), 'tot');
+  sub('(4) Current Liabilities');
+  const c1 = W.line('(a) Short-term Borrowings', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const msme = det(bs.msmeTradePayableLedgers,-1), oth = det(bs.otherTradePayableLedgers,-1);
+  let c2;
+  if(msme.length || oth.length){
+    const tpn = notes.add('Trade Payables', [{heading:'(A) Micro and small enterprises', details:msme},{heading:'(B) Creditors other than micro and small enterprises', details:oth}], colHead, 'Ageing of trade payables (Schedule III format) is on the Ageing sheet. MSME status comes from the "MSME supplier" setting on each supplier ledger.');
+    c2 = W.noted('(b) Trade Payables', tpn, null, '', {labelStyle:'in1'});
+    W.noted('(A) total outstanding dues of micro and small enterprises', tpn, 0, 'i', {labelStyle:'in3+i+muted'});
+    W.noted('(B) total outstanding dues of creditors other than micro and small enterprises', tpn, 1, 'i', {labelStyle:'in3+i+muted'});
+  } else c2 = W.line('(b) Trade Payables', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const c3 = NL('(c) Other Current Liabilities', 'Other Current Liabilities (incl. duties and taxes)', bs.otherCurrentLiabLedgers, -1);
+  const c4 = NL('(d) Short-term Provisions', 'Short-term Provisions', bs.provisionLedgers, -1);
+  const cl = W.calc('Total Current Liabilities', [c1,c2,c3,c4].map(r=>({r})), 'tot');
+  const tel = W.calc('TOTAL — EQUITY AND LIABILITIES', [{r:sf},{r:sam},{r:ncl},{r:cl}], 'grand');
+  sh.skip(1); secRow('II. ASSETS');
+  sub('(1) Non-Current Assets');
+  const f1 = NL('(a) Property, Plant and Equipment and Intangible Assets', 'Property, Plant and Equipment (net of depreciation)', bs.ppe, 1);
+  const f2 = NL('(b) Non-current Investments', 'Non-current Investments', bs.investments, 1);
+  const f3 = W.line('(c) Deferred Tax Assets (Net)', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const f4 = W.line('(d) Long-term Loans and Advances', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const f5 = NL('(e) Other Non-current Assets', 'Other Non-current Assets (Miscellaneous Expenditure not written off)', bs.miscExpenditure, 1);
+  const nca = W.calc('Total Non-Current Assets', [f1,f2,f3,f4,f5].map(r=>({r})), 'tot');
+  sub('(2) Current Assets');
+  const g1 = W.line('(a) Current Investments', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const g2 = NL('(b) Inventories', 'Inventories', bs.inventoryLedgers, 1);
+  const trd = det(bs.tradeReceivableLedgers,1);
+  const g3 = trd.length ? W.noted('(c) Trade Receivables', notes.add('Trade Receivables (unsecured, considered good)', [{details:trd}], colHead, 'Ageing of trade receivables (Schedule III format) is on the Ageing sheet.'), null, '', {labelStyle:'in1'}) : W.line('(c) Trade Receivables', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const g4 = NL('(d) Cash and Cash Equivalents', 'Cash and Cash Equivalents', bs.cashLedgers, 1);
+  const g5 = NL('(e) Short-term Loans and Advances', 'Short-term Loans and Advances', bs.loanAdvanceLedgers, 1);
+  const g6 = NL('(f) Other Current Assets', 'Other Current Assets (incl. input tax credit)', bs.otherCurrentAssetLedgers, 1);
+  const g7 = NL('(g) Suspense Account', 'Suspense Account (to be cleared)', bs.suspenseLedgers, 1);
+  const ca = W.calc('Total Current Assets', [g1,g2,g3,g4,g5,g6,g7].map(r=>({r})), 'tot');
+  const ta = W.calc('TOTAL — ASSETS', [{r:nca},{r:ca}], 'grand');
+  sh.skip(1);
+  const chk = W.calc('Check: Equity and Liabilities − Assets (should be nil)', [{r:tel},{r:ta,sign:-1}], 'b');
+  sh.check(chk, W.C);
+  rbxNotes(sh, ['Click a note number to jump to its break-up on the Notes sheet. Every line, total and check is a live formula.',
+    'Disclosures that need data this system does not record (share capital reconciliation, promoter shareholding, Additional Regulatory Information) are not included.'], N);
+  rbxSignatures(sh, N);
+  return {sh, diff: W.val(chk, W.C), totalAssets: W.val(ta, W.C), totalEL: W.val(tel, W.C)};
+}
+
+/* ---------- Statement of Profit and Loss (Schedule III, Division I) ---------- */
+function rbxSheetProfitLoss(book, fy, notes){
+  fy = fy || rbxFyCtx(); notes = notes || rbxNotesSheet(book, fy);
+  const hasPrev = !!fy.prevPl, pl = fy.pl;
+  const sh = book.sheet('Profit and Loss', {landscape:hasPrev, tab:'2E7D5B', header:'Statement of Profit and Loss'});
+  const N = hasPrev ? 7 : 4; sh.widths(hasPrev ? [58,7,17,10,17,16,10] : [64,8,20,12]);
+  rbxTitle(sh, 'Statement of Profit and Loss (Schedule III, Division I, Companies Act 2013)', `For the period ${fy.periodLabel}${hasPrev?` · previous period ${fy.prevPeriodLabel}`:''}`, N);
+  const curF = rbxNets(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf);
+  const prevF = hasPrev ? rbxNets(v=>v.date>=fy.priorBounds.start && v.date<=fy.priorBounds.end) : null;
+  const colHead = [`${fy.currentFY} to date (₹)`, `${fy.priorFY} (₹)`];
+  const hdr = sh.add(hasPrev ? ['Particulars','Note','Current period (₹)','% of revenue','Previous period (₹)','Change (₹)','Change %'] : ['Particulars','Note','Current period (₹)','% of revenue'], 'hdr', {ht:32});
+  sh.freeze(hdr+1, 0); sh.repeat(hdr);
+  let revRow = null;
+  const W = rbxStmt(sh, {hasPrev, pctCol:true, baseRow:()=>revRow, baseVal:()=>pl.revenueFromOperations});
+  const det = (ls, sign) => rbxLedgerDetails(ls, curF, prevF, sign);
+  const NL = (label, title, ls, sign, st, o) => rbxNotedLine(W, notes, label, title, det(ls, sign), colHead, st, o);
+  revRow = sh.r;
+  const rI = NL('I. Revenue from Operations', 'Revenue from Operations', pl.revenueLedgers, -1, 'b');
+  const rII = NL('II. Other Income', 'Other Income', pl.otherIncomeLedgers, -1, 'b');
+  const rIII = W.calc('III. Total Income (I + II)', [{r:rI},{r:rII}], 'tot');
+  sh.skip(1); sh.add(['IV. Expenses'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const e1 = NL('Purchases of Stock-in-Trade / Cost of materials consumed', 'Purchases of Stock-in-Trade', pl.purchaseLedgers, 1, '', {labelStyle:'in1'});
+  const e2 = W.line('Changes in inventories of finished goods, work-in-progress and stock-in-trade', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const e3 = NL('Employee Benefits Expense', 'Employee Benefits Expense', pl.employeeLedgers, 1, '', {labelStyle:'in1'});
+  const e4 = NL('Finance Costs', 'Finance Costs', pl.financeCostLedgers, 1, '', {labelStyle:'in1'});
+  const e5 = NL('Depreciation and Amortisation Expense', 'Depreciation and Amortisation Expense', pl.depreciationLedgers, 1, '', {labelStyle:'in1'});
+  const e6 = NL('Other Expenses', 'Other Expenses', pl.otherExpenseLedgers, 1, '', {labelStyle:'in1'});
+  const rIV = W.calc('Total Expenses (IV)', [e1,e2,e3,e4,e5,e6].map(r=>({r})), 'tot');
+  sh.skip(1);
+  const rV = W.calc('V. Profit before Exceptional and Extraordinary Items and Tax (III − IV)', [{r:rIII},{r:rIV,sign:-1}], 'b');
+  const rVI = W.line('VI. Exceptional Items', 0, hasPrev?0:undefined);
+  const rVII = W.calc('VII. Profit before Tax (V − VI)', [{r:rV},{r:rVI,sign:-1}], 'tot');
+  sh.add(['VIII. Tax Expense'], 'b');
+  const t1 = W.line('(1) Current Tax', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const t2 = W.line('(2) Deferred Tax', 0, hasPrev?0:undefined, '', {labelStyle:'in1'});
+  const rIX = W.calc('IX. Profit / (Loss) for the Period (VII − VIII)', [{r:rVII},{r:t1,sign:-1},{r:t2,sign:-1}], 'grand');
+  sh.skip(1); sh.add(['X. Earnings per Equity Share'], 'b');
+  sh.add(['(1) Basic', null, 'Not computed'], '', {styles:['in1','','muted+r']}); sh.add(['(2) Diluted', null, 'Not computed'], '', {styles:['in1','','muted+r']});
+  rbxNotes(sh, ['"% of revenue" shows each line as a share of Revenue from Operations (common-size). Change columns compare with the previous financial year.',
+    'Income tax is not tracked separately from GST in this system, so Current and Deferred Tax show nil. Earnings per share needs share count and face value, which are not recorded.'], N);
+  rbxSignatures(sh, N);
+  return {sh, profit: W.val(rIX, W.C), prevProfit: hasPrev ? W.val(rIX, W.P) : null, revenue: W.val(rI, W.C)};
+}
+
+/* ---------- Monthly P&L (management view) ---------- */
+function rbxSheetMonthlyPL(book, fy){
+  fy = fy || rbxFyCtx();
+  const pl = fy.pl;
+  const months = []; { let d = new Date(fy.curBounds.start+'T00:00:00'); const end = fy.asOf.slice(0,7); while(months.length<24){ const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; months.push(k); if(k>=end) break; d = new Date(d.getFullYear(), d.getMonth()+1, 1); } }
+  const lines = [['rev','Revenue from operations',pl.revenueLedgers,-1],['oi','Other income',pl.otherIncomeLedgers,-1],['pur','Purchases of stock-in-trade',pl.purchaseLedgers,1],['emp','Employee benefits',pl.employeeLedgers,1],['fin','Finance costs',pl.financeCostLedgers,1],['dep','Depreciation and amortisation',pl.depreciationLedgers,1],['oth','Other expenses',pl.otherExpenseLedgers,1]];
+  const lmap = new Map(); lines.forEach(([k,,ls,sg])=>ls.forEach(l=>lmap.set(l.id,{k,sg})));
+  const agg = {}; lines.forEach(([k])=>{ agg[k] = {}; months.forEach(m=>agg[k][m]=0); });
+  for(const v of state.vouchers){ if(v.date<fy.curBounds.start || v.date>fy.asOf) continue; const m = v.date.slice(0,7);
+    for(const e of v.entries){ const x = lmap.get(e.ledgerId); if(!x || agg[x.k][m]===undefined) continue; agg[x.k][m] += x.sg*((e.dr||0)-(e.cr||0)); } }
+  const N = months.length + 2;
+  const sh = book.sheet('Monthly P&L', {landscape:true, tab:'4A9C7A', header:'Monthly Profit and Loss'});
+  sh.widths([30, ...months.map(()=>12.5), 15]);
+  rbxTitle(sh, `Monthly Profit and Loss — FY ${fy.currentFY}`, `For the period ${fy.periodLabel} · same lines as the Statement of Profit and Loss`, N);
+  const label = m => new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'short',year:'2-digit'});
+  const hdr = sh.add(['Particulars', ...months.map(label), 'Total'], 'hdr', {ht:24});
+  sh.freeze(hdr+1, 1); sh.repeat(hdr);
+  const T = months.length+1, rowOf = {};
+  const dataRow = (k, lab, st) => { const r = sh.r; const vals = months.map(m=>rbxR2(agg[k][m]));
+    sh.add([lab, ...vals, rbxF(`SUM(${RBX.ref(r,1)}:${RBX.ref(r,T-1)})`, rbxR2(vals.reduce((a,b)=>a+b,0)))], 'amt', {styles:[st||'in1', ...months.map(()=>'amt'), 'amt+b']}); rowOf[k] = r; return r; };
+  const calcRow = (lab, terms, st) => { const r = sh.r; const cells = [];
+    for(let c=1;c<=T;c++) cells.push(rbxF(terms.map((t,i)=>(t.s<0?'-':(i?'+':''))+RBX.ref(t.r,c)).join(''), rbxR2(terms.reduce((s,t)=>{ const cell = sh.rows[t.r].cells[c]; return s+(t.s<0?-1:1)*(cell?cell.v:0); },0))));
+    sh.add([lab, ...cells], st, {styles:[st, ...cells.map(()=>'amt+'+st)]}); return r; };
+  sh.add(['Income'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  dataRow('rev','Revenue from operations'); dataRow('oi','Other income');
+  const ti = calcRow('Total income', [{r:rowOf.rev},{r:rowOf.oi}], 'tot');
+  sh.add(['Expenses'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  ['pur','emp','fin','dep','oth'].forEach(k=>dataRow(k, lines.find(x=>x[0]===k)[1]));
+  const te = calcRow('Total expenses', ['pur','emp','fin','dep','oth'].map(k=>({r:rowOf[k]})), 'tot');
+  sh.skip(1);
+  const pr = calcRow('Profit / (loss)', [{r:ti},{r:te,s:-1}], 'grand');
+  const mr = sh.r; const mcells = []; for(let c=1;c<=T;c++){ const inc = sh.rows[rowOf.rev].cells[c].v; mcells.push(rbxF(`IF(${RBX.ref(rowOf.rev,c)}=0,"",${RBX.ref(pr,c)}/${RBX.ref(rowOf.rev,c)})`, inc ? sh.rows[pr].cells[c].v/inc : '')); }
+  sh.add(['Net profit margin', ...mcells], 'pct', {styles:['i+muted', ...mcells.map(()=>'pct+i')]});
+  sh.cfBar(`${RBX.ref(pr,1)}:${RBX.ref(pr,T-1)}`, '7FB89A');
+  rbxNotes(sh, ['Each month is the movement on the ledgers behind each Statement of Profit and Loss line; the Total column equals the statement for the period.'], N);
+  return {sh, profit: sh.rows[pr].cells[T].v};
+}
+
+/* ---------- Ageing of receivables and payables (FIFO against the latest bills) ---------- */
+function rbxAgeing(asOf, kind){
+  // kind 'rec': customers, balance > 0 matched against debits; 'pay': suppliers, balance < 0 matched against credits.
+  const isParty = l => kind==='rec' ? (l.group==='sundeb' || l.partyType==='customer') : (l.group==='sundcr' || l.partyType==='supplier');
+  const parties = state.ledgers.filter(isParty), ids = new Set(parties.map(l=>l.id));
+  const bills = new Map(); parties.forEach(l=>bills.set(l.id, []));
+  for(const v of state.vouchers){ if(v.date>asOf) continue;
+    for(const e of v.entries){ if(!ids.has(e.ledgerId)) continue; const amt = kind==='rec' ? (e.dr||0) : (e.cr||0); if(amt>0) bills.get(e.ledgerId).push({date:v.date, amt}); } }
+  const bal = rbxBalancesAsOf(asOf), day = 86400000, asOfT = new Date(asOf+'T00:00:00').getTime();
+  const start = (currentCompany && currentCompany.booksFrom) || asOf;
+  return parties.map(l=>{
+    let out = kind==='rec' ? (bal.get(l.id)||0) : -(bal.get(l.id)||0);
+    if(out<=0.004) return null;
+    const list = bills.get(l.id).sort((a,b)=>a.date<b.date?1:-1), parts = [];
+    for(const b of list){ if(out<=0.004) break; const take = Math.min(out, b.amt); parts.push({date:b.date, amt:take}); out -= take; }
+    if(out>0.004) parts.push({date:start, amt:out, opening:true});
+    const ages = parts.map(p=>({...p, days: Math.max(0, Math.round((asOfT - new Date(p.date+'T00:00:00').getTime())/day))}));
+    return { l, total: ages.reduce((s,p)=>s+p.amt,0), ages, credit: Number(l.creditDays)||0, msme: !!l.isMSME };
+  }).filter(Boolean).sort((a,b)=>b.total-a.total);
+}
+function rbxSheetAgeing(book, fy){
+  fy = fy || rbxFyCtx();
+  const sh = book.sheet('Ageing', {landscape:true, tab:'B7791F', header:'Ageing of receivables and payables'});
+  const N = 10; sh.widths([34,9,16,14,14,14,14,14,14,16]);
+  rbxTitle(sh, 'Ageing of Trade Receivables and Trade Payables', `As at ${fy.asOfLabel} · outstanding amounts matched to the most recent bills first (FIFO)`, N);
+  const B = [[0,30,'0–30 days'],[31,60,'31–60 days'],[61,90,'61–90 days'],[91,180,'91–180 days'],[181,365,'181–365 days'],[366,1e9,'Over 1 year']];
+  const block = (kind, title) => {
+    const rows = rbxAgeing(fy.asOf, kind);
+    sh.add([title], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+    const hdr = sh.add(['Party','Credit days','Outstanding (₹)', ...B.map(b=>b[2]), 'Past credit days (₹)'], 'hdr', {ht:28});
+    const f1 = sh.r;
+    rows.forEach(x=>{ const r = sh.r, bucket = B.map(([a,b])=>rbxR2(x.ages.filter(p=>p.days>=a && p.days<=b).reduce((s,p)=>s+p.amt,0)));
+      const overdue = rbxR2(x.ages.filter(p=>p.days>x.credit).reduce((s,p)=>s+p.amt,0));
+      sh.add([x.l.name+(kind==='pay'&&x.msme?'  (MSME)':''), x.credit||'—', rbxF(`SUM(${RBX.ref(r,3)}:${RBX.ref(r,8)})`, rbxR2(x.total)), ...bucket, overdue], 'amt', {styles:['l', x.credit?'int+c':'muted+c','amt+b', ...bucket.map(()=>'amt'), overdue>0?'amt+negc':'amt']}); });
+    const f2 = sh.r-1;
+    if(rows.length){
+      const tot = c => rbxF(`SUBTOTAL(9,${RBX.ref(f1,c)}:${RBX.ref(f2,c)})`, rbxR2(rows.reduce((s,x,i)=>s+(sh.rows[f1+i].cells[c].v||0),0)));
+      const tr = sh.add(['Total','', tot(2), tot(3), tot(4), tot(5), tot(6), tot(7), tot(8), tot(9)], 'grand', {styles:['grand','grand', ...Array(8).fill('amt+grand')]});
+      const tv = sh.rows[tr].cells[2].v;
+      sh.add(['Share of total','', '', ...[3,4,5,6,7,8,9].map(c=>rbxF(`IF(${RBX.ref(tr,2)}=0,"",${RBX.ref(tr,c)}/${RBX.ref(tr,2)})`, tv ? sh.rows[tr].cells[c].v/tv : ''))], 'pct', {styles:['i+muted','','', ...Array(7).fill('pct+i')]});
+      sh.cfBar(`${RBX.ref(f1,2)}:${RBX.ref(f2,2)}`, 'D9B26A');
+    } else sh.add(['Nothing outstanding.'], 'i+muted');
+    sh.skip(1);
+    return rows;
+  };
+  const rec = block('rec', 'A. Trade receivables — party-wise');
+  const pay = block('pay', 'B. Trade payables — party-wise');
+  // Schedule III ageing tables
+  const sum = (rows, a, b, f) => rbxR2(rows.filter(f||(()=>true)).reduce((s,x)=>s+x.ages.filter(p=>p.days>=a && p.days<=b).reduce((t,p)=>t+p.amt,0),0));
+  sh.add(['C. Trade receivables ageing schedule (Schedule III) — outstanding for the following periods from due date of payment'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const RB = [[0,182,'Less than 6 months'],[183,365,'6 months – 1 year'],[366,730,'1–2 years'],[731,1095,'2–3 years'],[1096,1e9,'More than 3 years']];
+  const h1 = sh.add(['Particulars',null,null, ...RB.map(x=>x[2]),'Total'], 'hdr', {ht:30}); sh.merge(h1,0,h1,2);
+  const r1 = sh.r;
+  sh.add(['(i) Undisputed trade receivables — considered good',null,null, ...RB.map(([a,b])=>sum(rec,a,b)), rbxF(`SUM(${RBX.ref(r1,3)}:${RBX.ref(r1,7)})`, rbxR2(rec.reduce((s,x)=>s+x.total,0)))], 'amt', {styles:['l', '', '', ...RB.map(()=>'amt'), 'amt+b']}); sh.merge(r1,0,r1,2);
+  ['(ii) Undisputed trade receivables — considered doubtful','(iii) Disputed trade receivables — considered good','(iv) Disputed trade receivables — considered doubtful'].forEach(t=>{ const r = sh.add([t,null,null,0,0,0,0,0,0], 'amt', {styles:['l+muted']}); sh.merge(r,0,r,2); });
+  sh.skip(1);
+  sh.add(['D. Trade payables ageing schedule (Schedule III) — outstanding for the following periods from due date of payment'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const PB = [[0,365,'Less than 1 year'],[366,730,'1–2 years'],[731,1095,'2–3 years'],[1096,1e9,'More than 3 years']];
+  const h2 = sh.add(['Particulars',null,null, ...PB.map(x=>x[2]),'Total'], 'hdr', {ht:30}); sh.merge(h2,0,h2,2);
+  const pr = (t, f) => { const r = sh.r; const v = PB.map(([a,b])=>sum(pay,a,b,f)); sh.add([t,null,null, ...v, rbxF(`SUM(${RBX.ref(r,3)}:${RBX.ref(r,6)})`, rbxR2(v.reduce((a,b)=>a+b,0)))], 'amt', {styles:['l','','', ...PB.map(()=>'amt'), 'amt+b']}); sh.merge(r,0,r,2); };
+  pr('(i) MSME', x=>x.msme); pr('(ii) Others', x=>!x.msme);
+  ['(iii) Disputed dues — MSME','(iv) Disputed dues — Others'].forEach(t=>{ const r = sh.add([t,null,null,0,0,0,0,0], 'amt', {styles:['l+muted']}); sh.merge(r,0,r,2); });
+  rbxNotes(sh, ['Each party\'s balance is matched to its most recent invoices (receivables) or bills (payables) first, so whatever remains is the oldest — the usual FIFO basis. Any balance older than the first bill is treated as dating from the start of the books.',
+    'Days are counted from the bill date. "Past credit days" uses the credit days set on each party ledger. Disputed and doubtful rows are shown as nil because the books do not record disputes.'], N);
+  return {sh, rec: rbxR2(rec.reduce((s,x)=>s+x.total,0)), pay: rbxR2(pay.reduce((s,x)=>s+x.total,0))};
+}
+
+/* ---------- General Ledger (every account, running balance) ---------- */
+function rbxSheetGeneralLedger(book, fy){
+  fy = fy || rbxFyCtx();
+  const LIMIT = 60000;
+  const sh = book.sheet('General Ledger', {landscape:true, tab:'5B6B63', header:'General Ledger', pdf:false});
+  const N = 7; sh.widths([12,13,20,46,16,16,18]);
+  rbxTitle(sh, 'General Ledger — every account with running balance', `For the period ${fy.periodLabel}`, N);
+  const hdr = sh.add(['Date','Voucher type','Voucher no.','Particulars','Debit (₹)','Credit (₹)','Balance'], 'hdr', {ht:26});
+  sh.freeze(hdr+1,0); sh.repeat(hdr);
+  let maps = {inv:new Map(), cn:new Map(), dn:new Map()}; try{ maps = gstDocNumberMaps(); }catch(e){}
+  const vs = state.vouchers.filter(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf).sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
+  const seq = {}, noOf = new Map();
+  vs.forEach(v=>{ const fyl = fyLabelForDate(v.date), k = v.type+'|'+fyl; seq[k]=(seq[k]||0)+1; noOf.set(v.id, maps.inv.get(v.id)||maps.cn.get(v.id)||maps.dn.get(v.id)||`${v.type.slice(0,3).toUpperCase()}/${fyl}/${String(seq[k]).padStart(4,'0')}`); });
+  const byLedger = new Map();
+  vs.forEach(v=>v.entries.forEach(e=>{ if(!(e.dr||e.cr)) return; if(!byLedger.has(e.ledgerId)) byLedger.set(e.ledgerId, []); byLedger.get(e.ledgerId).push({v,e}); }));
+  const opening = rbxBalancesAsOf(rbxDayBefore(fy.curBounds.start));
+  const catOrder = ['Capital','Liabilities','Assets','Income','Expenses'];
+  const ledgers = state.ledgers.filter(l=>byLedger.has(l.id) || Math.abs(opening.get(l.id)||0)>0.004)
+    .sort((a,b)=>{ const ga = groupOf(a.group), gb = groupOf(b.group); return (ga?catOrder.indexOf(ga.cat):9)-(gb?catOrder.indexOf(gb.cat):9) || a.name.localeCompare(b.name); });
+  let n = 0, cut = false;
+  for(const l of ledgers){
+    if(n>=LIMIT){ cut = true; break; }
+    const g = groupOf(l.group);
+    sh.add([`${l.name}  ·  ${g?g.name:''}`], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+    const op = rbxR2(opening.get(l.id)||0);
+    const or = sh.add([{date:fy.curBounds.start}, '', '', 'Opening balance', null, null, op], '', {styles:['date+i+muted','','','i+muted','','','drcr+i']});
+    let prevR = or, dT = 0, cT = 0;
+    for(const {v,e} of (byLedger.get(l.id)||[])){
+      if(n>=LIMIT){ cut = true; break; }
+      const others = v.entries.filter(x=>x.ledgerId!==l.id && (x.dr||x.cr)).map(x=>{ const ol = ledgerOf(x.ledgerId); return ol?ol.name:'?'; });
+      const part = (others.length ? others[0]+(others.length>1?` + ${others.length-1} more`:'') : '') + (v.narration ? ` — ${v.narration}` : '');
+      const d = rbxR2(e.dr||0), c = rbxR2(e.cr||0), r = sh.r;
+      const runV = rbxR2(sh.rows[prevR].cells[6].v + d - c);
+      sh.add([{date:v.date}, v.type, noOf.get(v.id)||'', part, d||null, c||null, rbxF(`${RBX.ref(prevR,6)}+${RBX.ref(r,4)}-${RBX.ref(r,5)}`, runV)], '', {lvl:1, styles:['date','','muted+sm','sm','amt','amt','drcr']});
+      prevR = r; dT += d; cT += c; n++;
+    }
+    sh.add(['','','','Closing balance', rbxR2(dT), rbxR2(cT), rbxF(RBX.ref(prevR,6), sh.rows[prevR].cells[6].v)], 'tot', {styles:['tot','tot','tot','tot','amt+tot','amt+tot','drcr+tot']});
+    sh.skip(1);
+  }
+  rbxNotes(sh, [cut ? `Only the first ${LIMIT.toLocaleString('en-IN')} lines are listed; use the Ledger screen for the rest.` : '',
+    'Balance is a running formula (previous balance + debit − credit) shown as Dr or Cr. Particulars name the other side of each voucher, like a printed ledger.'], N);
+  return {sh, lines:n, ledgers: ledgers.length};
+}
+/* ---------- Trial Balance (extended: opening, movements, closing; grouped by primary group) ---------- */
+function rbxSheetTrialBalance(book){
+  const sh = book.sheet('Trial Balance', {landscape:true, tab:'1F6B45', header:'Trial Balance'});
+  const N = 8; sh.widths([44,26,16,16,16,16,16,16]);
+  rbxTitle(sh, 'Trial Balance (Extended) — opening balance, movements and closing balance', `As at ${humanDate(new Date().toISOString().slice(0,10))} · all vouchers to date`, N);
+  const dr = new Map(), cr = new Map();
+  for(const v of state.vouchers) for(const e of v.entries){ if(e.dr) dr.set(e.ledgerId,(dr.get(e.ledgerId)||0)+e.dr); if(e.cr) cr.set(e.ledgerId,(cr.get(e.ledgerId)||0)+e.cr); }
+  const hdr = sh.add(['Particulars','Group','Opening Dr','Opening Cr','Debits','Credits','Closing Dr','Closing Cr'], 'hdr', {ht:30});
+  sh.freeze(hdr+1, 1); sh.repeat(hdr);
+  const catOrder = ['Capital','Liabilities','Assets','Income','Expenses'];
+  const primaryOf = l => { const g = groupOf(l.group); if(!g) return null; return g.parent ? groupOf(g.parent) : g; };
+  const buckets = new Map();
+  state.ledgers.forEach(l=>{ const p = primaryOf(l); const key = p ? p.id : '__other'; if(!buckets.has(key)) buckets.set(key, {g:p, ledgers:[]}); buckets.get(key).ledgers.push(l); });
+  const keys = [...buckets.keys()].sort((a,b)=>{ const A = buckets.get(a).g, B = buckets.get(b).g;
+    const ca = A ? catOrder.indexOf(A.cat) : 9, cb = B ? catOrder.indexOf(B.cat) : 9; return ca-cb || (A?A.name:'zz').localeCompare(B?B.name:'zz'); });
+  const firstData = sh.r; let totOD=0, totOC=0, totD=0, totC=0, totCD=0, totCC=0;
+  keys.forEach(k=>{
+    const {g, ledgers} = buckets.get(k);
+    const hr = sh.r; sh.skip(1); const f1 = sh.r; let s = [0,0,0,0,0,0];
+    ledgers.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(l=>{
+      const op = l.opening||0, d = rbxR2(dr.get(l.id)||0), c = rbxR2(cr.get(l.id)||0), od = op>0?rbxR2(op):0, oc = op<0?rbxR2(-op):0;
+      const close = rbxR2(od-oc+d-c), r = sh.r, sub = groupOf(l.group);
+      const cd = close>0?close:0, cc = close<0?-close:0;
+      sh.add([l.name, sub ? sub.name : (l.group||'—'), od, oc, d, c,
+        rbxF(`MAX(0,${RBX.ref(r,2)}-${RBX.ref(r,3)}+${RBX.ref(r,4)}-${RBX.ref(r,5)})`, cd), rbxF(`MAX(0,-(${RBX.ref(r,2)}-${RBX.ref(r,3)}+${RBX.ref(r,4)}-${RBX.ref(r,5)}))`, cc)],
+        'amt', {lvl:1, styles:['in1','muted+sm']});
+      s = [s[0]+od, s[1]+oc, s[2]+d, s[3]+c, s[4]+cd, s[5]+cc];
+    });
+    const f2 = sh.r-1, save = sh.r; sh.r = hr;
+    sh.add([g ? g.name : 'Other / ungrouped', g ? `${g.cat} · ${g.nature} nature` : '', ...[2,3,4,5,6,7].map((c,i)=>rbxF(`SUBTOTAL(9,${RBX.ref(f1,c)}:${RBX.ref(f2,c)})`, rbxR2(s[i])))], 'sec', {styles:['sec','sec+sm','amt+sec','amt+sec','amt+sec','amt+sec','amt+sec','amt+sec']});
+    sh.r = save;
+    totOD+=s[0]; totOC+=s[1]; totD+=s[2]; totC+=s[3]; totCD+=s[4]; totCC+=s[5];
+  });
+  const lastData = sh.r-1; sh.filter(hdr,0,lastData,N-1);
+  const tr = sh.add(['Grand Total','', ...[2,3,4,5,6,7].map((c,i)=>rbxF(`SUBTOTAL(9,${RBX.ref(firstData,c)}:${RBX.ref(lastData,c)})`, rbxR2([totOD,totOC,totD,totC,totCD,totCC][i])))], 'grand', {styles:['grand','grand','amt+grand','amt+grand','amt+grand','amt+grand','amt+grand','amt+grand']});
+  const diff = rbxR2(totCD-totCC), odiff = rbxR2(totOD-totOC);
+  const dr1 = sh.add(['Difference in closing balances (Dr − Cr) — should be nil','', '', '', '', '', rbxF(`${RBX.ref(tr,6)}-${RBX.ref(tr,7)}`, diff)], 'b', {styles:['b','','','','','','amt+b']});
+  const dr2 = sh.add(['Difference in opening balances (Dr − Cr)','', rbxF(`${RBX.ref(tr,2)}-${RBX.ref(tr,3)}`, odiff)], 'i+muted', {styles:['i+muted','','amt+i']});
+  sh.add(['Movements check: total debits − total credits (every voucher balances, so this is nil)','', '', '', rbxF(`${RBX.ref(tr,4)}-${RBX.ref(tr,5)}`, rbxR2(totD-totC))], 'i+muted', {styles:['i+muted','','','','amt+i']});
+  sh.check(dr1,6);
+  rbxNotes(sh, ['Closing = Opening + Debits − Credits (live formula on every ledger row). Group and grand totals use SUBTOTAL, so they stay correct when you filter the list.',
+    'Use the − / + buttons on the left (or Data → Ungroup) to collapse the list to group totals.'], N);
+  return {sh, diff};
+}
+
+/* ---------- Cash Flow Statement (direct method) ---------- */
+function rbxSheetCashFlow(book){
+  const cf = cashFlowData();
+  const sh = book.sheet('Cash Flow', {landscape:true, tab:'4A9C7A', header:'Cash Flow Statement'});
+  const N = 7; sh.widths([13,14,50,24,16,16,16]);
+  rbxTitle(sh, 'Statement of Cash Flows (Direct Method)', 'All vouchers to date · Contra (cash ↔ bank) transfers excluded', N);
+  sh.add(['Summary'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const sumRows = {}; const label = (t, st) => { const r = sh.add([t,'','','','','',null], st||'', {styles:[st||'']}); sh.merge(r,0,r,5); return r; };
+  sumRows.open = label('Cash and cash equivalents at the beginning (opening balances of Cash and Bank ledgers)');
+  sumRows.op = label('Net cash from / (used in) operating activities');
+  sumRows.inv = label('Net cash from / (used in) investing activities');
+  sumRows.fin = label('Net cash from / (used in) financing activities');
+  sumRows.net = label('Net increase / (decrease) in cash and cash equivalents', 'tot');
+  sumRows.close = label('Cash and cash equivalents at the end', 'grand');
+  sumRows.ledg = label('Cash and Bank ledgers per books (for comparison)', 'i+muted');
+  sumRows.diff = label('Difference (should be nil)', 'b');
+  sh.skip(1);
+  const sec = {};
+  [['operating','A. Cash flows from operating activities'],['investing','B. Cash flows from investing activities'],['financing','C. Cash flows from financing activities']].forEach(([k,t])=>{
+    sh.add([t], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+    const h = sh.add(['Date','Voucher','Particulars','Cash / Bank ledger','Inflow (₹)','Outflow (₹)','Net (₹)'], 'hdr', {ht:24, pdfHide:true});
+    const f1 = sh.r; let tin=0, tout=0;
+    cf.detail[k].slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(d=>{
+      const inn = d.amount>0 ? rbxR2(d.amount) : 0, out = d.amount<0 ? rbxR2(-d.amount) : 0, r = sh.r;
+      sh.add([{date:d.date}, d.type, d.narration||d.type, d.ledger, inn, out, rbxF(`${RBX.ref(r,4)}-${RBX.ref(r,5)}`, rbxR2(inn-out))], '', {lvl:1, pdfHide:true, styles:['date','','wrap','muted','amt','amt','amt']});
+      tin+=inn; tout+=out;
+    });
+    const f2 = sh.r-1;
+    const tot = sh.add([`Net cash from / (used in) ${k} activities`,'','','', ...(f2>=f1 ? [4,5,6].map((c,i)=>rbxF(`SUBTOTAL(9,${RBX.ref(f1,c)}:${RBX.ref(f2,c)})`, rbxR2([tin,tout,tin-tout][i]))) : [0,0,0])], 'tot', {styles:['tot','tot','tot','tot','amt+tot','amt+tot','amt+tot']});
+    sh.merge(tot,0,tot,3);
+    sec[k] = {tot, val: rbxR2(tin-tout)};
+    sh.skip(1);
+  });
+  const put = (r, f, v, st) => sh.set(r, 6, v, st||'amt', {f});
+  put(sumRows.open, null, rbxR2(cf.openingCash));
+  put(sumRows.op, RBX.ref(sec.operating.tot,6), sec.operating.val);
+  put(sumRows.inv, RBX.ref(sec.investing.tot,6), sec.investing.val);
+  put(sumRows.fin, RBX.ref(sec.financing.tot,6), sec.financing.val);
+  put(sumRows.net, `${RBX.ref(sumRows.op,6)}+${RBX.ref(sumRows.inv,6)}+${RBX.ref(sumRows.fin,6)}`, rbxR2(sec.operating.val+sec.investing.val+sec.financing.val), 'amt+tot');
+  const closeV = rbxR2(cf.openingCash + sec.operating.val+sec.investing.val+sec.financing.val);
+  put(sumRows.close, `${RBX.ref(sumRows.open,6)}+${RBX.ref(sumRows.net,6)}`, closeV, 'amt+grand');
+  put(sumRows.ledg, null, rbxR2(cf.actualCash), 'amt+i+muted');
+  put(sumRows.diff, `${RBX.ref(sumRows.close,6)}-${RBX.ref(sumRows.ledg,6)}`, rbxR2(closeV-cf.actualCash), 'amt+b');
+  sh.check(sumRows.diff,6);
+  // Month by month
+  const months = cashFlowMonthlySeries(600);
+  if(months.length){
+    sh.add(['Month by month'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+    const h = sh.add(['Month','Operating','Investing','Financing','Cash in','Cash out','Net change'], 'hdr', {ht:24});
+    const m1 = sh.r;
+    months.forEach(m=>{ const r = sh.r; sh.add([{date:m.month+'-01'}, rbxR2(m.operating), rbxR2(m.investing), rbxR2(m.financing), rbxR2(m.cashIn), rbxR2(m.cashOut), rbxF(`${RBX.ref(r,4)}-${RBX.ref(r,5)}`, rbxR2(m.cashIn-m.cashOut))], 'amt', {styles:['mon']}); });
+    const m2 = sh.r-1;
+    sh.add(['Total', ...[1,2,3,4,5,6].map(c=>rbxF(`SUM(${RBX.ref(m1,c)}:${RBX.ref(m2,c)})`, rbxR2(months.reduce((s,m)=>s+[0,m.operating,m.investing,m.financing,m.cashIn,m.cashOut,m.cashIn-m.cashOut][c],0))))], 'amt+grand', {styles:['grand']});
+  }
+  rbxNotes(sh, ['Classification: a voucher touching fixed assets or investments is investing; capital or loans is financing; everything else is operating — the same rule as the Cash Flow screen. The PDF shows section totals; the Excel file also lists every cash and bank line.',
+    'Every cash or bank line is listed with its date, so the statement can be traced voucher by voucher. Section totals use SUBTOTAL and the summary links to them.'], N);
+  return {sh, diff: rbxR2(closeV-cf.actualCash)};
+}
+
+/* ---------- Ratio Analysis ---------- */
+function rbxSheetRatios(book){
+  const is = incomeStatementData(), bs = balanceSheetIFRSData(is.profitForPeriod), ra = ratioAnalysisData(is, bs);
+  const sh = book.sheet('Ratio Analysis', {landscape:true, tab:'6B8E23', header:'Ratio Analysis'});
+  const N = 7; sh.widths([16,30,46,14,30,15,58]);
+  rbxTitle(sh, 'Ratio Analysis — liquidity, solvency, profitability and efficiency', 'Life-to-date figures, same basis as the Ratio Analysis screen', N);
+  const hdr = sh.add(['Category','Ratio','How it is worked out','Value','Common guide','Status','What it tells you'], 'hdr', {ht:30});
+  sh.freeze(hdr+1, 0); sh.repeat(hdr);
+  const P = x => x==null ? null : x/100;
+  const rows = [
+    ['Liquidity','Current Ratio','Current assets ÷ Current liabilities', ra.currentRatio,'ratio','1.5× – 2.0× comfortable; below 1.0× is tight', v=>v>=1,'Can short-term assets cover short-term dues?'],
+    ['Liquidity','Quick Ratio','(Cash + Bank + Receivables) ÷ Current liabilities', ra.quickRatio,'ratio','1.0× or more', v=>v>=1,'Same test without counting stock.'],
+    ['Liquidity','Cash Ratio','(Cash + Bank) ÷ Current liabilities', ra.cashRatio,'ratio','0.2× – 0.5×+', v=>v>=0.2,'Dues that could be paid today from cash alone.'],
+    ['Liquidity','Working Capital','Current assets − Current liabilities', ra.workingCapital,'amt','Positive', v=>v>=0,'Money available to run day-to-day operations.'],
+    ['Solvency','Debt-to-Equity','Total liabilities ÷ Total equity', ra.debtToEquity,'ratio','1.0× or less', v=>v<=1,'How much of the business is funded by others versus owners.'],
+    ['Solvency','Debt Ratio','Total liabilities ÷ Total assets', ra.debtRatio,'ratio','0.5× or less', v=>v<=0.5,'Share of assets financed by liabilities.'],
+    ['Solvency','Equity Ratio','Total equity ÷ Total assets', ra.equityRatio,'ratio','0.5× or more', v=>v>=0.5,'Share of assets financed by owners.'],
+    ['Solvency','Interest Coverage','Operating profit ÷ Finance costs', ra.interestCoverage,'ratio','1.5× or more', v=>v>=1.5,'How comfortably profit covers interest.'],
+    ['Profitability','Gross Profit Margin','(Revenue − Cost of sales) ÷ Revenue', P(ra.grossMargin),'pct','Higher is better; compare with your industry', v=>v>=0,'Margin left after the direct cost of what was sold.'],
+    ['Profitability','Operating Profit Margin','Operating profit ÷ Revenue', P(ra.operatingMargin),'pct','Positive', v=>v>=0,'Profit from the core business before interest and tax.'],
+    ['Profitability','Net Profit Margin','Profit for the period ÷ Revenue', P(ra.netMargin),'pct','Positive', v=>v>=0,'What is kept from each rupee of sales.'],
+    ['Profitability','Return on Assets (ROA)','Profit ÷ Total assets', P(ra.roa),'pct','Positive', v=>v>=0,'How well assets are turned into profit.'],
+    ['Profitability','Return on Equity (ROE)','Profit ÷ Total equity', P(ra.roe),'pct','Positive', v=>v>=0,'Return earned on the owners\' money.'],
+    ['Efficiency','Asset Turnover','Revenue ÷ Total assets', ra.assetTurnover,'ratio','Higher is better', null,'Sales generated by each rupee of assets.'],
+    ['Efficiency','Trade Receivables Turnover','Revenue ÷ Receivables', ra.receivablesTurnover,'ratio','Higher is better', null,'How often receivables are collected in a year.'],
+    ['Efficiency','Days Sales Outstanding (DSO)','365 ÷ Receivables turnover', ra.dso,'days','Within your credit terms', null,'Average days customers take to pay.'],
+    ['Efficiency','Trade Payables Turnover','Cost of sales ÷ Payables', ra.payablesTurnover,'ratio','—', null,'How often suppliers are paid in a year.'],
+    ['Efficiency','Days Payable Outstanding (DPO)','365 ÷ Payables turnover', ra.dpo,'days','MSME suppliers: within 45 days', null,'Average days taken to pay suppliers (MSMED Act limits MSME credit to 45 days).'],
+    ['Efficiency','Inventory Turnover','Cost of sales ÷ Inventory', ra.inventoryTurnover,'ratio','Higher is better', null,'How often stock is sold and replaced.'],
+    ['Efficiency','Days Inventory Outstanding (DIO)','365 ÷ Inventory turnover', ra.dio,'days','Lower is better', null,'Average days stock is held.'],
+    ['Efficiency','Cash Conversion Cycle','DIO + DSO − DPO', ra.cashConversionCycle,'days','Lower is better', null,'Days cash stays tied up in the operating cycle.'],
+  ];
+  let lastCat = '';
+  rows.forEach(([cat,name,how,val,fmt,guide,test,means])=>{
+    const ok = (val==null || test==null) ? null : !!test(val);
+    const status = val==null ? 'No data' : ok==null ? '—' : ok ? '✓ Healthy' : '⚠ Watch';
+    const stStyle = ok==null ? 'muted+c' : ok ? 'posc+b+fgood+c' : 'negc+b+fbad+c';
+    sh.add([cat===lastCat?'':cat, name, how, val==null?'—':val, guide, status, means], '', {styles:['b+acc','b','muted+wrap', val==null?'muted+r':(fmt==='amt'?'amt+b':fmt+'+b'), 'sm+wrap', stStyle, 'sm+wrap'], ht:30});
+    lastCat = cat;
+  });
+  sh.skip(1);
+  sh.add(['Figures used'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const inputs = [['Revenue', is.revenue],['Cost of sales', is.costOfSales],['Gross profit', is.grossProfit],['Operating profit', is.operatingProfit],['Finance costs', is.financeCosts],['Profit for the period', is.profitForPeriod],
+    ['Total assets', bs.totalAssets],['Current assets', bs.currentAssetsTotal],['Total equity', bs.totalEquity],['Non-current liabilities', bs.nonCurrentLiabTotal],['Current liabilities', bs.currentLiabTotal],['Inventory', ra.inventoryTotal]];
+  inputs.forEach(([k,v])=>{ const r = sh.add(['',k,'', rbxR2(v)], '', {styles:['','','','amt']}); });
+  const series = (typeof ratioFYSeries==='function') ? ratioFYSeries(6) : [];
+  if(series.length>1){
+    sh.skip(1); sh.add(['Year-on-year trend'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+    const cols = series.map(s=>'FY '+s.fy);
+    sh.add(['','Ratio', ...cols], 'hdr', {ht:22});
+    const tr = [['Current Ratio','currentRatio','ratio',1],['Quick Ratio','quickRatio','ratio',1],['Debt-to-Equity','debtToEquity','ratio',1],['Gross Profit Margin','grossMargin','pct',100],['Net Profit Margin','netMargin','pct',100],['Return on Equity','roe','pct',100],['DSO','dso','days',1],['DPO','dpo','days',1]];
+    tr.forEach(([lab,key,fmt,div])=>sh.add(['',lab, ...series.map(s=>s[key]==null?'—':s[key]/div)], '', {styles:['','b', ...series.map(s=>s[key]==null?'muted+r':fmt)]}));
+  }
+  rbxNotes(sh, ['Guides are general rules of thumb used by lenders and analysts, not legal limits — compare with your own industry and history before drawing conclusions.'], N);
+  return {sh};
+}
+
+/* ---------- Cost Center P&L ---------- */
+function rbxSheetCostCenter(book){
+  const rows = costCenterPLData();
+  const sh = book.sheet('Cost Center P&L', {tab:'8A6D3B', header:'Cost Center P&L'});
+  const N = 6; sh.widths([34,18,18,18,13,13]);
+  rbxTitle(sh, 'Cost Center Profit and Loss', activeFY ? `Financial year ${activeFY}` : 'All years', N);
+  const hdr = sh.add(['Cost center','Income (₹)','Expense (₹)','Net (₹)','Net margin','Share of income'], 'hdr', {ht:28});
+  sh.freeze(hdr+1,0); sh.repeat(hdr);
+  const f1 = sh.r; const totI = rows.reduce((s,r)=>s+r.income,0), totE = rows.reduce((s,r)=>s+r.expense,0);
+  const totRow = f1 + rows.length;
+  rows.forEach(x=>{ const r = sh.r, inc = rbxR2(x.income), exp = rbxR2(x.expense);
+    sh.add([x.costCenter?x.costCenter.name:'Unassigned', inc, exp, rbxF(`${RBX.ref(r,1)}-${RBX.ref(r,2)}`, rbxR2(inc-exp)), rbxF(`IF(${RBX.ref(r,1)}=0,"",${RBX.ref(r,3)}/${RBX.ref(r,1)})`, inc? (inc-exp)/inc : ''), rbxF(`IF(${RBX.aref(totRow,1)}=0,"",${RBX.ref(r,1)}/${RBX.aref(totRow,1)})`, totI ? inc/totI : '')], 'amt', {styles:[x.costCenter?'':'i+muted','amt','amt','amt+b','pct','pct']}); });
+  const f2 = sh.r-1;
+  if(rows.length){
+    sh.filter(hdr,0,f2,N-1); sh.cfBar(`${RBX.ref(f1,3)}:${RBX.ref(f2,3)}`, '7FB89A');
+    sh.add(['Total', ...[1,2,3].map(c=>rbxF(`SUBTOTAL(9,${RBX.ref(f1,c)}:${RBX.ref(f2,c)})`, rbxR2([0,totI,totE,totI-totE][c]))), rbxF(`IF(${RBX.ref(totRow,1)}=0,"",${RBX.ref(totRow,3)}/${RBX.ref(totRow,1)})`, totI?(totI-totE)/totI:''), rbxF(`IF(${RBX.ref(totRow,1)}=0,"",1)`, totI?1:'')], 'amt+grand', {styles:['grand','amt+grand','amt+grand','amt+grand','pct+grand','pct+grand']});
+  }
+  rbxNotes(sh, ['Vouchers split across several cost centers are shared in proportion, exactly as on the Cost Center P&L screen. Net = Income − Expense (live formula); bars show relative net.'], N);
+  return {sh};
+}
+
+/* ---------- Budget vs Actual ---------- */
+function rbxSheetBudget(book, fyLabel){
+  fyLabel = fyLabel || budgetReportFY || fyLabelForDate(new Date().toISOString().slice(0,10));
+  const rows = budgetVsActualData(fyLabel);
+  const sh = book.sheet('Budget vs Actual', {landscape:true, tab:'B7791F', header:'Budget vs Actual'});
+  const N = 8; sh.widths([34,10,20,17,17,17,12,16]);
+  rbxTitle(sh, 'Budget vs Actual', `Financial year ${fyLabel}`, N);
+  const hdr = sh.add(['Ledger','Type','Cost center','Budget (₹)','Actual (₹)','Variance (₹)','% achieved','Status'], 'hdr', {ht:28});
+  sh.freeze(hdr+1,0); sh.repeat(hdr);
+  const typeTot = {};
+  ['Income','Expense'].forEach(kind=>{
+    const list = rows.filter(r=> kind==='Income' ? r.isIncome : !r.isIncome);
+    if(!list.length) return;
+    sh.add([kind==='Income'?'Income':'Expenses'], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+    const f1 = sh.r;
+    list.forEach(x=>{ const r = sh.r, b = rbxR2(x.budgetAmt), a = rbxR2(x.actual);
+      const fav = x.isIncome ? a>=b : a<=b;
+      sh.add([x.ledger.name, kind, x.costCenter?x.costCenter.name:'All', b, a, rbxF(`${RBX.ref(r,4)}-${RBX.ref(r,3)}`, rbxR2(a-b)), rbxF(`IF(${RBX.ref(r,3)}=0,"",${RBX.ref(r,4)}/${RBX.ref(r,3)})`, b?a/b:''), fav?'✓ Favourable':'⚠ Adverse'], 'amt',
+        {styles:['in1','muted','muted','amt','amt','amt','pct', fav?'posc+b+fgood+c':'negc+b+fbad+c']}); });
+    const f2 = sh.r-1;
+    const bt = list.reduce((s,x)=>s+rbxR2(x.budgetAmt),0), at = list.reduce((s,x)=>s+rbxR2(x.actual),0), tr = sh.r;
+    sh.add([`Total ${kind==='Income'?'income':'expenses'}`,'','', rbxF(`SUBTOTAL(9,${RBX.ref(f1,3)}:${RBX.ref(f2,3)})`, rbxR2(bt)), rbxF(`SUBTOTAL(9,${RBX.ref(f1,4)}:${RBX.ref(f2,4)})`, rbxR2(at)), rbxF(`${RBX.ref(tr,4)}-${RBX.ref(tr,3)}`, rbxR2(at-bt)), rbxF(`IF(${RBX.ref(tr,3)}=0,"",${RBX.ref(tr,4)}/${RBX.ref(tr,3)})`, bt?at/bt:'')], 'tot', {styles:['tot','tot','tot','amt+tot','amt+tot','amt+tot','pct+tot','tot']});
+    typeTot[kind] = {r:tr, b:bt, a:at};
+  });
+  if(typeTot.Income && typeTot.Expense){
+    const I = typeTot.Income, E = typeTot.Expense, r = sh.r;
+    sh.add(['Net (income − expenses)','','', rbxF(`${RBX.ref(I.r,3)}-${RBX.ref(E.r,3)}`, rbxR2(I.b-E.b)), rbxF(`${RBX.ref(I.r,4)}-${RBX.ref(E.r,4)}`, rbxR2(I.a-E.a)), rbxF(`${RBX.ref(r,4)}-${RBX.ref(r,3)}`, rbxR2((I.a-E.a)-(I.b-E.b)))], 'grand', {styles:['grand','grand','grand','amt+grand','amt+grand','amt+grand','grand','grand']});
+  }
+  if(!rows.length) sh.add(['No budgets set for this financial year yet.'], 'i+muted');
+  rbxNotes(sh, ['Variance = Actual − Budget. For income, actual above budget is favourable; for expenses, actual within budget is favourable.'], N);
+  return {sh};
+}
+
+/* ---------- Day Book (journal listing for the period) ---------- */
+function rbxSheetDayBook(book, fy){
+  fy = fy || rbxFyCtx();
+  const LIMIT = 100000;
+  const vs = state.vouchers.filter(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf)
+    .sort((a,b)=> a.date===b.date ? (a.createdAt||'').localeCompare(b.createdAt||'') : (a.date<b.date?-1:1));
+  const sh = book.sheet('Day Book', {landscape:true, tab:'5B6B63', header:'Day Book', pdf:false});
+  const N = 9; sh.widths([12,13,20,40,30,22,16,16,18]);
+  rbxTitle(sh, 'Day Book — every voucher line for the period', `For the period ${fy.periodLabel}`, N);
+  const hdr = sh.add(['Date','Voucher type','Voucher no.','Narration','Ledger','Group','Debit (₹)','Credit (₹)','Cost center'], 'hdr', {ht:26});
+  sh.freeze(hdr+1,0); sh.repeat(hdr);
+  let maps = {inv:new Map(), cn:new Map(), dn:new Map()}; try{ maps = gstDocNumberMaps(); }catch(e){}
+  const seq = {}; const f1 = sh.r; let n = 0, td = 0, tc = 0;
+  const ccName = id => { const c = id && state.costCenters && state.costCenters.find(x=>x.id===id); return c ? c.name : ''; };
+  for(const v of vs){
+    const fyl = fyLabelForDate(v.date), k = v.type+'|'+fyl; seq[k] = (seq[k]||0)+1;
+    const no = maps.inv.get(v.id) || maps.cn.get(v.id) || maps.dn.get(v.id) || `${v.type.slice(0,3).toUpperCase()}/${fyl}/${String(seq[k]).padStart(4,'0')}`;
+    for(const e of v.entries){
+      if(n>=LIMIT) break;
+      const l = ledgerOf(e.ledgerId), g = l && groupOf(l.group);
+      const d = rbxR2(e.dr||0), c = rbxR2(e.cr||0); if(!d && !c) continue;
+      sh.add([{date:v.date}, v.type, no, v.narration||'', l?l.name:'(deleted ledger)', g?g.name:'', d||null, c||null, ccName(v.costCenterId)], '', {styles:['date','','muted','','','muted+sm','amt','amt','muted+sm']});
+      n++; td+=d; tc+=c;
+    }
+    if(n>=LIMIT) break;
+  }
+  const f2 = sh.r-1;
+  if(n){ sh.filter(hdr,0,f2,N-1);
+    sh.add(['Total','','','','','', rbxF(`SUBTOTAL(9,${RBX.ref(f1,6)}:${RBX.ref(f2,6)})`, rbxR2(td)), rbxF(`SUBTOTAL(9,${RBX.ref(f1,7)}:${RBX.ref(f2,7)})`, rbxR2(tc))], 'grand', {styles:['grand','grand','grand','grand','grand','grand','amt+grand','amt+grand','grand']}); }
+  else sh.add(['No vouchers in this period.'], 'i+muted');
+  rbxNotes(sh, [n>=LIMIT ? `Only the first ${LIMIT.toLocaleString('en-IN')} lines are listed; use the Day Book screen's own download for the full period.` : '',
+    'One row per ledger line, so the list can be filtered by ledger, group, type or cost center and re-totalled (Total uses SUBTOTAL). Sales, credit-note and debit-note numbers match the GST documents.'], N);
+  return {sh, lines:n, vouchers: vs.length};
+}
+
+/* ---------- Summary (key figures, monthly performance with chart, top lists) ---------- */
+function rbxSheetSummary(book, fy){
+  fy = fy || rbxFyCtx();
+  const sh = book.sheet('Summary', {landscape:true, tab:'14432C', header:'Summary'});
+  const N = 8; sh.widths([36,17,17,17,12,18,17,17]);
+  rbxTitle(sh, `Summary — financial year ${fy.currentFY}`, `For the period ${fy.periodLabel}${fy.prevPl?` · compared with ${fy.prevPeriodLabel}`:''}`, N);
+  const pl = fy.pl, pp = fy.prevPl, bs = fy.bs, pb = fy.prevBs, hasPrev = !!pp;
+  sh.add(['Key figures'], 'sec', {fillBlank:true, styles:Array(5).fill('sec')});
+  sh.add(['Measure','Current period','Previous period','Change','Change %'], 'hdr', {ht:24});
+  const kf = [
+    ['Revenue from operations', pl.revenueFromOperations, pp&&pp.revenueFromOperations],
+    ['Other income', pl.otherIncome, pp&&pp.otherIncome],
+    ['Total income', pl.totalIncome, pp&&pp.totalIncome],
+    ['Total expenses', pl.totalExpenses, pp&&pp.totalExpenses],
+    ['Profit / (loss) for the period', pl.profitForPeriod, pp&&pp.profitForPeriod, 'b'],
+    ['Net profit margin', pl.revenueFromOperations? pl.profitForPeriod/pl.revenueFromOperations : null, pp&&pp.revenueFromOperations ? pp.profitForPeriod/pp.revenueFromOperations : null, 'pct'],
+    ['Total assets', bs.totalAssets, pb&&pb.totalAssets],
+    ["Shareholders' funds", bs.shareholdersFundsTotal, pb&&pb.shareholdersFundsTotal],
+    ['Trade receivables', bs.tradeReceivablesTotal, pb&&pb.tradeReceivablesTotal],
+    ['Trade payables', bs.tradePayablesTotal, pb&&pb.tradePayablesTotal],
+    ['Cash and cash equivalents', bs.cashTotal, pb&&pb.cashTotal],
+    ['Working capital', bs.currentAssetsTotal-bs.currentLiabTotal, pb ? pb.currentAssetsTotal-pb.currentLiabTotal : null],
+  ];
+  kf.forEach(([lab,c,p,flag])=>{
+    const r = sh.r, isPct = flag==='pct', fm = isPct?'pct':'amt';
+    const cv = c==null?null:(isPct?c:rbxR2(c)), pv = (hasPrev && p!=null) ? (isPct?p:rbxR2(p)) : null;
+    sh.add([lab, cv, pv==null?'—':pv, pv==null||cv==null ? '—' : rbxF(`${RBX.ref(r,1)}-${RBX.ref(r,2)}`, isPct ? cv-pv : rbxR2(cv-pv)), (pv==null||cv==null||isPct) ? '—' : rbxF(`IF(${RBX.ref(r,2)}=0,"",(${RBX.ref(r,1)}-${RBX.ref(r,2)})/ABS(${RBX.ref(r,2)}))`, pv ? (cv-pv)/Math.abs(pv) : '')], '',
+      {styles:[flag==='b'?'b':'', fm+(flag==='b'?'+b':''), pv==null?'muted+r':fm, (pv==null||cv==null)?'muted+r':fm, (pv==null||cv==null||isPct)?'muted+r':'pct']});
+  });
+  // Monthly performance for the current FY
+  sh.skip(1);
+  const incomeCat = new Set(GROUPS.filter(g=>g.cat==='Income').map(g=>g.id)), expCat = new Set(GROUPS.filter(g=>g.cat==='Expenses').map(g=>g.id));
+  const months = []; { let d = new Date(fy.curBounds.start+'T00:00:00'); const end = fy.asOf.slice(0,7); while(true){ const k = d.toISOString().slice(0,7); const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; months.push(key); if(key>=end || months.length>24) break; d = new Date(d.getFullYear(), d.getMonth()+1, 1); } }
+  const agg = {}; months.forEach(m=>agg[m]={inc:0,exp:0,cin:0,cout:0});
+  for(const v of state.vouchers){
+    if(v.date<fy.curBounds.start || v.date>fy.asOf) continue; const a = agg[v.date.slice(0,7)]; if(!a) continue;
+    for(const e of v.entries){ const l = ledgerOf(e.ledgerId); if(!l) continue; const g = l.group;
+      if(incomeCat.has(g)) a.inc += (e.cr||0)-(e.dr||0); else if(expCat.has(g)) a.exp += (e.dr||0)-(e.cr||0);
+      const b = bucketOf(l); if((b==='cash'||b==='bank') && v.type!=='Contra'){ const x=(e.dr||0)-(e.cr||0); if(x>0) a.cin+=x; else a.cout+=-x; } }
+  }
+  sh.add([`Monthly performance — FY ${fy.currentFY}`], 'sec', {fillBlank:true, styles:Array(N).fill('sec')});
+  const mh = sh.add(['Month','Income','Expenses','Profit / (loss)','Margin','Cumulative profit','Cash in','Cash out'], 'hdr', {ht:24});
+  const m1 = sh.r;
+  months.forEach((m,i)=>{ const a = agg[m], r = sh.r;
+    sh.add([new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'}), rbxR2(a.inc), rbxR2(a.exp), rbxF(`${RBX.ref(r,1)}-${RBX.ref(r,2)}`, rbxR2(a.inc-a.exp)), rbxF(`IF(${RBX.ref(r,1)}=0,"",${RBX.ref(r,3)}/${RBX.ref(r,1)})`, a.inc?(a.inc-a.exp)/a.inc:''),
+      rbxF(i===0 ? `${RBX.ref(r,3)}` : `${RBX.ref(r-1,5)}+${RBX.ref(r,3)}`, rbxR2(months.slice(0,i+1).reduce((s,k)=>s+agg[k].inc-agg[k].exp,0))), rbxR2(a.cin), rbxR2(a.cout)], 'amt', {styles:['l','amt','amt','amt+b','pct','amt','amt','amt']}); });
+  const m2 = sh.r-1;
+  const tI = months.reduce((s,m)=>s+agg[m].inc,0), tE = months.reduce((s,m)=>s+agg[m].exp,0), tr = sh.r;
+  sh.add(['Total', rbxF(`SUM(${RBX.ref(m1,1)}:${RBX.ref(m2,1)})`, rbxR2(tI)), rbxF(`SUM(${RBX.ref(m1,2)}:${RBX.ref(m2,2)})`, rbxR2(tE)), rbxF(`SUM(${RBX.ref(m1,3)}:${RBX.ref(m2,3)})`, rbxR2(tI-tE)), rbxF(`IF(${RBX.ref(tr,1)}=0,"",${RBX.ref(tr,3)}/${RBX.ref(tr,1)})`, tI?(tI-tE)/tI:''), rbxF(`${RBX.ref(m2,5)}`, rbxR2(tI-tE)), rbxF(`SUM(${RBX.ref(m1,6)}:${RBX.ref(m2,6)})`, rbxR2(months.reduce((s,m)=>s+agg[m].cin,0))), rbxF(`SUM(${RBX.ref(m1,7)}:${RBX.ref(m2,7)})`, rbxR2(months.reduce((s,m)=>s+agg[m].cout,0)))], 'amt+grand', {styles:['grand','amt+grand','amt+grand','amt+grand','pct+grand','amt+grand','amt+grand','amt+grand']});
+  // Chart: monthly income vs expenses vs profit
+  const cats = months.map(m=>new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'}));
+  const q = sh.q();
+  sh.pageBreak(sh.r);
+  const chartTop = sh.r + 1;
+  sh.chart({ title:`Income, expenses and profit by month — FY ${fy.currentFY}`, cats, catRef:`${q}!$A$${m1+1}:$A$${m2+1}`,
+    series:[ {name:'Income', nameRef:`${q}!$B$${mh+1}`, ref:`${q}!$B$${m1+1}:$B$${m2+1}`, values:months.map(m=>rbxR2(agg[m].inc)), color:'1F6B45'},
+             {name:'Expenses', nameRef:`${q}!$C$${mh+1}`, ref:`${q}!$C$${m1+1}:$C$${m2+1}`, values:months.map(m=>rbxR2(agg[m].exp)), color:'D08C2E'},
+             {name:'Profit / (loss)', nameRef:`${q}!$D$${mh+1}`, ref:`${q}!$D$${m1+1}:$D$${m2+1}`, values:months.map(m=>rbxR2(agg[m].inc-agg[m].exp)), color:'5B8DB8'} ],
+    at:{c1:0, r1:chartTop, c2:8, r2:chartTop+18} });
+  sh.r = chartTop + 20;
+  // Top lists: expenses, receivables, payables
+  const curF = rbxNets(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf), bal = rbxBalancesAsOf(fy.asOf);
+  const expL = state.ledgers.filter(l=>expCat.has(l.group)).map(l=>({n:l.name, v:curF.get(l.id)||0})).filter(x=>x.v>0.004).sort((a,b)=>b.v-a.v).slice(0,10);
+  const isParty = (l, kind) => kind==='cust' ? (l.group==='sundeb' || l.partyType==='customer') : (l.group==='sundcr' || l.partyType==='supplier');
+  const recL = state.ledgers.filter(l=>isParty(l,'cust')).map(l=>({n:l.name, v:bal.get(l.id)||0})).filter(x=>x.v>0.004).sort((a,b)=>b.v-a.v).slice(0,10);
+  const payL = state.ledgers.filter(l=>isParty(l,'supp')).map(l=>({n:l.name, v:-(bal.get(l.id)||0)})).filter(x=>x.v>0.004).sort((a,b)=>b.v-a.v).slice(0,10);
+  const topTable = (title, list, col, totalAll) => {
+    const start = sh.r; let r = start;
+    sh.set(r, col, title, 'sec'); sh.set(r, col+1, null, 'sec'); sh.set(r, col+2, null, 'sec'); r++;
+    sh.set(r, col, 'Name', 'hdrl'); sh.set(r, col+1, 'Amount (₹)', 'hdr'); sh.set(r, col+2, 'Share', 'hdr'); r++;
+    const a = r;
+    list.forEach(x=>{ sh.set(r, col, x.n, ''); sh.set(r, col+1, rbxR2(x.v), 'amt'); sh.set(r, col+2, totalAll ? x.v/totalAll : '', 'pct', {f:`IF(${totalAll||0}=0,"",${RBX.ref(r,col+1)}/${rbxR2(totalAll||0)})`}); r++; });
+    if(!list.length){ sh.set(r, col, 'None', 'i+muted'); r++; }
+    else sh.cfBar(`${RBX.ref(a,col+1)}:${RBX.ref(r-1,col+1)}`, '9CC9B0');
+    return r;
+  };
+  const totExp = expL.length ? state.ledgers.filter(l=>expCat.has(l.group)).reduce((s,l)=>s+Math.max(0,curF.get(l.id)||0),0) : 0;
+  sh.r = topTable('Top 10 expenses this period', expL, 0, totExp) + 1;
+  sh.r = topTable('Top 10 amounts receivable', recL, 0, recL.reduce((s,x)=>s+x.v,0)) + 1;
+  sh.r = topTable('Top 10 amounts payable', payL, 0, payL.reduce((s,x)=>s+x.v,0));
+  rbxNotes(sh, ['Monthly figures use the same income and expense groups as the Statement of Profit and Loss; cash in/out excludes contra transfers between cash and bank.',
+    'Receivables and payables are party balances as at the reporting date. Shares in the top lists are of the total across all such ledgers.'], N);
+  return {sh, months: months.length, totalIncome: rbxR2(tI)};
+}
+
+/* ---------- Audit trail ---------- */
+function rbxSheetAuditTrail(book){
+  const rows = auditTrailRows();
+  const sh = book.sheet('Audit Trail', {landscape:true, tab:'5B6B63', header:'Audit Trail'});
+  const N = 11; sh.widths([18,18,9,13,12,36,15,15,15,48,8]);
+  rbxTitle(sh, 'Audit Trail — voucher edit log (Rule 3(1), Companies (Accounts) Rules 2014)', `${rows.length} change${rows.length===1?'':'s'} recorded`, N);
+  const hdr = sh.add(['Date & time','User','Action','Voucher type','Voucher date','Narration','Amount before (₹)','Amount after (₹)','Change (₹)','What changed','Sealed'], 'hdr', {ht:30});
+  sh.freeze(hdr+1,0); sh.repeat(hdr);
+  const f1 = sh.r;
+  rows.forEach(e=>{ const v = e.after||e.before||{}, r = sh.r;
+    const b = e.before && e.before.total!=null ? rbxR2(e.before.total) : null, a = e.after && e.after.total!=null ? rbxR2(e.after.total) : null;
+    const at = e.at ? new Date(e.at) : null;
+    sh.add([at && !isNaN(at) ? at : (e.at||''), e.byName||'', e.action, v.type||'', v.date?{date:v.date}:'', v.narration||'', b, a, (a!=null&&b!=null) ? rbxF(`${RBX.ref(r,7)}-${RBX.ref(r,6)}`, rbxR2(a-b)) : null, auditTrailChange(e), e.hash?'✓':'—'], '',
+      {styles:['dt','', e.action==='delete'?'negc+b':e.action==='create'?'posc+b':'b', '', 'date', 'wrap', 'amt','amt','amt','sm+wrap', e.hash?'posc+c':'muted+c']}); });
+  const f2 = sh.r-1; if(rows.length) sh.filter(hdr,0,f2,N-1); else sh.add(['No voucher changes recorded yet.'], 'i+muted');
+  rbxNotes(sh, ['Every create, edit and delete of a voucher is listed with who did it and when. "Sealed" shows the entry is part of the tamper-evident chain checked in the Security Centre.'], N);
+  return {sh};
+}
+
+/* ---------- Cover (report pack) ---------- */
+function rbxFillCover(sh, fy, contents, checks){
+  const co = currentCompany || {}; sh.widths([5,36,70,22]);
+  let r = sh.add(['', 'Financial Report Pack'], 'xxl+b+acc', {ht:34}); sh.merge(r,1,r,3);
+  r = sh.add(['', co.name||'Company'], 'xl+b', {ht:24}); sh.merge(r,1,r,3);
+  r = sh.add(['', `Financial year ${fy.currentFY} · ${fy.periodLabel}`], 'lg+accl'); sh.merge(r,1,r,3);
+  sh.skip(1);
+  sh.add(['', 'Company details'], 'sec', {fillBlank:true, styles:['','sec','sec','sec']});
+  rbxCoverDetails(fy).forEach(([k,v])=>{ const rr = sh.add(['', k, v||'—'], '', {styles:['','b+muted', v?'wrap':'muted']}); sh.merge(rr,2,rr,3); });
+  sh.skip(1);
+  sh.add(['', 'Contents'], 'sec', {fillBlank:true, styles:['','sec','sec','sec']});
+  sh.add(['#','Sheet','What it shows',''], 'hdr', {styles:['hdr','hdrl','hdrl','hdr']});
+  contents.forEach((c,i)=>{ const rr = sh.add([i+1, c.name, c.desc], '', {styles:['c+muted','link+b','wrap'], ht: c.desc.length>90?30:18}); sh.merge(rr,2,rr,3); sh.link(rr,1,c.name,'A1'); });
+  sh.skip(1);
+  sh.add(['', 'Checks'], 'sec', {fillBlank:true, styles:['','sec','sec','sec']});
+  sh.add(['','Check','Result','Status'], 'hdr', {styles:['','hdrl','hdrl','hdr']});
+  checks.forEach(c=>sh.add(['', c.name, c.result, c.ok==null?'—':c.ok?'✓ OK':'⚠ Look into it'], '', {styles:['','b','wrap', c.ok==null?'muted+c':c.ok?'posc+b+fgood+c':'negc+b+fbad+c'], ht:20}));
+  sh.skip(1);
+  sh.add(['', 'Basis of preparation'], 'sec', {fillBlank:true, styles:['','sec','sec','sec']});
+  rbxBasis().forEach(t=>{ const rr = sh.add(['', t], 'note', {ht:30}); sh.merge(rr,1,rr,3); });
+  sh.meta = {title:'Financial Report Pack', period:'', ncols:4, bodyStart:0};
+}
+function rbxCoverDetails(fy){
+  const co = currentCompany || {}, addr = [co.address, co.state, co.pincode].filter(Boolean).join(', ');
+  return [['Legal name', co.name], ['Mailing / trade name', co.mailingName], ['Address', addr], ['GSTIN', co.gstin], ['PAN', co.pan],
+    ['Financial year', `${fy.currentFY} (${humanDate(fy.curBounds.start)} to ${humanDate(fy.curBounds.end)})`], ['Period covered', fy.periodLabel],
+    ['Previous period', fy.prevPeriodLabel || 'No vouchers before this year'], ['Books maintained from', co.booksFrom ? humanDate(co.booksFrom) : ''],
+    ['Currency', 'Indian Rupee (₹), two decimals'], ['Prepared by', rbxUser()], ['Prepared on', rbxStamp()], ['Prepared with', 'The Reckoning Books by SKm']];
+}
+function rbxBasis(){
+  return ['The Balance Sheet and the Statement of Profit and Loss follow the format of Schedule III, Division I to the Companies Act, 2013, for the financial year shown, with the previous year alongside where vouchers exist. Line items refer to numbered Notes.',
+   'The Trial Balance, Cash Flow Statement and Ratio Analysis are life-to-date, matching the corresponding screens. The Monthly P&L, General Ledger and Day Book cover the period above.',
+   'Figures are taken from the books as they stood when this pack was generated. Totals and checks in the Excel file are live formulas, so every number can be traced.',
+   'Income tax, deferred tax and earnings per share are not tracked separately in this system and are shown as nil or "not computed".'];
+}
+async function rbxExportAll(opts){
+  const pdf = !!(opts && opts.pdf);
+  const fy = rbxFyCtx();
+  const book = rbxBook('Financial Report Pack', {pack:true});
+  const cover = book.sheet('Cover', {tab:'14432C', header:'Financial Report Pack'});
+  const contents = [], checks = [];
+  const sum = rbxSheetSummary(book, fy); contents.push({name:'Summary', desc:'Key figures against last year, monthly income/expenses/profit with a chart, top expenses, receivables and payables.'});
+  const notes = rbxNotesSheet(book, fy);
+  const bs = rbxSheetBalanceSheet(book, fy, notes); contents.push({name:'Balance Sheet', desc:'Schedule III Balance Sheet with note references, previous year and change.'});
+  const pl = rbxSheetProfitLoss(book, fy, notes); contents.push({name:'Profit and Loss', desc:'Schedule III Statement of Profit and Loss with notes, % of revenue and year-on-year change.'});
+  const cf = rbxSheetCashFlow(book); contents.push({name:'Cash Flow', desc:'Direct-method cash flow by activity, every cash and bank line, and a month-by-month table.'});
+  contents.push({name:'Notes', desc:'Numbered notes: ledger-wise break-up of every line, reserves movement and the MSME split of trade payables.'});
+  rbxSheetMonthlyPL(book, fy); contents.push({name:'Monthly P&L', desc:'The Statement of Profit and Loss month by month, with totals and margin.'});
+  const ag = rbxSheetAgeing(book, fy); contents.push({name:'Ageing', desc:'Party-wise ageing of receivables and payables, and the Schedule III ageing schedules.'});
+  const tb = rbxSheetTrialBalance(book); contents.push({name:'Trial Balance', desc:'Every ledger grouped by account group: opening balance, debits, credits and closing balance.'});
+  rbxSheetRatios(book); contents.push({name:'Ratio Analysis', desc:'21 ratios with formula, guide and status, the figures used, and a year-on-year trend.'});
+  if(costCenterPLData().length){ rbxSheetCostCenter(book); contents.push({name:'Cost Center P&L', desc:'Income, expense, net and margin by cost center.'}); }
+  const bfy = budgetReportFY || fy.currentFY;
+  if(state.budgets && state.budgets.some(b=>b.fy===bfy)){ rbxSheetBudget(book, bfy); contents.push({name:'Budget vs Actual', desc:`Budget against actual for FY ${bfy}, with variance and status.`}); }
+  let db = {vouchers: state.vouchers.filter(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf).length, lines: null};
+  if(!pdf){
+    rbxSheetGeneralLedger(book, fy); contents.push({name:'General Ledger', desc:'Every account for the period with opening balance, each entry, running balance and closing balance.', excelOnly:true});
+    db = rbxSheetDayBook(book, fy); contents.push({name:'Day Book', desc:`Every voucher line for the period (${db.vouchers.toLocaleString('en-IN')} vouchers), ready to filter.`, excelOnly:true});
+  } else {
+    contents.push({name:'General Ledger', desc:'Every account with running balances — in the Excel pack.', excelOnly:true});
+    contents.push({name:'Day Book', desc:'Every voucher line for the period — in the Excel pack.', excelOnly:true});
+  }
+  checks.push({name:'Trial balance agrees', result: Math.abs(tb.diff)<0.01 ? 'Total debit balances equal total credit balances.' : `Debit and credit balances differ by ₹${fmt(Math.abs(tb.diff))}.`, ok: Math.abs(tb.diff)<0.01});
+  checks.push({name:'Balance sheet balances', result: Math.abs(bs.diff)<0.01 ? 'Equity and liabilities equal assets.' : `Equity and liabilities differ from assets by ₹${fmt(Math.abs(bs.diff))}.`, ok: Math.abs(bs.diff)<0.01});
+  checks.push({name:'Profit agrees with the books', result: Math.abs(pl.profit - fy.pl.profitForPeriod)<0.01 ? 'Statement of Profit and Loss equals the profit worked out from the ledgers.' : 'Profit differs from the ledgers — review the Data Integrity Checker.', ok: Math.abs(pl.profit - fy.pl.profitForPeriod)<0.01});
+  checks.push({name:'Cash flow ties to books', result: Math.abs(cf.diff)<0.01 ? 'Closing cash equals the Cash and Bank ledgers.' : `Closing cash differs from the Cash and Bank ledgers by ₹${fmt(Math.abs(cf.diff))}.`, ok: Math.abs(cf.diff)<0.01});
+  let issues = null; try{ issues = dataIntegrityChecks().length; }catch(e){}
+  if(issues!=null) checks.push({name:'Data Integrity Checker', result: issues ? `${issues} item${issues===1?'':'s'} to review in Reports → Data Integrity Checker.` : 'No issues found.', ok: !issues});
+  checks.push({name:'Vouchers in the period', result: `${db.vouchers.toLocaleString('en-IN')} vouchers${db.lines!=null?`, ${db.lines.toLocaleString('en-IN')} lines`:''}.`, ok:null});
+  const excelContents = contents.filter(c=>!pdf || !c.excelOnly);
+  rbxFillCover(cover, fy, pdf ? contents : excelContents, checks);
+  book.order(['Cover','Summary','Balance Sheet','Profit and Loss','Cash Flow','Notes','Monthly P&L','Ageing','Trial Balance','Ratio Analysis','Cost Center P&L','Budget vs Actual','General Ledger','Day Book']);
+  book.meta.cover = { fy, contents, checks, details: rbxCoverDetails(fy),
+    kpis: [['Revenue from operations', fy.pl.revenueFromOperations, fy.prevPl && fy.prevPl.revenueFromOperations], ['Profit for the period', fy.pl.profitForPeriod, fy.prevPl && fy.prevPl.profitForPeriod],
+           ['Total assets', fy.bs.totalAssets, fy.prevBs && fy.prevBs.totalAssets], ['Cash and cash equivalents', fy.bs.cashTotal, fy.prevBs && fy.prevBs.cashTotal]] };
+  return book;
+}
+function rbxBuild(kind, pdf){
+  if(kind==='all') return rbxExportAll({pdf});
+  const titles = {tb:'Trial Balance', pl:'Statement of Profit and Loss', bs:'Balance Sheet', ratios:'Ratio Analysis', cf:'Cash Flow Statement', cc:'Cost Center P&L', budget:'Budget vs Actual', audit:'Audit Trail'};
+  const book = rbxBook(titles[kind]);
+  const fy = rbxFyCtx();
+  if(kind==='pl'){ const n = rbxNotesSheet(book, fy); rbxSheetProfitLoss(book, fy, n); book.order(['Profit and Loss','Notes']); }
+  else if(kind==='bs'){ const n = rbxNotesSheet(book, fy); rbxSheetBalanceSheet(book, fy, n); book.order(['Balance Sheet','Notes']); }
+  else ({tb:()=>rbxSheetTrialBalance(book), ratios:()=>rbxSheetRatios(book), cf:()=>rbxSheetCashFlow(book), cc:()=>rbxSheetCostCenter(book), budget:()=>rbxSheetBudget(book), audit:()=>rbxSheetAuditTrail(book)})[kind]();
+  return book;
+}
+const RBX_KINDS = {
+  all:   ['Reports', 'Report pack exported to Excel — cover, statements with notes, ageing, monthly P&L, ledger and day book', 'Report_Pack'],
+  tb:    ['Trial_Balance', 'Trial Balance exported to Excel'],
+  pl:    ['Income_Statement_ScheduleIII', 'Statement of Profit and Loss (Schedule III) exported to Excel, with notes'],
+  bs:    ['Balance_Sheet_ScheduleIII', 'Balance Sheet (Schedule III) exported to Excel, with notes'],
+  ratios:['Ratio_Analysis', 'Ratio Analysis exported to Excel'],
+  cf:    ['Cash_Flow_Statement', 'Cash Flow Statement exported to Excel'],
+  cc:    ['Cost_Center_PL', 'Cost Center P&L exported to Excel'],
+  budget:['Budget_vs_Actual', 'Budget vs Actual exported to Excel'],
+  audit: ['Audit_Trail', 'Audit trail downloaded'],
+};
+function rbxFileBase(kind){
+  const today = new Date().toISOString().slice(0,10), T = RBX_KINDS[kind];
+  if(kind==='audit') return `Audit_Trail_${rbxSafeName()}_${today}`;
+  if(kind==='budget') return `${rbxSafeName()}_Budget_vs_Actual_${budgetReportFY||fyLabelForDate(today)}_${today}`;
+  return `${rbxSafeName()}_${T[0]}_${today}`;
+}
+// Build + download the Excel file; falls back to the previous plain export if anything fails.
+async function rbxRun(kind, legacy){
+  try{
+    if(kind==='budget' && !budgetReportFY) budgetReportFY = fyLabelForDate(new Date().toISOString().slice(0,10));
+    const book = await rbxBuild(kind, false);
+    const name = rbxFileBase(kind)+'.xlsx';
+    window.__rbxLast = { name, book };
+    await book.download(name);
+    toast(RBX_KINDS[kind][1]);
+  }catch(err){
+    console.error('Formatted Excel export failed, using the plain export instead', err);
+    if(typeof legacy==='function') legacy();
+  }
+}
+
+/* ---------- PDF: the same workbook typeset for A4 ---------- */
+function rbxFmtVal(v, fmtStr){
+  if(v==null || v==='') return '';
+  if(typeof v==='object' && !(v instanceof Date) && v.date) v = new Date(v.date+'T00:00:00');
+  const F = RBX.FMT;
+  const ind = (n, d) => Math.abs(n).toLocaleString('en-IN',{minimumFractionDigits:d, maximumFractionDigits:d});
+  if(v instanceof Date){
+    if(isNaN(v)) return '';
+    if(fmtStr===F.dt) return v.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+' '+v.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    if(fmtStr===F.mon) return v.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    return v.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  if(typeof v!=='number') return String(v);
+  const z = Math.abs(v) < 0.005;
+  switch(fmtStr){
+    case F.amt: return z ? '–' : (v<0 ? `<span class="neg">(${ind(v,2)})</span>` : ind(v,2));
+    case F.amt0: return z ? '–' : (v<0 ? `<span class="neg">(${ind(v,0)})</span>` : ind(v,0));
+    case F.int: return ind(v,0);
+    case F.pct: return Math.abs(v)<0.0005 ? '–' : (v<0 ? `<span class="neg">-${(Math.abs(v)*100).toFixed(1)}%</span>` : (v*100).toFixed(1)+'%');
+    case F.ratio: return z ? '–' : (v<0?'<span class="neg">':'')+v.toFixed(2)+'×'+(v<0?'</span>':'');
+    case F.days: return z ? '–' : Math.round(v)+' days';
+    case F.drcr: return z ? '–' : ind(v,2)+(v>=0?' Dr':' Cr');
+    case F.date: case F.dt: case F.mon: return rbxFmtVal(new Date(Date.UTC(1899,11,30) + v*86400000), fmtStr);
+    default: return (Math.round(v*100)/100).toLocaleString('en-IN');
+  }
+}
+function rbxChartSvg(c){
+  const W = 900, H = 300, L = 70, R = 16, T = 34, B = 54, n = c.cats.length, ns = c.series.length;
+  const all = c.series.flatMap(s=>s.values), max = Math.max(0, ...all), min = Math.min(0, ...all);
+  const nice = x => { if(x<=0) return 0; const p = Math.pow(10, Math.floor(Math.log10(x))); const m = x/p; return (m<=1?1:m<=2?2:m<=5?5:10)*p; };
+  const top = nice(max) || 1, bot = min<0 ? -nice(-min) : 0, span = top-bot;
+  const y = v => T + (H-T-B) * (top - v)/span, x0 = L, pw = W-L-R, gw = pw/Math.max(1,n), bw = Math.min(26, gw*0.8/ns);
+  const short = v => { const a = Math.abs(v); const s = a>=1e7 ? (a/1e7).toFixed(a>=1e8?0:1)+' Cr' : a>=1e5 ? (a/1e5).toFixed(a>=1e6?0:1)+' L' : a>=1e3 ? (a/1e3).toFixed(0)+'K' : String(Math.round(a)); return (v<0?'-':'')+s; };
+  let g = '';
+  for(let i=0;i<=4;i++){ const v = bot + span*i/4, yy = y(v); g += `<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="#E3EAE6" stroke-width="1"/><text x="${L-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#66756D">${short(v)}</text>`; }
+  g += `<line x1="${L}" x2="${W-R}" y1="${y(0)}" y2="${y(0)}" stroke="#9FB2A7" stroke-width="1"/>`;
+  c.cats.forEach((cat,i)=>{ const cx = x0 + gw*i + gw/2;
+    c.series.forEach((s,k)=>{ const v = s.values[i]||0, bx = cx - (ns*bw)/2 + k*bw, y1 = y(Math.max(0,v)), y2 = y(Math.min(0,v)); g += `<rect x="${bx.toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw-2).toFixed(1)}" height="${Math.max(0.5,y2-y1).toFixed(1)}" rx="2" fill="#${s.color}"/>`; });
+    g += `<text x="${cx}" y="${H-B+18}" text-anchor="middle" font-size="11" fill="#4A5751">${escapeHtml(String(cat))}</text>`; });
+  let lx = L; const legend = c.series.map(s=>{ const t = `<rect x="${lx}" y="${H-18}" width="11" height="11" rx="2" fill="#${s.color}"/><text x="${lx+16}" y="${H-8}" font-size="11.5" fill="#33403A">${escapeHtml(s.name)}</text>`; lx += 30 + s.name.length*7; return t; }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeHtml(c.title)}"><text x="${W/2}" y="18" text-anchor="middle" font-size="14" font-weight="700" fill="#14432C">${escapeHtml(c.title)}</text>${g}${legend}</svg>`;
+}
+function rbxPdfHtml(book){
+  const co = currentCompany || {}, esc = escapeHtml, m = book.meta;
+  const css = [];
+  book.xfs.forEach((x,i)=>{ const f = book.fonts[x.font].o; let s = `font-weight:${f.b?700:400};${f.i?'font-style:italic;':''}${f.u?'text-decoration:underline;':''}font-size:${(f.sz*0.8).toFixed(2)}pt;color:#${f.color};`;
+    if(x.fill) s += `background:#${book.fills[x.fill-2].o.c};`;
+    if(x.border){ const b = book.borders[x.border-1].o; ['top','bottom','left','right'].forEach(k=>{ if(b[k]) s += `border-${k}:${b[k]==='double'?'2.2pt double #1B2420':b[k]==='medium'?'1.2pt solid #1B2420':'0.6pt solid #B9C8BF'};`; }); }
+    if(x.h) s += `text-align:${x.h};`; if(x.indent) s += `padding-left:${5+x.indent*8}pt;`; if(x.wrap) s += 'white-space:normal;';
+    css.push(`.x${i}{${s}}`); });
+  const fmtOf = xf => { const x = book.xfs[xf]; return x && x.fmtId ? book.fmts[x.fmtId-164].o : ''; };
+  const sheetIdx = new Map(book.sheets.map((s,i)=>[s.name, i]));
+  const target = loc => { const mm = /^'((?:[^']|'')+)'!\$?([A-Z]+)\$?(\d+)/.exec(loc); if(!mm) return '#'; const si = sheetIdx.get(mm[1].replace(/''/g,"'")); const sh = book.sheets[si]; if(!sh || !sh.pdf) return '#'; const r = Number(mm[3])-1; return r<=(sh.meta.bodyStart||0) ? `#s${si}` : `#s${si}-r${r}`; };
+  const colIdx = L => L.split('').reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0)-1;
+  const parseRef = R => { const mm = /^([A-Z]+)(\d+)$/.exec(R); return mm ? {c:colIdx(mm[1]), r:Number(mm[2])-1} : null; };
+  const sections = [];
+  // Cover (pack)
+  if(m.cover){
+    const cv = m.cover, fy = cv.fy;
+    const kpi = cv.kpis.map(([k,c,p])=>{ const ch = (p!=null && p!==0) ? (c-p)/Math.abs(p) : null; return `<div class="kpi"><div class="kl">${esc(k)}</div><div class="kv">₹ ${rbxFmtVal(rbxR2(c), RBX.FMT.amt0)}</div>${ch==null?'<div class="kc">&nbsp;</div>':`<div class="kc ${ch>=0?'up':'down'}">${ch>=0?'▲':'▼'} ${(Math.abs(ch)*100).toFixed(1)}% vs ${esc(fy.priorFY)}</div>`}</div>`; }).join('');
+    const contents = cv.contents.map((c,i)=>{ const si = sheetIdx.get(c.name); const inPdf = si!=null && book.sheets[si].pdf; return `<li><span class="cn">${String(i+1).padStart(2,'0')}</span><span class="ct">${inPdf?`<a href="#s${si}">${esc(c.name)}</a>`:esc(c.name)}${c.excelOnly?' <em>Excel</em>':''}</span><span class="cd">${esc(c.desc)}</span></li>`; }).join('');
+    const checks = cv.checks.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.result)}</td><td class="${c.ok==null?'':c.ok?'ok':'bad'}">${c.ok==null?'—':c.ok?'✓ OK':'⚠ Review'}</td></tr>`).join('');
+    sections.push(`<section class="cover"><div class="band"><div class="brand">THE RECKONING BOOKS</div><div class="ctitle">Financial Report Pack</div><div class="cco">${esc(co.name||'')}</div><div class="cfy">Financial year ${esc(fy.currentFY)} · ${esc(fy.periodLabel)}</div>${co.gstin||co.pan?`<div class="cids">${co.gstin?'GSTIN '+esc(co.gstin):''}${co.gstin&&co.pan?' · ':''}${co.pan?'PAN '+esc(co.pan):''}</div>`:''}</div>
+      <div class="cbody"><div class="kpis">${kpi}</div><div class="cgrid"><div><h3>Contents</h3><ol class="toc">${contents}</ol></div><div><h3>Checks</h3><table class="chk">${checks}</table><h3>Prepared</h3><table class="det">${cv.details.filter(d=>/Prepared|Address|Books|Currency/.test(d[0])).map(d=>`<tr><td>${esc(d[0])}</td><td>${esc(d[1]||'—')}</td></tr>`).join('')}</table></div></div>
+      <div class="basis"><h3>Basis of preparation</h3>${rbxBasis().map(t=>`<p>${esc(t)}</p>`).join('')}</div></div></section>`);
+  }
+  book.sheets.forEach((sh, si)=>{
+    if(!sh.pdf || sh.name==='Cover') return;
+    const meta = sh.meta || {}, start = meta.bodyStart || 0, head = sh.titleRows ? sh.titleRows[0] : null;
+    let ncols = meta.ncols||1; for(let r=start; r<sh.rows.length; r++){ if(sh.rows[r]) ncols = Math.max(ncols, sh.rows[r].cells.length); }
+    const widths = Array.from({length:ncols}, (_,i)=>sh.cols[i]||10), wsum = widths.reduce((a,b)=>a+b,0);
+    const spans = new Map(), covered = new Set();
+    (sh.mergeList||[]).forEach(g=>{ if(g.r1!==g.r2) return; spans.set(g.r1+':'+g.c1, g.c2-g.c1+1); for(let c=g.c1+1;c<=g.c2;c++) covered.add(g.r1+':'+c); });
+    const links = new Map(sh.links.map(l=>[l.ref, l.loc]));
+    const checkSet = new Map(sh.checks.map(k=>[k.r+':'+k.c, true]));
+    const barMax = new Map(); sh.bars.forEach(rng=>{ const [a,b] = rng.split(':').map(parseRef); if(!a||!b) return; let mx = 0; for(let r=a.r;r<=b.r;r++){ const cell = sh.rows[r] && sh.rows[r].cells[a.c]; if(cell && typeof cell.v==='number') mx = Math.max(mx, Math.abs(cell.v)); } for(let r=a.r;r<=b.r;r++) barMax.set(r+':'+a.c, mx); });
+    const charts = sh.charts.slice().sort((a,b)=>a.at.r1-b.at.r1);
+    const rowHtml = (r, tag) => { const row = sh.rows[r]; if(!row || row.pdfHide) return ''; let out = '';
+      for(let c=0;c<ncols;c++){ const key = r+':'+c; if(covered.has(key)) continue; const cell = row.cells[c]; const span = spans.get(key);
+        let span2 = span;
+        if(!span && tag==='td' && cell && typeof cell.v==='string' && cell.v && !cell.f){ const x = book.xfs[cell.s]; if(!x || !x.h || x.h==='left'){ let k = c+1; while(k<ncols && !covered.has(r+':'+k) && !spans.has(r+':'+k) && !(row.cells[k] && row.cells[k].v!=null && row.cells[k].v!=='')) k++; if(k-c>1){ span2 = k-c; for(let q=c+1;q<k;q++) covered.add(r+':'+q); } } }
+        const cls = cell ? `x${cell.s}` : ''; let txt = cell ? rbxFmtVal(cell.v, fmtOf(cell.s)) : '';
+        if(cell && typeof cell.v==='string') txt = esc(cell.v);
+        const R = RBX.ref(r,c); if(links.has(R)) txt = `<a href="${target(links.get(R))}">${txt}</a>`;
+        let extra = '';
+        if(checkSet.has(key) && cell){ extra = Math.abs(Number(cell.v)||0)<0.01 ? ' ok' : ' bad'; }
+        let style = '';
+        if(barMax.has(key) && cell && typeof cell.v==='number' && barMax.get(key)>0){ const p = Math.round(Math.abs(cell.v)/barMax.get(key)*100); style = ` style="background:linear-gradient(90deg,#D3E9DC ${p}%,transparent ${p}%)"`; }
+        out += `<${tag} class="${cls}${extra}"${span2?` colspan="${span2}"`:''}${style}>${txt}</${tag}>`; }
+      return `<tr id="s${si}-r${r}"${row.lvl?' class="lv"':''}>${out}</tr>`; };
+    let body = '', last = start-1, ci = 0, sigHtml = '';
+    for(let r=start; r<sh.rows.length; r++){
+      if(r===head) continue; const row = sh.rows[r];
+      if(sh.sig && r===sh.sig.from){ // signature block kept together on one page
+        const txt = (rr,c) => { const x = sh.rows[rr] && sh.rows[rr].cells[c]; return x && x.v ? esc(String(x.v)) : '&nbsp;'; };
+        let L = '', Rt = ''; for(let rr=sh.sig.from+1; rr<=sh.sig.to; rr++){ if(!sh.rows[rr]) continue; L += `<div>${txt(rr,0)}</div>`; Rt += `<div>${txt(rr,sh.sig.mid)}</div>`; }
+        sigHtml = `<div class="sig"><div class="sigi">${txt(sh.sig.from,0)}</div><div class="sigb"><div>${L}</div><div>${Rt}</div></div></div>`;
+        r = sh.sig.to; last = r; continue; }
+      while(ci<charts.length && charts[ci].at.r1<=r){ body += `<tr class="chart"><td colspan="${ncols}">${rbxChartSvg(charts[ci])}</td></tr>`; ci++; }
+      if(!row || row.pdfHide) continue;
+      if(r>last+1 && last>=start) body += `<tr class="sp"><td colspan="${ncols}"></td></tr>`;
+      body += rowHtml(r, 'td'); last = r;
+    }
+    while(ci<charts.length){ body += `<tr class="chart"><td colspan="${ncols}">${rbxChartSvg(charts[ci])}</td></tr>`; ci++; }
+    const thead = head!=null ? `<thead>${rowHtml(head, 'th')}</thead>` : '';
+    sections.push(`<section id="s${si}" class="${sh.landscape?'land':''}"><header class="sh"><div><div class="co">${esc(co.name||'')}</div>${co.address?`<div class="ad">${esc([co.address,co.state,co.pincode].filter(Boolean).join(', '))}</div>`:''}${co.gstin?`<div class="ad">GSTIN ${esc(co.gstin)}${co.pan?' · PAN '+esc(co.pan):''}</div>`:''}</div><div class="rt"><h1>${esc(meta.title||sh.name)}</h1>${meta.period?`<div class="pd">${esc(meta.period)}</div>`:''}<div class="am">Amounts in ₹</div></div></header>
+      <table><colgroup>${widths.map(w=>`<col style="width:${(w/wsum*100).toFixed(2)}%">`).join('')}</colgroup>${thead}<tbody>${body}</tbody></table>${sigHtml}</section>`);
+  });
+  const hf = s => String(s||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+  const title = `${(co.name||'Company').replace(/[^a-z0-9]+/gi,'_')}_${(m.title||'Report').replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}`;
+  return `<!DOCTYPE html><html lang="en-IN"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+  @page{size:A4;margin:15mm 12mm 16mm 12mm;
+    @top-left{content:"${hf(co.name)}";font:7pt Arial,Helvetica,sans-serif;color:#66756D}
+    @top-right{content:"${hf(m.title)}";font:7pt Arial,Helvetica,sans-serif;color:#66756D}
+    @bottom-left{content:"Prepared with The Reckoning Books by SKm · ${hf(m.generatedLabel)}";font:7pt Arial,Helvetica,sans-serif;color:#66756D}
+    @bottom-right{content:"Page " counter(page) " of " counter(pages);font:7pt Arial,Helvetica,sans-serif;color:#66756D}}
+  @page land{size:A4 landscape}
+  @page cover{margin:0; @top-left{content:none} @top-right{content:none} @bottom-left{content:none} @bottom-right{content:none}}
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{margin:0;font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;color:#1B2420;font-size:8pt}
+  section{break-before:page} section:first-child{break-before:auto} section.land{page:land} section.cover{page:cover}
+  header.sh{display:flex;justify-content:space-between;align-items:flex-end;gap:16pt;border-bottom:1.4pt solid #14432C;padding-bottom:6pt;margin-bottom:8pt}
+  header.sh .co{font-size:13pt;font-weight:700;color:#14432C} header.sh .ad{font-size:7.5pt;color:#66756D;margin-top:1.5pt}
+  header.sh .rt{text-align:right;max-width:60%} header.sh h1{font-size:11.5pt;margin:0;color:#1F6B45} header.sh .pd{font-size:8pt;color:#33403A;margin-top:2pt;font-weight:700} header.sh .am{font-size:7pt;color:#66756D;font-style:italic;margin-top:1.5pt}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+  td,th{padding:1.9pt 4pt;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;line-height:1.28}
+  thead{display:table-header-group} tr{break-inside:avoid} tr.sp td{height:6pt;padding:0} tr.lv td{color:#33403A}
+  tr.chart td{padding:8pt 0;white-space:normal} tr.chart svg{display:block}
+  .sig{break-inside:avoid;padding:12pt 4pt 2pt;font-size:7.8pt} .sigi{font-style:italic;color:#66756D;margin-bottom:12pt} .sigb{display:grid;grid-template-columns:1fr 1fr;gap:20pt} .sigb>div>div{min-height:11pt} .sigb>div>div:nth-child(1),.sigb>div>div:nth-child(2){font-weight:700}
+  a{color:#0B57D0;text-decoration:none}
+  .neg{color:#B42318} td.ok{background:#E7F4EC!important;color:#1E7B45!important;font-weight:700} td.bad{background:#FDECEA!important;color:#B42318!important;font-weight:700}
+  ${css.join('\n  ')}
+  section.cover{height:297mm;overflow:hidden;display:flex;flex-direction:column}
+  .band{background:#14432C;color:#fff;padding:18mm 16mm 10mm} .brand{letter-spacing:.32em;font-size:8pt;opacity:.75;font-weight:700}
+  .ctitle{font-size:28pt;font-weight:700;margin-top:7mm;line-height:1.1} .cco{font-size:17pt;margin-top:5mm;font-weight:700} .cfy{font-size:10.5pt;margin-top:2.5mm;opacity:.9} .cids{font-size:8.5pt;margin-top:2mm;opacity:.75}
+  .cbody{padding:8mm 16mm 8mm;flex:1;display:flex;flex-direction:column;gap:5.5mm}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm} .kpi{border:0.6pt solid #C5D3CA;border-radius:3mm;padding:3.5mm 4mm;background:#F6FAF7}
+  .kl{font-size:7.5pt;color:#66756D;text-transform:uppercase;letter-spacing:.06em;font-weight:700} .kv{font-size:14pt;font-weight:700;color:#14432C;margin-top:1.5mm} .kc{font-size:7.5pt;margin-top:1mm} .kc.up{color:#1E7B45} .kc.down{color:#B42318}
+  .cgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:8mm} .cbody h3{font-size:9pt;color:#14432C;text-transform:uppercase;letter-spacing:.08em;margin:0 0 2.5mm;border-bottom:0.8pt solid #C5D3CA;padding-bottom:1.5mm}
+  ol.toc{list-style:none;margin:0;padding:0} ol.toc li{display:grid;grid-template-columns:8mm 1fr;gap:0 2mm;padding:1.1mm 0;border-bottom:0.4pt solid #E3EAE6}
+  .cn{color:#9FB2A7;font-weight:700;font-size:8.5pt;grid-row:span 2} .ct{font-weight:700;font-size:8.8pt} .ct em{font-style:normal;font-size:6.5pt;background:#E6F0EA;color:#1F6B45;border-radius:2mm;padding:0.3mm 1.5mm;margin-left:1mm} .cd{font-size:7.4pt;color:#66756D}
+  table.chk td,table.det td{white-space:normal;font-size:7.4pt;padding:1.1mm 1.5mm;border-bottom:0.4pt solid #E3EAE6} table.chk td:first-child,table.det td:first-child{font-weight:700;width:34%} table.chk td.ok,table.chk td.bad{text-align:center;width:18%;border-radius:1mm}
+  table.det{margin-bottom:0} .basis{columns:2;column-gap:8mm} .basis h3{column-span:all} .basis p{font-size:6.9pt;color:#4A5751;margin:0 0 1.2mm;line-height:1.38;break-inside:avoid}
+  </style></head><body>${sections.join('\n')}</body></html>`;
+}
+async function rbxPdfRun(kind, legacy){
+  try{
+    if(kind==='budget' && !budgetReportFY) budgetReportFY = fyLabelForDate(new Date().toISOString().slice(0,10));
+    const book = await rbxBuild(kind, true);
+    const html = rbxPdfHtml(book);
+    window.__rbxLastPdf = { html, book };
+    printHTMLDocument(html);
+    toast('In the print window choose "Save as PDF" to download the report', {duration:5200});
+  }catch(err){
+    console.error('Formatted PDF failed, using the plain print instead', err);
+    if(typeof legacy==='function') legacy();
+  }
+}
+
+function exportReportsToExcel(){ return rbxRun('all', exportReportsToExcelPlain); }
+function exportTrialBalanceToExcel(){ return rbxRun('tb', exportTrialBalanceToExcelPlain); }
+function exportPLToExcel(){ return rbxRun('pl', exportPLToExcelPlain); }
+function exportBalanceSheetToExcel(){ return rbxRun('bs', exportBalanceSheetToExcelPlain); }
+function exportRatiosToExcel(){ return rbxRun('ratios', exportRatiosToExcelPlain); }
+function exportCashFlowToExcel(){ return rbxRun('cf', exportCashFlowToExcelPlain); }
+function exportCostCenterToExcel(){ return rbxRun('cc', exportCostCenterToExcelPlain); }
+function exportBudgetVsActualToExcel(){ return rbxRun('budget', exportBudgetVsActualToExcelPlain); }
+function downloadAuditTrail(){ return rbxRun('audit', downloadAuditTrailPlain); }
+function printTrialBalanceReport(){ return rbxPdfRun('tb', printTrialBalanceReportPlain); }
+function printIncomeStatementReport(){ return rbxPdfRun('pl', printIncomeStatementReportPlain); }
+function printBalanceSheetReport(){ return rbxPdfRun('bs', printBalanceSheetReportPlain); }
+function printCashFlowReport(){ return rbxPdfRun('cf', printCashFlowReportPlain); }
+function printRatiosReport(){ return rbxPdfRun('ratios'); }
+function printCostCenterReport(){ return rbxPdfRun('cc'); }
+function printBudgetReport(){ return rbxPdfRun('budget'); }
+function printAuditTrailReport(){ return rbxPdfRun('audit'); }
+function printReportPack(){ return rbxPdfRun('all'); }
 
 /* ---------------- Inventory ---------------- */
 function itemVoucherDirection(type){
@@ -37336,7 +38691,8 @@ function reportsLanding(){
     </div>
     <div class="module-toolbar" style="margin-bottom:14px;">
       ${moduleSearchBox('reportsFindInput','Find a report — e.g. balance, GST, cash, audit…',reportsFindQuery)}
-      <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Export All (Excel)</button>
+      <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Report Pack (Excel)</button>
+      <button class="btn secondary small" id="exportPdfPackBtn" type="button">🖨 Report Pack (PDF)</button>
     </div>
     <div class="results-line" id="reportsFindLine" aria-live="polite" style="margin:-4px 0 12px;"></div>
     ${groups.map(g=>{
@@ -37658,7 +39014,7 @@ function reportRatioAnalysis(){
     {jump:'ratioEfficiency', label:'Days Sales Outstanding', val: fmtDays(ratios.dso), pill: ''},
   ];
   return `
-    ${reportHeader('Ratio Analysis (Detailed)', 'exportRatiosBtn')}
+    ${reportHeader('Ratio Analysis (Detailed)', 'exportRatiosBtn', null, 'printRatiosBtn')}
     <div class="grid ratio-glance">
       ${glance.map(g=>`<div class="stat stat-link" data-ratio-jump="${g.jump}" role="button" tabindex="0" title="Jump to the detail"><div class="label">${g.label}</div><div class="val">${g.val}</div>${g.pill?`<div style="margin-top:6px;">${g.pill}</div>`:''}</div>`).join('')}
     </div>
@@ -38014,19 +39370,19 @@ async function printStatementReport(containerId, title, subtitle){
   clone.querySelectorAll('button').forEach(el=>el.remove());
   printHTMLDocument(statementPrintDocumentHtml(title, subtitle, clone.innerHTML));
 }
-function printTrialBalanceReport(){
+function printTrialBalanceReportPlain(){
   const asOf = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   printStatementReport('trialBalanceStatementBody', 'Trial Balance', `As at ${asOf}`);
 }
-function printIncomeStatementReport(){
+function printIncomeStatementReportPlain(){
   const fy = currentAndPriorFYData(activeFY);
   printStatementReport('incomeStatementStatementBody', 'Income Statement (Schedule III, Division I) — Statement of Profit and Loss', `For the period ${fy.periodLabel}`);
 }
-function printBalanceSheetReport(){
+function printBalanceSheetReportPlain(){
   const fy = currentAndPriorFYData(activeFY);
   printStatementReport('balanceSheetStatementBody', 'Balance Sheet (Schedule III, Division I)', `As at ${fy.asOfLabel}`);
 }
-function printCashFlowReport(){
+function printCashFlowReportPlain(){
   const asOf = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   printStatementReport('cashFlowStatementBody', 'Cash Flow Statement (Direct Method)', `Life-to-date, as at ${asOf}`);
 }
@@ -38140,7 +39496,7 @@ function reportCostCenterPL(){
       <td><button class="btn small secondary" data-costcenter-breakup="${r.costCenter.id}" type="button">Breakup</button></td>
     </tr>`;
   return `
-    ${reportHeader('Cost Center P&L', 'exportCostCenterBtn')}
+    ${reportHeader('Cost Center P&L', 'exportCostCenterBtn', null, 'printCostCenterBtn')}
     <p class="muted" style="font-size:11.5px;margin-top:-8px;">${activeFY?`For FY ${activeFY}`:'All time'} — tag vouchers with a cost center on the Voucher tab (or split one voucher across several); manage cost centers, categories and classes on the Accounts tab.</p>
     <div class="panel"><div class="panel-body" style="padding:0;">
       ${anyRows ? `<table>
@@ -38389,7 +39745,7 @@ function reportBudgetVsActual(){
   const fyOptions = Array.from(new Set([...state.budgets.map(b=>b.fy), budgetReportFY])).sort().reverse();
   const rows = budgetVsActualData(budgetReportFY);
   return `
-    ${reportHeader('Budget vs Actual', 'exportBudgetBtn')}
+    ${reportHeader('Budget vs Actual', 'exportBudgetBtn', null, 'printBudgetBtn')}
     <div class="row" style="align-items:flex-end;margin-top:-8px;">
       <div class="field" style="max-width:160px;"><label>Financial Year</label>
         <select id="budgetFYSelect">${fyOptions.map(fy=>`<option value="${fy}" ${fy===budgetReportFY?'selected':''}>${fy}</option>`).join('')}</select>
@@ -40370,7 +41726,7 @@ function reportAuditTrail(){
         ${moduleSearchBox('auditTrailSearch','Search user, voucher type or narration…',auditTrailQuery)}
         <label class="muted" style="font-size:12px;">From <input type="date" id="auditTrailFrom" value="${escapeAttr(auditTrailFrom)}"></label>
         <label class="muted" style="font-size:12px;">To <input type="date" id="auditTrailTo" value="${escapeAttr(auditTrailTo)}"></label>
-        <button class="btn small" id="auditTrailXlsxBtn" type="button" ${rows.length?'':'disabled'}>⬇ Excel</button>
+        <button class="btn small" id="auditTrailXlsxBtn" type="button" ${rows.length?'':'disabled'}>⬇ Excel</button><button class="btn small secondary" id="auditTrailPdfBtn" type="button" ${rows.length?'':'disabled'}>🖨 PDF</button>
       </div>
       <div class="results-line">Showing ${shown.length} of ${rows.length} entr${rows.length===1?'y':'ies'}${rows.length!==all.length?` (${all.length} in the log)`:''}</div>
       ${rows.length ? `<div class="table-scroll"><table class="rb-card-table" id="auditTrailTable"><tr><th>When</th><th>User</th><th>Action</th><th>Voucher</th><th>What changed</th><th>Sealed</th></tr>
@@ -40384,7 +41740,7 @@ function reportAuditTrail(){
       </table></div>${rows.length>shown.length?`<div class="table-more"><button class="btn secondary" id="auditTrailMoreBtn" type="button">Show ${Math.min(100, rows.length-shown.length)} more</button></div>`:''}` : emptyState({icon:'🧾', title:'No entries match', text:'Voucher changes appear here as soon as they happen.'})}
     </div></div>`;
 }
-function downloadAuditTrail(){
+function downloadAuditTrailPlain(){
   if(typeof XLSX==='undefined'){ toast('Excel export library did not load — check your connection'); return; }
   const rows = auditTrailRows();
   const aoa = [['Date & time','User','Action','Voucher type','Voucher date','Narration','Amount before','Amount after','What changed','Sealed']];
@@ -49651,6 +51007,7 @@ function attachHandlers(){
     document.getElementById('auditTrailTo')?.addEventListener('change', e=>{ auditTrailTo = e.target.value; auditTrailLimit = 100; render(); });
     document.getElementById('auditTrailMoreBtn')?.addEventListener('click', ()=>{ auditTrailLimit += 100; render(); });
     document.getElementById('auditTrailXlsxBtn')?.addEventListener('click', downloadAuditTrail);
+    document.getElementById('auditTrailPdfBtn')?.addEventListener('click', printAuditTrailReport);
     document.getElementById('auditTrailSearch')?.addEventListener('input', e=>{ auditTrailQuery = e.target.value; auditTrailLimit = 100; const c = e.target.selectionStart; render(); const el = document.getElementById('auditTrailSearch'); if(el){ el.focus(); try{ el.setSelectionRange(c,c); }catch(err){} } });
     const reportsAskInput = document.getElementById('reportsAskInput');
     const sendReportsAsk = ()=>{ askReportsBooks(reportsAskInput?.value||''); };
@@ -49661,6 +51018,7 @@ function attachHandlers(){
       if(csv) downloadCSV(csv.header, csv.rows, csv.filename);
     });
     document.getElementById('exportExcelBtn')?.addEventListener('click', exportReportsToExcel);
+    document.getElementById('exportPdfPackBtn')?.addEventListener('click', printReportPack);
     // Module 11: display-only statement helpers (never change a figure; print/export read the data, not these classes)
     const applyTbFilter = ()=>{
       const q = tbSearchQuery.trim().toLowerCase(); let shown = 0, total = 0;
@@ -49733,6 +51091,9 @@ function attachHandlers(){
     document.getElementById('printPLBtn')?.addEventListener('click', printIncomeStatementReport);
     document.getElementById('printBSBtn')?.addEventListener('click', printBalanceSheetReport);
     document.getElementById('printCFBtn')?.addEventListener('click', printCashFlowReport);
+    document.getElementById('printRatiosBtn')?.addEventListener('click', printRatiosReport);
+    document.getElementById('printCostCenterBtn')?.addEventListener('click', printCostCenterReport);
+    document.getElementById('printBudgetBtn')?.addEventListener('click', printBudgetReport);
     document.getElementById('exportCostCenterBtn')?.addEventListener('click', exportCostCenterToExcel);
     document.querySelectorAll('[data-costcenter-breakup]').forEach(el=>{
       el.addEventListener('click', ()=>{ costCenterBreakupId = el.dataset.costcenterBreakup; modal = 'costCenterBreakup'; render(); });
