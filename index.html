@@ -16471,6 +16471,420 @@ function printCostCenterReport(){ return rbxPdfRun('cc'); }
 function printBudgetReport(){ return rbxPdfRun('budget'); }
 function printAuditTrailReport(){ return rbxPdfRun('audit'); }
 function printReportPack(){ return rbxPdfRun('all'); }
+/* ====== Reports → PowerPoint: Financial Review & Management Report deck (Nov 2026) ======
+   "📊 Report Pack (PowerPoint)" on the Reports page builds an editable 16:9 deck from the same figures
+   as the Excel and PDF report pack: executive summary with automatic highlights, key figures against the
+   same period last year, monthly performance, Schedule III Profit and Loss and Balance Sheet, revenue
+   and cost analysis, financial position, cash flow, working capital, receivable and payable ageing
+   (MSME 45-day check), ratio scorecard and trends, cost centers, budget vs actual, controls and data
+   quality, observations with recommended actions, and an appendix. Charts are native PowerPoint
+   charts (editable), every slide carries speaker notes. Uses the PptxGenJS library the app already loads
+   for the Stakeholder Presentation; if that copy did not load, it is fetched again on demand. Read-only:
+   nothing in the books is changed. */
+const RB_PPTX_SRC = ['https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js', 'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js'];
+function rbxLoadPptx(){
+  if(typeof window.PptxGenJS==='function') return Promise.resolve();
+  const tryOne = i => new Promise((res, rej)=>{
+    if(i>=RB_PPTX_SRC.length) return rej(new Error('The PowerPoint library could not be loaded — check your internet connection.'));
+    const s = document.createElement('script'); s.src = RB_PPTX_SRC[i]; s.async = true; s.crossOrigin = 'anonymous';
+    s.onload = ()=> typeof window.PptxGenJS==='function' ? res() : tryOne(i+1).then(res, rej);
+    s.onerror = ()=>{ s.remove(); tryOne(i+1).then(res, rej); };
+    document.head.appendChild(s);
+  });
+  return tryOne(0);
+}
+// ₹ formatting for slides
+const rbxPInr = (n, d) => (n<0?'-':'')+'₹'+Math.abs(Number(n)||0).toLocaleString('en-IN',{minimumFractionDigits:d||0, maximumFractionDigits:d||0});
+const rbxPShort = n => { const a = Math.abs(Number(n)||0), s = n<0?'-':''; return a>=1e7 ? `${s}₹${(a/1e7).toFixed(2)} Cr` : a>=1e5 ? `${s}₹${(a/1e5).toFixed(2)} L` : `${s}₹${Math.round(a).toLocaleString('en-IN')}`; };
+const rbxPPct = (x, d) => x==null || !isFinite(x) ? '—' : `${(x*100).toFixed(d==null?1:d)}%`;
+const rbxPChg = (c, p) => (p==null || !p) ? null : (c-p)/Math.abs(p);
+// All figures the deck needs, worked out once (read-only).
+function rbxDeckData(){
+  const fy = rbxFyCtx(), pl = fy.pl, bs = fy.bs, co = currentCompany || {};
+  const shiftYear = d => { const [y,m,dd] = d.split('-').map(Number); const t = new Date(y-1, m-1, Math.min(dd, new Date(y-1, m, 0).getDate())); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; };
+  const hasPrev = !!fy.prevPl;
+  const lflTo = shiftYear(fy.asOf), lfl = hasPrev ? scheduleIIIProfitLossData(fy.priorBounds.start, lflTo) : null;
+  // months of the current FY
+  const months = []; { let d = new Date(fy.curBounds.start+'T00:00:00'); const end = fy.asOf.slice(0,7); while(months.length<24){ const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; months.push(k); if(k>=end) break; d = new Date(d.getFullYear(), d.getMonth()+1, 1); } }
+  const incomeCat = new Set(GROUPS.filter(g=>g.cat==='Income').map(g=>g.id)), expCat = new Set(GROUPS.filter(g=>g.cat==='Expenses').map(g=>g.id));
+  const mon = {}; months.forEach(m=>mon[m]={inc:0,exp:0,rev:0,cin:0,cout:0});
+  const salesBy = new Map(); const revIds = new Set(pl.revenueLedgers.map(l=>l.id));
+  for(const v of state.vouchers){
+    if(v.date<fy.curBounds.start || v.date>fy.asOf) continue; const a = mon[v.date.slice(0,7)]; if(!a) continue;
+    let revAmt = 0;
+    for(const e of v.entries){ const l = ledgerOf(e.ledgerId); if(!l) continue;
+      if(incomeCat.has(l.group)) a.inc += (e.cr||0)-(e.dr||0); else if(expCat.has(l.group)) a.exp += (e.dr||0)-(e.cr||0);
+      if(revIds.has(l.id)){ const x = (e.cr||0)-(e.dr||0); a.rev += x; revAmt += x; }
+      const b = bucketOf(l); if((b==='cash'||b==='bank') && v.type!=='Contra'){ const x=(e.dr||0)-(e.cr||0); if(x>0) a.cin+=x; else a.cout+=-x; } }
+    if(revAmt>0){ const party = v.entries.find(e=>{ const l = ledgerOf(e.ledgerId); return l && (e.dr||0)>0 && (l.group==='sundeb' || l.partyType==='customer'); });
+      const nm = party ? ledgerOf(party.ledgerId).name : (v.entries.some(e=>{ const l = ledgerOf(e.ledgerId); return l && ['cash','bank'].includes(bucketOf(l)) && (e.dr||0)>0; }) ? 'Cash / counter sales' : 'Other'); salesBy.set(nm, (salesBy.get(nm)||0)+revAmt); }
+  }
+  const curF = rbxNets(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf);
+  const expL = state.ledgers.filter(l=>expCat.has(l.group)).map(l=>({n:l.name, v:curF.get(l.id)||0})).filter(x=>x.v>0.004).sort((a,b)=>b.v-a.v);
+  const is = incomeStatementData(), ibs = balanceSheetIFRSData(is.profitForPeriod), ratios = ratioAnalysisData(is, ibs);
+  let series = []; try{ series = ratioFYSeries(6); }catch(e){}
+  const cf = cashFlowData(), rec = rbxAgeing(fy.asOf, 'rec'), pay = rbxAgeing(fy.asOf, 'pay');
+  let cc = []; try{ cc = costCenterPLData(); }catch(e){}
+  const bfy = budgetReportFY || fy.currentFY; let bud = []; try{ bud = budgetVsActualData(bfy); }catch(e){}
+  let issues = null; try{ issues = dataIntegrityChecks().length; }catch(e){}
+  let audit = []; try{ audit = auditTrailRows(); }catch(e){}
+  const bal = state.ledgers.map(l=>ledgerBalance(l.id)), tbDr = bal.filter(x=>x>0).reduce((a,b)=>a+b,0), tbCr = -bal.filter(x=>x<0).reduce((a,b)=>a+b,0);
+  return { fy, pl, bs, co, hasPrev, lfl, lflTo, months, mon, salesBy:[...salesBy.entries()].sort((a,b)=>b[1]-a[1]), expL, is, ibs, ratios, series, cf, rec, pay, cc, bfy, bud, issues, audit, tbDr, tbCr,
+    vouchers: state.vouchers.filter(v=>v.date>=fy.curBounds.start && v.date<=fy.asOf).length };
+}
+// Plain-language highlights, watch-outs and actions from the figures.
+function rbxDeckInsights(D){
+  const hi = [], watch = [], act = [], pl = D.pl, L = D.lfl;
+  const margin = pl.revenueFromOperations ? pl.profitForPeriod/pl.revenueFromOperations : null;
+  if(L){
+    const rc = rbxPChg(pl.revenueFromOperations, L.revenueFromOperations), pc = rbxPChg(pl.profitForPeriod, L.profitForPeriod);
+    if(rc!=null) (rc>=0?hi:watch).push(`Revenue ${rbxPShort(pl.revenueFromOperations)} — ${rc>=0?'up':'down'} ${rbxPPct(Math.abs(rc))} on the same period last year.`);
+    if(pc!=null) (pc>=0?hi:watch).push(`Profit ${rbxPShort(pl.profitForPeriod)} — ${pc>=0?'up':'down'} ${rbxPPct(Math.abs(pc))} on the same period last year.`);
+    const lm = L.revenueFromOperations ? L.profitForPeriod/L.revenueFromOperations : null;
+    if(margin!=null && lm!=null){ const d = (margin-lm)*100; (d>=0?hi:watch).push(`Net margin ${rbxPPct(margin)} (${d>=0?'+':''}${d.toFixed(1)} points vs ${rbxPPct(lm)} last year).`); if(d<-2) act.push({p:'High', t:'Margin has fallen — review pricing and the largest cost heads (see Cost structure).'}); }
+  } else if(margin!=null) hi.push(`Net margin ${rbxPPct(margin)} on revenue of ${rbxPShort(pl.revenueFromOperations)}.`);
+  const avgExp = D.months.length ? D.months.reduce((s,m)=>s+D.mon[m].exp,0)/D.months.length : 0;
+  const cash = D.bs.cashTotal, cover = avgExp>0 ? cash/avgExp : null;
+  if(cover!=null) (cover>=2?hi:watch).push(`Cash and bank ${rbxPShort(cash)} — about ${cover.toFixed(1)} months of average monthly spending.`);
+  if(cover!=null && cover<2) act.push({p:'High', t:'Cash covers less than two months of spending — speed up collections and phase large payments.'});
+  if(D.expL.length){ const tot = D.expL.reduce((s,x)=>s+x.v,0); const top = D.expL[0]; hi.push(`Largest cost: ${top.n} at ${rbxPPct(top.v/tot)} of all expenses.`); }
+  const recTot = D.rec.reduce((s,x)=>s+x.total,0), recOver = D.rec.reduce((s,x)=>s+x.ages.filter(p=>p.days>Math.max(x.credit,0)).reduce((t,p)=>t+p.amt,0),0);
+  const rec90 = D.rec.reduce((s,x)=>s+x.ages.filter(p=>p.days>90).reduce((t,p)=>t+p.amt,0),0);
+  if(recTot>0){ (recOver/recTot>0.3?watch:hi).push(`Receivables ${rbxPShort(recTot)}; ${rbxPPct(recOver/recTot)} is past the agreed credit days.`);
+    if(rec90>0) { const worst = D.rec.map(x=>({n:x.l.name, v:x.ages.filter(p=>p.days>90).reduce((t,p)=>t+p.amt,0)})).sort((a,b)=>b.v-a.v)[0]; act.push({p: rec90/recTot>0.2?'High':'Medium', t:`Follow up ${rbxPShort(rec90)} outstanding for more than 90 days — start with ${worst.n} (${rbxPShort(worst.v)}).`}); }
+    if(D.rec[0] && D.rec[0].total/recTot>0.4) watch.push(`${D.rec[0].l.name} alone is ${rbxPPct(D.rec[0].total/recTot)} of receivables (concentration risk).`); }
+  const msmeLate = D.pay.filter(x=>x.msme).reduce((s,x)=>s+x.ages.filter(p=>p.days>45).reduce((t,p)=>t+p.amt,0),0);
+  if(msmeLate>0){ watch.push(`${rbxPShort(msmeLate)} owed to micro/small (MSME) suppliers is older than 45 days.`); act.push({p:'High', t:'Clear MSME dues older than 45 days — the MSMED Act limit; late payment also delays the income-tax deduction.'}); }
+  const r = D.ratios;
+  if(r.currentRatio!=null){ (r.currentRatio>=1?hi:watch).push(`Current ratio ${r.currentRatio.toFixed(2)}× ${r.currentRatio>=1.5?'(comfortable)':r.currentRatio>=1?'(adequate)':'(tight)'}.`); if(r.currentRatio<1) act.push({p:'High', t:'Short-term dues exceed short-term assets — plan working-capital funding.'}); }
+  if(r.debtToEquity!=null && r.debtToEquity>1){ watch.push(`Debt-to-equity ${r.debtToEquity.toFixed(2)}× — more borrowed than owned funds.`); act.push({p:'Medium', t:'Gearing is above 1× — avoid new borrowing until profits are retained.'}); }
+  const adverse = D.bud.filter(b=> b.isIncome ? b.actual<b.budgetAmt : b.actual>b.budgetAmt);
+  if(D.bud.length){ (adverse.length?watch:hi).push(`${D.bud.length-adverse.length} of ${D.bud.length} budget lines on track for FY ${D.bfy}.`); if(adverse.length) act.push({p:'Medium', t:`Review ${adverse.length} adverse budget line${adverse.length===1?'':'s'}: ${adverse.slice(0,3).map(b=>b.ledger.name).join(', ')}.`}); }
+  if(D.issues) { watch.push(`${D.issues} data-quality item${D.issues===1?'':'s'} flagged by the Data Integrity Checker.`); act.push({p:'Medium', t:'Clear the Data Integrity Checker items before finalising the accounts.'}); }
+  if(Math.abs(D.tbDr-D.tbCr)>=0.01) act.push({p:'High', t:'Trial balance does not agree — investigate before sharing the statements.'});
+  if(!act.length) act.push({p:'Low', t:'No urgent issues — keep the monthly close and reconciliations on schedule.'});
+  act.sort((a,b)=>['High','Medium','Low'].indexOf(a.p)-['High','Medium','Low'].indexOf(b.p));
+  return {hi, watch, act};
+}
+async function rbxBuildDeck(){
+  const D = rbxDeckData(), I = rbxDeckInsights(D), fy = D.fy, co = D.co, pl = D.pl, bs = D.bs, pb = fy.prevBs, L = D.lfl;
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE'; pptx.author = rbxUser() || 'The Reckoning Books by SKm'; pptx.company = co.name || ''; pptx.title = `Financial Review FY ${fy.currentFY} — ${co.name||''}`; pptx.subject = 'Financial and management report';
+  const C = { dark:'14432C', green:'1F6B45', mid:'4A9C7A', light:'E6F0EA', pale:'F4F8F5', gold:'D08C2E', blue:'5B8DB8', red:'B42318', pos:'1E7B45', ink:'1B2420', muted:'66756D', line:'D5DED9', white:'FFFFFF' };
+  const FONT = 'Calibri', HEAD = 'Cambria';
+  const foot = `${co.name||''}  ·  Financial Review FY ${fy.currentFY}`;
+  pptx.defineSlideMaster({ title:'RB', background:{color:C.white}, margin:[0.4,0.5,0.5,0.5],
+    objects:[ {text:{text:foot, options:{x:0.5, y:7.05, w:9, h:0.3, fontSize:9, color:C.muted, fontFace:FONT}}} ],
+    slideNumber:{x:12.35, y:7.05, w:0.5, h:0.3, fontSize:9, color:C.muted, fontFace:FONT, align:'right'} });
+  const W = 13.333;
+  const mk = () => pptx.addSlide({masterName:'RB'});
+  const title = (s, t, sub) => { s.addText(t, {x:0.5, y:0.32, w:12.3, h:0.62, fontSize:26, bold:true, color:C.dark, fontFace:HEAD, margin:0, isTextBox:true});
+    if(sub) s.addText(sub, {x:0.5, y:0.94, w:12.3, h:0.36, fontSize:12.5, color:C.muted, fontFace:FONT, margin:0, isTextBox:true}); };
+  const card = (s, x, y, w, h, label, value, note, noteColor) => {
+    s.addShape(pptx.ShapeType.roundRect, {x, y, w, h, fill:{color:C.pale}, line:{color:C.line, width:0.75}, rectRadius:0.08});
+    s.addText(label.toUpperCase(), {x:x+0.2, y:y+0.14, w:w-0.4, h:0.3, fontSize:10, bold:true, color:C.muted, fontFace:FONT, margin:0, charSpacing:1, isTextBox:true});
+    s.addText(value, {x:x+0.2, y:y+0.44, w:w-0.4, h:0.55, fontSize:24, bold:true, color:C.dark, fontFace:FONT, margin:0, isTextBox:true});
+    if(note) s.addText(note, {x:x+0.2, y:y+h-0.42, w:w-0.4, h:0.3, fontSize:10.5, color:noteColor||C.muted, fontFace:FONT, margin:0, isTextBox:true}); };
+  const chgNote = (c, p, lab) => { const x = rbxPChg(c, p); return x==null ? [null, null] : [`${x>=0?'▲':'▼'} ${rbxPPct(Math.abs(x))} vs ${lab}`, x>=0?C.pos:C.red]; };
+  const hdrCell = (t, al) => ({text:t, options:{bold:true, color:C.white, fill:{color:C.dark}, align:al||'left', valign:'middle'}});
+  const cell = (t, o) => ({text:String(t==null?'':t), options:{align:'left', valign:'middle', ...(o||{})}});
+  const num = (n, o) => cell(n==null?'—':rbxPInr(n), {align:'right', color: (n||0)<0?C.red:C.ink, ...(o||{})});
+  const table = (s, rows, o) => s.addTable(rows, {x:0.5, y:1.45, w:12.3, fontSize:11, fontFace:FONT, color:C.ink, border:{type:'solid', pt:0.5, color:C.line}, rowH:0.3, margin:[0.03,0.08,0.03,0.08], autoPage:false, ...(o||{})});
+  const bullets = (s, items, o) => s.addText(items.map((t,i)=>({text:t, options:{bullet:true, breakLine:i<items.length-1, paraSpaceAfter:6}})), {x:0.5, y:1.5, w:12.3, h:5.2, fontSize:14, color:C.ink, fontFace:FONT, valign:'top', isTextBox:true, ...(o||{})});
+  const chartBase = (t, o) => ({ showTitle:!!t, title:t||'', titleFontSize:13, titleColor:C.dark, titleFontFace:FONT, showLegend:true, legendPos:'b', legendFontSize:10, legendFontFace:FONT,
+    catAxisLabelColor:C.muted, valAxisLabelColor:C.muted, catAxisLabelFontSize:10, valAxisLabelFontSize:10, catAxisLabelFontFace:FONT, valAxisLabelFontFace:FONT,
+    valGridLine:{color:'E3EAE6', size:0.5}, catGridLine:{style:'none'}, ...(o||{}) });
+  const monLab = m => new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'short',year:'2-digit'});
+  const lakh = v => Math.round((v||0)/1000)/100;   // ₹ lakh, 2 decimals
+  const sections = [];
+
+  // 1. Cover
+  { const s = pptx.addSlide(); s.background = {color:C.dark};
+    s.addText('THE RECKONING BOOKS', {x:0.8, y:0.7, w:8, h:0.35, fontSize:12, bold:true, color:'A9CBB8', charSpacing:4, fontFace:FONT, margin:0, isTextBox:true});
+    s.addText('Financial Review & Management Report', {x:0.8, y:2.0, w:11.5, h:1.1, fontSize:40, bold:true, color:C.white, fontFace:HEAD, margin:0, isTextBox:true});
+    s.addText(co.name||'Company', {x:0.8, y:3.15, w:11.5, h:0.7, fontSize:26, color:'DCEBE2', fontFace:FONT, margin:0, isTextBox:true});
+    s.addText(`Financial year ${fy.currentFY}  ·  ${fy.periodLabel}`, {x:0.8, y:3.9, w:11.5, h:0.45, fontSize:16, color:'A9CBB8', fontFace:FONT, margin:0, isTextBox:true});
+    const ids = [co.gstin?`GSTIN ${co.gstin}`:'', co.pan?`PAN ${co.pan}`:''].filter(Boolean).join('   ·   ');
+    s.addText(`Prepared by ${rbxUser()||'—'}  ·  ${rbxStamp()}${ids?'\n'+ids:''}`, {x:0.8, y:6.1, w:11.5, h:0.7, fontSize:12, color:'A9CBB8', fontFace:FONT, margin:0, valign:'bottom', isTextBox:true});
+    s.addNotes(`Financial review of ${co.name||'the company'} for FY ${fy.currentFY} (${fy.periodLabel}). All figures come straight from the books in The Reckoning Books; amounts are in Indian rupees.`); }
+
+  // 2. Agenda (filled at the end once sections are known)
+  const agenda = mk();
+
+  // 3. Executive summary
+  { const s = mk(); sections.push('Executive summary'); title(s, 'Executive summary', L ? `Year to date ${fy.periodLabel}, compared with the same period last year` : `For the period ${fy.periodLabel}`);
+    const lab = L ? 'same period LY' : '';
+    const k = [['Revenue', rbxPShort(pl.revenueFromOperations), ...(L?chgNote(pl.revenueFromOperations, L.revenueFromOperations, lab):[null])],
+      ['Profit for the period', rbxPShort(pl.profitForPeriod), ...(L?chgNote(pl.profitForPeriod, L.profitForPeriod, lab):[null])],
+      ['Net margin', rbxPPct(pl.revenueFromOperations? pl.profitForPeriod/pl.revenueFromOperations : null), L && L.revenueFromOperations ? `${rbxPPct(L.profitForPeriod/L.revenueFromOperations)} same period LY` : null],
+      ['Cash and bank', rbxPShort(bs.cashTotal), ...(pb?chgNote(bs.cashTotal, pb.cashTotal, 'last year-end'):[null])]];
+    k.forEach((x,i)=>card(s, 0.5+i*3.13, 1.5, 2.93, 1.45, x[0], x[1], x[2], x[3]));
+    s.addText('Highlights', {x:0.5, y:3.25, w:6, h:0.35, fontSize:15, bold:true, color:C.green, fontFace:FONT, margin:0, isTextBox:true});
+    s.addText(I.hi.slice(0,5).map((t,i,a)=>({text:t, options:{bullet:true, breakLine:i<a.length-1, paraSpaceAfter:5}})), {x:0.5, y:3.62, w:6.0, h:3.2, fontSize:13, color:C.ink, fontFace:FONT, valign:'top', isTextBox:true});
+    s.addText('Watch-outs', {x:6.85, y:3.25, w:6, h:0.35, fontSize:15, bold:true, color:C.gold, fontFace:FONT, margin:0, isTextBox:true});
+    s.addText((I.watch.length?I.watch:['Nothing significant to flag.']).slice(0,5).map((t,i,a)=>({text:t, options:{bullet:true, breakLine:i<a.length-1, paraSpaceAfter:5}})), {x:6.85, y:3.62, w:6.0, h:3.2, fontSize:13, color:C.ink, fontFace:FONT, valign:'top', isTextBox:true});
+    s.addNotes('Headline view of the period.\n'+I.hi.concat(I.watch).map(t=>'• '+t).join('\n')); }
+
+  // 4. Key figures
+  { const s = mk(); sections.push('Key figures'); title(s, 'Key financial figures', L ? `Year to date vs same period last year (to ${humanDate(D.lflTo)}); balances vs last year-end` : 'Current period');
+    const lrow = (lab, c, p, pct) => { const ch = (p==null||c==null) ? null : c-p, cp = rbxPChg(c,p);
+      return [cell(lab), pct ? cell(rbxPPct(c), {align:'right'}) : num(rbxR2(c)), p==null ? cell('—',{align:'right',color:C.muted}) : (pct ? cell(rbxPPct(p),{align:'right'}) : num(rbxR2(p))),
+        ch==null ? cell('—',{align:'right',color:C.muted}) : (pct ? cell(`${(ch*100).toFixed(1)} pts`,{align:'right', color: ch<0?C.red:C.pos}) : num(rbxR2(ch))), cp==null||pct ? cell('—',{align:'right',color:C.muted}) : cell(rbxPPct(cp),{align:'right', color:cp<0?C.red:C.pos})]; };
+    const rows = [[hdrCell('Measure'), hdrCell('Current', 'right'), hdrCell(L?'Same period LY':'Previous','right'), hdrCell('Change (₹)','right'), hdrCell('Change %','right')],
+      lrow('Revenue from operations', pl.revenueFromOperations, L&&L.revenueFromOperations), lrow('Other income', pl.otherIncome, L&&L.otherIncome), lrow('Total income', pl.totalIncome, L&&L.totalIncome),
+      lrow('Total expenses', pl.totalExpenses, L&&L.totalExpenses), lrow('Profit / (loss) for the period', pl.profitForPeriod, L&&L.profitForPeriod),
+      lrow('Net profit margin', pl.revenueFromOperations? pl.profitForPeriod/pl.revenueFromOperations : null, L&&L.revenueFromOperations ? L.profitForPeriod/L.revenueFromOperations : null, true),
+      lrow('Total assets (balance)', bs.totalAssets, pb&&pb.totalAssets), lrow("Shareholders' funds (balance)", bs.shareholdersFundsTotal, pb&&pb.shareholdersFundsTotal),
+      lrow('Trade receivables (balance)', bs.tradeReceivablesTotal, pb&&pb.tradeReceivablesTotal), lrow('Trade payables (balance)', bs.tradePayablesTotal, pb&&pb.tradePayablesTotal),
+      lrow('Cash and cash equivalents (balance)', bs.cashTotal, pb&&pb.cashTotal), lrow('Working capital (balance)', bs.currentAssetsTotal-bs.currentLiabTotal, pb ? pb.currentAssetsTotal-pb.currentLiabTotal : null)];
+    rows.forEach((r,i)=>{ if(i && i%2===0) r.forEach(c=>c.options.fill={color:C.pale}); if([5].includes(i)) r.forEach(c=>c.options.bold=true); });
+    table(s, rows, {colW:[4.5,2.1,2.1,2.0,1.6], rowH:0.36, fontSize:12});
+    s.addNotes('Income-statement lines compare the year to date with the same dates last year (like for like). Balance-sheet lines compare today\'s balance with last year-end.'); }
+
+  // 5. Monthly performance
+  { const s = mk(); sections.push('Monthly performance'); title(s, 'Monthly performance', `Income, expenses and profit by month — FY ${fy.currentFY} (₹ lakh)`);
+    const labels = D.months.map(monLab);
+    s.addChart([{type:pptx.ChartType.bar, data:[{name:'Income', labels, values:D.months.map(m=>lakh(D.mon[m].inc))},{name:'Expenses', labels, values:D.months.map(m=>lakh(D.mon[m].exp))}], options:{chartColors:[C.green, C.gold], barGrouping:'clustered', barGapWidthPct:60}},
+                {type:pptx.ChartType.line, data:[{name:'Profit', labels, values:D.months.map(m=>lakh(D.mon[m].inc-D.mon[m].exp))}], options:{chartColors:[C.blue], lineSize:2.5, lineDataSymbol:'circle', lineDataSymbolSize:7}}],
+               chartBase('', {x:0.5, y:1.45, w:8.6, h:5.35, valAxisLabelFormatCode:'#,##0.0'}));
+    const prof = D.months.map(m=>({m, p:D.mon[m].inc-D.mon[m].exp}));
+    const best = prof.slice().sort((a,b)=>b.p-a.p)[0], worst = prof.slice().sort((a,b)=>a.p-b.p)[0];
+    const avgRev = D.months.length ? D.months.reduce((s2,m)=>s2+D.mon[m].rev,0)/D.months.length : 0;
+    card(s, 9.4, 1.5, 3.45, 1.2, 'Best month', best?monLab(best.m):'—', best?`Profit ${rbxPShort(best.p)}`:'', C.pos);
+    card(s, 9.4, 2.85, 3.45, 1.2, 'Weakest month', worst?monLab(worst.m):'—', worst?`Profit ${rbxPShort(worst.p)}`:'', worst&&worst.p<0?C.red:C.muted);
+    card(s, 9.4, 4.2, 3.45, 1.2, 'Average monthly revenue', rbxPShort(avgRev), `${D.months.length} month${D.months.length===1?'':'s'}`);
+    card(s, 9.4, 5.55, 3.45, 1.2, 'Profit to date', rbxPShort(pl.profitForPeriod), pl.revenueFromOperations?`Margin ${rbxPPct(pl.profitForPeriod/pl.revenueFromOperations)}`:'');
+    s.addNotes(`Month by month: ${D.months.map(m=>`${monLab(m)} profit ${rbxPShort(D.mon[m].inc-D.mon[m].exp)}`).join('; ')}.`); }
+
+  // 6. Profit and Loss
+  { const s = mk(); sections.push('Statement of Profit and Loss'); title(s, 'Statement of Profit and Loss', `Schedule III format · ${fy.periodLabel}${fy.prevPl?` · previous year ${fy.priorFY}`:''}`);
+    const pp = fy.prevPl, rev = pl.revenueFromOperations;
+    const r = (lab, c, p, o) => [cell(lab, o), num(rbxR2(c), o), cell(rev?rbxPPct(c/rev):'—', {align:'right', color:C.muted, ...(o||{})}), pp ? num(rbxR2(p), o) : cell('—',{align:'right'}), cell(pp&&p?rbxPPct((c-p)/Math.abs(p)):'—', {align:'right', ...(o||{})})];
+    const B = {bold:true}, T = {bold:true, fill:{color:C.light}};
+    const rows = [[hdrCell('Particulars'), hdrCell('Current period (₹)','right'), hdrCell('% of revenue','right'), hdrCell(`FY ${fy.priorFY} (₹)`,'right'), hdrCell('Change %','right')],
+      r('I. Revenue from operations', pl.revenueFromOperations, pp&&pp.revenueFromOperations, B), r('II. Other income', pl.otherIncome, pp&&pp.otherIncome), r('III. Total income', pl.totalIncome, pp&&pp.totalIncome, T),
+      r('   Purchases of stock-in-trade', pl.purchasesOfStockInTrade, pp&&pp.purchasesOfStockInTrade), r('   Employee benefits expense', pl.employeeBenefitsExpense, pp&&pp.employeeBenefitsExpense),
+      r('   Finance costs', pl.financeCosts, pp&&pp.financeCosts), r('   Depreciation and amortisation', pl.depreciationExpense, pp&&pp.depreciationExpense), r('   Other expenses', pl.otherExpenses, pp&&pp.otherExpenses),
+      r('IV. Total expenses', pl.totalExpenses, pp&&pp.totalExpenses, T), r('V. Profit before tax', pl.profitBeforeTax, pp&&pp.profitBeforeTax, B), r('VI. Tax expense', pl.taxExpense, pp&&pp.taxExpense),
+      r('VII. Profit / (loss) for the period', pl.profitForPeriod, pp&&pp.profitForPeriod, {bold:true, fill:{color:C.light}})];
+    table(s, rows, {colW:[5.1,2.1,1.6,2.1,1.4], rowH:0.37, fontSize:12});
+    s.addText('Previous-year column is the full financial year; the current column is the year to date. Tax is not tracked separately from GST in the books.', {x:0.5, y:6.45, w:12.3, h:0.4, fontSize:10, italic:true, color:C.muted, fontFace:FONT, margin:0, isTextBox:true});
+    s.addNotes(`Revenue ${rbxPInr(rev)}, total expenses ${rbxPInr(pl.totalExpenses)}, profit ${rbxPInr(pl.profitForPeriod)}. Full ledger-wise notes are in the Excel and PDF report pack.`); }
+
+  // 7. Revenue analysis
+  { const s = mk(); sections.push('Revenue analysis'); title(s, 'Revenue analysis', `Revenue from operations by month and by customer — FY ${fy.currentFY}`);
+    const labels = D.months.map(monLab);
+    s.addChart(pptx.ChartType.line, [{name:'Revenue (₹ lakh)', labels, values:D.months.map(m=>lakh(D.mon[m].rev))}], chartBase('Revenue by month (₹ lakh)', {x:0.5, y:1.45, w:6.2, h:5.3, chartColors:[C.green], lineSize:3, lineDataSymbol:'circle', lineDataSymbolSize:8, showLegend:false, showValue:true, dataLabelPosition:'t', dataLabelFontSize:9, dataLabelColor:C.muted, dataLabelFormatCode:'0.0', valAxisLabelFormatCode:'#,##0'}));
+    const top = D.salesBy.slice(0,8), totS = D.salesBy.reduce((s2,x)=>s2+x[1],0);
+    if(top.length) s.addChart(pptx.ChartType.bar, [{name:'Sales (₹ lakh)', labels:top.map(x=>x[0]).reverse(), values:top.map(x=>lakh(x[1])).reverse()}], chartBase('Top customers by sales (₹ lakh)', {x:6.95, y:1.45, w:5.9, h:5.3, barDir:'bar', chartColors:[C.mid], showLegend:false, showValue:true, dataLabelPosition:'outEnd', dataLabelFontSize:9, dataLabelFormatCode:'0.0', dataLabelColor:C.ink, valAxisLabelFormatCode:'#,##0'}));
+    const share = top.length && totS ? top[0][1]/totS : null;
+    s.addNotes(`${top.length?`Largest customer: ${top[0][0]} with ${rbxPInr(top[0][1])}${share!=null?` (${rbxPPct(share)} of revenue)`:''}. `:''}Top ${Math.min(5,top.length)} customers together: ${rbxPPct(totS?top.slice(0,5).reduce((a,x)=>a+x[1],0)/totS:null)} of revenue.`); }
+
+  // 8. Cost structure
+  { const s = mk(); sections.push('Cost structure'); title(s, 'Cost structure', `Where the money went — ${fy.periodLabel}`);
+    const mix = [['Purchases', pl.purchasesOfStockInTrade],['Employee benefits', pl.employeeBenefitsExpense],['Finance costs', pl.financeCosts],['Depreciation', pl.depreciationExpense],['Other expenses', pl.otherExpenses]].filter(x=>x[1]>0.004);
+    if(mix.length) s.addChart(pptx.ChartType.doughnut, [{name:'Expenses', labels:mix.map(x=>x[0]), values:mix.map(x=>rbxR2(x[1]))}], {x:0.5, y:1.45, w:5.6, h:5.3, holeSize:55, chartColors:[C.green, C.gold, C.blue, C.mid, 'A3B5AB'], showPercent:true, showValue:false, dataLabelColor:C.white, dataLabelFontSize:11, showLegend:true, legendPos:'b', legendFontSize:11, legendFontFace:FONT, showTitle:true, title:'Expense mix (Schedule III heads)', titleFontSize:13, titleColor:C.dark});
+    const top = D.expL.slice(0,10);
+    if(top.length) s.addChart(pptx.ChartType.bar, [{name:'₹ lakh', labels:top.map(x=>x.n).reverse(), values:top.map(x=>lakh(x.v)).reverse()}], chartBase('Top 10 expense ledgers (₹ lakh)', {x:6.4, y:1.45, w:6.45, h:5.3, barDir:'bar', chartColors:[C.gold], showLegend:false, showValue:true, dataLabelPosition:'outEnd', dataLabelFontSize:9, dataLabelFormatCode:'0.0', dataLabelColor:C.ink, valAxisLabelFormatCode:'#,##0'}));
+    const tot = D.expL.reduce((a,x)=>a+x.v,0);
+    s.addNotes(`Total expenses ${rbxPInr(pl.totalExpenses)}. ${top.slice(0,3).map(x=>`${x.n} ${rbxPInr(x.v)} (${rbxPPct(tot?x.v/tot:null)})`).join('; ')}.`); }
+
+  // 9. Balance Sheet
+  { const s = mk(); sections.push('Balance Sheet'); title(s, 'Balance Sheet', `Schedule III format · as at ${fy.asOfLabel}${pb?` · previous year-end ${fy.prevAsOfLabel}`:''}`);
+    const r = (lab, c, p, o) => [cell(lab, o), num(rbxR2(c), o), pb ? num(rbxR2(p), o) : cell('—',{align:'right'})];
+    const H = {bold:true, fill:{color:C.light}}, B = {bold:true};
+    const left = [[hdrCell('Equity and liabilities'), hdrCell('Current (₹)','right'), hdrCell('Last year-end (₹)','right')],
+      r("Shareholders' funds", bs.shareholdersFundsTotal, pb&&pb.shareholdersFundsTotal, B), r('   Share capital', bs.shareCapitalTotal, pb&&pb.shareCapitalTotal), r('   Reserves and surplus', bs.reservesAndSurplus, pb&&pb.reservesAndSurplus),
+      r('Non-current liabilities', bs.nonCurrentLiabTotal, pb&&pb.nonCurrentLiabTotal, B), r('   Long-term borrowings', bs.longTermBorrowingsTotal, pb&&pb.longTermBorrowingsTotal),
+      r('Current liabilities', bs.currentLiabTotal, pb&&pb.currentLiabTotal, B), r('   Trade payables — MSME', bs.msmeTradePayablesTotal, pb&&pb.msmeTradePayablesTotal), r('   Trade payables — others', bs.otherTradePayablesTotal, pb&&pb.otherTradePayablesTotal),
+      r('   Other current liabilities', bs.otherCurrentLiabTotal, pb&&pb.otherCurrentLiabTotal), r('   Short-term provisions', bs.provisionsTotal, pb&&pb.provisionsTotal), r('TOTAL', bs.totalEquityAndLiab, pb&&pb.totalEquityAndLiab, H)];
+    const right = [[hdrCell('Assets'), hdrCell('Current (₹)','right'), hdrCell('Last year-end (₹)','right')],
+      r('Non-current assets', bs.nonCurrentAssetsTotal, pb&&pb.nonCurrentAssetsTotal, B), r('   Property, plant and equipment', bs.ppeTotal, pb&&pb.ppeTotal), r('   Investments', bs.investmentsTotal, pb&&pb.investmentsTotal), r('   Other non-current assets', bs.miscExpenditureTotal, pb&&pb.miscExpenditureTotal),
+      r('Current assets', bs.currentAssetsTotal, pb&&pb.currentAssetsTotal, B), r('   Inventories', bs.inventoriesTotal, pb&&pb.inventoriesTotal), r('   Trade receivables', bs.tradeReceivablesTotal, pb&&pb.tradeReceivablesTotal),
+      r('   Cash and cash equivalents', bs.cashTotal, pb&&pb.cashTotal), r('   Loans, advances and other', bs.loanAdvancesTotal+bs.otherCurrentAssetsTotal+bs.suspenseTotal, pb ? pb.loanAdvancesTotal+pb.otherCurrentAssetsTotal+pb.suspenseTotal : null), r('', null, null), r('TOTAL', bs.totalAssets, pb&&pb.totalAssets, H)];
+    right[10] = [cell(''), cell(''), cell('')];
+    table(s, left, {x:0.5, w:6.05, colW:[2.95,1.55,1.55], rowH:0.4, fontSize:11});
+    table(s, right, {x:6.8, w:6.05, colW:[2.95,1.55,1.55], rowH:0.4, fontSize:11});
+    const ok = Math.abs(bs.totalEquityAndLiab - bs.totalAssets) < 0.01;
+    s.addText(ok ? '✓ Balance sheet balances — equity and liabilities equal assets.' : `⚠ Difference of ${rbxPInr(bs.totalEquityAndLiab - bs.totalAssets, 2)} between the two sides — review before sharing.`, {x:0.5, y:6.45, w:12.3, h:0.4, fontSize:11, bold:true, color: ok?C.pos:C.red, fontFace:FONT, margin:0, isTextBox:true});
+    s.addNotes(`Total assets ${rbxPInr(bs.totalAssets)}; shareholders' funds ${rbxPInr(bs.shareholdersFundsTotal)}; borrowings ${rbxPInr(bs.longTermBorrowingsTotal)}.`); }
+
+  // 10. Financial position mix
+  { const s = mk(); sections.push('Financial position'); title(s, 'Financial position', `What the business owns and how it is funded — as at ${fy.asOfLabel}`);
+    const am = [['PPE', bs.ppeTotal],['Investments', bs.investmentsTotal],['Inventories', bs.inventoriesTotal],['Receivables', bs.tradeReceivablesTotal],['Cash and bank', bs.cashTotal],['Other assets', bs.loanAdvancesTotal+bs.otherCurrentAssetsTotal+bs.suspenseTotal+bs.miscExpenditureTotal]].filter(x=>x[1]>0.004);
+    const fm = [["Owners' funds", bs.shareholdersFundsTotal],['Borrowings', bs.longTermBorrowingsTotal],['Trade payables', bs.tradePayablesTotal],['Other liabilities', bs.otherCurrentLiabTotal+bs.provisionsTotal]].filter(x=>x[1]>0.004);
+    const dn = (data, x, t, cols) => s.addChart(pptx.ChartType.doughnut, [{name:t, labels:data.map(d=>d[0]), values:data.map(d=>rbxR2(d[1]))}], {x, y:1.45, w:6.05, h:4.6, holeSize:55, chartColors:cols, showPercent:true, showValue:false, dataLabelColor:C.white, dataLabelFontSize:11, showLegend:true, legendPos:'r', legendFontSize:11, legendFontFace:FONT, showTitle:true, title:t, titleFontSize:13, titleColor:C.dark});
+    if(am.length) dn(am, 0.5, 'Assets', [C.green, C.mid, C.gold, C.blue, '3F8A62', 'A3B5AB']);
+    if(fm.length) dn(fm, 6.8, 'Funding', [C.dark, C.gold, C.blue, 'A3B5AB']);
+    const r = D.ratios;
+    s.addText([{text:'Current ratio ', options:{color:C.muted}}, {text:r.currentRatio!=null?r.currentRatio.toFixed(2)+'×':'—', options:{bold:true}}, {text:'     Debt-to-equity ', options:{color:C.muted}}, {text:r.debtToEquity!=null?r.debtToEquity.toFixed(2)+'×':'—', options:{bold:true}}, {text:'     Working capital ', options:{color:C.muted}}, {text:rbxPShort(bs.currentAssetsTotal-bs.currentLiabTotal), options:{bold:true}}],
+      {x:0.5, y:6.25, w:12.3, h:0.45, fontSize:14, color:C.ink, fontFace:FONT, margin:0, align:'center', isTextBox:true});
+    s.addNotes(`Assets: ${am.map(a=>`${a[0]} ${rbxPShort(a[1])}`).join(', ')}. Funding: ${fm.map(a=>`${a[0]} ${rbxPShort(a[1])}`).join(', ')}.`); }
+
+  // 11. Cash flow
+  { const s = mk(); sections.push('Cash flow'); title(s, 'Cash flow', 'Direct method · life to date · contra (cash ↔ bank) transfers excluded');
+    const cf = D.cf, B = {bold:true}, H = {bold:true, fill:{color:C.light}};
+    const rows = [[hdrCell('Cash flow statement'), hdrCell('₹','right')], [cell('Opening cash and bank'), num(rbxR2(cf.openingCash))],
+      [cell('Net cash from operating activities'), num(rbxR2(cf.operating))], [cell('Net cash from investing activities'), num(rbxR2(cf.investing))], [cell('Net cash from financing activities'), num(rbxR2(cf.financing))],
+      [cell('Net increase / (decrease)', B), num(rbxR2(cf.netChange), B)], [cell('Closing cash and bank', H), num(rbxR2(cf.closingCash), H)],
+      [cell('Per Cash and Bank ledgers', {italic:true, color:C.muted}), num(rbxR2(cf.actualCash), {italic:true})]];
+    table(s, rows, {x:0.5, w:5.3, colW:[3.6,1.7], rowH:0.42, fontSize:12});
+    const ms = cashFlowMonthlySeries(12);
+    if(ms.length) s.addChart(pptx.ChartType.bar, [{name:'Cash in', labels:ms.map(m=>monLab(m.month)), values:ms.map(m=>lakh(m.cashIn))},{name:'Cash out', labels:ms.map(m=>monLab(m.month)), values:ms.map(m=>lakh(m.cashOut))}], chartBase('Cash in and out by month (₹ lakh, last 12 months)', {x:6.1, y:1.45, w:6.75, h:5.3, barDir:'col', barGrouping:'clustered', chartColors:[C.green, C.red], valAxisLabelFormatCode:'#,##0'}));
+    const ok = Math.abs(cf.closingCash-cf.actualCash)<0.01;
+    s.addText(ok ? '✓ Closing cash ties to the Cash and Bank ledgers.' : '⚠ Closing cash differs from the ledgers — review.', {x:0.5, y:5.05, w:5.3, h:0.4, fontSize:11, bold:true, color: ok?C.pos:C.red, fontFace:FONT, margin:0, isTextBox:true});
+    s.addNotes(`Operating ${rbxPInr(cf.operating)}, investing ${rbxPInr(cf.investing)}, financing ${rbxPInr(cf.financing)}; closing cash ${rbxPInr(cf.closingCash)}.`); }
+
+  // 12. Working capital
+  { const s = mk(); sections.push('Working capital'); title(s, 'Working capital', `Cash tied up in the operating cycle — as at ${fy.asOfLabel}`);
+    const r = D.ratios, d = x => x==null ? '—' : `${Math.round(x)} days`;
+    const cards = [['Trade receivables', rbxPShort(bs.tradeReceivablesTotal), pb?chgNote(bs.tradeReceivablesTotal, pb.tradeReceivablesTotal, 'last YE')[0]:''],
+      ['Inventory', rbxPShort(bs.inventoriesTotal), ''], ['Trade payables', rbxPShort(bs.tradePayablesTotal), pb?chgNote(bs.tradePayablesTotal, pb.tradePayablesTotal, 'last YE')[0]:''],
+      ['Working capital', rbxPShort(bs.currentAssetsTotal-bs.currentLiabTotal), 'Current assets − current liabilities'],
+      ['Days sales outstanding', d(r.dso), 'Average days customers take to pay'], ['Days inventory outstanding', d(r.dio), 'Average days stock is held'],
+      ['Days payable outstanding', d(r.dpo), 'Average days taken to pay suppliers'], ['Cash conversion cycle', d(r.cashConversionCycle), 'DIO + DSO − DPO']];
+    cards.forEach((c,i)=>card(s, 0.5+(i%4)*3.13, 1.55+Math.floor(i/4)*2.0, 2.93, 1.75, c[0], c[1], c[2]));
+    s.addText('Shorter collection and stock days with sensible supplier credit free up cash. MSME suppliers must be paid within 45 days.', {x:0.5, y:5.75, w:12.3, h:0.6, fontSize:12, color:C.muted, italic:true, fontFace:FONT, margin:0, isTextBox:true});
+    s.addNotes(`DSO ${d(r.dso)}, DIO ${d(r.dio)}, DPO ${d(r.dpo)}, cash conversion cycle ${d(r.cashConversionCycle)}. Life-to-date basis, same as the Ratio Analysis screen.`); }
+
+  // 13–14. Ageing
+  const B6 = [[0,30,'0–30'],[31,60,'31–60'],[61,90,'61–90'],[91,180,'91–180'],[181,365,'181–365'],[366,1e9,'> 1 yr']];
+  const ageSlide = (rows, kind) => {
+    const s = mk(); const isRec = kind==='rec'; sections.push(isRec?'Receivables ageing':'Payables ageing');
+    title(s, isRec ? 'Receivables ageing' : 'Payables ageing and MSME dues', `Outstanding by age (days from bill date) · as at ${fy.asOfLabel}`);
+    const tot = rows.reduce((a,x)=>a+x.total,0), bucket = B6.map(([a,b])=>rows.reduce((t,x)=>t+x.ages.filter(p=>p.days>=a&&p.days<=b).reduce((u,p)=>u+p.amt,0),0));
+    if(tot>0){
+      s.addChart(pptx.ChartType.bar, [{name:'₹ lakh', labels:B6.map(b=>b[2]+(b[2].includes('yr')?'':' days')), values:bucket.map(lakh)}], chartBase(`${isRec?'Receivables':'Payables'} by age (₹ lakh) — total ${rbxPShort(tot)}`, {x:0.5, y:1.45, w:5.7, h:5.3, barDir:'col', chartColors:[isRec?C.green:C.gold], showLegend:false, showValue:true, dataLabelPosition:'outEnd', dataLabelFontSize:10, dataLabelFormatCode:'0.0', dataLabelColor:C.ink, valAxisLabelFormatCode:'#,##0'}));
+      const head = isRec ? [hdrCell('Customer'), hdrCell('Outstanding','right'), hdrCell('> 90 days','right'), hdrCell('Past credit days','right')] : [hdrCell('Supplier'), hdrCell('Outstanding','right'), hdrCell('> 45 days','right'), hdrCell('MSME','center')];
+      const body = rows.slice(0,9).map((x,i)=>{ const over = isRec ? x.ages.filter(p=>p.days>90).reduce((a,p)=>a+p.amt,0) : x.ages.filter(p=>p.days>45).reduce((a,p)=>a+p.amt,0);
+        const late = isRec ? x.ages.filter(p=>p.days>x.credit).reduce((a,p)=>a+p.amt,0) : null; const f = i%2 ? {fill:{color:C.pale}} : {};
+        return [cell(x.l.name, f), num(rbxR2(x.total), f), num(rbxR2(over), {...f, color: over>0?C.red:C.ink}), isRec ? num(rbxR2(late), {...f, color: late>0?C.red:C.ink}) : cell(x.msme?(over>0?'Yes — overdue':'Yes'):'—', {...f, align:'center', bold:x.msme&&over>0, color:x.msme&&over>0?C.red:C.ink})]; });
+      const shown = body.slice(0, 6);
+      table(s, [head, ...shown], {x:6.45, w:6.4, colW:[2.5,1.35,1.25,1.3], rowH:0.38, fontSize:11});
+      const by = 1.45 + 0.38*(shown.length+1) + 0.3;
+      const brow = B6.map((b,i)=>{ const f = i%2?{fill:{color:C.pale}}:{}; return [cell(b[2]+(b[2].includes('yr')?'':' days'), f), num(rbxR2(bucket[i]), f), cell(tot?rbxPPct(bucket[i]/tot):'—', {...f, align:'right'})]; });
+      table(s, [[hdrCell('Age'), hdrCell('Amount','right'), hdrCell('Share','right')], ...brow, [cell('Total',{bold:true, fill:{color:C.light}}), num(rbxR2(tot),{bold:true, fill:{color:C.light}}), cell('100%',{bold:true, align:'right', fill:{color:C.light}})]], {x:6.45, y:by, w:6.4, colW:[2.5,2.4,1.5], rowH:0.3, fontSize:10.5});
+      const msmeLate = rows.filter(x=>x.msme).reduce((a,x)=>a+x.ages.filter(p=>p.days>45).reduce((t,p)=>t+p.amt,0),0);
+      if(!isRec) s.addText(msmeLate>0 ? `⚠ ${rbxPInr(msmeLate)} owed to MSME suppliers is past 45 days (MSMED Act limit).` : '✓ No MSME dues older than 45 days.', {x:6.45, y:6.5, w:6.4, h:0.35, fontSize:11, bold:true, color: msmeLate>0?C.red:C.pos, fontFace:FONT, margin:0, isTextBox:true});
+      s.addNotes(`Total ${isRec?'receivables':'payables'} ${rbxPInr(tot)}. By age: ${B6.map((b,i)=>`${b[2]} ${rbxPShort(bucket[i])}`).join(', ')}. Ageing matches each balance to the most recent bills first (FIFO).`);
+    } else { bullets(s, [`No ${isRec?'receivables':'payables'} outstanding as at ${fy.asOfLabel}.`]); s.addNotes('Nothing outstanding.'); }
+  };
+  ageSlide(D.rec, 'rec'); ageSlide(D.pay, 'pay');
+
+  // 15. Ratio scorecard
+  { const s = mk(); sections.push('Ratio scorecard'); title(s, 'Ratio scorecard', 'Liquidity, solvency, profitability and efficiency · life-to-date basis');
+    const r = D.ratios, P = x => x==null?null:x/100;
+    const list = [['Liquidity','Current ratio', r.currentRatio,'x','≥ 1.5× comfortable', v=>v>=1],['Liquidity','Quick ratio', r.quickRatio,'x','≥ 1.0×', v=>v>=1],['Liquidity','Cash ratio', r.cashRatio,'x','0.2× – 0.5×+', v=>v>=0.2],
+      ['Solvency','Debt-to-equity', r.debtToEquity,'x','≤ 1.0×', v=>v<=1],['Solvency','Interest coverage', r.interestCoverage,'x','≥ 1.5×', v=>v>=1.5],
+      ['Profitability','Gross profit margin', P(r.grossMargin),'%','Higher is better', v=>v>=0],['Profitability','Net profit margin', P(r.netMargin),'%','Positive', v=>v>=0],['Profitability','Return on equity', P(r.roe),'%','Positive', v=>v>=0],['Profitability','Return on assets', P(r.roa),'%','Positive', v=>v>=0],
+      ['Efficiency','Asset turnover', r.assetTurnover,'x','Higher is better', null],['Efficiency','Days sales outstanding', r.dso,'d','Within credit terms', null],['Efficiency','Days payable outstanding', r.dpo,'d','MSME ≤ 45 days', null]];
+    const fmtV = (v,u) => v==null ? '—' : u==='%' ? rbxPPct(v) : u==='d' ? `${Math.round(v)} days` : `${v.toFixed(2)}×`;
+    let last = '';
+    const rows = [[hdrCell('Area'), hdrCell('Ratio'), hdrCell('Value','right'), hdrCell('Guide'), hdrCell('Status','center')], ...list.map(([a,n,v,u,g,t],i)=>{ const ok = v==null||t==null ? null : !!t(v); const f = i%2 ? {fill:{color:C.pale}} : {};
+      const row = [cell(a===last?'':a, {...f, bold:true, color:C.green}), cell(n, f), cell(fmtV(v,u), {...f, align:'right', bold:true}), cell(g, {...f, color:C.muted}), cell(ok==null?'—':ok?'✓ Healthy':'⚠ Watch', {...f, align:'center', bold:true, color: ok==null?C.muted:ok?C.pos:C.red})]; last = a; return row; })];
+    table(s, rows, {colW:[2.2,3.6,2.0,2.9,1.6], rowH:0.38, fontSize:12});
+    s.addNotes('Guides are common rules of thumb used by lenders and analysts, not legal limits. Full formulas, inputs and 21 ratios are in the Excel report pack.'); }
+
+  // 16. Ratio trend
+  if(D.series.length>1){ const s = mk(); sections.push('Ratio trends'); title(s, 'Ratio trends', 'Year by year');
+    const labels = D.series.map(x=>'FY '+x.fy);
+    s.addChart(pptx.ChartType.line, [{name:'Gross margin %', labels, values:D.series.map(x=>x.grossMargin==null?0:+x.grossMargin.toFixed(1))},{name:'Net margin %', labels, values:D.series.map(x=>x.netMargin==null?0:+x.netMargin.toFixed(1))},{name:'Return on equity %', labels, values:D.series.map(x=>x.roe==null?0:+x.roe.toFixed(1))}],
+      chartBase('Profitability (%)', {x:0.5, y:1.45, w:6.1, h:5.3, chartColors:[C.green, C.blue, C.gold], lineSize:2.5, lineDataSymbol:'circle', lineDataSymbolSize:7, valAxisLabelFormatCode:'0'}));
+    s.addChart(pptx.ChartType.line, [{name:'Current ratio', labels, values:D.series.map(x=>x.currentRatio==null?0:+x.currentRatio.toFixed(2))},{name:'Debt-to-equity', labels, values:D.series.map(x=>x.debtToEquity==null?0:+x.debtToEquity.toFixed(2))}],
+      chartBase('Liquidity and gearing (×)', {x:6.75, y:1.45, w:6.1, h:5.3, chartColors:[C.mid, C.red], lineSize:2.5, lineDataSymbol:'circle', lineDataSymbolSize:7, valAxisLabelFormatCode:'0.0'}));
+    s.addNotes(D.series.map(x=>`FY ${x.fy}: net margin ${x.netMargin==null?'—':x.netMargin.toFixed(1)+'%'}, current ratio ${x.currentRatio==null?'—':x.currentRatio.toFixed(2)}`).join('; ')+'.'); }
+
+  // 17. Cost centers
+  if(D.cc.length){ const s = mk(); sections.push('Cost centers'); title(s, 'Cost center performance', activeFY ? `Financial year ${activeFY}` : 'All years');
+    const cc = D.cc.slice().sort((a,b)=>b.income-a.income).slice(0,8), labels = cc.map(x=>x.costCenter?x.costCenter.name:'Unassigned');
+    s.addChart(pptx.ChartType.bar, [{name:'Income', labels, values:cc.map(x=>lakh(x.income))},{name:'Expense', labels, values:cc.map(x=>lakh(x.expense))}], chartBase('Income and expense (₹ lakh)', {x:0.5, y:1.45, w:7.2, h:5.3, barDir:'col', barGrouping:'clustered', chartColors:[C.green, C.gold], valAxisLabelFormatCode:'#,##0'}));
+    const rows = [[hdrCell('Cost center'), hdrCell('Net (₹)','right'), hdrCell('Margin','right')], ...cc.map((x,i)=>{ const f = i%2?{fill:{color:C.pale}}:{}; return [cell(x.costCenter?x.costCenter.name:'Unassigned', f), num(rbxR2(x.income-x.expense), f), cell(x.income?rbxPPct((x.income-x.expense)/x.income):'—', {...f, align:'right'})]; })];
+    table(s, rows, {x:8.0, w:4.85, colW:[2.2,1.6,1.05], rowH:0.42, fontSize:11});
+    s.addNotes(cc.map(x=>`${x.costCenter?x.costCenter.name:'Unassigned'}: net ${rbxPInr(x.income-x.expense)}`).join('; ')+'.'); }
+
+  // 18. Budget vs actual
+  if(D.bud.length){ const s = mk(); sections.push('Budget vs actual'); title(s, 'Budget vs actual', `Financial year ${D.bfy}`);
+    const b = D.bud.slice(0,8), labels = b.map(x=>x.ledger.name);
+    s.addChart(pptx.ChartType.bar, [{name:'Budget', labels, values:b.map(x=>lakh(x.budgetAmt))},{name:'Actual', labels, values:b.map(x=>lakh(x.actual))}], chartBase('Budget and actual (₹ lakh)', {x:0.5, y:1.45, w:7.0, h:5.3, barDir:'bar', barGrouping:'clustered', chartColors:['A3B5AB', C.green], valAxisLabelFormatCode:'#,##0'}));
+    const rows = [[hdrCell('Ledger'), hdrCell('Variance (₹)','right'), hdrCell('Achieved','right'), hdrCell('Status','center')], ...b.map((x,i)=>{ const f = i%2?{fill:{color:C.pale}}:{}; const fav = x.isIncome ? x.actual>=x.budgetAmt : x.actual<=x.budgetAmt;
+      return [cell(x.ledger.name, f), num(rbxR2(x.actual-x.budgetAmt), f), cell(x.pct==null?'—':x.pct.toFixed(1)+'%', {...f, align:'right'}), cell(fav?'✓ On track':'⚠ Adverse', {...f, align:'center', bold:true, color:fav?C.pos:C.red})]; })];
+    table(s, rows, {x:7.75, w:5.1, colW:[1.95,1.3,0.95,0.9], rowH:0.42, fontSize:10.5});
+    s.addNotes(b.map(x=>`${x.ledger.name}: budget ${rbxPInr(x.budgetAmt)}, actual ${rbxPInr(x.actual)}`).join('; ')+'.'); }
+
+  // 19. Controls & data quality
+  { const s = mk(); sections.push('Controls and data quality'); title(s, 'Controls and data quality', 'Checks run on the books when this deck was generated');
+    const bsd = bs.totalEquityAndLiab - bs.totalAssets, tbd = D.tbDr - D.tbCr, cfd = D.cf.closingCash - D.cf.actualCash;
+    const since = new Date(Date.now()-30*86400000).toISOString();
+    const recent = D.audit.filter(e=>(e.at||'')>=since), dels = recent.filter(e=>e.action==='delete').length, sealed = D.audit.filter(e=>e.hash).length;
+    const chk = [['Trial balance agrees (Dr = Cr)', Math.abs(tbd)<0.01, Math.abs(tbd)<0.01 ? 'Agrees' : `Differs by ${rbxPInr(Math.abs(tbd),2)}`],
+      ['Balance sheet balances', Math.abs(bsd)<0.01, Math.abs(bsd)<0.01 ? 'Balances' : `Differs by ${rbxPInr(Math.abs(bsd),2)}`],
+      ['Cash flow ties to Cash and Bank ledgers', Math.abs(cfd)<0.01, Math.abs(cfd)<0.01 ? 'Ties' : `Differs by ${rbxPInr(Math.abs(cfd),2)}`],
+      ['Data Integrity Checker', D.issues==null ? null : !D.issues, D.issues==null ? 'Not available' : D.issues ? `${D.issues} item(s) to review` : 'No issues'],
+      ['Voucher changes in the last 30 days (audit trail)', dels ? false : null, `${recent.length} change(s), ${dels} deletion(s); ${sealed} sealed entries`],
+      ['Vouchers in the period', null, `${D.vouchers.toLocaleString('en-IN')} vouchers`]];
+    const rows = [[hdrCell('Check'), hdrCell('Result'), hdrCell('Status','center')], ...chk.map(([n,ok,res],i)=>{ const f = i%2?{fill:{color:C.pale}}:{}; return [cell(n, {...f, bold:true}), cell(res, f), cell(ok==null?'—':ok?'✓ OK':'⚠ Review', {...f, align:'center', bold:true, color: ok==null?C.muted:ok?C.pos:C.red})]; })];
+    table(s, rows, {colW:[5.2,5.1,2.0], rowH:0.5, fontSize:13});
+    s.addNotes('Controls summary. The audit trail is the voucher edit log kept under Rule 3(1) of the Companies (Accounts) Rules, 2014; sealed entries are part of the tamper-evident chain.'); }
+
+  // 20. Observations and actions
+  { const s = mk(); sections.push('Observations and actions'); title(s, 'Key observations and recommended actions', 'Prioritised from the figures in this report');
+    const acts = I.act.slice(0,6);
+    const rows = [[hdrCell('#','center'), hdrCell('Priority','center'), hdrCell('Recommended action')], ...acts.map((a,i)=>[cell(String(i+1), {align:'center', color:C.muted}), cell(a.p, {align:'center', bold:true, color: a.p==='High'?C.red:a.p==='Medium'?C.gold:C.pos}), cell(a.t)])];
+    table(s, rows, {colW:[0.7,1.5,10.1], rowH:0.45, fontSize:12.5});
+    const oy = 1.45 + 0.45*(acts.length+1) + 0.35, oh = Math.max(1.2, 6.85-oy-0.4);
+    s.addText('What is going well', {x:0.5, y:oy, w:6, h:0.35, fontSize:14, bold:true, color:C.green, fontFace:FONT, margin:0, isTextBox:true});
+    s.addText((I.hi.length?I.hi:['—']).slice(0,4).map((t,i,a)=>({text:t, options:{bullet:true, breakLine:i<a.length-1, paraSpaceAfter:4}})), {x:0.5, y:oy+0.38, w:6.0, h:oh, fontSize:12, color:C.ink, fontFace:FONT, valign:'top', isTextBox:true});
+    s.addText('Needs attention', {x:6.85, y:oy, w:6, h:0.35, fontSize:14, bold:true, color:C.gold, fontFace:FONT, margin:0, isTextBox:true});
+    s.addText((I.watch.length?I.watch:['Nothing significant to flag.']).slice(0,4).map((t,i,a)=>({text:t, options:{bullet:true, breakLine:i<a.length-1, paraSpaceAfter:4}})), {x:6.85, y:oy+0.38, w:6.0, h:oh, fontSize:12, color:C.ink, fontFace:FONT, valign:'top', isTextBox:true});
+    s.addNotes(I.act.map((a,i)=>`${i+1}. [${a.p}] ${a.t}`).join('\n')); }
+
+  // 21. Appendix: trial balance by group
+  { const s = mk(); sections.push('Appendix'); title(s, 'Appendix — Trial balance by account group', 'Closing balances, all vouchers to date');
+    const catOrder = ['Capital','Liabilities','Assets','Income','Expenses'], agg = new Map();
+    state.ledgers.forEach(l=>{ const g = groupOf(l.group), p = g ? (g.parent ? groupOf(g.parent) : g) : null, key = p ? p.name : 'Other'; const b = ledgerBalance(l.id); const x = agg.get(key) || {cat: p?p.cat:'Other', dr:0, cr:0}; if(b>0) x.dr += b; else x.cr += -b; agg.set(key, x); });
+    const list = [...agg.entries()].filter(([,x])=>x.dr>0.004||x.cr>0.004).sort((a,b)=>catOrder.indexOf(a[1].cat)-catOrder.indexOf(b[1].cat) || a[0].localeCompare(b[0]));
+    const rows = [[hdrCell('Account group'), hdrCell('Nature'), hdrCell('Debit (₹)','right'), hdrCell('Credit (₹)','right')], ...list.map(([n,x],i)=>{ const f = i%2?{fill:{color:C.pale}}:{}; return [cell(n, f), cell(x.cat, {...f, color:C.muted}), x.dr>0.004?num(rbxR2(x.dr), f):cell('', f), x.cr>0.004?num(rbxR2(x.cr), f):cell('', f)]; }),
+      [cell('Total', {bold:true, fill:{color:C.light}}), cell('', {fill:{color:C.light}}), num(rbxR2(D.tbDr), {bold:true, fill:{color:C.light}}), num(rbxR2(D.tbCr), {bold:true, fill:{color:C.light}})]];
+    table(s, rows, {colW:[5.0,2.5,2.4,2.4], rowH:Math.min(0.36, 5.2/(rows.length)), fontSize: rows.length>15 ? 10 : 11.5});
+    s.addNotes('Group-level trial balance. The ledger-wise extended trial balance, general ledger and day book are in the Excel report pack.'); }
+
+  // 22. Close
+  { const s = pptx.addSlide(); s.background = {color:C.dark};
+    s.addText('Thank you', {x:0.8, y:2.4, w:11.5, h:1.0, fontSize:40, bold:true, color:C.white, fontFace:HEAD, margin:0, isTextBox:true});
+    s.addText('Questions and discussion', {x:0.8, y:3.45, w:11.5, h:0.6, fontSize:20, color:'A9CBB8', fontFace:FONT, margin:0, isTextBox:true});
+    s.addText(`Detailed statements, notes, ageing and ledgers: Reports → Report Pack (Excel / PDF)\n${co.name||''} · prepared with The Reckoning Books by SKm`, {x:0.8, y:5.9, w:11.5, h:0.8, fontSize:12, color:'A9CBB8', fontFace:FONT, margin:0, valign:'bottom', isTextBox:true});
+    s.addNotes('Close and take questions.'); }
+
+  // Agenda content
+  title(agenda, 'Agenda', `${sections.length} sections`);
+  const half = Math.ceil(sections.length/2);
+  [sections.slice(0,half), sections.slice(half)].forEach((col,ci)=>{
+    agenda.addText(col.map((t,i)=>({text:`${String(ci*half+i+1).padStart(2,'0')}   ${t}`, options:{breakLine:i<col.length-1, paraSpaceAfter:10}})), {x:0.5+ci*6.25, y:1.6, w:6.0, h:5.1, fontSize:17, color:C.ink, fontFace:FONT, valign:'top', isTextBox:true}); });
+  agenda.addNotes('What we will cover: '+sections.join(', ')+'.');
+  return {pptx, sections, insights:I, data:D};
+}
+async function rbxPptxRun(){
+  try{
+    toast('Preparing the PowerPoint deck…');
+    await rbxLoadPptx();
+    const built = await rbxBuildDeck();
+    const name = `${rbxSafeName()}_Financial_Review_FY${built.data.fy.currentFY}_${new Date().toISOString().slice(0,10)}.pptx`;
+    window.__rbxLastPptx = { name, built };
+    let done = false;
+    if(window.JSZip){ try{ // drop the folder entries PptxGenJS writes, which some cloud viewers refuse
+      const z = await window.JSZip.loadAsync(await built.pptx.write({outputType:'arraybuffer'}));
+      Object.keys(z.files).forEach(n=>{ if(z.files[n].dir) delete z.files[n]; });
+      const blob = await z.generateAsync({type:'blob', compression:'DEFLATE', mimeType:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
+      const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      done = true; }catch(e){ done = false; } }
+    if(!done) await built.pptx.writeFile({fileName:name});
+    toast(`PowerPoint deck downloaded — ${built.sections.length + 3} slides`, {type:'success'});
+  }catch(err){
+    console.error('PowerPoint export failed', err);
+    toast(err && /library/.test(err.message) ? err.message : 'The PowerPoint deck could not be created — please try again.');
+  }
+}
+
 
 /* ---------------- Inventory ---------------- */
 function itemVoucherDirection(type){
@@ -38693,6 +39107,7 @@ function reportsLanding(){
       ${moduleSearchBox('reportsFindInput','Find a report — e.g. balance, GST, cash, audit…',reportsFindQuery)}
       <button class="btn secondary small" id="exportExcelBtn" type="button">⬇ Report Pack (Excel)</button>
       <button class="btn secondary small" id="exportPdfPackBtn" type="button">🖨 Report Pack (PDF)</button>
+      <button class="btn secondary small" id="exportPptxBtn" type="button">📊 Presentation (PowerPoint)</button>
     </div>
     <div class="results-line" id="reportsFindLine" aria-live="polite" style="margin:-4px 0 12px;"></div>
     ${groups.map(g=>{
@@ -51019,6 +51434,7 @@ function attachHandlers(){
     });
     document.getElementById('exportExcelBtn')?.addEventListener('click', exportReportsToExcel);
     document.getElementById('exportPdfPackBtn')?.addEventListener('click', printReportPack);
+    document.getElementById('exportPptxBtn')?.addEventListener('click', rbxPptxRun);
     // Module 11: display-only statement helpers (never change a figure; print/export read the data, not these classes)
     const applyTbFilter = ()=>{
       const q = tbSearchQuery.trim().toLowerCase(); let shown = 0, total = 0;
