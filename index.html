@@ -908,6 +908,136 @@
   .pw-field-wrap input{padding-right:44px;padding-left:36px;}
   select:focus, input:focus{outline:none;border-color:var(--accent1);box-shadow:0 0 0 3px rgba(44,160,28,0.16);}
   input[type=number]{font-variant-numeric:tabular-nums;font-weight:600;text-align:right;}
+  /* ---- Insights Studio (Nov 2026) ---- */
+  .is-root,.is-present{--is-a:var(--accent1);--is-b:var(--gold);--is-c:#5B8DB8;}
+  .is-toolbar .panel-body{display:flex;flex-direction:column;gap:10px;}
+  .is-filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;}
+  .is-filters select{width:auto;min-width:170px;}
+  .is-actions{margin-left:auto;display:flex;gap:8px;}
+  .is-focus{font-size:12px;} .is-focus .linklike{font-size:12px;}
+  .is-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:0 0 14px;}
+  .is-kpi{border:1px solid var(--border);border-radius:12px;padding:12px 14px 10px;background:var(--surface);display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .is-kpi-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);font-weight:700;}
+  .is-kpi-v{font-size:21px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .is-kpi-d{font-size:11.5px;font-weight:700;} .is-kpi-d.pos,.is-wo .pos,.is-bul-v.pos{color:var(--credit);} .is-kpi-d.neg,.is-wo .neg,.is-bul-v.neg,.is-root td.neg{color:var(--debit);}
+  .is-kpi-f{font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .is-spark{display:block;margin:4px 0 2px;}
+  .is-grid2{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;} .is-grid2.eq{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .is-grid2 > .panel{margin-bottom:14px;min-width:0;}
+  .is-chart{display:block;overflow:visible;font-family:inherit;}
+  .is-chart .is-grid{stroke:var(--border);stroke-width:1;} .is-chart .is-zero{stroke:var(--border-strong);stroke-width:1.2;}
+  .is-chart .is-ax{font-size:11px;fill:var(--ink-soft);} .is-chart .is-ax.fc{fill:var(--is-c);font-style:italic;} .is-chart .is-ax.sm{font-size:10px;fill:var(--ink-faint);}
+  .is-chart .is-val{font-size:11px;font-weight:700;fill:var(--ink);}
+  .is-chart .is-bar{fill:var(--is-a);cursor:pointer;transition:opacity .15s;} .is-chart .is-bar.neg{fill:var(--debit);} .is-chart .is-bar.dim{opacity:.32;} .is-chart .is-bar.sel{stroke:var(--ink);stroke-width:2;} .is-chart .is-bar.tail{opacity:.5;}
+  .is-chart .is-bar:hover,.is-chart .is-bar:focus{opacity:.85;outline:none;stroke:var(--ink);stroke-width:1.5;}
+  .is-chart .is-cmp{fill:none;stroke:var(--ink-faint);stroke-width:2;stroke-dasharray:2 4;stroke-linecap:round;}
+  .is-chart .is-fc{fill:none;stroke:var(--is-c);stroke-width:2.5;stroke-dasharray:7 5;} .is-chart .is-fcdot{fill:var(--surface);stroke:var(--is-c);stroke-width:2;}
+  .is-chart .is-band{fill:var(--is-c);opacity:.16;} .is-chart .is-line{fill:none;stroke:var(--is-a);stroke-width:2.5;} .is-chart .is-dot{fill:var(--is-a);}
+  .is-chart .is-wf.up{fill:var(--credit);} .is-chart .is-wf.down{fill:var(--debit);} .is-chart .is-wf.tot{fill:var(--is-a);} .is-chart .is-conn{stroke:var(--ink-faint);stroke-dasharray:3 3;}
+  .is-chart .is-80{stroke:var(--is-b);stroke-dasharray:5 4;stroke-width:1.5;} .is-chart .is-cum{fill:none;stroke:var(--is-b);stroke-width:2.2;} .is-chart .is-cumdot{fill:var(--is-b);}
+  .is-chart .is-quad.hot{fill:var(--debit);opacity:.06;} .is-chart .is-bub{fill:var(--is-a);fill-opacity:.55;stroke:var(--is-a);stroke-width:1.5;cursor:pointer;} .is-chart .is-bub.warn{fill:var(--is-b);stroke:var(--is-b);} .is-chart .is-bub.hot{fill:var(--debit);stroke:var(--debit);}
+  .is-chart .is-bub:hover,.is-chart .is-bub:focus{fill-opacity:.85;outline:none;}
+  .is-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11px;color:var(--ink-soft);margin-top:6px;} .is-legend i{display:inline-block;width:14px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+  .lg-bar{background:var(--is-a);} .lg-cmp{border-top:2px dotted var(--ink-faint);height:0!important;} .lg-fc{border-top:2.5px dashed var(--is-c);height:0!important;} .lg-band{background:var(--is-c);opacity:.25;}
+  .is-note{font-size:11px;color:var(--ink-soft);margin:8px 0 0;line-height:1.5;}
+  .is-story ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:9px;font-size:13px;line-height:1.55;color:var(--ink);} .is-story b{color:var(--ink);}
+  .is-heat-wrap{overflow-x:auto;} .is-heat{width:100%;border-collapse:separate;border-spacing:3px;font-size:11px;}
+  .is-heat th{font-weight:700;color:var(--ink-soft);text-align:center;padding:3px 4px;white-space:nowrap;border:none;background:none;} .is-heat tbody th{text-align:left;max-width:150px;overflow:hidden;text-overflow:ellipsis;}
+  .is-heat th.sel{color:var(--ink);text-decoration:underline;}
+  .is-heat td{text-align:center;padding:6px 3px;border-radius:5px;border:none;background:color-mix(in srgb, var(--accent1) calc(var(--h)*100%), var(--surface-strong));color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .is-heat tbody tr:hover td:not(.tot){background:color-mix(in srgb, var(--accent1) calc(var(--h)*100%), var(--surface-strong));} /* keep the shade on row hover */
+  .is-heat td.hi{color:#fff;font-weight:700;} .is-heat td.anom{outline:2px solid var(--debit);outline-offset:-2px;font-weight:700;} .is-heat td.sel{box-shadow:inset 0 0 0 2px var(--ink);} .is-heat td.tot{background:none;font-weight:700;cursor:default;}
+  .is-heat td:hover,.is-heat td:focus{outline:2px solid var(--ink);outline-offset:-2px;}
+  .is-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;} .is-sl{display:flex;flex-direction:column;gap:4px;font-size:12px;text-transform:none;letter-spacing:0;color:var(--ink);font-weight:600;} .is-sl span{display:flex;justify-content:space-between;}
+  .is-sl input[type=range]{width:100%;accent-color:var(--accent1);}
+  .is-target{display:flex;align-items:center;gap:10px;margin:12px 0 6px;font-size:12px;text-transform:none;letter-spacing:0;color:var(--ink);font-weight:600;} .is-target input{max-width:180px;}
+  .is-wo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px;} .is-wo > div{border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:var(--surface-strong);display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .is-wo span{font-size:10.5px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;} .is-wo b{font-size:17px;font-variant-numeric:tabular-nums;} .is-wo em{font-style:normal;font-size:11px;font-weight:700;}
+  .is-anom{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:12.5px;line-height:1.5;} .is-anom li{padding:8px 10px;border-radius:8px;background:var(--surface-strong);} .is-anom li.high{background:var(--debit-bg);}
+  .is-bullets{display:flex;flex-direction:column;gap:12px;} .is-bul{display:grid;grid-template-columns:150px 70px 1fr;align-items:center;gap:10px;font-size:12.5px;}
+  .is-bul-l{font-weight:600;} .is-bul-v{font-weight:800;text-align:right;font-variant-numeric:tabular-nums;}
+  .is-bul-t{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg, var(--debit-bg) 0 var(--a), color-mix(in srgb, var(--gold) 22%, var(--surface)) var(--a) var(--b), var(--credit-bg) var(--b) 100%);}
+  .is-bul-t[data-dir=low]{background:linear-gradient(90deg, var(--credit-bg) 0 var(--a), color-mix(in srgb, var(--gold) 22%, var(--surface)) var(--a) var(--b), var(--debit-bg) var(--b) 100%);}
+  .is-bul-t span{position:absolute;left:0;top:3px;height:6px;border-radius:3px;background:var(--ink);}
+  .is-empty{padding:26px 10px;text-align:center;color:var(--ink-soft);font-size:12.5px;}
+  .is-drill{border-color:var(--accent1);} .is-drill table{font-size:12px;}
+  #isTip{position:fixed;z-index:100002;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:7px;max-width:320px;box-shadow:0 8px 24px rgb(0 0 0 / .25);display:none;}
+  /* Present mode */
+  .is-present{position:fixed;inset:0;z-index:100001;background:var(--bg, var(--surface));color:var(--ink);display:grid;grid-template-rows:auto auto 1fr auto 4px;padding:22px 42px 0;overflow:hidden;}
+  .is-p-top{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);font-weight:700;letter-spacing:.04em;}
+  .is-p-title h1{font-size:clamp(24px,3vw,40px);margin:12px 0 2px;color:var(--ink);font-weight:800;letter-spacing:-.02em;} .is-p-sub{font-size:clamp(13px,1.2vw,17px);color:var(--ink-soft);}
+  .is-p-body{min-height:0;overflow:auto;padding:16px 0;display:flex;flex-direction:column;justify-content:center;}
+  .is-p-body .is-chart{max-height:62vh;} .is-p-body .is-heat{font-size:13px;} .is-p-body .is-heat td{padding:10px 4px;}
+  .is-kpis.big{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;} .is-kpis.big .is-kpi{padding:18px 20px;} .is-kpis.big .is-kpi-v{font-size:clamp(24px,2.6vw,38px);}
+  .is-story-big{font-size:clamp(14px,1.3vw,19px);line-height:1.6;margin:18px 0 0;padding-left:22px;}
+  .is-whatif.big .is-wo b{font-size:clamp(20px,2.2vw,32px);} .is-whatif.big .is-wo > div{padding:16px 18px;} .is-scn-set{font-size:14px;color:var(--ink-soft);margin-top:12px;}
+  .is-bullets.big .is-bul{font-size:15px;grid-template-columns:200px 90px 1fr;} .is-anom.big{font-size:14.5px;}
+  .is-p-foot{display:grid;grid-template-columns:1fr auto;grid-template-areas:"note ctl" "dots dots";gap:8px 16px;align-items:center;padding:10px 0 12px;border-top:1px solid var(--border);}
+  .is-p-note{grid-area:note;font-size:clamp(12px,1.1vw,15px);color:var(--ink-soft);line-height:1.5;}
+  .is-p-ctl{grid-area:ctl;display:flex;gap:6px;} .is-p-ctl button{border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:9px;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .is-p-ctl button[aria-pressed=true]{background:var(--accent1);color:#fff;border-color:var(--accent1);} .is-p-ctl button:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+  .is-p-dots{grid-area:dots;display:flex;gap:6px;justify-content:center;} .is-p-dots button{width:9px;height:9px;border-radius:50%;border:none;background:var(--border-strong);padding:0;cursor:pointer;} .is-p-dots button.on{background:var(--accent1);width:24px;border-radius:5px;}
+  .is-p-progress{background:var(--border);margin:0 -42px;} .is-p-progress span{display:block;height:100%;background:var(--accent1);transition:width .3s;}
+  .is-laser-dot{display:none;} .is-present.laser{cursor:none;} .is-present.laser .is-laser-dot{display:block;position:fixed;left:0;top:0;width:18px;height:18px;border-radius:50%;background:rgb(255 40 40 / .85);box-shadow:0 0 14px 6px rgb(255 40 40 / .45);pointer-events:none;z-index:100003;}
+  @media (max-width:1200px){ .is-kpis{grid-template-columns:repeat(3,minmax(0,1fr));} .is-grid2,.is-grid2.eq{grid-template-columns:1fr;} }
+  @media (max-width:640px){ .is-kpis{grid-template-columns:repeat(2,minmax(0,1fr));} .is-wo{grid-template-columns:1fr 1fr;} .is-sliders{grid-template-columns:1fr;} .is-bul{grid-template-columns:110px 60px 1fr;} .is-present{padding:14px 16px 0;} .is-p-progress{margin:0 -16px;} .is-p-foot{grid-template-columns:1fr;grid-template-areas:"note" "ctl" "dots";} .is-p-ctl{flex-wrap:wrap;} .is-kpis.big{grid-template-columns:1fr 1fr;} }
+  @media (prefers-reduced-motion:reduce){ .is-p-progress span,.is-chart .is-bar{transition:none;} }
+  /* ---- Insights Studio v2: hero, health score, sticky nav, ask, saved views, richer interaction, motion ---- */
+  .is-hero{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;padding:22px 24px;margin:0 0 14px;border-radius:18px;border:1px solid var(--border);
+    background:radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent1) 16%, var(--surface)) 0%, var(--surface) 55%), var(--surface);box-shadow:0 10px 30px -18px rgb(0 0 0 / .35);scroll-margin-top:120px;}
+  .is-hero-main{display:flex;flex-direction:column;justify-content:center;min-width:0;}
+  .is-root button.linklike{border:none;background:none;padding:3px 6px;border-radius:6px;font:inherit;font-size:12px;font-weight:600;color:var(--accent1);cursor:pointer;} .is-root button.linklike:hover{background:color-mix(in srgb, var(--accent1) 10%, transparent);} .is-root button.linklike:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+  .is-hero-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);}
+  .is-hero-h{font-size:clamp(17px,1.6vw,22px);line-height:1.35;margin:6px 0 14px;color:var(--ink);font-weight:800;letter-spacing:-.01em;text-wrap:balance;}
+  .is-takes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;} .is-take{border-radius:12px;padding:11px 13px;background:var(--surface);border:1px solid var(--border);border-left-width:4px;}
+  .is-take span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;} .is-take p{margin:0;font-size:13px;line-height:1.5;color:var(--ink);}
+  .is-take.good{border-left-color:var(--credit);} .is-take.good span{color:var(--credit);} .is-take.watch{border-left-color:var(--gold);} .is-take.watch span{color:var(--gold-ink, var(--gold));} .is-take.act{border-left-color:#5B8DB8;} .is-take.act span{color:#3F72A0;}
+  .is-hero-score{display:flex;flex-direction:column;align-items:center;gap:8px;border-left:1px solid var(--border);padding-left:18px;}
+  .is-score-cap{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
+  .is-ring{position:relative;display:grid;place-items:center;cursor:help;} .is-ring .trk{fill:none;stroke:var(--surface-strong);stroke-width:10;} .is-ring .val{fill:none;stroke:var(--credit);stroke-width:10;stroke-linecap:round;}
+  .is-ring.warn .val{stroke:var(--gold);} .is-ring.neg .val{stroke:var(--debit);} .is-ring-n{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .is-ring-n b{font-size:28px;font-weight:900;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums;} .is-ring-n span{font-size:11px;font-weight:700;color:var(--ink-soft);margin-top:3px;}
+  .is-score-parts{list-style:none;margin:0;padding:0;width:100%;display:flex;flex-direction:column;gap:4px;font-size:11px;} .is-score-parts li{display:grid;grid-template-columns:80px 1fr 38px;align-items:center;gap:6px;}
+  .is-score-parts i{height:6px;border-radius:3px;background:linear-gradient(90deg, var(--accent1) var(--w), var(--surface-strong) var(--w));} .is-score-parts b{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-soft);}
+  .is-sticky{position:sticky;top:0;z-index:30;margin:0 -4px 10px;padding:8px 4px;background:color-mix(in srgb, var(--bg, var(--surface)) 88%, transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+  .is-nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-bottom:8px;} .is-nav a{white-space:nowrap;font-size:12px;font-weight:700;color:var(--ink-soft);text-decoration:none;padding:5px 11px;border-radius:999px;}
+  .is-nav a:hover{background:var(--surface-strong);color:var(--ink);} .is-nav a.on{background:var(--ink);color:var(--surface);}
+  #is-sec-trend,#is-sec-drivers,#is-sec-customers,#is-sec-cash,#is-sec-alerts{scroll-margin-top:120px;}
+  .is-sub{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:0 0 8px;}
+  .is-ask{flex:1 1 420px;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:999px;padding:4px 4px 4px 14px;background:var(--surface);} .is-ask:focus-within{border-color:var(--accent1);box-shadow:0 0 0 3px rgb(44 160 28 / .14);}
+  .is-ask input{border:none!important;box-shadow:none!important;background:transparent!important;padding:6px 0!important;flex:1;min-width:0;} .is-ask .btn{border-radius:999px;}
+  .is-ask-ans{border:1px solid var(--accent1);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:color-mix(in srgb, var(--accent1) 6%, var(--surface));font-size:13px;}
+  .is-ask-q{font-weight:800;margin-bottom:4px;} .is-ask-a{white-space:pre-wrap;line-height:1.55;} .is-ask-chart{margin-top:8px;}
+  .is-views{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;} .is-view{display:inline-flex;align-items:center;} .is-view-x{border:none;background:none;color:var(--ink-faint);cursor:pointer;font-size:15px;padding:0 4px;}
+  .is-save{display:inline-flex;gap:6px;align-items:center;} .is-save input{width:160px;padding:5px 9px;}
+  button.is-kpi{font:inherit;text-align:left;cursor:pointer;transition:transform .15s, box-shadow .15s, border-color .15s;} button.is-kpi:hover{transform:translateY(-2px);box-shadow:0 10px 22px -14px rgb(0 0 0 / .45);border-color:var(--border-strong);}
+  button.is-kpi.on{border-color:var(--accent1);box-shadow:0 0 0 2px color-mix(in srgb, var(--accent1) 30%, transparent);} button.is-kpi:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+  .is-kpi-l i{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:6px;margin-right:6px;background:color-mix(in srgb, var(--accent1) 14%, var(--surface));color:var(--accent1);font-size:10px;vertical-align:-3px;}
+  .is-ph-wrap{flex-wrap:wrap;gap:8px;} .is-trend-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:6px;font-size:12px;}
+  .is-tog{display:inline-flex;align-items:center;gap:5px;font-size:12px;text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink-soft);margin:0;cursor:pointer;} .is-tog input{accent-color:var(--accent1);}
+  .is-trend .is-bar{pointer-events:none;} .is-chart .is-hit{fill:transparent;cursor:crosshair;} .is-chart .fcol .is-hit{cursor:help;}
+  .is-chart .is-guide{stroke:var(--ink-faint);stroke-width:1;stroke-dasharray:3 3;opacity:0;transition:opacity .12s;} .is-chart .is-col:hover .is-guide,.is-chart .is-hit:focus + .is-guide{opacity:1;}
+  .is-chart .is-col:hover .is-hit{fill:color-mix(in srgb, var(--accent1) 7%, transparent);} .is-chart .is-hit:focus{outline:none;fill:color-mix(in srgb, var(--accent1) 10%, transparent);}
+  .is-chart .is-brush{fill:var(--is-c);opacity:0;pointer-events:none;} .is-chart .is-brush.on{opacity:.18;}
+  .is-donut{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;} .is-slice{cursor:pointer;stroke:var(--surface);stroke-width:2;transition:transform .15s, opacity .15s;transform-origin:100px 100px;}
+  .is-slice:hover,.is-slice:focus,.is-slice.on{transform:scale(1.05);outline:none;} .is-slice.dim{opacity:.35;} .is-chart .is-dn-v{font-size:17px;font-weight:800;fill:var(--ink);}
+  .is-dn-leg{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;min-width:170px;} .is-dn-leg button{display:flex;align-items:center;gap:8px;width:100%;border:1px solid transparent;background:none;border-radius:8px;padding:5px 8px;font:inherit;font-size:12.5px;color:var(--ink);cursor:pointer;text-align:left;}
+  .is-dn-leg button:hover,.is-dn-leg button.on{background:var(--surface-strong);border-color:var(--border);} .is-dn-leg i{width:10px;height:10px;border-radius:3px;flex:none;} .is-dn-leg b{margin-left:auto;font-variant-numeric:tabular-nums;}
+  .is-drill-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;} .is-drill-tools input{width:200px;padding:5px 10px;}
+  .is-presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;font-size:12px;}
+  .is-anom li.done{opacity:.6;} .is-anom-act{display:inline-flex;gap:10px;margin-left:6px;} .is-anom-act .linklike{font-size:12px;}
+  .is-p-health{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;} .is-takes.big p{font-size:clamp(14px,1.25vw,18px);} .is-takes.big .is-take{padding:16px 18px;}
+  .is-score-parts.big{margin-top:22px;font-size:13.5px;gap:8px;} .is-score-parts.big li{grid-template-columns:130px 1fr 50px minmax(0,260px);} .is-score-parts.big em{font-style:normal;color:var(--ink-soft);}
+  .is-p-body{animation:isSceneIn .35s ease both;} @keyframes isSceneIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  .is-anim .is-chart .is-bar{animation:isGrow .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:var(--d,0ms);transform-box:fill-box;transform-origin:bottom;}
+  @keyframes isGrow{from{transform:scaleY(0);}to{transform:none;}}
+  .is-anim .is-chart .is-fc,.is-anim .is-chart .is-line,.is-anim .is-chart .is-cum{stroke-dashoffset:0;animation:isFade .9s ease both;} @keyframes isFade{from{opacity:0;}to{opacity:1;}}
+  .is-anim .is-ring .val{animation:isRing 1s cubic-bezier(.2,.7,.2,1) both;} @keyframes isRing{from{stroke-dashoffset:999;}}
+  .is-anim .is-kpi,.is-anim .is-take{animation:isUp .45s ease both;} .is-anim .is-kpi:nth-child(2){animation-delay:.04s;} .is-anim .is-kpi:nth-child(3){animation-delay:.08s;} .is-anim .is-kpi:nth-child(4){animation-delay:.12s;} .is-anim .is-kpi:nth-child(5){animation-delay:.16s;} .is-anim .is-kpi:nth-child(6){animation-delay:.2s;}
+  @keyframes isUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  @media (max-width:1200px){ .is-hero{grid-template-columns:1fr;} .is-hero-score{border-left:none;padding-left:0;border-top:1px solid var(--border);padding-top:14px;flex-direction:row;flex-wrap:wrap;justify-content:center;} .is-score-parts{max-width:320px;} }
+  @media (max-width:640px){ .is-takes{grid-template-columns:1fr;} .is-hero{padding:16px;} .is-p-health{grid-template-columns:1fr;justify-items:center;} .is-score-parts.big li{grid-template-columns:100px 1fr 44px;} .is-score-parts.big em{display:none;} }
+  @media (prefers-reduced-motion:reduce){ .is-anim *, .is-p-body{animation:none!important;} .is-slice,button.is-kpi{transition:none;} }
   .phone-field{display:flex;align-items:stretch;width:100%;min-width:0;}
   .phone-field .pf-cc{display:inline-flex;align-items:center;gap:6px;padding:0 8px 0 10px;border:1px solid var(--border);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);background:var(--surface-strong);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;flex:none;font-variant-numeric:tabular-nums;}
   .phone-field .pf-cc:hover{border-color:var(--border-strong);}
@@ -11338,7 +11468,7 @@ async function loadState(){
   fcFlowFilter='all'; fcBucketFilter=0; eclQuery=''; eclFilter='all'; eclLimit=ECL_PAGE; auditTrailFilter='all'; auditTrailQuery=''; auditTrailFrom=''; auditTrailTo=''; moduleTourIdx=0; spendSubTab='claims'; spendFilter='all'; spendForm=null; gst2b=null; gst2bFilter='all'; gstFilingPeriodKey=null; gstFilingFreqLocal=null; gstFilingSettingsDraft=null; groupUserFilter='all'; groupUserLimit=GROUP_PAGE; groupCompanySearch=''; groupCompanyFilter='all'; groupCompanyLimit=GROUP_PAGE; groupAuditLimit=50;
   ordersFilter='all'; ordersLimit=ORDERS_PAGE; assetFilter='all'; assetQuery=''; calAgendaQuery=''; calAgendaSeverity='all';
   reconcileLedgerId = null; // reset so the Reconcile tab re-picks a bank ledger belonging to this company
-  reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' }; reconStmtResult = null; abStatus = '';
+  reconcileDraft = { date: new Date().toISOString().slice(0,10), balance: '' }; reconStmtResult = null; abStatus = ''; isPeriod = 'fy'; isCompare = 'ly'; isCC = 'all'; isMonth = null; isDrill = null; isPresentIdx = null; isCache = null; isCustom = null; isHead = null; isAsk = null; isDrill = null; isMemoStore = { key:null, map:new Map() };
   try{
     const doc = await db.collection('companies').doc(cid).get();
     const data = doc.exists ? doc.data() : {};
@@ -16863,6 +16993,642 @@ async function rbxBuildDeck(){
   agenda.addNotes('What we will cover: '+sections.join(', ')+'.');
   return {pptx, sections, insights:I, data:D};
 }
+/* ====== Insights Studio — interactive, presentation-ready analytics dashboard (Nov 2026) ======
+   Reports → Analysis & Insights → Insights Studio. One screen that answers "how are we doing, why, and
+   what happens next", built for presenting:
+   - Global filters (period, comparison, cost center) and cross-filtering: click a month anywhere and
+     every tile, the heatmap and the narrative focus on that month; click a cell, bar or bubble to drill
+     into the vouchers behind it.
+   - KPI tiles with sparklines, change against the comparison period and next-month forecast.
+   - Predictive analytics computed locally from the books: damped-trend exponential smoothing (with
+     seasonality once 24 months exist) giving a 6-month forecast with an 80% confidence band, its own
+     back-tested accuracy, a cash runway projection and expected collections.
+   - Augmented analytics: automatic narrative, anomaly detection (robust z-scores per expense ledger,
+     unusual revenue months, outsized vouchers), profit-bridge driver analysis, customer Pareto and a
+     customer risk map.
+   - What-if simulator with goal-seek (price, volume, cost, collection days, target profit).
+   - Present mode: full-screen story of 9 scenes with keyboard control, autoplay, presenter pointer.
+   Read-only: every figure comes from the vouchers and ledgers; nothing is posted or changed. */
+let isPeriod = 'fy', isCompare = 'ly', isCC = 'all', isMetric = 'revenue', isMonth = null, isDrill = null;
+let isPresentIdx = null, isAuto = false, isLaser = false, isAutoTimer = null, isCache = null;
+let isWhat = { price:0, volume:0, cost:0, days:0, target:'' };
+// v2 (Nov 2026): custom brushed range, forecast horizon, layer toggles, expense-head filter, Ask box, drill search/sort,
+// saved views, reviewed anomalies, entrance animation and a memo so each figure is computed once per render.
+let isHorizon = 6, isShowCmp = true, isShowFc = true, isCustom = null, isHead = null, isAsk = null, isDrillQ = '', isDrillSort = 'amt', isAnimKey = '', isShowReviewed = false, isSaveOpen = false;
+let isMemoStore = { key:null, map:new Map() };
+const IS_METRICS = { revenue:'Revenue', expenses:'Expenses', profit:'Profit', cash:'Net cash flow' };
+function isAddMonths(k, n){ const [y,m] = k.split('-').map(Number); const d = new Date(y, m-1+n, 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function isMonthsBetween(a, b){ const out = []; let k = a; while(k<=b && out.length<240){ out.push(k); k = isAddMonths(k,1); } return out; }
+function isLab(k, long){ return new Date(k+'-01T00:00:00').toLocaleDateString('en-IN', long ? {month:'long', year:'numeric'} : {month:'short', year:'2-digit'}); }
+const isShort = n => { const a = Math.abs(Number(n)||0), s = n<0?'-':''; return a>=1e7 ? `${s}₹${(a/1e7).toFixed(2)} Cr` : a>=1e5 ? `${s}₹${(a/1e5).toFixed(2)} L` : a>=1e3 ? `${s}₹${(a/1e3).toFixed(1)}K` : `${s}₹${Math.round(a)}`; };
+const isPct = (x, d) => x==null || !isFinite(x) ? '—' : `${(x*100).toFixed(d==null?1:d)}%`;
+const isEsc = s => escapeHtml(String(s==null?'':s));
+// One pass over the vouchers: month-by-month P&L lines, cash, expense ledgers and customer sales (cost-center aware).
+function isCore(){
+  const key = `${typeof rbDataVersion!=='undefined'?rbDataVersion:0}|${isCC}|${state.vouchers.length}|${state.ledgers.length}|${currentCompany&&currentCompany.id}`;
+  if(isCache && isCache.key===key) return isCache;
+  const pl = scheduleIIIProfitLossData(null, null), line = new Map();
+  [['rev',pl.revenueLedgers],['oinc',pl.otherIncomeLedgers],['cogs',pl.purchaseLedgers],['emp',pl.employeeLedgers],['fin',pl.financeCostLedgers],['dep',pl.depreciationLedgers],['oth',pl.otherExpenseLedgers]].forEach(([k,ls])=>ls.forEach(l=>line.set(l.id,k)));
+  const isCash = id => { const l = ledgerOf(id); const b = l && bucketOf(l); return b==='cash' || b==='bank'; };
+  const isCust = l => l && (l.group==='sundeb' || l.partyType==='customer');
+  const M = {}, expM = {}, custM = {};
+  const blank = () => ({rev:0, oinc:0, cogs:0, emp:0, fin:0, dep:0, oth:0, cin:0, cout:0, n:0});
+  let first = null;
+  const todayStr = new Date().toISOString().slice(0,10);
+  for(const v of state.vouchers){
+    if(v.date > todayStr) continue; // future-dated (scheduled) vouchers are not actuals yet
+    let w = 1;
+    if(isCC!=='all'){ w = voucherCostCenterWeights(v).filter(x=>(x.costCenterId||'__none__')===isCC).reduce((s,x)=>s+x.weight,0); if(!w) continue; }
+    const k = v.date.slice(0,7); if(!first || k<first) first = k;
+    const a = M[k] || (M[k] = blank()); a.n++;
+    let rev = 0;
+    for(const e of v.entries){
+      const lk = line.get(e.ledgerId), net = ((e.dr||0)-(e.cr||0))*w;
+      if(lk){ if(lk==='rev'||lk==='oinc') a[lk] -= net; else a[lk] += net;
+        if(lk==='rev') rev -= net;
+        if(lk!=='rev' && lk!=='oinc'){ const em = expM[e.ledgerId] || (expM[e.ledgerId] = {}); em[k] = (em[k]||0) + net; } }
+      if(v.type!=='Contra' && isCash(e.ledgerId)){ if(net>0) a.cin += net; else a.cout += -net; }
+    }
+    if(rev>0.004){ const pe = v.entries.find(e=>(e.dr||0)>0 && isCust(ledgerOf(e.ledgerId)));
+      const nm = pe ? ledgerOf(pe.ledgerId).name : 'Cash / counter sales';
+      const cm = custM[nm] || (custM[nm] = {}); cm[k] = (cm[k]||0) + rev; }
+  }
+  const today = new Date().toISOString().slice(0,10), cur = today.slice(0,7);
+  const months = first ? isMonthsBetween(first < cur ? first : cur, cur) : [cur];
+  months.forEach(k=>{ if(!M[k]) M[k] = blank(); const a = M[k];
+    a.exp = a.cogs+a.emp+a.fin+a.dep+a.oth; a.inc = a.rev+a.oinc; a.profit = a.inc-a.exp; a.cash = a.cin-a.cout; });
+  const opening = state.ledgers.filter(l=>['cash','bank'].includes(bucketOf(l))).reduce((s,l)=>s+(l.opening||0),0);
+  let run = opening; const cashBal = {}; months.forEach(k=>{ run += M[k].cash; cashBal[k] = run; });
+  // complete months only for the models (the current month is still running)
+  const lastDay = new Date(Number(cur.slice(0,4)), Number(cur.slice(5,7)), 0).getDate();
+  const curComplete = Number(today.slice(8,10))>=lastDay;
+  isCache = { key, M, expM, custM, months, cur, today, curComplete, cashBal, opening, futureOK: true };
+  return isCache;
+}
+function isRange(){
+  const C = isCore(), cur = C.cur, today = C.today;
+  const fyb = fyBoundsForLabel(activeFY || fyLabelForDate(today)), pfy = fyBoundsForLabel(priorFYLabel(activeFY || fyLabelForDate(today)));
+  let a, b, label;
+  if(isPeriod==='custom' && isCustom){ a = isCustom.a; b = isCustom.b; label = `${isLab(a)} – ${isLab(b)}`; }
+  else if(isPeriod==='l12'){ a = isAddMonths(cur,-11); b = cur; label = 'Last 12 months'; }
+  else if(isPeriod==='lfy'){ a = pfy.start.slice(0,7); b = pfy.end.slice(0,7); label = `FY ${priorFYLabel(activeFY || fyLabelForDate(today))}`; }
+  else if(isPeriod==='all'){ a = C.months[0]; b = cur; label = 'All time'; }
+  else { a = fyb.start.slice(0,7); b = fyb.end.slice(0,7) < cur ? fyb.end.slice(0,7) : cur; label = `FY ${activeFY || fyLabelForDate(today)} to date`; }
+  const months = isMonthsBetween(a, b), n = months.length;
+  const cmp = isCompare==='prev' ? isMonthsBetween(isAddMonths(a,-n), isAddMonths(a,-1)) : months.map(k=>isAddMonths(k,-12));
+  return { months, cmp, label, cmpLabel: isCompare==='prev' ? 'previous period' : 'same period last year' };
+}
+const isVal = (a, metric) => !a ? 0 : metric==='expenses' ? a.exp : metric==='profit' ? a.profit : metric==='cash' ? a.cash : a.rev;
+function isSum(months, f){ const C = isCore(); return months.reduce((s,k)=>s+(C.M[k] ? f(C.M[k]) : 0), 0); }
+// ---- Forecasting: damped-trend exponential smoothing (+ additive seasonality with 24+ months), 80% band, back-test MAPE ----
+function isForecast(vals, h){
+  const n = vals.length; if(n<4) return null;
+  let season = null;
+  if(n>=24){ const dev = Array.from({length:12},()=>[]);
+    for(let i=6;i<n-6;i++){ let s = 0.5*vals[i-6] + 0.5*vals[i+6]; for(let j=i-5;j<=i+5;j++) s += vals[j]; dev[i%12].push(vals[i] - s/12); } // centred 2×12 moving average
+    season = dev.map(d=>d.length ? d.reduce((a,b)=>a+b,0)/d.length : 0); const mean = season.reduce((a,b)=>a+b,0)/12; season = season.map(x=>x-mean); }
+  const fit = (series, steps) => {
+    const S = i => season ? season[i%12] : 0, alpha = 0.5, beta = 0.25, phi = 0.9;
+    const d = series.map((v,i)=>v-S(i));
+    let L = d[0], T = (d[Math.min(3,d.length-1)]-d[0])/Math.min(3,d.length-1) || 0; const res = [];
+    for(let i=1;i<d.length;i++){ const p = L + phi*T; res.push(d[i]-p); const Ln = alpha*d[i] + (1-alpha)*(L+phi*T); T = beta*(Ln-L) + (1-beta)*phi*T; L = Ln; }
+    const r = res.slice(Math.min(2, res.length-1)); const sigma = Math.sqrt(r.reduce((s,x)=>s+x*x,0)/Math.max(1,r.length));
+    const out = []; let damp = 0;
+    for(let k=1;k<=steps;k++){ damp += Math.pow(phi,k); const f = L + damp*T + S(series.length-1+k); const band = 1.2816*sigma*Math.sqrt(k); out.push({f, lo:f-band, hi:f+band}); }
+    return {out, sigma};
+  };
+  const main = fit(vals, h);
+  let mape = null;
+  if(n>=8){ const bt = fit(vals.slice(0,n-3), 3).out; const errs = bt.map((p,i)=>{ const a = vals[n-3+i]; return Math.abs(a) > 1 ? Math.abs(p.f-a)/Math.abs(a) : null; }).filter(x=>x!=null); if(errs.length) mape = errs.reduce((a,b)=>a+b,0)/errs.length; }
+  return { points: main.out, sigma: main.sigma, mape, method: season ? 'Holt-Winters — damped trend with monthly seasonality' : 'Holt — damped-trend exponential smoothing' };
+}
+function isModel(metric){
+  const C = isCore(); const hist = C.months.filter(k=>k<C.cur || C.curComplete);
+  const vals = hist.map(k=>isVal(C.M[k], metric));
+  const fc = isForecast(vals, isHorizon), start = C.curComplete ? isAddMonths(C.cur,1) : C.cur;
+  return { hist, vals, fc, months: fc ? Array.from({length:isHorizon},(_,i)=>isAddMonths(start,i)) : [] };
+}
+// ---- Augmented analytics ----
+function isAnomalies(R){
+  const C = isCore(), out = [], inR = new Set(R.months);
+  const med = a => { const s = a.slice().sort((x,y)=>x-y); const m = s.length>>1; return s.length%2 ? s[m] : (s[m-1]+s[m])/2; };
+  Object.entries(C.expM).forEach(([id, mm])=>{
+    const vals = C.months.map(k=>mm[k]||0).filter(x=>x>0); if(vals.length<5) return;
+    const md = med(vals), mad = med(vals.map(x=>Math.abs(x-md))) || md*0.1;
+    Object.entries(mm).forEach(([k,v])=>{ if(!inR.has(k)) return; const z = (v-md)/(1.4826*mad||1);
+      if(z>3 && v-md > Math.max(5000, md*0.3)) out.push({kind:'expense', sev: z>6?'high':'medium', k, id, text:`${ledgerOf(id)?ledgerOf(id).name:'Expense'} in ${isLab(k,true)} was ${isShort(v)} — ${(v/md).toFixed(1)}× its usual ${isShort(md)}.`, z}); });
+  });
+  const m = isModel('revenue');
+  if(m.fc && m.fc.sigma>0){ // in-sample residual check on revenue
+    const vals = m.vals; for(let i=3;i<vals.length;i++){ const k = m.hist[i]; if(!inR.has(k)) continue; const prev = vals.slice(Math.max(0,i-6), i); const avg = prev.reduce((a,b)=>a+b,0)/prev.length; const z = (vals[i]-avg)/(m.fc.sigma||1);
+      if(Math.abs(z)>2.2 && Math.abs(vals[i]-avg) > avg*0.25) out.push({kind:'revenue', sev:'medium', k, text:`Revenue in ${isLab(k,true)} was ${isShort(vals[i])} — ${vals[i]>avg?'well above':'well below'} the recent average of ${isShort(avg)}.`, z:Math.abs(z)}); } }
+  // outsized vouchers: compared with earlier vouchers of the same type against the same main (non-cash) ledger
+  const mainOf = v => { let best = null; v.entries.forEach(e=>{ const l = ledgerOf(e.ledgerId); if(!l || ['cash','bank'].includes(bucketOf(l))) return; const a = Math.max(e.dr||0, e.cr||0); if(!best || a>best.a) best = {id:e.ledgerId, a}; }); return best ? best.id : '-'; };
+  const byKey = {}; state.vouchers.forEach(v=>{ const key = v.type+'|'+mainOf(v); (byKey[key] = byKey[key]||[]).push(voucherAmount(v)); });
+  const keyMed = {}; Object.entries(byKey).forEach(([t,a])=>{ if(a.length>=5) keyMed[t] = med(a); });
+  state.vouchers.forEach(v=>{ if(!inR.has(v.date.slice(0,7))) return; const key = v.type+'|'+mainOf(v), amt = voucherAmount(v), md = keyMed[key]||0;
+    if(md>0 && amt > 4*md && amt >= 25000){ const l = ledgerOf(mainOf(v)); out.push({kind:'voucher', sev: amt>8*md?'high':'medium', k:v.date.slice(0,7), vid:v.id, text:`${v.type} of ${isShort(amt)} on ${humanDate(v.date)}${l?` (${l.name})`:''} is ${(amt/md).toFixed(1)}× the usual ${isShort(md)} — ${v.narration||'no narration'}.`, z:amt/md}); } });
+  return out.sort((a,b)=>(b.sev==='high')-(a.sev==='high') || b.z-a.z).slice(0,12);
+}
+function isCustomers(R){
+  const C = isCore(), inR = new Set(R.months);
+  const rows = Object.entries(C.custM).map(([n,mm])=>({n, v:Object.entries(mm).filter(([k])=>inR.has(k)).reduce((s,[,x])=>s+x,0)})).filter(x=>x.v>0.004).sort((a,b)=>b.v-a.v);
+  const tot = rows.reduce((s,x)=>s+x.v,0); let cum = 0; rows.forEach(x=>{ cum += x.v; x.cum = tot ? cum/tot : 0; });
+  const ag = rbxAgeing(C.today, 'rec'); const byName = new Map(ag.map(x=>[x.l.name, x]));
+  rows.forEach(x=>{ const a = byName.get(x.n); x.out = a ? a.total : 0; x.days = a && a.total ? a.ages.reduce((s,p)=>s+p.amt*p.days,0)/a.total : 0; x.id = a ? a.l.id : (state.ledgers.find(l=>l.name===x.n)||{}).id; });
+  return {rows, tot, n80: rows.findIndex(x=>x.cum>=0.8)+1};
+}
+function isRatios(){ const is = incomeStatementData(), bs = balanceSheetIFRSData(is.profitForPeriod); return ratioAnalysisData(is, bs); }
+function isNarrative(R, ctx){
+  const C = isCore(), s = [];
+  const cur = isSum(R.months, a=>a.rev), cmp = isSum(R.cmp, a=>a.rev), p = isSum(R.months, a=>a.profit), pc = isSum(R.cmp, a=>a.profit);
+  if(cur || cmp) s.push(`Revenue for ${R.label.replace(/^(Last|All)/, m=>m.toLowerCase())} is <b>${isShort(cur)}</b>${cmp?`, ${cur>=cmp?'up':'down'} <b>${isPct(Math.abs((cur-cmp)/cmp))}</b> on the ${R.cmpLabel}`:''}.`);
+  s.push(`Profit is <b>${isShort(p)}</b>${cur?` (margin ${isPct(p/cur)})`:''}${pc?`, against ${isShort(pc)} in the ${R.cmpLabel}`:''}.`);
+  const best = R.months.filter(k=>C.M[k]).sort((a,b)=>C.M[b].profit-C.M[a].profit)[0]; if(best && R.months.length>1) s.push(`Best month: <b>${isLab(best,true)}</b> with profit of ${isShort(C.M[best].profit)}.`);
+  if(ctx.bridge && ctx.bridge.length){ const drv = ctx.bridge.slice(1,-1).slice().sort((a,b)=>Math.abs(b.v)-Math.abs(a.v))[0]; if(drv && Math.abs(drv.v)>0.5) s.push(`The biggest driver of the change in profit is <b>${drv.l.toLowerCase()}</b> (${drv.v>=0?'+':''}${isShort(drv.v)}).`); }
+  const m = ctx.model; if(m.fc){ const nx = m.fc.points.slice(0,3).reduce((a,b)=>a+b.f,0), last3 = m.vals.slice(-3).reduce((a,b)=>a+b,0);
+    s.push(`The model expects <b>${isShort(nx)}</b> of ${IS_METRICS[isMetric].toLowerCase()} over the next three months${last3?` (${nx>=last3?'+':''}${isPct((nx-last3)/Math.abs(last3))} on the last three)`:''}${m.fc.mape!=null?`; back-tested accuracy ${isPct(Math.max(0,1-m.fc.mape),0)}`:''}.`); }
+  if(ctx.runway) s.push(ctx.runway.text);
+  if(ctx.cust && ctx.cust.rows.length) s.push(`${ctx.cust.n80||ctx.cust.rows.length} customer${(ctx.cust.n80||ctx.cust.rows.length)===1?'':'s'} bring 80% of revenue; the largest, ${isEsc(ctx.cust.rows[0].n)}, is ${isPct(ctx.cust.rows[0].v/ctx.cust.tot)}.`);
+  if(ctx.anom) s.push(ctx.anom.length ? `<b>${ctx.anom.length}</b> unusual item${ctx.anom.length===1?'':'s'} detected — see Anomalies.` : 'No unusual items detected in this period.');
+  return s;
+}
+function isRunway(){
+  const C = isCore(), cash = C.cashBal[C.cur] != null ? C.cashBal[C.cur] : C.opening, m = isModel('cash');
+  if(isCC!=='all' || !m.fc) return {cash, m, pts:[], text: isCC!=='all' ? 'Cash runway is shown for the whole company (clear the cost-center filter).' : ''};
+  let bal = cash; const pts = m.fc.points.map((p,i)=>{ bal += p.f; return {k:m.months[i], b:bal, lo: bal - 1.2816*m.fc.sigma*Math.sqrt(i+1), hi: bal + 1.2816*m.fc.sigma*Math.sqrt(i+1)}; });
+  const neg = pts.find(p=>p.b<0), avgNet = m.fc.points.reduce((a,b)=>a+b.f,0)/m.fc.points.length;
+  const text = neg ? `Cash is projected to run out around <b>${isLab(neg.k,true)}</b> unless collections improve.` : avgNet<0 ? `Cash stays positive for the next six months, falling to about <b>${isShort(pts[pts.length-1].b)}</b> (runway ≈ ${Math.floor(cash/-avgNet)} months).` : `Cash is projected to grow to about <b>${isShort(pts[pts.length-1].b)}</b> in six months.`;
+  return {cash, m, pts, text, avgNet};
+}
+function isBridge(R){
+  const f = (ms) => ({rev:isSum(ms,a=>a.rev), oinc:isSum(ms,a=>a.oinc), cogs:isSum(ms,a=>a.cogs), emp:isSum(ms,a=>a.emp), fin:isSum(ms,a=>a.fin), dep:isSum(ms,a=>a.dep), oth:isSum(ms,a=>a.oth)});
+  const a = f(R.cmp), b = f(R.months), P = x => x.rev+x.oinc-x.cogs-x.emp-x.fin-x.dep-x.oth;
+  return [{l:`Profit — ${R.cmpLabel}`, v:P(a), total:true}, {l:'Revenue', v:b.rev-a.rev}, {l:'Other income', v:b.oinc-a.oinc}, {l:'Purchases', v:-(b.cogs-a.cogs)}, {l:'Employee costs', v:-(b.emp-a.emp)}, {l:'Finance costs', v:-(b.fin-a.fin)}, {l:'Depreciation', v:-(b.dep-a.dep)}, {l:'Other expenses', v:-(b.oth-a.oth)}, {l:'Profit — this period', v:P(b), total:true}];
+}
+function isWhatBase(){
+  const C = isCore(); const base = {};
+  ['rev','cogs','emp','fin','dep','oth','oinc'].forEach(k=>{ const hist = C.months.filter(m=>m<C.cur||C.curComplete).map(m=>C.M[m][k]); const fc = isForecast(hist, 12);
+    base[k] = fc ? Math.max(0, fc.points.reduce((a,b)=>a+b.f,0)) : hist.slice(-12).reduce((a,b)=>a+b,0)*(12/Math.max(1,Math.min(12,hist.length))); });
+  return base;
+}
+function isWhatIfResult(){
+  const base = isMemo('wibase', isWhatBase);
+  const w = isWhat, pr = 1+w.price/100, vo = 1+w.volume/100, co = 1+w.cost/100;
+  const rev = base.rev*pr*vo, cogs = base.cogs*vo*co, opex = (base.emp+base.fin+base.dep+base.oth)*co, oinc = base.oinc;
+  const profit = rev + oinc - cogs - opex, baseProfit = base.rev + base.oinc - base.cogs - (base.emp+base.fin+base.dep+base.oth);
+  const cm = rev ? (rev-cogs)/rev : 0, breakeven = cm>0 ? (opex-oinc)/cm : null;
+  const cashDays = -(rev/365)*w.days;
+  const target = Number(w.target)||0, need = target && cm>0 ? (target + opex - oinc)/cm : null;
+  return {base, rev, cogs, opex, profit, baseProfit, margin: rev?profit/rev:null, breakeven, cashDays, need, needGrowth: need && rev ? need/rev-1 : null};
+}
+// ---- Memo: every heavy figure is computed once per data + filter state (then reused by tiles, charts, narrative, scenes) ----
+function isMemo(name, fn){
+  const C = isCore(), k = `${C.key}|${isPeriod}|${isCompare}|${isCustom?isCustom.a+isCustom.b:''}|${isHorizon}`;
+  if(isMemoStore.key!==k) isMemoStore = { key:k, map:new Map() };
+  if(!isMemoStore.map.has(name)) isMemoStore.map.set(name, fn());
+  return isMemoStore.map.get(name);
+}
+{ const _m = isModel, _a = isAnomalies, _c = isCustomers, _r = isRatios, _rw = isRunway, _b = isBridge, _rg = isRange;
+  isModel = metric => isMemo('model:'+metric, ()=>_m(metric)); isAnomalies = R => isMemo('anom', ()=>_a(R)); isCustomers = R => isMemo('cust', ()=>_c(R));
+  isRatios = () => isMemo('ratios', ()=>_r()); isRunway = () => isMemo('runway', ()=>_rw()); isBridge = R => isMemo('bridge', ()=>_b(R)); isRange = () => isMemo('range', ()=>_rg()); }
+// Reviewed anomalies and saved views live in this browser (per company); nothing is written to the books.
+function isLS(name){ return `rb_is_${name}_${(currentCompany&&currentCompany.id)||'x'}`; }
+function isLSGet(name, dflt){ try{ const v = JSON.parse(localStorage.getItem(isLS(name))||'null'); return v==null ? dflt : v; }catch(e){ return dflt; } }
+function isLSSet(name, v){ try{ localStorage.setItem(isLS(name), JSON.stringify(v)); }catch(e){} }
+const isAnomSig = a => `${a.kind}|${a.id||a.vid||''}|${a.k}`;
+// Health score 0–100 from profitability, growth, liquidity, cash runway, collections and open alerts.
+function isHealth(R){
+  const ra = isRatios(), rev = isSum(R.months,a=>a.rev), crev = isSum(R.cmp,a=>a.rev), p = isSum(R.months,a=>a.profit), rw = isRunway();
+  const rev2 = isLSGet('reviewed', {}), anom = isAnomalies(R).filter(a=>!rev2[isAnomSig(a)]);
+  const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+  const nm = rev ? p/rev : 0, gr = crev ? (rev-crev)/Math.abs(crev) : 0;
+  const parts = [
+    {k:'Profitability', max:25, v: nm<=0 ? 0 : clamp(nm/0.12,0,1)*25, note:`Net margin ${isPct(rev?nm:null)}`},
+    {k:'Growth', max:20, v: crev ? clamp((gr+0.2)/0.3,0,1)*20 : 10, note: crev ? `${gr>=0?'+':''}${isPct(gr)} vs ${R.cmpLabel}` : 'No comparison data'},
+    {k:'Liquidity', max:20, v: ra.currentRatio==null ? 10 : clamp((ra.currentRatio-0.5)/1.0,0,1)*20, note:`Current ratio ${ra.currentRatio==null?'—':ra.currentRatio.toFixed(2)+'×'}`},
+    {k:'Cash runway', max:15, v: !rw.pts.length ? 8 : rw.pts.some(x=>x.b<0) ? 2 : rw.avgNet>=0 ? 15 : clamp((rw.cash/(-rw.avgNet))/12,0,1)*15, note: rw.pts.length ? (rw.pts.some(x=>x.b<0)?'Projected to run out':'Stays positive') : 'Not enough history'},
+    {k:'Collections', max:10, v: ra.dso==null ? 5 : clamp((120-ra.dso)/75,0,1)*10, note:`DSO ${ra.dso==null?'—':Math.round(ra.dso)+' days'}`},
+    {k:'Clean books', max:10, v: clamp(10 - anom.filter(a=>a.sev==='high').length*3 - anom.filter(a=>a.sev!=='high').length, 0, 10), note:`${anom.length} open alert${anom.length===1?'':'s'}`},
+  ];
+  const score = Math.round(parts.reduce((s,x)=>s+x.v,0));
+  return { score, parts, label: score>=80?'Excellent':score>=65?'Good':score>=50?'Fair':'Needs attention', tone: score>=65?'pos':score>=50?'warn':'neg' };
+}
+function isTakeaways(R){
+  const C = isCore(), rev = isSum(R.months,a=>a.rev), crev = isSum(R.cmp,a=>a.rev), p = isSum(R.months,a=>a.profit), pc = isSum(R.cmp,a=>a.profit);
+  const br = isBridge(R).slice(1,-1).filter(x=>Math.abs(x.v)>0.5), up = br.slice().sort((a,b)=>b.v-a.v)[0], dn = br.slice().sort((a,b)=>a.v-b.v)[0];
+  const rw = isRunway(), ra = isRatios(), cust = isCustomers(R), rv = isLSGet('reviewed', {}), anom = isAnomalies(R).filter(a=>!rv[isAnomSig(a)]);
+  const good = rev>crev && crev ? `Revenue up ${isPct((rev-crev)/Math.abs(crev))} to ${isShort(rev)}${up?` — ${up.l.toLowerCase()} added ${isShort(up.v)} to profit`:''}.` : p>pc ? `Profit improved to ${isShort(p)} from ${isShort(pc)}.` : up ? `${up.l} helped profit by ${isShort(up.v)}.` : `Profit of ${isShort(p)} for the period.`;
+  const watch = dn && dn.v<0 ? `${dn.l} reduced profit by ${isShort(-dn.v)} against the ${R.cmpLabel}.` : anom[0] ? anom[0].text : ra.currentRatio!=null && ra.currentRatio<1 ? 'Short-term dues are higher than short-term assets.' : 'Nothing significant to watch.';
+  const slow = cust.rows.filter(r=>r.days>60 && r.out>0).sort((a,b)=>b.out-a.out)[0];
+  const act = rw.pts.some(x=>x.b<0) ? 'Cash is projected to run out — speed up collections and phase large payments.' : slow ? `Follow up ${slow.n}: ${isShort(slow.out)} outstanding, ${Math.round(slow.days)} days on average.` : anom.find(a=>a.sev==='high') ? `Review: ${anom.find(a=>a.sev==='high').text}` : ra.dso!=null && ra.dso>45 ? `Bring collection days (${Math.round(ra.dso)}) under 45.` : 'Keep the monthly close and reconciliations on schedule.';
+  return { good, watch, act };
+}
+function isHealthRing(h, big){
+  const r = big ? 54 : 40, c = 2*Math.PI*r, sz = (r+10)*2;
+  return `<div class="is-ring ${h.tone}" data-tip="${h.parts.map(x=>`${x.k} ${Math.round(x.v)}/${x.max} (${x.note})`).join(' · ')}"><svg viewBox="0 0 ${sz} ${sz}" width="${sz}" height="${sz}" aria-hidden="true"><circle cx="${sz/2}" cy="${sz/2}" r="${r}" class="trk"/><circle cx="${sz/2}" cy="${sz/2}" r="${r}" class="val" style="stroke-dasharray:${c.toFixed(1)};--off:${(c*(1-h.score/100)).toFixed(1)};stroke-dashoffset:var(--off)" transform="rotate(-90 ${sz/2} ${sz/2})"/></svg><div class="is-ring-n"><b data-count="${h.score}" data-fmt="int">${h.score}</b><span>${h.label}</span></div></div>`;
+}
+// Expense mix donut by Statement of Profit and Loss head (click a slice to filter the heatmap)
+const IS_HEADS = { cogs:'Purchases', emp:'Employee costs', fin:'Finance costs', dep:'Depreciation', oth:'Other expenses' };
+function isDonutSvg(R){
+  const vals = Object.keys(IS_HEADS).map(k=>({k, l:IS_HEADS[k], v:Math.max(0, isSum(R.months,a=>a[k]))})).filter(x=>x.v>0.004), tot = vals.reduce((s,x)=>s+x.v,0);
+  if(!tot) return `<div class="is-empty">No expenses in this period.</div>`;
+  const colors = { cogs:'var(--is-a)', emp:'var(--is-b)', fin:'var(--is-c)', dep:'#8E7CC3', oth:'#9FB2A7' };
+  const R0 = 78, R1 = 50, cx = 100, cy = 100; let a0 = -Math.PI/2, g = '';
+  vals.forEach(x=>{ const a1 = a0 + x.v/tot*Math.PI*2, large = a1-a0>Math.PI?1:0, p = (r,a)=>`${(cx+r*Math.cos(a)).toFixed(2)},${(cy+r*Math.sin(a)).toFixed(2)}`;
+    const d = vals.length===1 ? `M${cx-R0},${cy} A${R0},${R0} 0 1 1 ${cx+R0},${cy} A${R0},${R0} 0 1 1 ${cx-R0},${cy} M${cx-R1},${cy} A${R1},${R1} 0 1 0 ${cx+R1},${cy} A${R1},${R1} 0 1 0 ${cx-R1},${cy}Z` : `M${p(R0,a0)} A${R0},${R0} 0 ${large} 1 ${p(R0,a1)} L${p(R1,a1)} A${R1},${R1} 0 ${large} 0 ${p(R1,a0)}Z`;
+    g += `<path d="${d}" fill="${colors[x.k]}" class="is-slice${isHead===x.k?' on':''}${isHead&&isHead!==x.k?' dim':''}" data-is-head="${x.k}" data-tip="${x.l}: ${isShort(x.v)} (${isPct(x.v/tot)})" tabindex="0" role="button" aria-label="${x.l} ${isPct(x.v/tot)}" fill-rule="evenodd"/>`; a0 = a1; });
+  const sel = isHead ? vals.find(x=>x.k===isHead) : null;
+  return `<div class="is-donut"><svg viewBox="0 0 200 200" width="200" height="200" class="is-chart" role="img" aria-label="Expense mix">${g}<text x="100" y="96" text-anchor="middle" class="is-dn-v">${isShort(sel?sel.v:tot)}</text><text x="100" y="116" text-anchor="middle" class="is-ax">${sel?isEsc(sel.l):'Total expenses'}</text></svg>
+    <ul class="is-dn-leg">${vals.map(x=>`<li><button type="button" class="${isHead===x.k?'on':''}" data-is-head="${x.k}"><i style="background:${colors[x.k]}"></i>${x.l}<b>${isPct(x.v/tot,0)}</b></button></li>`).join('')}</ul></div>`;
+}
+// ---- SVG building blocks (theme-aware through CSS variables) ----
+function isSpark(vals, w, h){ w = w||120; h = h||30; if(!vals.length) return ''; const mx = Math.max(...vals), mn = Math.min(...vals), sp = mx-mn || 1;
+  const pts = vals.map((v,i)=>`${(i/(Math.max(1,vals.length-1))*w).toFixed(1)},${(h-2-(v-mn)/sp*(h-4)).toFixed(1)}`).join(' ');
+  const last = pts.split(' ').pop().split(',');
+  return `<svg class="is-spark" viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--accent1)" stroke-width="1.6" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="2.4" fill="var(--accent1)"/></svg>`; }
+function isTrendSvg(R, big){
+  const C = isCore(), m = isModel(isMetric), W = big ? 1100 : 760, H = big ? 420 : 300, L = 62, Rr = 14, T = 16, B = 40;
+  const months = R.months.concat(m.months.filter(k=>!R.months.includes(k))), act = R.months.map(k=>isVal(C.M[k], isMetric)), cmp = R.cmp.map(k=>isVal(C.M[k], isMetric));
+  const fc = m.fc ? m.months.map((k,i)=>({k, ...m.fc.points[i]})) : [];
+  const all = act.concat(cmp, fc.flatMap(p=>[p.lo,p.hi]), [0]); const mx = Math.max(...all), mn = Math.min(...all), span = (mx-mn)||1;
+  const y = v => T + (H-T-B)*(mx-v)/span, n = months.length, gw = (W-L-Rr)/Math.max(1,n), x = i => L + gw*i + gw/2;
+  let g = '';
+  for(let i=0;i<=4;i++){ const v = mn + span*i/4; g += `<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" class="is-grid"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" class="is-ax">${isShort(v).replace('₹','')}</text>`; }
+  g += `<line x1="${L}" x2="${W-Rr}" y1="${y(0)}" y2="${y(0)}" class="is-zero"/>`;
+  if(fc.length){ const idx = k => months.indexOf(k); const top = fc.map(p=>`${x(idx(p.k))},${y(p.hi)}`).join(' '), bot = fc.slice().reverse().map(p=>`${x(idx(p.k))},${y(p.lo)}`).join(' ');
+    g += `<polygon points="${top} ${bot}" class="is-band"><title>80% confidence band</title></polygon>`; }
+  const bw = Math.min(34, gw*0.62);
+  act.forEach((v,i)=>{ const k = months[i], sel = isMonth===k, y1 = y(Math.max(0,v)), y2 = y(Math.min(0,v));
+    g += `<rect x="${x(i)-bw/2}" y="${y1}" width="${bw}" height="${Math.max(1,y2-y1)}" rx="3" class="is-bar${v<0?' neg':''}${sel?' sel':''}${isMonth&&!sel?' dim':''}" style="--d:${(i*25)}ms" aria-hidden="true"></rect>`; });
+  if(cmp.length && isShowCmp) g += `<polyline points="${cmp.map((v,i)=>`${x(i)},${y(v)}`).join(' ')}" class="is-cmp"/>`;
+  if(!isShowFc) fc.length = 0;
+  if(fc.length){ const idx = k => months.indexOf(k), lastI = act.length-1;
+    const pts = (lastI>=0 && !fc.some(p=>p.k===months[lastI]) ? [`${x(lastI)},${y(act[lastI])}`] : []).concat(fc.map(p=>`${x(idx(p.k))},${y(p.f)}`));
+    g += `<polyline points="${pts.join(' ')}" class="is-fc"/>` + fc.map(p=>`<circle cx="${x(idx(p.k))}" cy="${y(p.f)}" r="${big?5:4}" class="is-fcdot" data-tip="Forecast ${isLab(p.k,true)}: ${isShort(p.f)} (80% range ${isShort(p.lo)} to ${isShort(p.hi)})"/>`).join(''); }
+  // hover/drag columns: a guide line and a rich tooltip for every month; drag across months to zoom the period
+  months.forEach((k,i)=>{ const ia = i<act.length, f = fc.find(p=>p.k===k);
+    const tip = ia ? `${isLab(k,true)} · ${IS_METRICS[isMetric]} ${isShort(act[i])}${cmp[i]!=null?` · ${R.cmpLabel} ${isShort(cmp[i])}${cmp[i]?` (${act[i]>=cmp[i]?'+':''}${isPct((act[i]-cmp[i])/Math.abs(cmp[i]))})`:''}`:''}${big?'':' · click to focus, drag to zoom'}` : f ? `Forecast ${isLab(k,true)}: ${isShort(f.f)} (80% range ${isShort(f.lo)} – ${isShort(f.hi)})` : isLab(k,true);
+    g += `<g class="is-col${ia?'':' fcol'}"><line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" class="is-guide"/><rect x="${x(i)-gw/2}" y="${T}" width="${gw}" height="${H-B-T}" class="is-hit"${ia?` data-is-month="${k}" data-is-col="${i}" tabindex="0" role="button" aria-label="${isLab(k,true)}: ${isShort(act[i])}"`:''} data-tip="${isEsc(tip)}"/></g>`; });
+  const step = Math.ceil(n/(big?14:12));
+  months.forEach((k,i)=>{ if(i%step===0 || i===n-1) g += `<text x="${x(i)}" y="${H-B+18}" text-anchor="middle" class="is-ax${m.months.includes(k)&&!R.months.includes(k)?' fc':''}">${isLab(k)}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="is-chart is-trend" role="img" aria-label="${IS_METRICS[isMetric]} by month with forecast"><rect class="is-brush" x="0" y="${T}" width="0" height="${H-B-T}"/>${g}</svg>
+    <div class="is-legend"><span><i class="lg-bar"></i>${IS_METRICS[isMetric]}</span>${isShowCmp?`<span><i class="lg-cmp"></i>${R.cmpLabel}</span>`:''}${fc.length?`<span><i class="lg-fc"></i>Forecast</span><span><i class="lg-band"></i>80% confidence</span>`:''}</div>`;
+}
+function isBridgeSvg(steps, big){
+  const W = big ? 1100 : 760, H = big ? 400 : 290, L = 62, Rr = 10, T = 22, B = 56; let run = 0; const bars = [];
+  steps.forEach(s=>{ if(s.total){ bars.push({...s, a:0, b:s.v}); run = s.v; } else { bars.push({...s, a:run, b:run+s.v}); run += s.v; } });
+  const vals = bars.flatMap(b=>[b.a,b.b]).concat([0]), mx = Math.max(...vals), mn = Math.min(...vals), span = (mx-mn)||1, y = v => T + (H-T-B)*(mx-v)/span, gw = (W-L-Rr)/bars.length, bw = gw*0.62;
+  let g = ''; for(let i=0;i<=4;i++){ const v = mn+span*i/4; g += `<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" class="is-grid"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" class="is-ax">${isShort(v).replace('₹','')}</text>`; }
+  bars.forEach((b,i)=>{ const x = L + gw*i + (gw-bw)/2, y1 = y(Math.max(b.a,b.b)), y2 = y(Math.min(b.a,b.b)), cls = b.total ? 'tot' : b.v>=0 ? 'up' : 'down';
+    g += `<rect x="${x}" y="${y1}" width="${bw}" height="${Math.max(1,y2-y1)}" rx="3" class="is-wf ${cls}" data-tip="${isEsc(b.l)}: ${b.total?'':(b.v>=0?'+':'')}${isShort(b.v)}"/>`;
+    g += `<text x="${x+bw/2}" y="${y1-5}" text-anchor="middle" class="is-val">${b.total?'':(b.v>=0?'+':'')}${isShort(b.v).replace('₹','')}</text>`;
+    if(i<bars.length-1) g += `<line x1="${x+bw}" x2="${x+gw}" y1="${y(b.b)}" y2="${y(b.b)}" class="is-conn"/>`;
+    const parts = b.l.includes(' — ') ? b.l.split(' — ') : (b.l.includes(' ') ? [b.l.slice(0, b.l.indexOf(' ')), b.l.slice(b.l.indexOf(' ')+1)] : [b.l]);
+    g += `<text x="${x+bw/2}" y="${H-B+16}" text-anchor="middle" class="is-ax">${isEsc(parts[0])}</text>${parts[1]?`<text x="${x+bw/2}" y="${H-B+30}" text-anchor="middle" class="is-ax${b.total?' sm':''}">${isEsc(parts[1])}</text>`:''}`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="is-chart" role="img" aria-label="Profit bridge">${g}</svg>`;
+}
+function isHeatmap(R){
+  const C = isCore(), ms = R.months.slice(-12), tot = id => ms.reduce((s,k)=>s+((C.expM[id]||{})[k]||0),0);
+  const headOf = isMemo('heads', ()=>{ const pl = scheduleIIIProfitLossData(null,null), m = new Map(); [['cogs',pl.purchaseLedgers],['emp',pl.employeeLedgers],['fin',pl.financeCostLedgers],['dep',pl.depreciationLedgers],['oth',pl.otherExpenseLedgers]].forEach(([k,ls])=>ls.forEach(l=>m.set(l.id,k))); return m; });
+  const ids = Object.keys(C.expM).filter(id=>tot(id)>0.004 && (!isHead || headOf.get(id)===isHead)).sort((a,b)=>tot(b)-tot(a)).slice(0,10);
+  if(!ids.length) return `<div class="is-empty">No expenses in this period.</div>`;
+  const anom = new Set(isAnomalies(R).filter(a=>a.kind==='expense').map(a=>a.id+'|'+a.k));
+  return `<div class="is-heat-wrap"><table class="is-heat"><thead><tr><th>Expense</th>${ms.map(k=>`<th class="${isMonth===k?'sel':''}">${isLab(k)}</th>`).join('')}<th>Total</th></tr></thead><tbody>${ids.map(id=>{ const mm = C.expM[id], mx = Math.max(...ms.map(k=>mm[k]||0)) || 1;
+    return `<tr><th title="${isEsc(ledgerOf(id).name)}">${isEsc(ledgerOf(id).name)}</th>${ms.map(k=>{ const v = mm[k]||0, a = Math.max(0, Math.min(1, v/mx)); const an = anom.has(id+'|'+k);
+      return `<td class="${an?'anom':''}${isMonth===k?' sel':''}${a>0.55?' hi':''}" style="--h:${(a*0.85).toFixed(2)}" data-is-drill-ledger="${id}" data-is-drill-month="${k}" data-tip="${isEsc(ledgerOf(id).name)} · ${isLab(k,true)}: ${isShort(v)}${an?' · unusual':''}" tabindex="0">${v?isShort(v).replace('₹',''):''}</td>`; }).join('')}<td class="tot">${isShort(tot(id)).replace('₹','')}</td></tr>`; }).join('')}</tbody></table></div>`;
+}
+function isParetoSvg(cust, big){
+  const rows = cust.rows.slice(0, 12); if(!rows.length) return `<div class="is-empty">No sales in this period.</div>`;
+  const W = big ? 1100 : 520, H = big ? 400 : 290, L = 54, Rr = 40, T = 14, B = 74, mx = rows[0].v || 1, gw = (W-L-Rr)/rows.length, bw = Math.min(gw*0.64, big ? 110 : 56), y = v => T + (H-T-B)*(1-v/mx), yp = p => T + (H-T-B)*(1-p);
+  let g = `<line x1="${L}" x2="${W-Rr}" y1="${yp(0.8)}" y2="${yp(0.8)}" class="is-80"/><text x="${W-Rr+4}" y="${yp(0.8)+4}" class="is-ax">80%</text>`;
+  rows.forEach((r,i)=>{ const x = L + gw*i + (gw-bw)/2; g += `<rect x="${x}" y="${y(r.v)}" width="${bw}" height="${H-B-y(r.v)}" rx="3" class="is-bar${r.cum<=0.8||i===0?'':' tail'}" data-is-drill-cust="${isEsc(r.n)}" data-tip="${isEsc(r.n)}: ${isShort(r.v)} · cumulative ${isPct(r.cum)}" tabindex="0"/>`;
+    g += `<text x="${x+bw/2}" y="${H-B+12}" text-anchor="end" transform="rotate(-35 ${x+bw/2} ${H-B+12})" class="is-ax">${isEsc(r.n.length>16?r.n.slice(0,15)+'…':r.n)}</text>`; });
+  g += `<polyline points="${rows.map((r,i)=>`${L+gw*i+gw/2},${yp(r.cum)}`).join(' ')}" class="is-cum"/>` + rows.map((r,i)=>`<circle cx="${L+gw*i+gw/2}" cy="${yp(r.cum)}" r="3.5" class="is-cumdot"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="is-chart" role="img" aria-label="Customer Pareto">${g}</svg>`;
+}
+function isRiskSvg(cust, big){
+  const rows = cust.rows.filter(r=>r.id).slice(0, 25); if(!rows.length) return `<div class="is-empty">No credit customers in this period.</div>`;
+  const W = big ? 1100 : 520, H = big ? 400 : 290, L = 58, Rr = 30, T = 16, B = 40, mxV = (Math.max(...rows.map(r=>r.v))||1)*1.08, mxD = Math.max(90, ...rows.map(r=>r.days)), mxO = Math.max(...rows.map(r=>r.out))||1;
+  const x = v => L + (W-L-Rr)*v/mxV, y = d => T + (H-T-B)*(1-d/mxD), midV = mxV/2, midD = 60;
+  let g = `<rect x="${x(midV)}" y="${T}" width="${W-Rr-x(midV)}" height="${y(midD)-T}" class="is-quad hot"/><text x="${W-Rr-6}" y="${T+14}" text-anchor="end" class="is-ax">High value · slow payer</text><text x="${L+6}" y="${H-B-6}" class="is-ax">Small · prompt</text>`;
+  g += `<line x1="${x(midV)}" x2="${x(midV)}" y1="${T}" y2="${H-B}" class="is-grid"/><line x1="${L}" x2="${W-Rr}" y1="${y(midD)}" y2="${y(midD)}" class="is-grid"/>`;
+  [0,30,60,90].filter(d=>d<=mxD).forEach(d=>g += `<text x="${L-8}" y="${y(d)+4}" text-anchor="end" class="is-ax">${d}d</text>`);
+  [0, mxV/2, mxV].forEach(v=>g += `<text x="${x(v)}" y="${H-B+16}" text-anchor="middle" class="is-ax">${isShort(v).replace('₹','')}</text>`);
+  rows.forEach(r=>{ const rad = 5 + 18*Math.sqrt(r.out/mxO); g += `<circle cx="${x(r.v)}" cy="${y(r.days)}" r="${rad.toFixed(1)}" class="is-bub${r.days>midD&&r.v>midV?' hot':r.days>midD?' warn':''}" data-is-drill-cust="${isEsc(r.n)}" data-tip="${isEsc(r.n)} · sales ${isShort(r.v)} · outstanding ${isShort(r.out)} · avg ${Math.round(r.days)} days" tabindex="0"/>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="is-chart" role="img" aria-label="Customer risk map">${g}</svg><div class="is-legend"><span>x: sales in period</span><span>y: average age of what they owe</span><span>bubble: amount outstanding</span></div>`;
+}
+function isRunwaySvg(rw, big){
+  if(!rw.pts.length) return `<div class="is-empty">${rw.text || 'Not enough months of cash history to project yet.'}</div>`;
+  const C = isCore(), hist = C.months.slice(-6).map(k=>({k, b:C.cashBal[k]})), all = hist.map(h=>h.b).concat(rw.pts.flatMap(p=>[p.lo,p.hi]), [0]);
+  const W = big ? 1100 : 520, H = big ? 400 : 290, L = 62, Rr = 14, T = 16, B = 36, mx = Math.max(...all), mn = Math.min(...all), span = (mx-mn)||1, n = hist.length + rw.pts.length;
+  const x = i => L + (W-L-Rr)*i/Math.max(1,n-1), y = v => T + (H-T-B)*(mx-v)/span;
+  let g = ''; for(let i=0;i<=4;i++){ const v = mn+span*i/4; g += `<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" class="is-grid"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" class="is-ax">${isShort(v).replace('₹','')}</text>`; }
+  g += `<line x1="${L}" x2="${W-Rr}" y1="${y(0)}" y2="${y(0)}" class="is-zero"/>`;
+  const off = hist.length; const top = rw.pts.map((p,i)=>`${x(off+i)},${y(p.hi)}`).join(' '), bot = rw.pts.slice().reverse().map((p,i)=>`${x(off+rw.pts.length-1-i)},${y(p.lo)}`).join(' ');
+  g += `<polygon points="${x(off-1)},${y(hist[off-1].b)} ${top} ${bot}" class="is-band"/>`;
+  g += `<polyline points="${hist.map((h,i)=>`${x(i)},${y(h.b)}`).join(' ')}" class="is-line"/>`;
+  g += `<polyline points="${[`${x(off-1)},${y(hist[off-1].b)}`].concat(rw.pts.map((p,i)=>`${x(off+i)},${y(p.b)}`)).join(' ')}" class="is-fc"/>`;
+  hist.concat(rw.pts).forEach((p,i)=>{ g += `<circle cx="${x(i)}" cy="${y(p.b)}" r="3.5" class="${i<off?'is-dot':'is-fcdot'}" data-tip="${isLab(p.k,true)}: ${i<off?'':'projected '}${isShort(p.b)}"/>`; if(i%2===0||i===n-1) g += `<text x="${x(i)}" y="${H-B+18}" text-anchor="middle" class="is-ax${i>=off?' fc':''}">${isLab(p.k)}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="is-chart" role="img" aria-label="Cash runway projection">${g}</svg>`;
+}
+function isBullet(label, v, fmtF, zones, better){ // zones: [bad, ok] thresholds, better: 'high'|'low'
+  if(v==null || !isFinite(v)) return `<div class="is-bul"><div class="is-bul-l">${label}</div><div class="is-bul-v muted">—</div><div class="is-bul-t"></div></div>`;
+  const max = Math.max(zones[1]*1.6, Math.abs(v)*1.15, 0.0001), p = Math.max(0, Math.min(100, v/max*100));
+  const good = better==='high' ? v>=zones[1] : v<=zones[0], bad = better==='high' ? v<zones[0] : v>zones[1];
+  const zA = zones[0]/max*100, zB = zones[1]/max*100;
+  return `<div class="is-bul"><div class="is-bul-l">${label}</div><div class="is-bul-v ${good?'pos':bad?'neg':''}">${fmtF(v)}</div><div class="is-bul-t" style="--a:${zA}%;--b:${zB}%" data-dir="${better}"><span style="width:${p}%"></span></div></div>`;
+}
+// ---- Drill-down ----
+function isDrillHtml(){
+  if(!isDrill) return '';
+  const C = isCore(); let list = [], title = '';
+  if(isDrill.ledger){ const l = ledgerOf(isDrill.ledger); title = `${l?l.name:'Ledger'} · ${isLab(isDrill.month,true)}`;
+    list = state.vouchers.filter(v=>v.date.slice(0,7)===isDrill.month && v.entries.some(e=>e.ledgerId===isDrill.ledger)).map(v=>({v, amt: v.entries.filter(e=>e.ledgerId===isDrill.ledger).reduce((s,e)=>s+(e.dr||0)-(e.cr||0),0)})); }
+  else if(isDrill.cust){ const l = state.ledgers.find(x=>x.name===isDrill.cust); const R = isRange(), inR = new Set(R.months); title = `${isDrill.cust} · sales and receipts, ${R.label.toLowerCase()}`;
+    list = l ? state.vouchers.filter(v=>inR.has(v.date.slice(0,7)) && v.entries.some(e=>e.ledgerId===l.id)).map(v=>({v, amt: v.entries.filter(e=>e.ledgerId===l.id).reduce((s,e)=>s+(e.dr||0)-(e.cr||0),0)})) : []; }
+  else if(isDrill.month){ title = `All vouchers · ${isLab(isDrill.month,true)}`; list = state.vouchers.filter(v=>v.date.slice(0,7)===isDrill.month).map(v=>({v, amt: voucherAmount(v)})); }
+  list = list.filter(x=>x.v.date<=new Date().toISOString().slice(0,10));
+  list.sort(isDrillSort==='date' ? (a,b)=>a.v.date<b.v.date?1:a.v.date>b.v.date?-1:0 : (a,b)=>Math.abs(b.amt)-Math.abs(a.amt)); const tot = list.reduce((s,x)=>s+x.amt,0);
+  window.__isDrillRows = list.map(x=>[x.v.date, x.v.type, x.v.narration||'', rbxR2(x.amt)]); window.__isDrillTitle = title;
+  return `<div class="panel is-drill" id="isDrillPanel" role="region" aria-label="Drill-down"><div class="panel-head"><h2>🔎 ${isEsc(title)}</h2><div class="is-drill-tools"><input type="search" id="isDrillQ" placeholder="Filter these vouchers…" value="${isEsc(isDrillQ)}" aria-label="Filter vouchers"><div class="filter-chips"><button type="button" class="filter-chip ${isDrillSort==='amt'?'active':''}" data-is-drill-sort="amt">Largest</button><button type="button" class="filter-chip ${isDrillSort==='date'?'active':''}" data-is-drill-sort="date">Latest</button></div><button type="button" class="btn small secondary" data-is-drill-csv>⬇ CSV</button><button type="button" class="btn small secondary" data-is-close-drill>✕ Close</button></div></div>
+    <div class="panel-body" style="padding:0;"><table id="isDrillTable"><tr><th>Date</th><th>Type</th><th>Narration</th><th class="num">Amount</th></tr>${list.slice(0,60).map(x=>`<tr data-q="${isEsc((x.v.narration||'')+' '+x.v.type+' '+x.v.date).toLowerCase()}"><td>${humanDate(x.v.date)}</td><td>${isEsc(x.v.type)}</td><td>${isEsc(x.v.narration||'—')}</td><td class="num ${x.amt<0?'neg':''}">₹${fmt(Math.abs(x.amt))}${x.amt<0?' Cr':''}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nothing here.</td></tr>'}
+    <tr style="font-weight:700;" class="is-drill-tot"><td colspan="3">${list.length} voucher${list.length===1?'':'s'}${list.length>60?' (60 shown)':''}</td><td class="num">₹${fmt(Math.abs(tot))}</td></tr></table></div></div>`;
+}
+// ---- Page ----
+function isKpis(R){
+  const C = isCore(), sel = isMonth && R.months.includes(isMonth) ? [isMonth] : R.months, cmpSel = isMonth && R.months.includes(isMonth) ? [R.cmp[R.months.indexOf(isMonth)]] : R.cmp;
+  const rev = isSum(sel,a=>a.rev), crev = isSum(cmpSel,a=>a.rev), gp = rev ? (rev-isSum(sel,a=>a.cogs))/rev : null, cgp = crev ? (crev-isSum(cmpSel,a=>a.cogs))/crev : null;
+  const p = isSum(sel,a=>a.profit), cp = isSum(cmpSel,a=>a.profit), nc = isSum(sel,a=>a.cash), cnc = isSum(cmpSel,a=>a.cash);
+  const cash = C.cashBal[isMonth || R.months[R.months.length-1]], ra = isRatios();
+  const mRev = isModel('revenue'), mP = isModel('profit');
+  const sp = f => R.months.map(k=>C.M[k] ? f(C.M[k]) : 0);
+  const chg = (a,b) => b ? (a-b)/Math.abs(b) : null;
+  return [
+    {k:'Revenue', ic:'₹', m:'revenue', n:rev, nf:'inr', v:isShort(rev), d:chg(rev,crev), s:sp(a=>a.rev), f: mRev.fc ? `Next month ≈ ${isShort(mRev.fc.points[0].f)}` : ''},
+    {k:'Gross margin', ic:'%', m:'revenue', n:gp, nf:'pct', v:isPct(gp), d: gp!=null&&cgp!=null ? gp-cgp : null, pts:true, s:sp(a=>a.rev?(a.rev-a.cogs)/a.rev:0), f:'Revenue less purchases'},
+    {k:'Profit', ic:'▲', m:'profit', n:p, nf:'inr', v:isShort(p), d:chg(p,cp), s:sp(a=>a.profit), f: mP.fc ? `Next month ≈ ${isShort(mP.fc.points[0].f)}` : ''},
+    {k:'Net margin', ic:'◔', m:'profit', n:rev?p/rev:null, nf:'pct', v:isPct(rev?p/rev:null), d: rev&&crev ? p/rev - cp/crev : null, pts:true, s:sp(a=>a.rev?a.profit/a.rev:0), f:''},
+    {k: isCC==='all' ? 'Cash and bank' : 'Net cash flow', ic:'◈', m:'cash', n: isCC==='all' ? cash : nc, nf:'inr', v: isCC==='all' ? isShort(cash) : isShort(nc), d: isCC==='all' ? null : chg(nc,cnc), s: isCC==='all' ? R.months.map(k=>C.cashBal[k]||0) : sp(a=>a.cash), f: isCC==='all' ? `Net flow ${isShort(nc)}` : ''},
+    {k:'Days sales outstanding', ic:'⏱', m:null, sec:'is-sec-customers', n: ra.dso, nf:'days', v: ra.dso==null ? '—' : `${Math.round(ra.dso)} days`, d:null, s:[], f: ra.dpo==null ? '' : `Pay suppliers in ${Math.round(ra.dpo)} days`},
+  ];
+}
+function isAskHtml(){
+  if(!isAsk) return '';
+  return `<div class="is-ask-ans" role="status"><div class="is-ask-q">“${isEsc(isAsk.q)}”</div><div class="is-ask-a">${isEsc(isAsk.content)}</div>${isAsk.chartHtml?`<div class="is-ask-chart">${isAsk.chartHtml}</div>`:''}<button type="button" class="linklike" data-is-ask-clear>Clear</button></div>`;
+}
+function isViewsHtml(){
+  const views = isLSGet('views', []);
+  return `<div class="is-views">${views.map((v,i)=>`<span class="is-view"><button type="button" class="filter-chip" data-is-view="${i}" title="Apply this saved view">⭐ ${isEsc(v.name)}</button><button type="button" class="is-view-x" data-is-view-del="${i}" aria-label="Delete view ${isEsc(v.name)}">×</button></span>`).join('')}
+    ${isSaveOpen ? `<span class="is-save"><input type="text" id="isViewName" maxlength="40" placeholder="Name this view" aria-label="View name"><button type="button" class="btn small" data-is-view-save>Save</button><button type="button" class="linklike" data-is-view-cancel>Cancel</button></span>` : `<button type="button" class="linklike" data-is-view-new>＋ Save this view</button>`}</div>`;
+}
+function reportInsightsStudio(){
+  if(!state.vouchers.length) return `${reportHeader('Insights Studio')}${emptyState({icon:'📊', title:'Nothing to analyse yet', text:'Post a few vouchers and Insights Studio will build the dashboard, forecasts and story automatically.'})}`;
+  const R = isRange(), C = isCore();
+  if(isMonth && !R.months.includes(isMonth)) isMonth = null;
+  const kp = isKpis(R), model = isModel(isMetric), bridge = isBridge(R), anomAll = isAnomalies(R), cust = isCustomers(R), rw = isRunway(), wi = isWhatIfResult(), ra = isRatios();
+  const reviewed = isLSGet('reviewed', {}), anom = anomAll.filter(a=>isShowReviewed || !reviewed[isAnomSig(a)]), nRev = anomAll.filter(a=>reviewed[isAnomSig(a)]).length;
+  const story = isNarrative(R, {model, bridge, anom: anomAll.filter(a=>!reviewed[isAnomSig(a)]), cust, runway:rw});
+  const health = isHealth(R), tk = isTakeaways(R);
+  const ccs = (state.costCenters||[]), co = currentCompany || {};
+  const animKey = `${co.id}|${C.key}|${isPeriod}|${isCompare}|${isCC}|${isCustom?isCustom.a+isCustom.b:''}|${isMetric}|${isHorizon}`, anim = animKey!==isAnimKey; isAnimKey = animKey;
+  const chip = (attr, val, cur, lab) => `<button type="button" class="filter-chip ${cur===val?'active':''}" data-${attr}="${val}">${lab}</button>`;
+  const slider = (key, lab, min, max, step, unit) => `<label class="is-sl"><span>${lab} <b id="isOut_${key}">${isWhat[key]>0?'+':''}${isWhat[key]}${unit}</b></span><input type="range" min="${min}" max="${max}" step="${step}" value="${isWhat[key]}" data-is-what="${key}" aria-label="${lab}"></label>`;
+  const nav = [['is-sec-overview','Overview'],['is-sec-trend','Trend & forecast'],['is-sec-drivers','Drivers'],['is-sec-customers','Customers'],['is-sec-cash','Cash & plan'],['is-sec-alerts',`Alerts${anomAll.length-nRev?` (${anomAll.length-nRev})`:''}`]];
+  return `
+    ${reportHeader('Insights Studio — Presentation Dashboard')}
+    <div id="insightsStudio" class="is-root${anim?' is-anim':''}">
+    <section class="is-hero" id="is-sec-overview" aria-label="Overview">
+      <div class="is-hero-main">
+        <div class="is-hero-eyebrow">${isEsc(co.name||'')} · ${isEsc(R.label)}${isCC!=='all'?` · ${isEsc(isCC==='__none__'?'Unassigned':(ccs.find(c=>c.id===isCC)||{}).name)}`:''}</div>
+        <h2 class="is-hero-h">${tk.good}</h2>
+        <div class="is-takes">
+          <div class="is-take good"><span>What's working</span><p>${isEsc(tk.good)}</p></div>
+          <div class="is-take watch"><span>Watch</span><p>${isEsc(tk.watch)}</p></div>
+          <div class="is-take act"><span>Next best action</span><p>${isEsc(tk.act)}</p></div>
+        </div>
+      </div>
+      <div class="is-hero-score"><div class="is-score-cap">Business health</div>${isHealthRing(health)}<ul class="is-score-parts">${health.parts.map(x=>`<li><span>${x.k}</span><i style="--w:${(x.v/x.max*100).toFixed(0)}%"></i><b>${Math.round(x.v)}/${x.max}</b></li>`).join('')}</ul></div>
+    </section>
+    <div class="is-sticky">
+      <nav class="is-nav" aria-label="Dashboard sections">${nav.map(([id,l],i)=>`<a href="#${id}" data-is-nav="${id}" class="${i===0?'on':''}">${l}</a>`).join('')}</nav>
+      <div class="is-filters">
+        <div class="filter-chips" role="group" aria-label="Period">${chip('is-period','fy',isPeriod,'This FY')}${chip('is-period','l12',isPeriod,'Last 12 months')}${chip('is-period','lfy',isPeriod,'Last FY')}${chip('is-period','all',isPeriod,'All time')}${isPeriod==='custom'&&isCustom?`<button type="button" class="filter-chip active" data-is-period="fy" title="Clear the zoomed range">🔍 ${isLab(isCustom.a)} – ${isLab(isCustom.b)} ✕</button>`:''}</div>
+        <div class="filter-chips" role="group" aria-label="Compare with">${chip('is-compare','ly',isCompare,'vs last year')}${chip('is-compare','prev',isCompare,'vs previous period')}</div>
+        ${ccs.length ? `<select id="isCCSelect" aria-label="Cost center"><option value="all">All cost centers</option>${ccs.map(c=>`<option value="${c.id}" ${isCC===c.id?'selected':''}>${isEsc(c.name)}</option>`).join('')}<option value="__none__" ${isCC==='__none__'?'selected':''}>Unassigned</option></select>` : ''}
+        <div class="is-actions"><button type="button" class="btn small" id="isPresentBtn">▶ Present</button><button type="button" class="btn small secondary" id="isPptxBtn">📊 PowerPoint</button></div>
+      </div>
+    </div>
+    <div class="is-sub">
+      <form class="is-ask" id="isAskForm" role="search"><span aria-hidden="true">✨</span><input type="text" id="isAskInput" placeholder="Ask about these numbers — e.g. “top 5 expenses this quarter”, “who owes me the most”" value="${isEsc(isAsk?isAsk.q:'')}" aria-label="Ask a question about your books"><button type="submit" class="btn small secondary">Ask</button></form>
+      ${isViewsHtml()}
+    </div>
+    ${isAskHtml()}
+    <div class="is-focus">${isMonth ? `<span class="pill">Focused on ${isLab(isMonth,true)}</span> <button type="button" class="linklike" data-is-clear-month>Show the whole period</button> · <button type="button" class="linklike" data-is-drill-monthall="${isMonth}">See its vouchers</button> · <span class="muted">← → to step months</span>` : `<span class="muted">${R.label} · compared with the ${R.cmpLabel} · click a month to focus, drag across months to zoom, click cells, slices, bars or bubbles to drill in</span>`}</div>
+    ${isDrillHtml()}
+    <div class="is-kpis">${kp.map((t,i)=>`<button type="button" class="is-kpi${t.m&&i===kp.findIndex(x=>x.m===isMetric)?' on':''}" ${t.m?`data-is-metric="${t.m}"`:`data-is-goto="${t.sec}"`} title="${t.m?`Show ${t.k.toLowerCase()} on the trend chart`:'Go to customers'}"><div class="is-kpi-l"><i>${t.ic}</i>${t.k}</div><div class="is-kpi-v"${t.n!=null&&isFinite(t.n)?` data-count="${t.n}" data-fmt="${t.nf}"`:''}>${t.v}</div>
+      <div class="is-kpi-d ${t.d==null?'':t.d>=0?'pos':'neg'}">${t.d==null?'&nbsp;':`${t.d>=0?'▲':'▼'} ${t.pts?`${(Math.abs(t.d)*100).toFixed(1)} pts`:isPct(Math.abs(t.d))} vs ${isCompare==='ly'?'LY':'prev'}`}</div>
+      ${t.s.length>1?isSpark(t.s):'<div style="height:30px"></div>'}<div class="is-kpi-f">${t.f||'&nbsp;'}</div></button>`).join('')}</div>
+    <div class="is-grid2" id="is-sec-trend">
+      <div class="panel"><div class="panel-head is-ph-wrap"><h2>Trend and forecast</h2><div class="filter-chips">${Object.entries(IS_METRICS).map(([k,l])=>chip('is-metric',k,isMetric,l)).join('')}</div></div>
+        <div class="panel-body">
+          <div class="is-trend-tools"><div class="filter-chips" role="group" aria-label="Forecast horizon"><span class="muted">Forecast</span>${[3,6,12].map(h=>`<button type="button" class="filter-chip ${isHorizon===h?'active':''}" data-is-horizon="${h}">${h} months</button>`).join('')}</div>
+            <label class="is-tog"><input type="checkbox" data-is-toggle="cmp" ${isShowCmp?'checked':''}> ${R.cmpLabel}</label><label class="is-tog"><input type="checkbox" data-is-toggle="fc" ${isShowFc?'checked':''}> forecast</label></div>
+          ${isTrendSvg(R)}${model.fc?`<p class="is-note">Model: ${model.fc.method}${model.fc.mape!=null?` · back-tested accuracy ${isPct(Math.max(0,1-model.fc.mape),0)} (last 3 months held out)`:''} · trained on ${model.vals.length} complete months.</p>`:`<p class="is-note">At least four complete months are needed for a forecast.</p>`}</div></div>
+      <div class="panel is-story"><div class="panel-head"><h2>✨ Smart narrative</h2></div><div class="panel-body"><ul>${story.map(t=>`<li>${t}</li>`).join('')}</ul></div></div>
+    </div>
+    <div class="is-grid2" id="is-sec-drivers">
+      <div class="panel"><div class="panel-head"><h2>Profit bridge — what moved profit</h2></div><div class="panel-body">${isBridgeSvg(bridge)}</div></div>
+      <div class="panel"><div class="panel-head"><h2>Expense mix</h2>${isHead?`<button type="button" class="linklike" data-is-head="${isHead}">Show all</button>`:'<span class="muted" style="font-size:11px;">Click a slice to filter the heatmap</span>'}</div><div class="panel-body">${isDonutSvg(R)}</div></div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>Expense heatmap${isHead?` — ${IS_HEADS[isHead]}`:''}</h2><span class="muted" style="font-size:11px;">Top 10 by month · outlined = unusual · click a cell for its vouchers</span></div><div class="panel-body">${isHeatmap(R)}</div></div>
+    <div class="is-grid2 eq" id="is-sec-customers">
+      <div class="panel"><div class="panel-head"><h2>Customer Pareto</h2><span class="muted" style="font-size:11px;">${cust.n80?`${cust.n80} of ${cust.rows.length} customers = 80% of revenue`:''}</span></div><div class="panel-body">${isParetoSvg(cust)}</div></div>
+      <div class="panel"><div class="panel-head"><h2>Customer risk map</h2></div><div class="panel-body">${isRiskSvg(cust)}</div></div>
+    </div>
+    <div class="is-grid2 eq" id="is-sec-cash">
+      <div class="panel"><div class="panel-head"><h2>Cash runway — next ${isHorizon} months</h2></div><div class="panel-body">${isRunwaySvg(rw)}<p class="is-note">${rw.text||''}</p></div></div>
+      <div class="panel is-whatif"><div class="panel-head"><h2>What-if simulator · next 12 months</h2><button type="button" class="linklike" data-is-what-reset>Reset</button></div><div class="panel-body">
+        <div class="is-presets" role="group" aria-label="Scenario presets"><span class="muted">Try:</span><button type="button" class="filter-chip" data-is-preset="best">🚀 Best case</button><button type="button" class="filter-chip" data-is-preset="worst">🌧 Downturn</button><button type="button" class="filter-chip" data-is-preset="cash">💰 Faster collections</button></div>
+        <div class="is-sliders">${slider('price','Price change',-30,30,1,'%')}${slider('volume','Volume change',-30,30,1,'%')}${slider('cost','Cost change',-30,30,1,'%')}${slider('days','Collection days',-30,30,1,' days')}</div>
+        <label class="is-target">Target profit (₹) <input type="number" id="isTarget" min="0" step="10000" placeholder="e.g. 1000000" value="${isEsc(isWhat.target)}"></label>
+        <div id="isWhatOut">${isWhatOutHtml(wi)}</div></div></div>
+    </div>
+    <div class="is-grid2 eq" id="is-sec-alerts">
+      <div class="panel"><div class="panel-head"><h2>⚠ Anomalies and alerts</h2><span class="muted" style="font-size:11px;">${anomAll.length-nRev} open${nRev?` · <button type="button" class="linklike" data-is-show-reviewed>${isShowReviewed?'hide':'show'} ${nRev} reviewed</button>`:''}</span></div><div class="panel-body">${anom.length ? `<ul class="is-anom">${anom.map(a=>{ const done = !!reviewed[isAnomSig(a)]; return `<li class="${a.sev}${done?' done':''}"><span class="pill ${a.sev==='high'?'neg':''}">${done?'Reviewed':a.sev==='high'?'High':'Check'}</span> ${isEsc(a.text)} <span class="is-anom-act">${a.kind==='expense'?`<button type="button" class="linklike" data-is-drill-ledger="${a.id}" data-is-drill-month="${a.k}">Vouchers →</button>`:a.k?`<button type="button" class="linklike" data-is-month="${a.k}">Focus →</button>`:''}<button type="button" class="linklike" data-is-review="${isEsc(isAnomSig(a))}">${done?'Reopen':'✓ Mark reviewed'}</button></span></li>`; }).join('')}</ul>` : `<div class="is-empty">${nRev?'All alerts reviewed. ✓':'Nothing unusual in this period. 🎉'}</div>`}</div></div>
+      <div class="panel"><div class="panel-head"><h2>Health check</h2><span class="muted" style="font-size:11px;">Life-to-date ratios against common guides</span></div><div class="panel-body is-bullets">
+        ${isBullet('Current ratio', ra.currentRatio, v=>v.toFixed(2)+'×', [1,1.5], 'high')}${isBullet('Quick ratio', ra.quickRatio, v=>v.toFixed(2)+'×', [0.7,1], 'high')}
+        ${isBullet('Debt-to-equity', ra.debtToEquity, v=>v.toFixed(2)+'×', [1,2], 'low')}${isBullet('Net margin', ra.netMargin==null?null:ra.netMargin/100, v=>isPct(v), [0,0.1], 'high')}
+        ${isBullet('Interest cover', ra.interestCoverage, v=>v.toFixed(1)+'×', [1.5,3], 'high')}${isBullet('Days sales outstanding', ra.dso, v=>Math.round(v)+' d', [45,90], 'low')}</div></div>
+    </div>
+    <p class="is-note" style="margin:6px 2px 18px;">How it works: forecasts use damped-trend exponential smoothing (seasonality added with 24+ months of history) on complete months only, with an 80% confidence band from the model's own errors. Anomalies use robust z-scores (median and MAD). The health score weighs profitability 25, growth 20, liquidity 20, cash runway 15, collections 10 and open alerts 10. Figures are read-only views of your books; saved views and reviewed alerts are kept in this browser.</p>
+    </div>`;
+}
+function isWhatOutHtml(wi){
+  const d = wi.profit - wi.baseProfit;
+  return `<div class="is-wo"><div><span>Projected revenue</span><b>${isShort(wi.rev)}</b></div><div><span>Projected profit</span><b class="${wi.profit<0?'neg':''}">${isShort(wi.profit)}</b><em class="${d>=0?'pos':'neg'}">${d>=0?'+':''}${isShort(d)} vs baseline</em></div>
+    <div><span>Margin</span><b>${isPct(wi.margin)}</b></div><div><span>Cash from collection change</span><b class="${wi.cashDays<0?'neg':''}">${wi.cashDays>=0?'+':''}${isShort(wi.cashDays)}</b></div>
+    <div><span>Break-even revenue</span><b>${wi.breakeven==null?'—':isShort(wi.breakeven)}</b></div><div><span>Revenue needed for target</span><b>${wi.need==null?'—':isShort(wi.need)}</b>${wi.needGrowth!=null?`<em class="${wi.needGrowth<=0?'pos':''}">${wi.needGrowth>0?'+':''}${isPct(wi.needGrowth)} on projection</em>`:''}</div></div>
+    <p class="is-note">Baseline = next 12 months from the forecast. Purchases move with volume and cost; other costs move with cost.</p>`;
+}
+// ---- Present mode ----
+function isScenes(){
+  const R = isRange(), model = isModel(isMetric), bridge = isBridge(R), anom = isAnomalies(R), cust = isCustomers(R), rw = isRunway(), wi = isWhatIfResult(), kp = isKpis(R), ra = isRatios();
+  const story = isNarrative(R, {model, bridge, anom, cust, runway:rw});
+  const strip = h => h.replace(/<[^>]+>/g,'');
+  const kpiBig = `<div class="is-kpis big">${kp.map(t=>`<div class="is-kpi"><div class="is-kpi-l">${t.k}</div><div class="is-kpi-v">${t.v}</div><div class="is-kpi-d ${t.d==null?'':t.d>=0?'pos':'neg'}">${t.d==null?'&nbsp;':`${t.d>=0?'▲':'▼'} ${t.pts?`${(Math.abs(t.d)*100).toFixed(1)} pts`:isPct(Math.abs(t.d))}`}</div>${t.s.length>1?isSpark(t.s,160,44):''}</div>`).join('')}</div>`;
+  const co = currentCompany || {};
+  const hl = isHealth(R), tk = isTakeaways(R);
+  return [
+    {t:'Business health', s:`${co.name||'Company'} · ${R.label}`, b:`<div class="is-p-health">${isHealthRing(hl, true)}<div class="is-takes big"><div class="is-take good"><span>What's working</span><p>${isEsc(tk.good)}</p></div><div class="is-take watch"><span>Watch</span><p>${isEsc(tk.watch)}</p></div><div class="is-take act"><span>Next best action</span><p>${isEsc(tk.act)}</p></div></div></div><ul class="is-score-parts big">${hl.parts.map(x=>`<li><span>${x.k}</span><i style="--w:${(x.v/x.max*100).toFixed(0)}%"></i><b>${Math.round(x.v)}/${x.max}</b><em>${isEsc(x.note)}</em></li>`).join('')}</ul>`, n:`Health score ${hl.score} of 100 — ${hl.label}. ${tk.act}`},
+    {t:`${co.name||'Company'} — performance at a glance`, s:`${R.label} · compared with the ${R.cmpLabel}`, b:`${kpiBig}<ul class="is-story-big">${story.slice(0,3).map(x=>`<li>${x}</li>`).join('')}</ul>`, n:strip(story.slice(0,2).join(' '))},
+    {t:`${IS_METRICS[isMetric]}: trend and 6-month forecast`, s: model.fc ? `${model.fc.method}${model.fc.mape!=null?` · back-tested accuracy ${isPct(Math.max(0,1-model.fc.mape),0)}`:''}` : 'Not enough history for a forecast yet', b:isTrendSvg(R, true), n: strip(story.find(x=>/model expects/.test(x))||'')},
+    {t:'What moved profit', s:`Profit bridge from the ${R.cmpLabel} to this period`, b:isBridgeSvg(bridge, true), n: strip(story.find(x=>/driver/.test(x))||'')},
+    {t:'Where the money goes', s:'Top 10 expenses by month — outlined cells are unusual', b:isHeatmap(R), n: anom.filter(a=>a.kind==='expense').slice(0,2).map(a=>a.text).join(' ') || 'No unusual expense months.'},
+    {t:'Who drives revenue', s: cust.n80 ? `${cust.n80} of ${cust.rows.length} customers bring 80% of revenue` : 'Customer revenue', b:isParetoSvg(cust, true), n: cust.rows.length ? `Largest customer: ${cust.rows[0].n}, ${isPct(cust.rows[0].v/cust.tot)} of revenue.` : ''},
+    {t:'Customer risk', s:'Sales against how long customers take to pay', b:isRiskSvg(cust, true), n: (()=>{ const slow = cust.rows.filter(r=>r.days>60).map(r=>r.n).slice(0,3); return slow.length ? `${slow.join(', ')} ${slow.length===1?'takes':'take'} longer than 60 days to pay on average.` : 'Every customer pays within 60 days on average.'; })()},
+    {t:'Cash runway', s:'Projected cash and bank for the next six months, with an 80% range', b:isRunwaySvg(rw, true), n: strip(rw.text||'')},
+    {t:'What if…', s:'Next 12 months under the current simulator settings', b:`<div class="is-whatif big">${isWhatOutHtml(wi)}</div><p class="is-scn-set">Price ${isWhat.price>0?'+':''}${isWhat.price}% · Volume ${isWhat.volume>0?'+':''}${isWhat.volume}% · Cost ${isWhat.cost>0?'+':''}${isWhat.cost}% · Collection days ${isWhat.days>0?'+':''}${isWhat.days}</p>`, n:`Projected profit ${isShort(wi.profit)} against a baseline of ${isShort(wi.baseProfit)}.`},
+    {t:'Health check and alerts', s:'Ratios against common guides, and what needs attention', b:`<div class="is-grid2 eq"><div class="is-bullets big">${isBullet('Current ratio', ra.currentRatio, v=>v.toFixed(2)+'×', [1,1.5], 'high')}${isBullet('Debt-to-equity', ra.debtToEquity, v=>v.toFixed(2)+'×', [1,2], 'low')}${isBullet('Net margin', ra.netMargin==null?null:ra.netMargin/100, v=>isPct(v), [0,0.1], 'high')}${isBullet('Days sales outstanding', ra.dso, v=>Math.round(v)+' d', [45,90], 'low')}</div><ul class="is-anom big">${anom.slice(0,5).map(a=>`<li class="${a.sev}"><span class="pill ${a.sev==='high'?'neg':''}">${a.sev==='high'?'High':'Check'}</span> ${isEsc(a.text)}</li>`).join('') || '<li>Nothing unusual detected.</li>'}</ul></div>`, n: `${anom.length} unusual item${anom.length===1?'':'s'} detected.`},
+  ];
+}
+function insightsPresentOverlay(){
+  const sc = isScenes(), i = Math.max(0, Math.min(isPresentIdx, sc.length-1)), s = sc[i];
+  return `<div class="is-present${isLaser?' laser':''}" id="isPresent" role="dialog" aria-modal="true" aria-label="Insights Studio presentation">
+    <div class="is-p-top"><div class="is-p-brand">${isEsc((currentCompany||{}).name||'')} · Insights Studio</div><div class="is-p-count">${i+1} / ${sc.length}</div></div>
+    <div class="is-p-title"><h1>${isEsc(s.t)}</h1><div class="is-p-sub">${isEsc(s.s)}</div></div>
+    <div class="is-p-body" key="${i}">${s.b}</div>
+    <div class="is-p-foot"><div class="is-p-note">${isEsc(s.n||'')}</div>
+      <div class="is-p-ctl"><button type="button" data-is-p="prev" aria-label="Previous">‹</button><button type="button" data-is-p="auto" aria-pressed="${isAuto}">${isAuto?'❚❚ Pause':'▶ Auto'}</button><button type="button" data-is-p="laser" aria-pressed="${isLaser}">● Pointer</button><button type="button" data-is-p="full">⛶ Full screen</button><button type="button" data-is-p="exit">✕ Exit</button><button type="button" data-is-p="next" aria-label="Next">›</button></div>
+      <div class="is-p-dots">${sc.map((_,k)=>`<button type="button" class="${k===i?'on':''}" data-is-p-go="${k}" aria-label="Scene ${k+1}"></button>`).join('')}</div></div>
+    <div class="is-p-progress"><span style="width:${((i+1)/sc.length*100).toFixed(1)}%"></span></div>
+    <div class="is-laser-dot" id="isLaserDot"></div></div>`;
+}
+function isPresentGo(k){ const n = isScenes().length; if(k<0) k = 0; if(k>=n){ if(isAuto){ isAuto = false; clearInterval(isAutoTimer); } k = n-1; } isPresentIdx = k; render(); }
+function isPresentExit(){ isPresentIdx = null; isAuto = false; clearInterval(isAutoTimer); if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{}); render(); }
+function isToggleAuto(){ isAuto = !isAuto; clearInterval(isAutoTimer); if(isAuto) isAutoTimer = setInterval(()=>{ if(isPresentIdx==null){ clearInterval(isAutoTimer); return; } isPresentGo(isPresentIdx+1); }, 9000); render(); }
+(function isGlobalWire(){
+  if(typeof document==='undefined' || window.__isWired) return; window.__isWired = true;
+  document.addEventListener('keydown', e=>{
+    if(isPresentIdx==null) return;
+    const k = e.key; if(k!=='Tab') e.stopImmediatePropagation(); // keep the app's own shortcuts quiet while presenting
+    if(k==='Escape'){ e.preventDefault(); isPresentExit(); }
+    else if(k==='ArrowRight' || k==='PageDown' || k===' ' || k==='Enter'){ e.preventDefault(); isPresentGo(isPresentIdx+1); }
+    else if(k==='ArrowLeft' || k==='PageUp' || k==='Backspace'){ e.preventDefault(); isPresentGo(isPresentIdx-1); }
+    else if(k==='Home'){ e.preventDefault(); isPresentGo(0); } else if(k==='End'){ e.preventDefault(); isPresentGo(99); }
+    else if(/^[0-9]$/.test(k)){ e.preventDefault(); isPresentGo(k==='0' ? 9 : Number(k)-1); }
+    else if(k==='l' || k==='L'){ isLaser = !isLaser; render(); } else if(k==='a' || k==='A'){ isToggleAuto(); }
+    else if(k==='f' || k==='F'){ const el = document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); else if(document.exitFullscreen) document.exitFullscreen().catch(()=>{}); }
+  }, true);
+  document.addEventListener('mousemove', e=>{
+    const dot = isLaser && isPresentIdx!=null && document.getElementById('isLaserDot'); if(dot){ dot.style.transform = `translate(${e.clientX-9}px, ${e.clientY-9}px)`; }
+    const t = e.target.closest && e.target.closest('#insightsStudio [data-tip], #isPresent [data-tip]'); let tip = document.getElementById('isTip');
+    if(!t){ if(tip) tip.style.display = 'none'; return; }
+    if(!tip){ tip = document.createElement('div'); tip.id = 'isTip'; tip.setAttribute('role','tooltip'); document.body.appendChild(tip); }
+    tip.textContent = t.getAttribute('data-tip'); tip.style.display = 'block';
+    const x = Math.min(e.clientX+14, window.innerWidth - tip.offsetWidth - 8), y = Math.max(8, e.clientY - tip.offsetHeight - 12); tip.style.left = x+'px'; tip.style.top = y+'px';
+  });
+})();
+function isApplyPreset(p){
+  isWhat = p==='best' ? {...isWhat, price:5, volume:10, cost:-3, days:-10} : p==='worst' ? {...isWhat, price:-5, volume:-15, cost:5, days:15} : {...isWhat, price:0, volume:0, cost:0, days:-20};
+}
+function isCountUp(root){
+  if(!root || !root.classList.contains('is-anim') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  root.querySelectorAll('[data-count]').forEach(el=>{
+    const to = Number(el.dataset.count), f = el.dataset.fmt, final = el.textContent, t0 = performance.now(), dur = 700;
+    const show = v => f==='inr' ? isShort(v) : f==='pct' ? isPct(v) : f==='days' ? `${Math.round(v)} days` : String(Math.round(v));
+    const step = now => { if(!el.isConnected) return; const k = Math.min(1, (now-t0)/dur), e = 1-Math.pow(1-k,3); el.textContent = k<1 ? show(to*e) : final; if(k<1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+function wireInsightsStudio(){
+  const tip0 = document.getElementById('isTip'); if(tip0) tip0.style.display = 'none';
+  const root = document.getElementById('insightsStudio');
+  if(root){
+    let brushJust = false;
+    root.addEventListener('click', e=>{
+      if(brushJust){ brushJust = false; return; }
+      const el = e.target.closest('[data-is-period],[data-is-compare],[data-is-metric],[data-is-month],[data-is-drill-ledger],[data-is-drill-cust],[data-is-drill-monthall],[data-is-clear-month],[data-is-close-drill],[data-is-what-reset],[data-is-horizon],[data-is-head],[data-is-goto],[data-is-review],[data-is-show-reviewed],[data-is-preset],[data-is-view],[data-is-view-del],[data-is-view-new],[data-is-view-save],[data-is-view-cancel],[data-is-ask-clear],[data-is-drill-sort],[data-is-drill-csv],[data-is-nav]'); if(!el) return;
+      const d = el.dataset;
+      if(d.isNav){ e.preventDefault(); document.getElementById(d.isNav)?.scrollIntoView({behavior:'smooth', block:'start'}); return; }
+      if(d.isGoto){ document.getElementById(d.isGoto)?.scrollIntoView({behavior:'smooth', block:'start'}); return; }
+      if('isDrillCsv' in d){ downloadCSV(['Date','Type','Narration','Amount (₹)'], window.__isDrillRows||[], `Insights_${(window.__isDrillTitle||'drill').replace(/[^a-z0-9]+/gi,'_')}.csv`); return; }
+      if('isViewNew' in d){ isSaveOpen = true; render(); setTimeout(()=>document.getElementById('isViewName')?.focus(), 0); return; }
+      if('isViewCancel' in d){ isSaveOpen = false; render(); return; }
+      if('isViewSave' in d){ const nm = (document.getElementById('isViewName')?.value||'').trim() || `View ${isLSGet('views',[]).length+1}`;
+        const v = isLSGet('views', []); v.push({name:nm, period:isPeriod, compare:isCompare, cc:isCC, metric:isMetric, horizon:isHorizon, custom:isCustom, head:isHead}); isLSSet('views', v.slice(-8)); isSaveOpen = false; toast(`Saved view "${nm}"`); render(); return; }
+      if(d.isViewDel!=null){ const v = isLSGet('views', []); v.splice(Number(d.isViewDel),1); isLSSet('views', v); render(); return; }
+      if(d.isView!=null){ const v = isLSGet('views', [])[Number(d.isView)]; if(v){ isPeriod = v.period; isCompare = v.compare; isCC = v.cc||'all'; isMetric = v.metric||'revenue'; isHorizon = v.horizon||6; isCustom = v.custom||null; isHead = v.head||null; isMonth = null; isDrill = null; } render(); return; }
+      if(d.isPeriod){ isPeriod = d.isPeriod; isCustom = null; isMonth = null; isDrill = null; }
+      else if(d.isCompare) isCompare = d.isCompare;
+      else if(d.isMetric) isMetric = d.isMetric;
+      else if(d.isHorizon) isHorizon = Number(d.isHorizon);
+      else if(d.isHead) isHead = isHead===d.isHead ? null : d.isHead;
+      else if(d.isDrillLedger){ isDrill = {ledger:d.isDrillLedger, month:d.isDrillMonth}; isDrillQ = ''; }
+      else if(d.isMonth){ isMonth = isMonth===d.isMonth ? null : d.isMonth; }
+      else if(d.isDrillCust){ isDrill = {cust:d.isDrillCust}; isDrillQ = ''; }
+      else if(d.isDrillMonthall){ isDrill = {month:d.isDrillMonthall}; isDrillQ = ''; }
+      else if(d.isDrillSort){ isDrillSort = d.isDrillSort; }
+      else if('isClearMonth' in d){ isMonth = null; }
+      else if('isCloseDrill' in d){ isDrill = null; }
+      else if('isWhatReset' in d){ isWhat = {price:0, volume:0, cost:0, days:0, target:''}; }
+      else if(d.isPreset){ isApplyPreset(d.isPreset); }
+      else if(d.isReview){ const r = isLSGet('reviewed', {}); if(r[d.isReview]) delete r[d.isReview]; else r[d.isReview] = new Date().toISOString(); isLSSet('reviewed', r); }
+      else if('isShowReviewed' in d){ isShowReviewed = !isShowReviewed; }
+      else if('isAskClear' in d){ isAsk = null; }
+      const y = window.scrollY; render();
+      if(isDrill && (d.isDrillLedger || d.isDrillCust || d.isDrillMonthall)) document.getElementById('isDrillPanel')?.scrollIntoView({behavior:'smooth', block:'nearest'}); else window.scrollTo(0, y);
+      if(d.isMonth && isMonth) document.querySelector(`#insightsStudio .is-hit[data-is-month="${isMonth}"]`)?.focus({preventScroll:true});
+    });
+    root.addEventListener('change', e=>{ const t = e.target.closest('[data-is-toggle]'); if(!t) return; if(t.dataset.isToggle==='cmp') isShowCmp = t.checked; else isShowFc = t.checked; render(); });
+    root.addEventListener('keydown', e=>{
+      if((e.key==='Enter'||e.key===' ') && e.target.matches('[data-is-month],[data-is-drill-ledger],[data-is-drill-cust],[data-is-head]')){ e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', {bubbles:true})); }
+      if((e.key==='ArrowRight'||e.key==='ArrowLeft') && isMonth && !e.target.matches('input,select,textarea')){ const R = isRange(), i = R.months.indexOf(isMonth), j = i + (e.key==='ArrowRight'?1:-1); if(j>=0 && j<R.months.length){ e.preventDefault(); isMonth = R.months[j]; render(); document.querySelector(`#insightsStudio .is-hit[data-is-month="${isMonth}"]`)?.focus({preventScroll:true}); } }
+    });
+    // drag across the trend chart to zoom into a custom range
+    const svg = root.querySelector('svg.is-trend');
+    if(svg){
+      let a = null, b = null;
+      const colOf = ev => { const t = ev.target.closest && ev.target.closest('.is-hit[data-is-col]'); return t ? Number(t.dataset.isCol) : null; };
+      const paint = () => { const br = svg.querySelector('.is-brush'), hits = [...svg.querySelectorAll('.is-hit[data-is-col]')]; if(a==null || b==null || !br){ return; } const lo = Math.min(a,b), hi = Math.max(a,b), r1 = hits[lo], r2 = hits[hi];
+        br.setAttribute('x', r1.getAttribute('x')); br.setAttribute('width', Number(r2.getAttribute('x')) + Number(r2.getAttribute('width')) - Number(r1.getAttribute('x'))); br.classList.toggle('on', hi>lo); };
+      svg.addEventListener('mousedown', ev=>{ const c = colOf(ev); if(c==null || ev.button!==0) return; a = b = c; ev.preventDefault(); });
+      svg.addEventListener('mousemove', ev=>{ if(a==null) return; const c = colOf(ev); if(c!=null && c!==b){ b = c; paint(); } });
+      const end = ()=>{ if(a==null) return; const lo = Math.min(a,b), hi = Math.max(a,b); a = b = null;
+        if(hi>lo){ const R = isRange(); isCustom = {a:R.months[lo], b:R.months[hi]}; isPeriod = 'custom'; isMonth = null; isDrill = null; brushJust = true; setTimeout(()=>{ brushJust = false; }, 0); render(); } };
+      svg.addEventListener('mouseup', end); svg.addEventListener('mouseleave', ()=>{ if(a!=null){ end(); } });
+    }
+    const live = ()=>{ const o = document.getElementById('isWhatOut'); if(o) o.innerHTML = isWhatOutHtml(isWhatIfResult()); };
+    root.querySelectorAll('[data-is-what]').forEach(sl=>sl.addEventListener('input', ()=>{ const k = sl.dataset.isWhat; isWhat[k] = Number(sl.value); const out = document.getElementById('isOut_'+k); if(out) out.textContent = `${isWhat[k]>0?'+':''}${isWhat[k]}${k==='days'?' days':'%'}`; live(); }));
+    document.getElementById('isTarget')?.addEventListener('input', e=>{ isWhat.target = e.target.value; live(); });
+    document.getElementById('isCCSelect')?.addEventListener('change', e=>{ isCC = e.target.value; isMonth = null; isDrill = null; render(); });
+    document.getElementById('isPresentBtn')?.addEventListener('click', ()=>{ isPresentIdx = 0; render(); });
+    document.getElementById('isPptxBtn')?.addEventListener('click', ()=>{ if(typeof rbxPptxRun==='function') rbxPptxRun(); });
+    document.getElementById('isAskForm')?.addEventListener('submit', e=>{ e.preventDefault(); const q = (document.getElementById('isAskInput')?.value||'').trim(); if(!q) return;
+      let r = null; try{ r = answerQuestionLocallyRich(q); }catch(err){ r = {content:'Sorry, that question could not be answered from the books.'}; } isAsk = {q, content:r.content, chartHtml:r.chartHtml||null}; render(); });
+    document.getElementById('isViewName')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); root.querySelector('[data-is-view-save]')?.click(); } if(e.key==='Escape'){ isSaveOpen = false; render(); } });
+    document.getElementById('isDrillQ')?.addEventListener('input', e=>{ isDrillQ = e.target.value; const q = isDrillQ.toLowerCase().trim(); document.querySelectorAll('#isDrillTable tr[data-q]').forEach(tr=>{ tr.style.display = !q || tr.dataset.q.includes(q) ? '' : 'none'; }); });
+    if(isDrillQ) document.getElementById('isDrillQ')?.dispatchEvent(new Event('input'));
+    // section nav follows the scroll position
+    const links = [...root.querySelectorAll('[data-is-nav]')];
+    if('IntersectionObserver' in window && links.length){
+      const io = new IntersectionObserver(ents=>{ ents.forEach(en=>{ if(en.isIntersecting){ links.forEach(l=>l.classList.toggle('on', l.dataset.isNav===en.target.id)); } }); }, {rootMargin:'-30% 0px -60% 0px'});
+      links.forEach(l=>{ const t = document.getElementById(l.dataset.isNav); if(t) io.observe(t); });
+    }
+    isCountUp(root);
+  }
+  const pres = document.getElementById('isPresent');
+  if(pres){
+    pres.addEventListener('click', e=>{ const b = e.target.closest('[data-is-p],[data-is-p-go]'); if(!b) return; const a = b.dataset.isP;
+      if(b.dataset.isPGo!=null) return isPresentGo(Number(b.dataset.isPGo));
+      if(a==='next') isPresentGo(isPresentIdx+1); else if(a==='prev') isPresentGo(isPresentIdx-1); else if(a==='exit') isPresentExit(); else if(a==='auto') isToggleAuto();
+      else if(a==='laser'){ isLaser = !isLaser; render(); } else if(a==='full'){ const el = document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); else if(document.exitFullscreen) document.exitFullscreen().catch(()=>{}); } });
+    let sx = null; pres.addEventListener('touchstart', e=>{ sx = e.touches[0].clientX; }, {passive:true});
+    pres.addEventListener('touchend', e=>{ if(sx==null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if(Math.abs(dx)>50) isPresentGo(isPresentIdx + (dx<0?1:-1)); });
+    pres.querySelector('[data-is-p="next"]')?.focus({preventScroll:true});
+  }
+}
+
 async function rbxPptxRun(){
   try{
     toast('Preparing the PowerPoint deck…');
@@ -19312,6 +20078,7 @@ function renderPaint(){
     ${qaWidget()}
     ${diWidget()}
     ${presentModeOpen ? presentModeOverlay() : ''}
+    ${isPresentIdx!=null && view==='reports' ? insightsPresentOverlay() : ''}
   `;
   attachHandlers();
   wireQAWidget();
@@ -38738,6 +39505,7 @@ function viewReports(){
   if(reportsSelected==='trialBalance') return reportTrialBalance();
   if(reportsSelected==='incomeStatement') return reportIncomeStatement();
   if(reportsSelected==='balanceSheet') return reportBalanceSheet();
+  if(reportsSelected==='insightsStudio') return reportInsightsStudio();
   if(reportsSelected==='ratios') return reportRatioAnalysis();
   if(reportsSelected==='cashFlow') return reportCashFlow();
   if(reportsSelected==='cashFlowForecast') return reportCashFlowForecast();
@@ -38776,6 +39544,9 @@ const REPORT_CARDS = [
   // card doesn't duplicate that computation, just gives it a permanent home next to the historical
   // Cash Flow Statement, where "what's coming" belongs beside "what already happened".
   {id:'cashFlowForecast', icon:'monitoring', title:'Cash Flow Forecast', desc:'A 30/60/90-day projection of cash on hand, built from open receivables, open payables, and active recurring templates.', group:'Core Financial Statements'},
+  // Nov 2026 -- interactive, presentation-ready analytics: cross-filtering, forecasts with confidence bands,
+  // anomaly detection, profit bridge, customer Pareto/risk map, cash runway, what-if with goal-seek, Present mode.
+  {id:'insightsStudio', icon:'insights', title:'Insights Studio — Presentation Dashboard', desc:'An interactive dashboard built for presenting: KPIs with sparklines, click-to-focus months, 6-month forecasts with confidence bands, profit bridge, expense heatmap with anomaly detection, customer Pareto and risk map, cash runway and a what-if simulator — then present it full screen.', group:'Analysis & Insights'},
   {id:'ratios', icon:'bar_chart', title:'Ratio Analysis (Detailed)', desc:'Liquidity, solvency, profitability and efficiency ratios, visualised.', group:'Analysis & Insights'},
   {id:'financialPerformance', icon:'explore', title:'Financial Performance Report', desc:'Trend, Comparative, Common-Size (Income Statement & Balance Sheet), Ratio, DuPont, Cash Flow (with Quality of Earnings), Variance, Break-even (with Operating Leverage), Benchmarking, Financial Health Score (Altman Z″), Free Cash Flow, EVA (with ROIC) and Efficiency/Cash Conversion Cycle analysis, with interpretation — downloadable as PDF or Word.', group:'Analysis & Insights'},
   {id:'stakeholderPresentation', icon:'co_present', title:'Stakeholder Presentation', desc:'A boardroom-ready deck of your financial performance, tailored for Board, Investor or Management audiences — present it full-screen, or export as PPTX/PDF.', group:'Analysis & Insights'},
@@ -39071,6 +39842,9 @@ function reportCardArt(id){
       <circle cx="52" cy="20" r="4.5" style="fill:var(--gold);stroke:${hue};stroke-width:1.5;"/>`,
     // A small sprouting leaf rising from a rounded base, with two concentric "impact" rings -- an
     // environmental/sustainability motif distinct from every money-shaped icon on this grid.
+    insightsStudio: `
+      <rect x="12" y="38" width="7" height="14" rx="2" style="fill:${hue};opacity:.55;"/><rect x="23" y="30" width="7" height="22" rx="2" style="fill:${hue};opacity:.75;"/><rect x="34" y="24" width="7" height="28" rx="2" style="fill:${hue};"/>
+      <path d="M12 30 L26 22 L38 18 L52 10" style="fill:none;stroke:var(--gold);stroke-width:2.5;stroke-dasharray:4 3;stroke-linecap:round;"/><circle cx="52" cy="10" r="4" style="fill:var(--gold);"/>`,
     esg: `
       <circle cx="32" cy="34" r="17" style="fill:none;stroke:color-mix(in srgb, ${hue} 18%, var(--surface));stroke-width:2;"/>
       <circle cx="32" cy="34" r="11" style="fill:none;stroke:color-mix(in srgb, ${hue} 30%, var(--surface));stroke-width:2;"/>
@@ -51415,6 +52189,7 @@ function attachHandlers(){
   }
 
   if(view==='reports'){
+    if(reportsSelected==='insightsStudio') wireInsightsStudio();
     document.getElementById('tdsQuarterSelect')?.addEventListener('change', e=>{ tdsQuarterKey = e.target.value; render(); });
     document.getElementById('tds26qXlsxBtn')?.addEventListener('click', downloadTds26qWorkbook);
     document.querySelectorAll('[data-audit-filter]').forEach(el=>el.addEventListener('click', ()=>{ auditTrailFilter = el.dataset.auditFilter; auditTrailLimit = 100; render(); }));
