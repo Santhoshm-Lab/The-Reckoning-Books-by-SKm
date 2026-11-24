@@ -3772,6 +3772,144 @@
   :root[data-theme="dark"] .admin-console .panel, :root[data-theme="dark"] .admin-console .stat{box-shadow:none;}
   @media (max-width:680px){ .admin-theme-btn{position:absolute !important;top:12px;right:56px;padding:5px 9px;} }
 </style>
+<style id="ab-css">
+  /* ===== Ask Your Books v2 — on-device assistant ===== */
+  #qaFab.ab-fab{background:linear-gradient(135deg,#2CA01C 0%,#1B7A12 55%,#C99400 130%);box-shadow:0 8px 22px -6px rgba(27,94,32,.55),0 2px 6px rgba(0,0,0,.18);transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease;}
+  #qaFab.ab-fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 12px 26px -6px rgba(27,94,32,.6),0 2px 6px rgba(0,0,0,.2);}
+  #qaFab.ab-fab:focus-visible{outline:3px solid #F2A900;outline-offset:3px;}
+  #qaFab.ab-fab:not(.open)::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid rgba(44,160,28,.45);animation:abPulse 2.6s ease-out 1.2s 2;pointer-events:none;}
+  @keyframes abPulse{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+  .ab-panel{position:fixed;margin:0;right:22px;bottom:86px;width:430px;max-width:calc(100vw - 44px);height:min(640px,calc(100vh - 120px));background:var(--surface,#fff);color:var(--ink,#1B2420);border:1px solid var(--border,#E1E7E3);border-radius:18px;box-shadow:0 24px 60px -18px rgba(0,0,0,.45),0 2px 10px rgba(0,0,0,.08);display:flex;flex-direction:column;overflow:hidden;z-index:90;animation:abIn .22s cubic-bezier(.2,.8,.2,1);font-size:13px;}
+  .ab-panel.xl{width:min(820px,calc(100vw - 44px));height:calc(100vh - 110px);}
+  @keyframes abIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+  .ab-top{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;background:linear-gradient(120deg,#0F2A17 0%,#123B1C 45%,#1B5E20 100%);color:#fff;flex-shrink:0;}
+  .ab-avatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,#2CA01C,#F2A900);box-shadow:0 0 0 3px rgba(255,255,255,.12);flex-shrink:0;}
+  .ab-avatar svg{width:20px;height:20px;color:#fff;}
+  .ab-top-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25;}
+  .ab-top-t strong{font-size:14.5px;letter-spacing:.01em;}
+  .ab-top-t span{font-size:11px;color:#C8DCCB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
+  .ab-dot{width:7px;height:7px;border-radius:50%;background:#5BD94A;box-shadow:0 0 0 3px rgba(91,217,74,.22);display:inline-block;flex-shrink:0;}
+  .ab-ic{width:30px;height:30px;border-radius:9px;border:none;background:rgba(255,255,255,.08);color:#fff;display:grid;place-items:center;cursor:pointer;flex-shrink:0;}
+  .ab-ic:hover{background:rgba(255,255,255,.18);} .ab-ic:focus-visible{outline:2px solid #F2A900;outline-offset:1px;} .ab-ic svg{width:17px;height:17px;}
+  .ab-msgs{flex:1;overflow-y:auto;padding:14px 14px 6px;scroll-behavior:smooth;background:radial-gradient(120% 60% at 100% 0%, color-mix(in srgb, var(--accent1,#2CA01C) 7%, transparent), transparent 60%), var(--surface,#fff);}
+  .ab-welcome{animation:abFade .35s ease;}
+  .ab-hello{font-size:19px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px;}
+  .ab-welcome p{margin:0 0 12px;color:var(--ink-soft,#55625A);line-height:1.5;font-size:12.5px;}
+  .ab-brief{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px;}
+  .ab-bcard{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:12px;border:1px solid var(--border,#E1E7E3);background:var(--surface,#fff);box-shadow:0 2px 8px -4px rgba(0,0,0,.12);transition:transform .15s ease,border-color .15s ease;min-width:0;}
+  .ab-bcard:hover{transform:translateY(-2px);border-color:var(--accent1,#2CA01C);} .ab-bcard:focus-visible{outline:2px solid var(--accent1,#2CA01C);outline-offset:2px;}
+  .ab-bcard span{font-size:10.5px;color:var(--ink-soft,#55625A);font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ab-bcard b{font-size:16px;font-weight:800;color:var(--ink,#1B2420);}
+  .ab-bcard.pos b{color:var(--credit,#1E7A14);} .ab-bcard.neg b{color:var(--debit,#C23B3B);}
+  .ab-bcard em{font-style:normal;font-size:10.5px;color:var(--ink-faint,#7A897E);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ab-group{margin-bottom:10px;} .ab-gt{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent1,#2CA01C);margin-bottom:6px;}
+  .ab-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .ab-chip{all:unset;cursor:pointer;font-size:12px;padding:6px 11px;border-radius:999px;border:1px solid color-mix(in srgb, var(--accent1,#2CA01C) 35%, var(--border,#E1E7E3));background:color-mix(in srgb, var(--accent1,#2CA01C) 7%, var(--surface,#fff));color:var(--ink,#1B2420);line-height:1.3;transition:background .15s ease,transform .15s ease;}
+  .ab-chip:hover{background:color-mix(in srgb, var(--accent1,#2CA01C) 16%, var(--surface,#fff));transform:translateY(-1px);} .ab-chip:focus-visible{outline:2px solid var(--accent1,#2CA01C);outline-offset:2px;}
+  .ab-tip{margin-top:10px;font-size:11.5px;color:var(--ink-faint,#7A897E);}
+  .ab-u{display:flex;justify-content:flex-end;margin:4px 0 10px;animation:abFade .2s ease;}
+  .ab-u>div{max-width:82%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,#2CA01C,#1B7A12);color:#fff;line-height:1.45;white-space:pre-wrap;word-break:break-word;box-shadow:0 4px 12px -6px rgba(27,94,32,.6);}
+  .ab-a{margin:0 0 12px;animation:abUp .32s cubic-bezier(.2,.8,.2,1);}
+  @keyframes abUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes abFade{from{opacity:0}to{opacity:1}}
+  .ab-card{border:1px solid var(--border,#E1E7E3);border-radius:14px;background:var(--surface,#fff);padding:12px 13px;box-shadow:0 6px 18px -12px rgba(0,0,0,.28);}
+  .ab-card.unknown{border-style:dashed;}
+  .ab-card.ab-inline{box-shadow:none;padding:10px;}
+  .ab-understood{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-faint,#7A897E);margin-bottom:6px;line-height:1.35;}
+  .ab-understood svg{width:12px;height:12px;fill:currentColor;flex-shrink:0;}
+  .ab-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin-bottom:6px;}
+  .ab-title{width:100%;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--accent1,#2CA01C);}
+  .ab-value{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.1;color:var(--ink,#1B2420);animation:abPop .45s cubic-bezier(.2,.9,.3,1.3);}
+  .ab-value.pos{color:var(--credit,#1E7A14);} .ab-value.neg{color:var(--debit,#C23B3B);} .ab-value.warn{color:var(--gold-ink,#A86F00);}
+  @keyframes abPop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+  .ab-sub{font-size:11.5px;color:var(--ink-soft,#55625A);}
+  .ab-text{line-height:1.55;color:var(--ink,#1B2420);font-size:12.8px;word-break:break-word;}
+  .ab-text b{font-weight:700;}
+  .ab-facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:6px;margin:10px 0 2px;}
+  .ab-fact{padding:7px 9px;border-radius:10px;background:color-mix(in srgb, var(--ink,#1B2420) 4%, var(--surface,#fff));border:1px solid color-mix(in srgb, var(--ink,#1B2420) 6%, transparent);display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .ab-fact span{font-size:10.5px;color:var(--ink-soft,#55625A);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ab-fact b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ab-fact.pos b{color:var(--credit,#1E7A14);} .ab-fact.neg b{color:var(--debit,#C23B3B);} .ab-fact.warn b{color:var(--gold-ink,#A86F00);}
+  .ab-chart{margin-top:10px;}
+  .ab-svg{width:100%;height:auto;display:block;overflow:visible;}
+  .ab-svg .ab-axis{stroke:var(--border,#E1E7E3);stroke-width:1;}
+  .ab-svg .ab-col{fill:color-mix(in srgb, var(--accent1,#2CA01C) 70%, var(--surface,#fff));transform-origin:bottom;transform-box:fill-box;animation:abGrow .5s cubic-bezier(.2,.8,.2,1) both;}
+  .ab-svg .ab-col.hl{fill:var(--accent1,#2CA01C);} .ab-svg .ab-col.neg{fill:var(--debit,#C23B3B);}
+  .ab-svg .ab-col.fc{fill:color-mix(in srgb, #F2A900 75%, var(--surface,#fff));}
+  .ab-svg .ab-band{fill:color-mix(in srgb, #F2A900 18%, transparent);}
+  .ab-svg .ab-cmp{stroke:#E08A00;stroke-width:2.4;stroke-linecap:round;}
+  .ab-svg .ab-lbl{font-size:10px;fill:var(--ink-soft,#55625A);font-family:inherit;}
+  @keyframes abGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  .ab-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10.5px;color:var(--ink-soft,#55625A);margin-top:4px;}
+  .ab-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .ab-legend .sw{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, var(--accent1,#2CA01C) 70%, var(--surface,#fff));display:inline-block;}
+  .ab-legend .sw.fc{background:color-mix(in srgb, #F2A900 75%, var(--surface,#fff));}
+  .ab-legend .ln{width:12px;height:0;border-top:2.4px solid #E08A00;display:inline-block;}
+  .ab-legend .bd{width:10px;height:10px;border-radius:3px;background:color-mix(in srgb, #F2A900 22%, transparent);display:inline-block;}
+  .ab-hbars{display:flex;flex-direction:column;gap:5px;}
+  .ab-hb{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;animation:abFade .35s ease both;}
+  .ab-hb.click{cursor:pointer;} .ab-hb.click:hover{background:color-mix(in srgb, var(--accent1,#2CA01C) 8%, transparent);} .ab-hb.click:focus-visible{outline:2px solid var(--accent1,#2CA01C);}
+  .ab-hb-l{min-width:0;display:flex;flex-direction:column;}
+  .ab-hb-l span{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ab-hb-l em{font-style:normal;font-size:10.5px;color:var(--ink-faint,#7A897E);}
+  .ab-hb-t{height:9px;border-radius:5px;background:color-mix(in srgb, var(--ink,#1B2420) 7%, transparent);overflow:hidden;}
+  .ab-hb-t i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#2CA01C,#5BC04A);transform-origin:left;animation:abGrowX .6s cubic-bezier(.2,.8,.2,1) both;}
+  .ab-hb-t i.neg,.ab-hb-t i.neg.neg{background:linear-gradient(90deg,#C23B3B,#E26A6A);} .ab-hb-t i.pos{background:linear-gradient(90deg,#2CA01C,#5BC04A);} .ab-hb-t i.warn{background:linear-gradient(90deg,#D99A00,#F2B419);}
+  @keyframes abGrowX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  .ab-hb-v{font-size:12px;font-weight:700;text-align:right;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;}
+  .ab-hb-v em{font-style:normal;font-size:10.5px;font-weight:600;color:var(--ink-faint,#7A897E);}
+  .ab-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin:2px 0 4px;}
+  .ab-stack i{display:block;height:100%;transform-origin:left;animation:abGrowX .6s ease both;}
+  .ab-tbl-wrap{margin-top:10px;overflow-x:auto;border:1px solid var(--border,#E1E7E3);border-radius:10px;}
+  .ab-tbl{width:100%;border-collapse:collapse;font-size:11.8px;}
+  .ab-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft,#55625A);background:color-mix(in srgb, var(--ink,#1B2420) 4%, var(--surface,#fff));padding:6px 8px;font-weight:700;white-space:nowrap;}
+  .ab-tbl td{padding:6px 8px;border-top:1px solid var(--border,#E1E7E3);vertical-align:top;}
+  .ab-tbl .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .ab-tbl tbody tr{animation:abFade .3s ease both;}
+  .ab-tbl tr.click{cursor:pointer;} .ab-tbl tr.click:hover td{background:color-mix(in srgb, var(--accent1,#2CA01C) 7%, transparent);} .ab-tbl tr.click:focus-visible{outline:2px solid var(--accent1,#2CA01C);outline-offset:-2px;}
+  .ab-more{font-size:11px;color:var(--ink-faint,#7A897E);padding:6px 8px;border-top:1px solid var(--border,#E1E7E3);}
+  .ab-how{margin-top:10px;font-size:11.5px;color:var(--ink-soft,#55625A);}
+  .ab-how summary{cursor:pointer;font-weight:700;color:var(--accent1,#2CA01C);list-style:none;display:inline-flex;align-items:center;gap:5px;}
+  .ab-how summary::-webkit-details-marker{display:none;}
+  .ab-how summary::before{content:"ⓘ";font-weight:400;}
+  .ab-how ul{margin:6px 0 0;padding-left:18px;line-height:1.5;}
+  .ab-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .ab-btn{all:unset;cursor:pointer;font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:8px;background:color-mix(in srgb, var(--accent1,#2CA01C) 12%, var(--surface,#fff));color:color-mix(in srgb, var(--accent1,#2CA01C) 80%, var(--ink,#1B2420));border:1px solid color-mix(in srgb, var(--accent1,#2CA01C) 30%, transparent);}
+  .ab-btn:hover{background:color-mix(in srgb, var(--accent1,#2CA01C) 20%, var(--surface,#fff));}
+  .ab-btn.primary{background:linear-gradient(135deg,#2CA01C,#1B7A12);color:#fff;border-color:transparent;}
+  .ab-btn.ghost{background:transparent;color:var(--ink-soft,#55625A);border-color:var(--border,#E1E7E3);font-weight:600;}
+  .ab-btn:focus-visible{outline:2px solid var(--accent1,#2CA01C);outline-offset:2px;}
+  .ab-follow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border,#E1E7E3);align-items:center;}
+  .ab-follow>span{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint,#7A897E);width:100%;}
+  .ab-thinking{display:inline-flex;align-items:center;gap:5px;padding:10px 14px;border-radius:14px;border:1px solid var(--border,#E1E7E3);background:var(--surface,#fff);}
+  .ab-thinking i{width:7px;height:7px;border-radius:50%;background:var(--accent1,#2CA01C);animation:abDot 1s ease-in-out infinite;}
+  .ab-thinking i:nth-child(2){animation-delay:.15s} .ab-thinking i:nth-child(3){animation-delay:.3s}
+  .ab-thinking span{font-size:11.5px;color:var(--ink-soft,#55625A);margin-left:6px;}
+  @keyframes abDot{0%,80%,100%{transform:translateY(0);opacity:.45}40%{transform:translateY(-5px);opacity:1}}
+  .ab-err{color:var(--debit,#C23B3B);font-size:11.5px;margin:6px 0;}
+  .ab-compose{position:relative;padding:10px 12px 8px;border-top:1px solid var(--border,#E1E7E3);background:var(--surface,#fff);flex-shrink:0;}
+  .ab-inrow{display:flex;gap:8px;align-items:center;}
+  #qaInputBox{flex:1;font-size:13px;padding:10px 13px;border:1.5px solid var(--border,#E1E7E3);border-radius:12px;background:var(--surface,#fff);color:var(--ink,#1B2420);outline:none;transition:border-color .15s ease,box-shadow .15s ease;}
+  #qaInputBox:focus{border-color:var(--accent1,#2CA01C);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent1,#2CA01C) 18%, transparent);}
+  .ab-send{width:40px;height:40px;border-radius:12px;border:none;cursor:pointer;display:grid;place-items:center;background:linear-gradient(135deg,#2CA01C,#1B7A12);color:#fff;flex-shrink:0;box-shadow:0 6px 14px -6px rgba(27,94,32,.6);}
+  .ab-send svg{width:18px;height:18px;} .ab-send:disabled{opacity:.5;cursor:default;} .ab-send:focus-visible{outline:2px solid #F2A900;outline-offset:2px;}
+  .ab-foot{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ink-faint,#7A897E);margin-top:6px;}
+  .ab-foot svg{width:12px;height:12px;flex-shrink:0;}
+  .ab-suggest{position:absolute;left:12px;right:12px;bottom:calc(100% - 4px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 -10px 30px -14px rgba(0,0,0,.35);padding:4px;display:flex;flex-direction:column;z-index:2;}
+  .ab-suggest[hidden]{display:none;}
+  .ab-suggest button{all:unset;cursor:pointer;font-size:12.5px;padding:7px 10px;border-radius:8px;color:var(--ink,#1B2420);}
+  .ab-suggest button:hover,.ab-suggest button.on{background:color-mix(in srgb, var(--accent1,#2CA01C) 12%, transparent);}
+  @media (max-width:600px){
+    .ab-panel,.ab-panel.xl{right:auto;bottom:auto;left:0;top:0;width:100vw;max-width:100vw;height:100vh;height:100dvh;border-radius:0;border:none;}
+    #qaFab.ab-fab.open{display:none !important;}
+    body:has(#qaPanel) #diFab{display:none !important;}
+    .ab-brief{grid-template-columns:1fr 1fr 1fr;gap:6px;} .ab-bcard{padding:8px;} .ab-bcard b{font-size:14px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ab-panel,.ab-a,.ab-u,.ab-welcome,.ab-value,.ab-svg .ab-col,.ab-hb,.ab-hb-t i,.ab-stack i,.ab-tbl tbody tr{animation:none !important;}
+    #qaFab.ab-fab::after{display:none;} .ab-thinking i{animation:none;}
+  }
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -18802,42 +18940,7 @@ function netProfit(){
 }
 
 /* ---------------- AI Q&A chat widget ---------------- */
-/* A floating "Ask" button + chat panel, visible across every tab of the app screen. Sends the
-   question (plus a little conversation history) to the accountingQA Cloud Function, which reads
-   this company's ledgers/vouchers server-side, computes the same Schedule III reports as the
-   Reports tab, and asks Claude to answer using only that data. See functions/index.js. */
-function qaWidget(){
-  return `
-    <div id="qaFab" title="Ask a question about your books" role="button" tabindex="0" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;background:var(--accent1,#2CA01C);color:var(--on-fill);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:90;">💬</div>
-    ${qaOpen ? `
-    <div id="qaPanel" style="position:fixed;right:22px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:440px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:90;">
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;background:var(--accent1,#2CA01C);color:var(--on-fill);">
-        <strong style="font-size:13px;">Ask your books</strong>
-        <span id="qaCloseBtn" style="cursor:pointer;font-size:15px;">✕</span>
-      </div>
-      <div id="qaMessagesEl" style="flex:1;overflow-y:auto;padding:10px 12px;font-size:12.5px;line-height:1.5;">
-        ${qaMessages.length===0 ? `
-          <div class="muted" style="font-size:11.5px;">
-            Answers common bookkeeping questions straight from your ledgers and vouchers — no internet connection needed, nothing leaves your browser. Ask things like:
-            <div style="margin-top:6px;display:flex;flex-direction:column;gap:5px;">
-              ${['What\'s my cash balance right now?','What was my profit last month?','Who owes me the most?','Show revenue for the last 6 months','Show my top 5 expense categories last quarter as a chart','Invoices over 60 days'].map(q=>`<span data-qa-suggest="${escapeAttr(q)}" class="linklike" style="cursor:pointer;">"${q}"</span>`).join('')}
-            </div>
-          </div>` : ''}
-        ${qaMessages.map((m,mi)=>`
-          <div style="margin-bottom:10px;display:flex;${m.role==='user'?'justify-content:flex-end;':''}">
-            <div style="max-width:${(m.chartHtml||m.entityHtml)?'96%':'85%'};padding:7px 10px;border-radius:10px;white-space:pre-wrap;${m.role==='user' ? 'background:var(--accent1,#2CA01C);color:var(--on-fill);' : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);'}">${escapeHtml(m.content)}${m.chartHtml ? `<div style="margin-top:8px;white-space:normal;">${m.chartHtml}</div>` : ''}${m.entityHtml ? `<div style="margin-top:8px;white-space:normal;">${m.entityHtml}</div>` : ''}${m.csv ? `<div style="margin-top:8px;white-space:normal;"><button type="button" class="btn small secondary" data-qa-export-csv="${mi}">⬇ Export rows as CSV</button></div>` : ''}</div>
-          </div>
-        `).join('')}
-        ${qaLoading ? `<div class="muted" style="font-size:11.5px;">Thinking…</div>` : ''}
-        ${qaError ? `<div style="color:#D64545;font-size:11.5px;margin-top:6px;">${escapeHtml(qaError)}</div>` : ''}
-      </div>
-      <div style="padding:8px;border-top:1px solid var(--border,#E1E7E3);display:flex;gap:6px;">
-        <input id="qaInputBox" type="text" placeholder="Ask a question…" style="flex:1;font-size:12.5px;padding:8px 10px;border:1px solid var(--border,#E1E7E3);border-radius:8px;" ${qaLoading?'disabled':''}>
-        <button id="qaSendBtn" class="btn small" type="button" ${qaLoading?'disabled':''}>Send</button>
-      </div>
-    </div>` : ''}
-  `;
-}
+/* Ask Your Books panel markup: see qaWidget() in the "Ask Your Books v2" block. */
 /* ---------------- Data Interchange chat widget UI ----------------
    A second floating bubble, positioned just to the left of "Ask Your Books" so the two never overlap,
    visible everywhere a signed-in user can be (both the Gateway screen and inside a company — see the
@@ -19266,7 +19369,7 @@ function qaEntitySearch(question){
 
   return null;
 }
-function answerQuestionLocallyRich(question){
+function qaLegacyRich(question){
   const q = question.toLowerCase();
   const entity = qaEntitySearch(question);
   if(entity) return entity;
@@ -19474,19 +19577,1274 @@ function qaBuildCsvForAnswer(question){
   }
   return null;
 }
-function askQA(question){
-  question = (question||'').trim();
-  if(!question) return;
-  qaMessages.push({ role:'user', content: question });
-  const rich = answerQuestionLocallyRich(question);
-  const csv = qaBuildCsvForAnswer(question);
-  qaMessages.push({ role:'assistant', content: rich.content, chartHtml: rich.chartHtml || null, entityHtml: rich.entityHtml || null, csv: csv || null });
-  qaError = '';
-  render();
-  const el = document.getElementById('qaMessagesEl');
-  if(el) el.scrollTop = el.scrollHeight;
-  document.getElementById('qaInputBox')?.focus();
+/* ======================= Ask Your Books v2 — on-device assistant (Nov 2026) =======================
+   A small, private "AI" that runs entirely in this browser: no model download, no network call, no API
+   key, no per-question cost. It answers in three steps:
+     1. Understand — normalise the question, correct typos against an accounting vocabulary and this
+        company's own ledger/item names, then pull out the slots: what (metric / report / intent), when
+        (period + comparison), who (party, ledger or item), how many (top-N, amount or day filters) and
+        how (chart, by month, by customer...).
+     2. Remember — the slots of the previous question are kept as context, so follow-ups such as "what
+        about last month?", "why?", "show it as a chart" or "and Kiran Garments?" work.
+     3. Answer — compute from the books with the same read-only helpers the reports use, and return a
+        structured answer: headline, narrative, key facts, chart, clickable rows, how it was worked out,
+        follow-up questions and actions. It never posts, edits or deletes anything. */
+let qaCtx = null;            // slots of the last answered question (for follow-ups)
+let qaExpanded = false;      // panel expanded to a large window
+let qaThinking = false;      // short "thinking" state between a question and its answer
+let qaHistPos = -1;          // ↑/↓ recall position in this conversation's questions
+let qaRestoredFor = null;    // company id whose saved conversation has been replayed this session
+const AB_MAX_STORE = 24;
+
+/* ---------- small utilities ---------- */
+const abD = s => new Date(s + 'T00:00:00Z');
+const abS = d => d.toISOString().slice(0, 10);
+function abToday(){ return new Date().toISOString().slice(0, 10); }
+function abAdd(s, n){ const d = abD(s); d.setUTCDate(d.getUTCDate() + n); return abS(d); }
+function abAddM(s, n){ const d = abD(s.slice(0, 7) + '-01'); d.setUTCMonth(d.getUTCMonth() + n); return abS(d); }
+function abMEnd(s){ const d = abD(s.slice(0, 7) + '-01'); d.setUTCMonth(d.getUTCMonth() + 1); d.setUTCDate(0); return abS(d); }
+function abMin(a, b){ return a < b ? a : b; }
+const AB_MON = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const AB_MS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const abCap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+function abFmtD(s){ const d = abD(s); return `${d.getUTCDate()} ${abCap(AB_MS[d.getUTCMonth()])} ${d.getUTCFullYear()}`; }
+function abMonLab(s, short){ const d = abD(s.slice(0, 7) + '-01'); return short ? `${abCap(AB_MS[d.getUTCMonth()])} ${String(d.getUTCFullYear()).slice(2)}` : `${abCap(AB_MON[d.getUTCMonth()])} ${d.getUTCFullYear()}`; }
+function abRangeLab(a, b){
+  if(a.slice(0, 7) === b.slice(0, 7) && a.endsWith('-01') && b === abMEnd(b)) return abMonLab(a);
+  const da = abD(a), db = abD(b);
+  return da.getUTCFullYear() === db.getUTCFullYear() ? `${da.getUTCDate()} ${abCap(AB_MS[da.getUTCMonth()])} – ${abFmtD(b)}` : `${abFmtD(a)} – ${abFmtD(b)}`;
 }
+function abFY(s){ const lab = fyLabelForDate(s), b = fyBoundsForLabel(lab); return { lab, start: b.start, end: b.end }; }
+function abShort(n){
+  const v = Math.abs(n || 0), s = n < 0 ? '−' : '';
+  if(v >= 1e7) return `${s}₹${(v / 1e7).toFixed(2)} Cr`;
+  if(v >= 1e5) return `${s}₹${(v / 1e5).toFixed(2)} L`;
+  if(v >= 1e3) return `${s}₹${(v / 1e3).toFixed(1)}K`;
+  return `${s}₹${Math.round(v).toLocaleString('en-IN')}`;
+}
+function abFull(n){ return (n < 0 ? '−₹' : '₹') + fmt(n); }
+function abPct(x, signed = true){ return x == null || !isFinite(x) ? '—' : `${signed && x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}%`; }
+function abChg(cur, prev){ return prev ? (cur - prev) / Math.abs(prev) : null; }
+function abEsc(s){ return escapeHtml(s == null ? '' : String(s)); }
+
+/* ---------- 1. understanding ---------- */
+const AB_SYN = {
+  revenue: ['revenue','revenues','sales','sale','sold','sell','selling','turnover','income','billing','billed','topline'],
+  expense: ['expense','expenses','expenditure','expenditures','spend','spent','spending','cost','costs','overhead','overheads','outgoings'],
+  profit: ['profit','profits','earnings','loss','losses','pnl'],
+  margin: ['margin','margins'],
+  purchase: ['purchase','purchases','purchased','bought','buying','procurement'],
+  cash: ['cash','liquidity','money','funds'],
+  bank: ['bank','banks'],
+  receivable: ['receivable','receivables','debtor','debtors','collection','collections','dues'],
+  payable: ['payable','payables','creditor','creditors'],
+  owe: ['owe','owes','owed','owing'],
+  overdue: ['overdue','late','pending','unpaid','outstanding','delayed'],
+  customer: ['customer','customers','client','clients','buyer','buyers'],
+  supplier: ['supplier','suppliers','vendor','vendors'],
+  gst: ['gst','vat','igst','cgst','sgst','itc'],
+  tds: ['tds','tcs','withholding'],
+  stock: ['stock','stocks','inventory','inventories','item','items','product','products','goods','warehouse'],
+  forecast: ['forecast','forecasts','predict','prediction','projection','projected','future','runway','outlook'],
+  anomaly: ['unusual','anomaly','anomalies','odd','strange','suspicious','outlier','outliers','weird','spike','spikes','abnormal','irregular','fraud','duplicate','duplicates'],
+  summary: ['summary','summarise','summarize','overview','health','healthy','snapshot','briefing','status','performance'],
+  why: ['why','explain','reason','reasons','driver','drivers','cause','caused','because'],
+  compare: ['compare','compared','comparison','vs','versus','growth','grow','grew','change','changed','increase','increased','decrease','decreased','drop','dropped','fell','rise','rose','against','difference'],
+  trend: ['trend','trends','monthly','history','historical','timeline'],
+  top: ['top','biggest','largest','highest','most','major','best','leading','main'],
+  least: ['lowest','smallest','least','worst','bottom'],
+  txn: ['transaction','transactions','voucher','vouchers','entry','entries','payment','payments','receipt','receipts','invoice','invoices','journal','journals','contra','posting','postings','bill','bills'],
+  ratio: ['ratio','ratios','dso','dpo','roe','roa'],
+  assets: ['asset','assets'],
+  liabilities: ['liability','liabilities','debt','debts','loan','loans','borrowing','borrowings'],
+  equity: ['equity','worth','capital','reserves'],
+  balance: ['balance','balances','position'],
+  chart: ['chart','graph','plot','visual','visualise','visualize','diagram'],
+};
+const AB_LEX = {}; Object.entries(AB_SYN).forEach(([k, ws]) => ws.forEach(w => { if(!AB_LEX[w]) AB_LEX[w] = k; }));
+const AB_EXTRA = ['month','months','quarter','quarters','year','years','week','weeks','today','yesterday','last','this','previous','financial','fiscal','since','between','show','list','total','average','customer','supplier','much','many','what','which','where','when','about','overall','every','until','during','current','ratio','working','capital','quick','gross','net','operating','trial','sheet','statement','reorder','running','moving','forecast','next','pay','paid','received','receive','collect','details','tell','give','with', ...AB_MON, ...AB_MS];
+const AB_VOCAB = Array.from(new Set([...Object.keys(AB_LEX), ...AB_EXTRA]));
+const AB_STOP = new Set(['the','a','an','of','for','in','on','at','to','from','by','and','or','is','are','was','were','be','been','my','our','me','we','us','i','you','your','it','its','this','that','these','those','what','which','who','whom','how','much','many','do','does','did','have','has','had','with','as','than','then','so','all','any','some','show','tell','give','list','please','can','could','would','will','get','find','about','there','their','them','they','just','now','right','ltd','limited','pvt','private','co','company','&','-']);
+['good','morning','evening','afternoon','thanks','thank','hello','please','want','need','know','like','does','make','made','take','keep','help','more','less','over','under','above','below','only','also','still','even','ever','well','doing','going','being','were','will','would','should','could','have','there','here','then','into','onto','upon','your','mine','ours','risk','risky','time','date','days','dates','next','same','last','year','long','fast','plan','paying','spend','earn','earned','pays','paid','tell','show','give','find','list','much','many','when','where','that','this','with','from','what','which','about','again','other','others','after','before','since','until','while','high','low','down','very','really','away','okay'].forEach(w => AB_STOP.add(w));
+const AB_NAME_GENERIC = new Set(['ltd','limited','pvt','private','co','company','and','the','&','a/c','ac','account','accounts','inc','llp','corp']);
+
+function abNorm(raw){
+  let q = (raw || '').toLowerCase().replace(/[’‘`]/g, "'").replace(/[“”]/g, '"');
+  q = q.replace(/(\d),(?=\d)/g, '$1').replace(/₹\s*/g, ' ').replace(/\brs\.?\s*(?=\d)/g, ' ').replace(/\binr\b/g, ' ');
+  q = q.replace(/\bwhat's\b/g, 'what is').replace(/\bwho's\b/g, 'who is').replace(/\bhow's\b/g, 'how is').replace(/\bwhere's\b/g, 'where is').replace(/\bcan't\b/g, 'cannot').replace(/n't\b/g, ' not').replace(/\bi'm\b/g, 'i am').replace(/'s\b/g, '').replace(/s'(?=\s|$)/g, 's');
+  q = q.replace(/\bp\s*&\s*l\b|\bp and l\b|\bpnl\b/g, ' profit and loss ').replace(/\ba\/c\b/g, ' account ');
+  q = q.replace(/[?!,;:()"\[\]{}]/g, ' ').replace(/\.(?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
+  return q;
+}
+function abLev(a, b, max){
+  if(Math.abs(a.length - b.length) > max) return max + 1;
+  let pp = null, p = Array.from({length: b.length + 1}, (_, j) => j);
+  for(let i = 1; i <= a.length; i++){
+    const c = [i]; let rowMin = i;
+    for(let j = 1; j <= b.length; j++){
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let v = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + cost);
+      if(pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, pp[j - 2] + 1);
+      c[j] = v; if(v < rowMin) rowMin = v;
+    }
+    if(rowMin > max) return max + 1;
+    pp = p; p = c;
+  }
+  return p[b.length];
+}
+function abWords(s){ return (s || '').toLowerCase().replace(/[^a-z0-9&\s]/g, ' ').split(/\s+/).filter(Boolean); }
+function abNameTokens(){
+  const set = new Set();
+  (state.ledgers || []).forEach(l => abWords(l.name).forEach(w => w.length > 2 && set.add(w)));
+  (state.items || []).forEach(it => abWords(it.name).forEach(w => w.length > 2 && set.add(w)));
+  return set;
+}
+// Correct likely typos ("reveune" → "revenue") without ever "correcting" the company's own names.
+function abCorrect(q){
+  const names = abNameTokens(), fixes = [];
+  const out = q.split(' ').map(t => {
+    if(t.length < 4 || /\d/.test(t) || AB_LEX[t] || AB_STOP.has(t) || names.has(t) || AB_EXTRA.includes(t)) return t;
+    const max = t.length >= 7 ? 2 : 1;
+    let best = null, bd = max + 1;
+    for(const w of AB_VOCAB){ if(w[0] !== t[0] && max < 2) continue; const d = abLev(t, w, max); if(d < bd){ bd = d; best = w; } }
+    if(best && bd <= max){ fixes.push([t, best]); return best; }
+    return t;
+  });
+  return { q: out.join(' '), fixes };
+}
+const AB_UNIT = { k:1e3, thousand:1e3, thousands:1e3, l:1e5, lac:1e5, lacs:1e5, lakh:1e5, lakhs:1e5, cr:1e7, crore:1e7, crores:1e7, m:1e6, mn:1e6, million:1e6 };
+function abNum(n, u){ return Number(n) * (AB_UNIT[u] || 1); }
+const AB_MON_RE = '(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec)';
+function abMonIdx(w){ const i = AB_MON.indexOf(w); return i >= 0 ? i : AB_MS.indexOf(w === 'sept' ? 'sep' : w); }
+// Most recent past (or current) occurrence of a calendar month when no year is given.
+function abMonthStart(mi, yr){
+  const t = abToday(), y = yr || (mi + 1 > Number(t.slice(5, 7)) ? Number(t.slice(0, 4)) - 1 : Number(t.slice(0, 4)));
+  return `${y}-${String(mi + 1).padStart(2, '0')}-01`;
+}
+function abFYQuarter(qi, fyStartYear){
+  const fyLab = `${fyStartYear}-${String((fyStartYear + 1) % 100).padStart(2, '0')}`, b = fyBoundsForLabel(fyLab);
+  const a = abAddM(b.start, qi * 3), e = abMEnd(abAddM(b.start, qi * 3 + 2));
+  return { from: a, to: e, label: `Q${qi + 1} FY ${fyLab}`, kind: 'quarter' };
+}
+function abParseDate(s){
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); if(m) return s;
+  m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/); if(m){ const y = m[3].length === 2 ? '20' + m[3] : m[3]; return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
+  return null;
+}
+// Period language → {from, to, label, kind}. Returns null when the question names no period.
+function abPeriod(q){
+  const t = abToday(), fy = abFY(t);
+  const clampTo = s => abMin(s, t);
+  let m;
+  if(/\b(all time|ever|overall|since (the )?(beginning|start|inception)|lifetime|to date so far)\b/.test(q)) return { from: '1900-01-01', to: t, label: 'all time', kind: 'all' };
+  if(/\btoday\b/.test(q)) return { from: t, to: t, label: 'today', kind: 'day' };
+  if(/\byesterday\b/.test(q)){ const y = abAdd(t, -1); return { from: y, to: y, label: 'yesterday', kind: 'day' }; }
+  const dow = (abD(t).getUTCDay() + 6) % 7, wk = abAdd(t, -dow);
+  if(/\b(this|current) week\b/.test(q)) return { from: wk, to: t, label: 'this week', kind: 'week' };
+  if(/\b(last|previous|past) week\b/.test(q)) return { from: abAdd(wk, -7), to: abAdd(wk, -1), label: 'last week', kind: 'week' };
+  if((m = q.match(/\b(?:last|past|previous)\s+(\d+)\s+(day|days|week|weeks|month|months|year|years)\b/))){
+    const n = Math.max(1, Math.min(120, Number(m[1]))), u = m[2][0];
+    if(u === 'd') return { from: abAdd(t, -(n - 1)), to: t, label: `last ${n} days`, kind: 'days' };
+    if(u === 'w') return { from: abAdd(t, -(n * 7 - 1)), to: t, label: `last ${n} weeks`, kind: 'days' };
+    if(u === 'm') return { from: abAddM(t, -(n - 1)), to: t, label: `last ${n} months`, kind: 'months', n };
+    return { from: abAddM(t, -(n * 12 - 1)), to: t, label: `last ${n} year${n > 1 ? 's' : ''}`, kind: 'months', n: n * 12 };
+  }
+  if(/\b(this|current) month\b|\bmtd\b|\bmonth to date\b/.test(q)) return { from: t.slice(0, 7) + '-01', to: t, label: `this month (${abMonLab(t)})`, kind: 'month' };
+  if(/\b(last|previous|prev|past) month\b/.test(q)){ const a = abAddM(t, -1); return { from: a, to: abMEnd(a), label: `last month (${abMonLab(a)})`, kind: 'month' }; }
+  const fyStartYear = Number(fy.lab.slice(0, 4));
+  const curQ = Math.floor(((abD(t).getUTCFullYear() - abD(fy.start).getUTCFullYear()) * 12 + abD(t).getUTCMonth() - abD(fy.start).getUTCMonth()) / 3);
+  if(/\b(this|current) quarter\b|\bqtd\b/.test(q)){ const r = abFYQuarter(curQ, fyStartYear); return { ...r, to: clampTo(r.to), label: `this quarter (${r.label})` }; }
+  if(/\b(last|previous|prev) quarter\b/.test(q)){ let qi = curQ - 1, y = fyStartYear; if(qi < 0){ qi = 3; y--; } const r = abFYQuarter(qi, y); return { ...r, label: `last quarter (${r.label})` }; }
+  if((m = q.match(/\bq([1-4])\b(?:\s*(?:of\s*)?(?:fy\s*)?(\d{4})(?:\s*-\s*\d{2,4})?)?/))){ const r = abFYQuarter(Number(m[1]) - 1, m[2] ? Number(m[2]) : fyStartYear); return { ...r, to: clampTo(r.to) }; }
+  if(/\b(this|current) (financial |fiscal )?year\b|\bthis fy\b|\bcurrent fy\b|\bytd\b|\byear to date\b|\bfy to date\b/.test(q)) return { from: fy.start, to: t, label: `FY ${fy.lab} to date`, kind: 'fy' };
+  if(/\b(last|previous|prev) (financial |fiscal )?year\b|\blast fy\b|\bprevious fy\b|\bprior year\b/.test(q)){ const p = abFY(abAdd(fy.start, -1)); return { from: p.start, to: p.end, label: `FY ${p.lab}`, kind: 'fyfull' }; }
+  if((m = q.match(/\bfy\s*(\d{4})(?:\s*-\s*(\d{2,4}))?\b/)) || (m = q.match(/\b(20\d{2})\s*-\s*(\d{2})\b/))){ const y = Number(m[1]), f = abFY(`${y}-${fy.start.slice(5)}`); return { from: f.start, to: clampTo(f.end), label: `FY ${f.lab}`, kind: 'fyfull' }; }
+  if((m = q.match(new RegExp(`\\b(?:from|between)\\s+${AB_MON_RE}(?:\\s+(\\d{4}))?\\s+(?:to|and|till|until|through|-)\\s+${AB_MON_RE}(?:\\s+(\\d{4}))?\\b`)))){
+    const a = abMonthStart(abMonIdx(m[1]), m[2] ? Number(m[2]) : null); let b = abMonthStart(abMonIdx(m[3]), m[4] ? Number(m[4]) : null);
+    if(b < a) b = abAddM(b, 12);
+    return { from: a, to: clampTo(abMEnd(b)), label: `${abMonLab(a)} – ${abMonLab(b)}`, kind: 'range' };
+  }
+  if((m = q.match(new RegExp(`\\bsince\\s+${AB_MON_RE}(?:\\s+(\\d{4}))?\\b`)))){ const a = abMonthStart(abMonIdx(m[1]), m[2] ? Number(m[2]) : null); return { from: a, to: t, label: `since ${abMonLab(a)}`, kind: 'range' }; }
+  if((m = q.match(/\b(?:from|between)\s+(\S+)\s+(?:to|and|till|until)\s+(\S+)/))){ const a = abParseDate(m[1]), b = abParseDate(m[2]); if(a && b) return { from: a, to: b, label: abRangeLab(a, b), kind: 'range' }; }
+  if((m = q.match(/\b(?:in|for|during)\s+(?:calendar\s+)?(?:year\s+)?(20\d{2})\b/)) && !/\bfy\b/.test(q)) return { from: `${m[1]}-01-01`, to: clampTo(`${m[1]}-12-31`), label: `calendar year ${m[1]}`, kind: 'range' };
+  const monRe = new RegExp(`(^|\\s)(in|for|during|of|on|month of|since)?\\s*${AB_MON_RE}(?:\\s+(\\d{4}))?(?=\\s|$)`);
+  if((m = q.match(monRe))){
+    const word = m[3], hasYear = !!m[4];
+    if(word !== 'may' || m[2] || hasYear){
+      const a = abMonthStart(abMonIdx(word), hasYear ? Number(m[4]) : null);
+      return { from: a, to: clampTo(abMEnd(a)), label: abMonLab(a), kind: 'month' };
+    }
+  }
+  return null;
+}
+// The natural comparison for a period: previous month/quarter, same span last year for FY/years.
+function abCmpFor(p){
+  if(!p || p.kind === 'all') return null;
+  if(p.kind === 'fy'){ const span = Math.round((abD(p.to) - abD(p.from)) / 864e5); const a = abAddM(p.from, -12); return { from: a, to: abAdd(a, span), label: 'same period last year' }; }
+  if(p.kind === 'fyfull'){ const a = abAddM(p.from, -12), b = abAdd(abAddM(abAdd(p.to, 1), -12), -1); return { from: a, to: b, label: 'the year before' }; }
+  if(p.kind === 'month'){ const a = abAddM(p.from, -1); const full = p.to === abMEnd(p.from); return { from: a, to: full ? abMEnd(a) : abMin(abAdd(a, Number(p.to.slice(8)) - 1), abMEnd(a)), label: full ? abMonLab(a) : `same days of ${abMonLab(a)}` }; }
+  if(p.kind === 'quarter'){ const a = abAddM(p.from, -3); return { from: a, to: abAdd(abAddM(abAdd(p.to, 1), -3), -1), label: 'the previous quarter' }; }
+  const span = Math.round((abD(p.to) - abD(p.from)) / 864e5) + 1;
+  return { from: abAdd(p.from, -span), to: abAdd(p.from, -1), label: 'the previous period' };
+}
+const AB_CMP_RE = /\b(?:vs|versus|compared (?:to|with)|against|than)\s+(.+)$/;
+function abExplicitCmp(q, P){
+  const m = q.match(AB_CMP_RE);
+  if(!m) return null;
+  const p = abPeriod(m[1]);
+  if(!p) return null;
+  const nat = P ? abCmpFor(P) : null;
+  // "this year vs last year" / "this month vs last month": compare like with like (same span), not a full year with a part year
+  if(nat && P && ((P.kind === 'fy' && p.kind === 'fyfull') || (P.kind === p.kind && ['month','quarter'].includes(P.kind) && P.to === abToday())) && p.from === nat.from) return nat;
+  return { from: p.from, to: p.to, label: p.label };
+}
+// Entities: parties, other ledgers and items, matched by name with typo tolerance.
+function abNameScore(qt, name){
+  const nt = abWords(name).filter(w => !AB_NAME_GENERIC.has(w));
+  if(!nt.length) return 0;
+  let hit = 0, strong = 0;
+  for(const w of nt){
+    if(qt.has(w)){ hit += 1; if(w.length >= 3 && !AB_LEX[w]) strong++; continue; }
+    if(w.length >= 5){ for(const t of qt){ if(t.length >= 4 && abLev(t, w, 1) <= 1){ hit += 0.85; strong++; break; } } }
+  }
+  return strong ? hit / nt.length : 0;
+}
+function abFindEntities(q){
+  const qt = new Set(abWords(q).filter(w => !AB_STOP.has(w)));
+  const out = [];
+  (state.ledgers || []).forEach(l => {
+    const s = abNameScore(qt, l.name); if(s < 0.5) return;
+    const words = abWords(l.name).filter(w => !AB_NAME_GENERIC.has(w));
+    const conceptOnly = words.every(w => AB_LEX[w] || ['in','hand','account','accounts'].includes(w));
+    const kind = l.partyType === 'customer' || l.partyType === 'supplier' ? 'party' : 'ledger';
+    if(conceptOnly && kind !== 'party') return; // "Sales", "Cash", "Purchases" ledgers are concepts, not entities
+    out.push({ kind, id: l.id, name: l.name, score: s + (kind === 'party' ? 0.05 : 0) + words.length * 0.001 });
+  });
+  (state.items || []).forEach(it => { const s = abNameScore(qt, it.name); if(s >= 0.5) out.push({ kind: 'item', id: it.id, name: it.name, score: s }); });
+  return out.sort((a, b) => b.score - a.score);
+}
+const AB_TXN_TYPES = [[/\bcredit notes?\b/, 'Credit Note'], [/\bdebit notes?\b/, 'Debit Note'], [/\bpayments?\b|\bpaid\b/, 'Payment'], [/\breceipts?\b/, 'Receipt'], [/\bsales? invoices?\b|\binvoices?\b/, 'Sales'], [/\bpurchase (bills?|invoices?)\b|\bbills?\b/, 'Purchase'], [/\bjournals?\b/, 'Journal'], [/\bcontras?\b/, 'Contra']];
+function abSlots(raw, ctx){
+  const norm = abNorm(raw), cor = abCorrect(norm), q = cor.q;
+  const words = q.split(' ');
+  const has = new Set(words.map(w => AB_LEX[w]).filter(Boolean));
+  const S = { raw, q, fixes: cor.fixes, has };
+  const re = r => r.test(q);
+  if(re(/\bnet (profit|income)\b|\bbottom line\b|\bprofit and loss\b|\bmade money\b|\bhow much (did|have) (i|we) (make|made|earn|earned)\b/)) has.add('profit');
+  if(re(/\bhow much (did|have) (i|we) (spend|spent)\b/)) has.add('expense');
+  if(re(/\bcash ?flow\b|\bcash in and out\b|\bmoney in and out\b|\binflows?\b|\boutflows?\b/)){ S.cashflow = true; }
+  if(re(/\bowe(s|d)? (me|us)\b|\bowed to (me|us)\b|\bto collect\b|\bto receive\b|\bcollect from\b|\bowe me\b/)) has.add('receivable');
+  if(re(/\b(bills?|payments?|invoices? from suppliers?) (are |is )?due\b|\bdue (this|next) week\b|\bdue soon\b/)) has.add('payable');
+  if(re(/\b(i|we) owe\b|\bdo (i|we) owe\b|\bto pay\b|\bowe to\b|\bbills? to pay\b|\bdue to suppliers?\b|\bneed to pay\b/)) has.add('payable');
+  if(re(/\blow stock\b|\brunning out\b|\bout of stock\b|\bre-?order\b|\brestock\b|\brunning low\b/)) S.lowstock = true;
+  if(re(/\bdead stock\b|\bnot moving\b|\bslow[- ]moving\b|\bnon[- ]moving\b|\bnot selling\b/)) S.deadstock = true;
+  if(re(/\brun out of (cash|money)\b|\benough (cash|money)\b|\bcash runway\b|\bnext (\d+ )?(days?|weeks?|months?|quarter|year)\b|\bwill (i|we) (have|run|be)\b|\bgoing to (be|have|run)\b|\bin (\d+) (days|months)\b/)) has.add('forecast');
+  if(re(/\bhow (is|are) (my|the|our) (business|company|books|finances)\b|\bhow are (we|things) (doing|going)\b|\bhow am i doing\b|\bbusiness health\b|\bhealth (check|score)\b|\b(summary|overview|update|briefing) of\b|\bwhat should i (focus|do|worry)\b|\bkey (insights|takeaways)\b/)) has.add('summary');
+  if(re(/\bhow many\b|\bnumber of\b|\bcount of\b/)) S.count = true;
+  if(re(/\bby month\b|\bmonth by month\b|\bmonth on month\b|\bmonth-wise\b|\bmonthwise\b|\bover time\b|\bmonthly\b|\beach month\b|\bper month\b/)) S.byMonth = true;
+  if(re(/\bby (customer|client)s?\b|\bper customer\b|\bcustomer-?wise\b|\bwhich customers?\b|\bfrom which customers?\b|\bwho (bought|buys)\b/)) S.by = 'customer';
+  else if(re(/\bby (supplier|vendor)s?\b|\bper supplier\b|\bsupplier-?wise\b|\bwhich suppliers?\b|\bwho (do|did) (i|we) buy\b/)) S.by = 'supplier';
+  else if(re(/\bby (item|product)s?\b|\bper (item|product)\b|\b(item|product)-?wise\b|\bwhich (items?|products?)\b|\bbest[- ]selling\b|\btop[- ]selling\b/)) S.by = 'item';
+  else if(re(/\bby (ledger|category|categories|head|heads|account)\b|\bbreak(down| it down| down)\b|\bsplit\b|\bwhere (does|did) (the |my )?(money|cash) go\b|\bwhat (did|do) (i|we) spend (it|money) on\b/)) S.by = 'ledger';
+  if(re(/\bcurrent ratio\b/)) S.ratio = 'currentRatio';
+  else if(re(/\bquick ratio\b|\bacid[- ]test\b/)) S.ratio = 'quickRatio';
+  else if(re(/debt.{0,4}(to.{0,4})?equity|\bleverage\b|\bd\/e\b|\bgearing\b/)) S.ratio = 'debtToEquity';
+  else if(re(/\bworking capital\b/)) S.ratio = 'workingCapital';
+  else if(re(/\bdso\b|\bdays sales outstanding\b|\bcollection period\b|\bdebtor days\b|\bhow (long|fast) do customers (take to )?pay\b/)) S.ratio = 'dso';
+  else if(re(/\bdpo\b|\bcreditor days\b|\bdays payable\b/)) S.ratio = 'dpo';
+  else if(re(/\bgross margin\b|\bgross profit\b/)) S.ratio = 'grossMargin';
+  else if(re(/\breturn on equity\b|\broe\b/)) S.ratio = 'roe';
+  else if(re(/\binterest cover/)) S.ratio = 'interestCoverage';
+  else if(has.has('ratio')) S.ratio = 'all';
+  if(re(/\btrial balance\b/)) S.report = 'tb';
+  else if(re(/\bbalance sheet\b/)) S.report = 'bs';
+  if(re(/\b(chart|graph|plot|visual|visuali[sz]e|diagram|draw)\b/)) S.chart = true;
+  let m;
+  if((m = q.match(/\b(?:top|first|best|biggest|largest|highest|bottom|lowest|last|latest|recent|worst)\s+(\d{1,3})\b/))) S.n = Math.max(1, Math.min(50, Number(m[1])));
+  if((m = q.match(/\b(?:over|above|more than|greater than|exceeding|bigger than|at least|>)\s+(\d+(?:\.\d+)?)(?![\d.])\s*(k|thousands?|l|lacs?|lakhs?|cr|crores?|m|mn|million)?\b(?!\s*days?)/))) S.min = abNum(m[1], m[2]);
+  if((m = q.match(/\b(?:under|below|less than|smaller than|at most|<)\s+(\d+(?:\.\d+)?)(?![\d.])\s*(k|thousands?|l|lacs?|lakhs?|cr|crores?|m|mn|million)?\b(?!\s*days?)/))) S.max = abNum(m[1], m[2]);
+  if((m = q.match(/\b(?:over|more than|above|older than|beyond|past|greater than)\s+(\d+)\s+days?\b/))) S.days = Number(m[1]);
+  if((m = q.match(/\b(?:as of|as on|as at|on)\s+(\d{4}-\d{2}-\d{2}|\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})\b/))) S.asOf = abParseDate(m[1]);
+  if(re(/\b(latest|recent|last|newest)\b/) && !re(/\blast (week|month|quarter|year|fy|financial|\d+)/)) S.sort = 'latest';
+  if(re(/\b(largest|biggest|highest|top|most expensive)\b/)) S.sort = S.sort || 'largest';
+  for(const [r, tp] of AB_TXN_TYPES) if(r.test(q)){ S.txnType = tp; break; }
+  S.txnExplicit = /\b(transactions?|vouchers?|entries|postings?|payments?|receipts?|journals?|contras?)\b/.test(q);
+  const cm = q.match(AB_CMP_RE), base = cm ? q.slice(0, cm.index) : q;
+  S.period = abPeriod(base) || (cm ? null : null);
+  S.cmp = abExplicitCmp(q, S.period || abDefaultPeriod());
+  S.wantsCmp = !!S.cmp || has.has('compare');
+  S.entities = abFindEntities(q);
+  S.entity = S.entities[0] || null;
+  if(!S.entity && ctx && ctx.entity && /\b(they|them|their|this (customer|supplier|party|item|ledger)|that (customer|supplier|party|item|ledger)|him|her|it)\b/.test(q)) S.entity = ctx.entity;
+  return S;
+}
+// Which question is this? Ordered from most to least specific.
+function abIntent(S){
+  const q = S.q, h = S.has;
+  if(!q) return 'empty';
+  if(/^(hi|hello|hey|namaste|vanakkam|good (morning|afternoon|evening))\b/.test(q) && q.split(' ').length <= 4) return 'greet';
+  if(/^(thanks|thank you|thx|great|cool|ok|okay|nice|awesome|super)\b/.test(q) && q.split(' ').length <= 4) return 'thanks';
+  if(/\bwhat can you (do|answer)\b|\bwhat (questions|things) can i ask\b|\bhelp me\b$|^help$|\bhow do(es)? (this|you) work\b|\bwho are you\b/.test(q)) return 'capabilities';
+  if(/^(paid|pay|received|receive|got|sold|bought|purchased|spent|deposited|withdrew|withdrawn|transferred)\b/.test(q) && /\d/.test(q)) return 'draft';
+  if(/^(open|go to|goto|take me to|navigate to|jump to|switch to)\b/.test(q)) return 'nav';
+  if(/^(how (do|can|should) (i|we)|how to|where (do|can) i|steps to|guide me)\b/.test(q) && !(S.entity && S.entity.kind !== 'ledger')) return 'kb';
+  if(/^(what is|what are|what does|define|meaning of|explain what|explain the term|difference between)\b/.test(q) && !S.entity && !/\b(my|our|we|i|total|current|today|this|last)\b/.test(q.replace(/^(what is|what are|what does)\b/, ''))) return 'kb';
+  if(h.has('anomaly')) return 'anomaly';
+  if(h.has('summary')) return 'summary';
+  if(h.has('why')) return 'explain';
+  if(h.has('forecast')) return 'forecast';
+  if(S.ratio) return 'ratio';
+  if(S.report === 'tb') return 'tb';
+  if(S.lowstock) return 'lowstock';
+  if(S.deadstock) return 'deadstock';
+  if(S.count) return 'count';
+  const metric = abMetricOf(S);
+  if(S.entity && S.entity.kind === 'item') return 'item';
+  if(S.entity && S.entity.kind === 'party'){
+    if(h.has('txn') || S.txnType) return 'txns';
+    if(metric && metric !== 'profit') return 'metric';
+    return 'party';
+  }
+  if(S.entity && S.entity.kind === 'ledger'){
+    if(S.txnExplicit || S.min != null || S.max != null || S.sort === 'largest') return 'txns';
+    if(h.has('balance') || S.asOf || h.has('bank') || h.has('cash')) return 'ledger';
+    return 'ledgerflow';
+  }
+  if((S.min != null || S.max != null) && (metric || h.has('txn'))) return 'txns';
+  if(S.cashflow) return 'cashflow';
+  if(h.has('gst') && !h.has('revenue') && !h.has('expense')) return 'gst';
+  if(h.has('tds')) return 'tds';
+  if(S.days != null && (h.has('txn') || h.has('overdue')) && !h.has('supplier') && !h.has('payable')) return 'receivables';
+  if(h.has('receivable') || (h.has('overdue') && !h.has('payable') && !h.has('supplier'))) return 'receivables';
+  if(h.has('payable') || (h.has('owe') && h.has('supplier'))) return 'payables';
+  if(h.has('txn') && (S.sort || S.min != null || S.max != null || S.txnType || /\b(list|find|search|show)\b/.test(q)) && !metric) return 'txns';
+  if(h.has('gst')) return 'gst';
+  if(h.has('tds')) return 'tds';
+  if(h.has('stock') && !S.by) return 'stock';
+  if(S.report === 'bs' || h.has('assets') || h.has('liabilities') || h.has('equity')) return 'bs';
+  if((h.has('cash') || h.has('bank')) && !metric) return 'cash';
+  if((h.has('top') || h.has('least') || S.by) && (metric || h.has('customer') || h.has('supplier') || S.by || h.has('stock'))) return 'top';
+  if((h.has('customer') || h.has('supplier')) && (h.has('top') || h.has('least'))) return 'top';
+  if(metric && (h.has('trend') || S.byMonth)) return 'trend';
+  if(metric) return 'metric';
+  if(h.has('customer')) return 'receivables';
+  if(h.has('supplier')) return 'payables';
+  if(h.has('balance')) return 'cash';
+  return 'unknown';
+}
+function abMetricOf(S){
+  const h = S.has;
+  if(h.has('margin') && !S.ratio) return 'margin';
+  if(h.has('profit')) return 'profit';
+  if(h.has('purchase')) return 'purchase';
+  if(h.has('expense')) return 'expense';
+  if(h.has('revenue')) return 'revenue';
+  return null;
+}
+const AB_FOLLOW_RE = /^(and|also|what about|how about|same for|same but|now|then|ok so|okay so|but|for)\b/;
+// Merge a follow-up with the previous question's context.
+function abResolve(raw, ctx){
+  const S = abSlots(raw, ctx);
+  let intent = abIntent(S);
+  S.metric = abMetricOf(S);
+  if(ctx){
+    const q = S.q, short = q.split(' ').length <= 7;
+    const onlyModifiers = intent === 'unknown' || (S.by && !S.metric && !S.has.has('top') && !S.has.has('customer') && !S.has.has('supplier'));
+    const fresh = /^(tell me|what (is|are|was|were|does|do|did)|how|who|which|give me|list|find|is|are|do|does|did|can|show me (the|all|my)|show (all|my|the latest|the largest))\b/.test(q);
+    const follow = AB_FOLLOW_RE.test(q) || (intent === 'explain' && !S.metric && !S.period) || (intent === 'forecast' && !S.metric && /\b(it|that|this)\b/.test(q)) || (short && onlyModifiers && !fresh && (S.period || S.entity || S.chart || S.byMonth || S.by || S.n || S.wantsCmp || /^(why|how come|explain( that| it| this)?|break( it)? down|more|show more|details|as a chart|in a chart|chart it|graph it)\b/.test(q)));
+    if(follow){
+      S.followUp = true;
+      if(!S.metric) S.metric = ctx.metric;
+      if(!S.period) S.period = ctx.period;
+      if(!S.entity && ctx.entity && !S.by) S.entity = ctx.entity;
+      if(S.n == null) S.n = ctx.n;
+      if(intent === 'explain' || /^(why|how come|explain)/.test(q)) intent = 'explain';
+      else if(S.by) intent = 'top';
+      else if(S.byMonth || /\b(chart|graph)\b/.test(q) && ['metric','trend'].includes(ctx.intent)) intent = 'trend';
+      else if(S.entity && S.entity !== ctx.entity && S.entity.kind === 'party') intent = ['txns','metric','trend'].includes(ctx.intent) ? (ctx.intent === 'trend' ? 'metric' : ctx.intent) : 'party';
+      else if(intent === 'unknown') intent = ctx.intent === 'explain' ? 'metric' : ctx.intent;
+      if(!S.by && ctx.by && intent === 'top') S.by = ctx.by;
+      if(!S.txnType && ctx.txnType && intent === 'txns') S.txnType = ctx.txnType;
+      if(S.chart && !['metric','trend','top'].includes(intent)) S.chart = true;
+    }
+  }
+  if(intent === 'explain' && !S.metric) S.metric = 'profit';
+  S.intent = intent;
+  return S;
+}
+
+/* ---------- 2. data (read-only) ---------- */
+let abCacheKey = '', abCache = new Map();
+function abMemo(k, fn){
+  const key = `${(state.vouchers || []).length}|${(state.ledgers || []).length}|${(state.items || []).length}|${abToday()}|${currentCompany && currentCompany.id}`;
+  if(key !== abCacheKey){ abCacheKey = key; abCache = new Map(); }
+  if(!abCache.has(k)) abCache.set(k, fn());
+  return abCache.get(k);
+}
+// One pass over vouchers in [from, to]: P&L buckets (same as the Profit and Loss), per-ledger,
+// per-party, per-item and per-month totals, plus cash and bank movement.
+function abFlows(from, to){
+  return abMemo(`f|${from}|${to}`, () => {
+    const f = { from, to, revenue: 0, otherIncome: 0, purchases: 0, directExp: 0, indirectExp: 0, expenses: 0, profit: 0, cashIn: 0, cashOut: 0, count: 0, led: {}, cust: {}, supp: {}, items: {}, months: {} };
+    const mon = k => f.months[k] || (f.months[k] = { revenue: 0, otherIncome: 0, expenses: 0, purchases: 0, profit: 0, cashIn: 0, cashOut: 0 });
+    for(const v of state.vouchers || []){
+      if(!v.date || v.date < from || v.date > to) continue;
+      f.count++;
+      const mk = v.date.slice(0, 7), M = mon(mk);
+      for(const e of v.entries || []){
+        const l = ledgerOf(e.ledgerId); if(!l) continue;
+        const b = bucketOf(l), net = (e.dr || 0) - (e.cr || 0);
+        if(b === 'sales'){ f.revenue -= net; M.revenue -= net; }
+        else if(b === 'dinc'){ f.otherIncome -= net; M.otherIncome -= net; }
+        else if(b === 'purch'){ f.purchases += net; f.expenses += net; M.expenses += net; M.purchases += net; }
+        else if(b === 'dexp'){ f.directExp += net; f.expenses += net; M.expenses += net; }
+        else if(b === 'iexp'){ f.indirectExp += net; f.expenses += net; M.expenses += net; }
+        else if((b === 'cash' || b === 'bank') && v.type !== 'Contra'){ if(net > 0){ f.cashIn += net; M.cashIn += net; } else { f.cashOut -= net; M.cashOut -= net; } }
+        if(['sales','dinc','purch','dexp','iexp'].includes(b)){ const r = f.led[l.id] || (f.led[l.id] = { id: l.id, name: l.name, bucket: b, amt: 0 }); r.amt += ['sales','dinc'].includes(b) ? -net : net; }
+        if(l.partyType === 'customer' && (v.type === 'Sales' || v.type === 'Credit Note')){ const r = f.cust[l.id] || (f.cust[l.id] = { id: l.id, name: l.name, amt: 0, n: 0 }); r.amt += net; r.n++; }
+        if(l.partyType === 'supplier' && (v.type === 'Purchase' || v.type === 'Debit Note')){ const r = f.supp[l.id] || (f.supp[l.id] = { id: l.id, name: l.name, amt: 0, n: 0 }); r.amt -= net; r.n++; }
+      }
+      if(v.type === 'Sales' && Array.isArray(v.items)) v.items.forEach(it => { const r = f.items[it.itemId] || (f.items[it.itemId] = { id: it.itemId, name: it.name || (state.items || []).find(x => x.id === it.itemId)?.name || 'Item', qty: 0, amt: 0 }); r.qty += Number(it.qty) || 0; r.amt += (Number(it.qty) || 0) * (Number(it.rate) || 0); });
+    }
+    f.profit = f.revenue + f.otherIncome - f.expenses;
+    Object.values(f.months).forEach(M => { M.profit = M.revenue + M.otherIncome - M.expenses; });
+    return f;
+  });
+}
+function abVal(f, metric){
+  if(!f) return 0;
+  return metric === 'expense' ? f.expenses : metric === 'purchase' ? f.purchases : metric === 'profit' ? f.profit : metric === 'margin' ? (f.revenue ? f.profit / f.revenue : null) : metric === 'cashflow' ? (f.cashIn - f.cashOut) : f.revenue;
+}
+function abMonthsBetween(a, b){ const out = []; let k = a.slice(0, 7) + '-01'; while(k.slice(0, 7) <= b.slice(0, 7) && out.length < 240){ out.push(k.slice(0, 7)); k = abAddM(k, 1); } return out; }
+function abFirstDate(){ return abMemo('first', () => (state.vouchers || []).reduce((m, v) => v.date && v.date < m ? v.date : m, '9999')); }
+function abDefaultPeriod(){ const t = abToday(), fy = abFY(t); return { from: fy.start, to: t, label: `FY ${fy.lab} to date`, kind: 'fy' }; }
+const AB_METRIC_LABEL = { revenue: 'Revenue', expense: 'Expenses', profit: 'Profit', purchase: 'Purchases', margin: 'Net margin', cashflow: 'Net cash flow' };
+function abVoucherAmount(v){ return (v.entries || []).reduce((s, e) => s + (e.dr || 0), 0); }
+function abVoucherParty(v){
+  let best = null;
+  for(const e of v.entries || []){ const l = ledgerOf(e.ledgerId); if(!l) continue; const b = bucketOf(l); const score = l.partyType ? 3 : (b === 'cash' || b === 'bank') ? 0 : 1; const amt = Math.max(e.dr || 0, e.cr || 0); if(!best || score > best.score || (score === best.score && amt > best.amt)) best = { l, score, amt }; }
+  return best ? best.l : null;
+}
+
+/* ---------- 3. answers ---------- */
+function abAns(o){ return Object.assign({ facts: [], sources: [], actions: [], followups: [] }, o); }
+const AB_COLORS = ['var(--accent1,#2CA01C)', '#F2A900', '#3F72A0', '#8E7CC3', '#E07B39', '#4FA3A5', '#B8648F', '#7A8B3A'];
+// Vertical columns (months). series [{label, v}], cmp optional [values], opts.fc marks forecast columns.
+function abColChart(series, opts = {}){
+  if(!series.length) return '';
+  const W = 460, H = 170, padL = 6, padR = 6, padT = 14, padB = 24, n = series.length;
+  const vals = series.map(s => s.v || 0).concat(opts.cmp || []).concat((opts.band || []).filter(Boolean).flatMap(b => [b.lo, b.hi]));
+  const max = Math.max(0, ...vals), min = Math.min(0, ...vals), span = (max - min) || 1;
+  const plotH = H - padT - padB, y = v => padT + (max - v) / span * plotH, y0 = y(0);
+  const slot = (W - padL - padR) / n, bw = Math.max(4, Math.min(34, slot * 0.62));
+  const every = n > 14 ? 3 : n > 8 ? 2 : 1;
+  let g = `<line x1="${padL}" x2="${W - padR}" y1="${y0}" y2="${y0}" class="ab-axis"/>`;
+  series.forEach((s, i) => {
+    const x = padL + slot * i + (slot - bw) / 2, v = s.v || 0, top = Math.min(y(v), y0), h = Math.max(1, Math.abs(y(v) - y0));
+    const cls = s.fc ? 'ab-col fc' : v < 0 ? 'ab-col neg' : i === n - 1 && opts.hlLast ? 'ab-col hl' : 'ab-col';
+    if(opts.band && opts.band[i]) g += `<rect x="${x - 2}" y="${y(opts.band[i].hi)}" width="${bw + 4}" height="${Math.max(1, y(opts.band[i].lo) - y(opts.band[i].hi))}" class="ab-band" rx="3"/>`;
+    g += `<rect x="${x}" y="${top}" width="${bw}" height="${h}" rx="${Math.min(4, bw / 3)}" class="${cls}" style="animation-delay:${Math.min(i, 18) * 35}ms"><title>${abEsc(s.label)}: ${abFull(v)}${s.fc ? ' (forecast)' : ''}</title></rect>`;
+    if(opts.cmp && opts.cmp[i] != null) g += `<line x1="${x - 2}" x2="${x + bw + 2}" y1="${y(opts.cmp[i])}" y2="${y(opts.cmp[i])}" class="ab-cmp"><title>${abEsc(opts.cmpLabel || 'Comparison')}: ${abFull(opts.cmp[i])}</title></line>`;
+    if(i % every === 0 || i === n - 1) g += `<text x="${x + bw / 2}" y="${H - 7}" text-anchor="middle" class="ab-lbl">${abEsc(s.label)}</text>`;
+  });
+  const legend = opts.cmp ? `<div class="ab-legend"><span><i class="sw"></i>${abEsc(opts.curLabel || 'This period')}</span><span><i class="ln"></i>${abEsc(opts.cmpLabel || 'Comparison')}</span>${opts.band ? '<span><i class="bd"></i>80% range</span>' : ''}</div>` : opts.band ? `<div class="ab-legend"><span><i class="sw"></i>Actual</span><span><i class="sw fc"></i>Forecast</span><span><i class="bd"></i>80% range</span></div>` : '';
+  return `<svg viewBox="0 0 ${W} ${H}" class="ab-svg" role="img" aria-label="${abEsc(opts.aria || 'Chart')}">${g}</svg>${legend}`;
+}
+// Horizontal bars (rankings). items [{label, v, attr, sub}]
+function abHBars(items, opts = {}){
+  if(!items.length) return '';
+  const max = Math.max(...items.map(x => Math.abs(x.v || 0)), 1), total = opts.total;
+  return `<div class="ab-hbars">${items.map((x, i) => {
+    const w = Math.max(1.5, Math.abs(x.v || 0) / max * 100), neg = (x.v || 0) < 0;
+    return `<div class="ab-hb${x.attr ? ' click' : ''}" ${x.attr || ''} style="animation-delay:${i * 45}ms" ${x.attr ? 'role="button" tabindex="0"' : ''}>
+      <div class="ab-hb-l"><span>${abEsc(x.label)}</span>${x.sub ? `<em>${abEsc(x.sub)}</em>` : ''}</div>
+      <div class="ab-hb-t"><i class="${neg ? 'neg' : ''}${x.tone ? ' ' + x.tone : ''}" style="width:${w.toFixed(1)}%;${x.color ? 'background:' + x.color : ''}"></i></div>
+      <div class="ab-hb-v">${opts.fmt ? opts.fmt(x.v) : abShort(x.v)}${total ? `<em>${abPct(Math.abs(x.v) / total, false)}</em>` : ''}</div></div>`;
+  }).join('')}</div>`;
+}
+function abStack(parts){
+  const tot = parts.reduce((s, p) => s + Math.max(0, p.v), 0); if(!tot) return '';
+  return `<div class="ab-stack">${parts.filter(p => p.v > 0).map(p => `<i style="width:${(p.v / tot * 100).toFixed(2)}%;background:${p.color}" title="${abEsc(p.label)}: ${abFull(p.v)}"></i>`).join('')}</div><div class="ab-legend">${parts.map(p => `<span><i class="sw" style="background:${p.color}"></i>${abEsc(p.label)} ${abShort(p.v)}</span>`).join('')}</div>`;
+}
+function abTable(head, rows, opts = {}){
+  return { head, rows, more: opts.more || 0, align: opts.align || [] };
+}
+const abPartyAttr = id => `data-open-party="${abEsc(id)}"`;
+const abLedgerAttr = id => `data-ab-ledger="${abEsc(id)}"`;
+const abVoucherAttr = id => `data-ab-voucher="${abEsc(id)}"`;
+const abAskAttr = q => `data-ab-ask="${abEsc(q)}"`;
+function abPeriodWord(P){ return P.kind === 'fy' || P.kind === 'all' || P.kind === 'months' ? P.label : P.label; }
+function abSeries(f, P, m){ return abMonthsBetween(P.from, P.to).map(k => ({ k, label: abMonLab(k + '-01', true), v: f.months[k] ? abVal(f.months[k], m) : 0 })); }
+
+// --- metric for a period (revenue / expenses / profit / purchases / margin) ---
+function abHMetric(S){
+  const m = S.metric || 'revenue', P = S.period || abDefaultPeriod(), C = S.cmp || abCmpFor(P);
+  if(S.entity && S.entity.kind === 'party') return abHPartyMetric(S, P, C, m);
+  if(m === 'margin') return abHMargin(S, P, C);
+  const f = abFlows(P.from, P.to), fc = C ? abFlows(C.from, C.to) : null;
+  const v = abVal(f, m), pv = fc ? abVal(fc, m) : null, ch = fc ? abChg(v, pv) : null;
+  const L = AB_METRIC_LABEL[m], good = m === 'expense' || m === 'purchase' ? ch != null && ch < 0 : ch != null && ch > 0;
+  const series = abSeries(f, P, m), cmpSeries = C ? abSeries(fc, { from: C.from, to: C.to }, m).map(x => x.v) : null;
+  const active = series.filter(x => x.v), best = active.length ? active.slice().sort((a, b) => m === 'expense' || m === 'purchase' ? a.v - b.v : b.v - a.v)[0] : null;
+  const months = series.length, avg = months ? v / months : 0;
+  const rl = abRangeLab(P.from, P.to), plural = m === 'expense' || m === 'purchase';
+  let text = `${L} ${/^since\b/.test(P.label) ? '' : 'for '}**${P.label}**${P.label.includes(rl) ? '' : ` (${rl})`} ${m === 'profit' && v < 0 ? 'is a loss of' : plural ? 'are' : 'is'} **${abFull(Math.abs(v))}**.`;
+  if(ch != null) text += ` That is ${ch >= 0 ? 'up' : 'down'} **${abPct(Math.abs(ch), false)}** (${abShort(Math.abs(v - pv))}) on ${C.label} (${abShort(pv)}).`;
+  else if(C) text += ` There was nothing to compare against in ${C.label}.`;
+  const facts = [];
+  if(ch != null) facts.push({ k: `vs ${C.label}`, v: abPct(ch), tone: good ? 'pos' : 'neg' });
+  if(m === 'profit'){ facts.push({ k: 'Income', v: abShort(f.revenue + f.otherIncome) }, { k: 'Expenses', v: abShort(f.expenses) }); if(f.revenue) facts.push({ k: 'Net margin', v: abPct(f.profit / f.revenue, false) }); }
+  if(months > 1){ facts.push({ k: 'Average / month', v: abShort(avg) }); if(best) facts.push({ k: m === 'expense' || m === 'purchase' ? 'Lowest month' : 'Best month', v: `${best.label} · ${abShort(best.v)}` }); }
+  if(m === 'expense'){
+    const top = Object.values(f.led).filter(x => ['purch','dexp','iexp'].includes(x.bucket) && x.amt > 0).sort((a, b) => b.amt - a.amt).slice(0, 3);
+    if(top.length) text += ` The biggest heads were ${top.map(x => `${x.name} (${abShort(x.amt)})`).join(', ')}.`;
+  }
+  if(m === 'revenue'){
+    const cs = Object.values(f.cust).filter(x => x.amt > 0).sort((a, b) => b.amt - a.amt);
+    if(cs.length && f.revenue > 0) text += ` ${cs[0].name} was your largest customer at ${abPct(cs[0].amt / f.revenue, false)} of sales.`;
+  }
+  if(m === 'purchase'){
+    const ss = Object.values(f.supp).filter(x => x.amt > 0).sort((a, b) => b.amt - a.amt);
+    if(ss.length) text += ` Most was bought from ${ss[0].name} (${abShort(ss[0].amt)}).`;
+  }
+  if(best && months > 1) text += ` ${m === 'expense' || m === 'purchase' ? 'Lightest' : 'Strongest'} month: ${abMonLab(best.k + '-01')} (${abShort(best.v)}).`;
+  const chart = months > 1 ? abColChart(series, { cmp: cmpSeries, cmpLabel: C ? C.label : '', curLabel: P.label, hlLast: true, aria: `${L} by month` }) : '';
+  const byLabel = m === 'revenue' ? 'Top customers for this period' : m === 'purchase' ? 'Top suppliers for this period' : 'Top expenses for this period';
+  return abAns({ metric: m, period: P, title: L, value: m === 'profit' && v < 0 ? `−${abShort(Math.abs(v)).replace('−', '')}` : abShort(v), tone: m === 'profit' ? (v >= 0 ? 'pos' : 'neg') : null, sub: abRangeLab(P.from, P.to), text, facts, chart,
+    sources: [`${f.count} voucher${f.count === 1 ? '' : 's'} dated ${abRangeLab(P.from, P.to)}`, m === 'revenue' ? 'Sales and direct-income ledgers (net of credit notes)' : m === 'purchase' ? 'Purchase Accounts ledgers' : m === 'expense' ? 'Purchase, direct-expense and indirect-expense ledgers' : 'Income less purchases and all expenses — the same grouping as the Statement of Profit and Loss', C ? `Compared with ${C.label}: ${abRangeLab(C.from, C.to)}` : 'No comparison period'],
+    actions: [{ label: 'Open Profit & Loss', act: 'report', arg: 'incomeStatement' }],
+    followups: [ch != null ? `Why did ${L.toLowerCase()} ${ch >= 0 ? 'go up' : 'go down'}?` : null, months > 1 ? null : `Show ${L.toLowerCase()} for the last 12 months`, byLabel, m !== 'profit' ? 'What about profit?' : 'What about expenses?', `Forecast ${L.toLowerCase()} for the next 3 months`].filter(Boolean),
+    csv: months > 1 ? { header: ['Month', `${L} (INR)`].concat(cmpSeries ? [`${C.label} (INR)`] : []), rows: series.map((s, i) => [s.k, s.v.toFixed(2)].concat(cmpSeries ? [(cmpSeries[i] || 0).toFixed(2)] : [])), filename: `${m}-by-month.csv` } : null });
+}
+function abHMargin(S, P, C){
+  const f = abFlows(P.from, P.to), fc = C ? abFlows(C.from, C.to) : null;
+  const nm = f.revenue ? f.profit / f.revenue : null, gm = f.revenue ? (f.revenue - f.purchases - f.directExp) / f.revenue : null, pm = fc && fc.revenue ? fc.profit / fc.revenue : null;
+  const series = abMonthsBetween(P.from, P.to).map(k => ({ label: abMonLab(k + '-01', true), v: f.months[k] && f.months[k].revenue ? Math.round(f.months[k].profit / f.months[k].revenue * 1000) / 10 : 0 }));
+  return abAns({ metric: 'margin', period: P, title: 'Net margin', value: abPct(nm, false), tone: nm != null && nm >= 0 ? 'pos' : 'neg', sub: abRangeLab(P.from, P.to),
+    text: `For **${P.label}**, you kept **${abPct(nm, false)}** of every rupee of sales as profit (net margin), and **${abPct(gm, false)}** after direct costs (gross margin).${pm != null ? ` Net margin was ${abPct(pm, false)} in ${C.label}, so it ${nm >= pm ? 'improved' : 'slipped'} by ${Math.abs((nm - pm) * 100).toFixed(1)} points.` : ''}`,
+    facts: [{ k: 'Gross margin', v: abPct(gm, false) }, { k: 'Net margin', v: abPct(nm, false) }].concat(pm != null ? [{ k: `vs ${C.label}`, v: `${nm >= pm ? '+' : '−'}${Math.abs((nm - pm) * 100).toFixed(1)} pts`, tone: nm >= pm ? 'pos' : 'neg' }] : []),
+    chart: series.length > 1 ? abColChart(series.map(s => ({ ...s, v: s.v })), { aria: 'Net margin % by month' }).replace(/₹/g, '') : '',
+    sources: ['Net margin = profit ÷ revenue; gross margin = (revenue − purchases − direct expenses) ÷ revenue', `Vouchers dated ${abRangeLab(P.from, P.to)}`],
+    followups: ['Why did profit change?', 'Top expenses for this period'] });
+}
+function abHPartyMetric(S, P, C, m){
+  const e = S.entity, l = ledgerOf(e.id), isC = l && l.partyType === 'customer';
+  const f = abFlows(P.from, P.to), fc = C ? abFlows(C.from, C.to) : null;
+  const pick = F => ((isC ? F.cust : F.supp)[e.id] || { amt: 0, n: 0 });
+  const cur = pick(f), prev = fc ? pick(fc) : null, ch = prev ? abChg(cur.amt, prev.amt) : null;
+  const what = isC ? 'Sales to' : 'Purchases from';
+  const series = abMonthsBetween(P.from, P.to).map(k => ({ label: abMonLab(k + '-01', true), v: abPartyMonth(e.id, k, isC) }));
+  const share = isC ? (f.revenue ? cur.amt / f.revenue : null) : (f.purchases ? cur.amt / f.purchases : null);
+  return abAns({ metric: m, period: P, title: `${what} ${e.name}`, value: abShort(cur.amt), sub: abRangeLab(P.from, P.to),
+    text: `${what} **${e.name}** for **${P.label}** came to **${abFull(cur.amt)}** across ${cur.n} ${isC ? 'invoice' : 'bill'}${cur.n === 1 ? '' : 's'}${share != null ? ` — ${abPct(share, false)} of your ${isC ? 'sales' : 'purchases'}` : ''}.${ch != null ? ` That is ${ch >= 0 ? 'up' : 'down'} ${abPct(Math.abs(ch), false)} on ${C.label} (${abShort(prev.amt)}).` : ''}`,
+    facts: [ch != null ? { k: `vs ${C.label}`, v: abPct(ch), tone: ch >= 0 === isC ? 'pos' : 'neg' } : null, share != null ? { k: 'Share', v: abPct(share, false) } : null, { k: 'Balance now', v: abShort(Math.abs(ledgerBalance(e.id))) }].filter(Boolean),
+    chart: series.length > 1 ? abColChart(series, { aria: `${what} ${e.name} by month` }) : '',
+    sources: [`${isC ? 'Sales and credit-note' : 'Purchase and debit-note'} vouchers posted to ${e.name}`, `Period ${abRangeLab(P.from, P.to)}`],
+    actions: [{ label: `Open ${e.name}`, act: 'party', arg: e.id }],
+    followups: [`Tell me about ${e.name}`, `Show transactions with ${e.name}`, isC ? 'Top customers this year' : 'Top suppliers this year'] });
+}
+function abPartyMonth(id, mk, isC){
+  let s = 0;
+  for(const v of state.vouchers || []){ if(!v.date || v.date.slice(0, 7) !== mk) continue; if(isC ? !(v.type === 'Sales' || v.type === 'Credit Note') : !(v.type === 'Purchase' || v.type === 'Debit Note')) continue; for(const e of v.entries || []) if(e.ledgerId === id) s += isC ? (e.dr || 0) - (e.cr || 0) : (e.cr || 0) - (e.dr || 0); }
+  return s;
+}
+// --- month-by-month trend ---
+function abHTrend(S){
+  const m = S.metric || 'revenue', P = S.period && S.period.kind !== 'day' ? S.period : { from: abAddM(abToday(), -11), to: abToday(), label: 'the last 12 months', kind: 'months' };
+  const a = abHMetric(Object.assign({}, S, { metric: m, period: P }));
+  a.title = `${AB_METRIC_LABEL[m]} by month`;
+  a.followups = [`Why did ${AB_METRIC_LABEL[m].toLowerCase()} change?`, `Forecast ${AB_METRIC_LABEL[m].toLowerCase()} for the next 3 months`, m === 'revenue' ? 'Revenue by customer' : 'Expenses by category'];
+  return a;
+}
+// --- a single ledger's flow (e.g. "how much rent this year") ---
+function abHLedgerFlow(S){
+  const e = S.entity, l = ledgerOf(e.id), P = S.period || abDefaultPeriod(), C = S.cmp || abCmpFor(P);
+  const b = bucketOf(l), pl = ['sales','dinc','purch','dexp','iexp'].includes(b);
+  if(!pl) return abHLedger(S);
+  const f = abFlows(P.from, P.to), fc = C ? abFlows(C.from, C.to) : null;
+  const cur = (f.led[e.id] || { amt: 0 }).amt, prev = fc ? (fc.led[e.id] || { amt: 0 }).amt : null, ch = prev != null ? abChg(cur, prev) : null;
+  const isInc = b === 'sales' || b === 'dinc';
+  const series = abMonthsBetween(P.from, P.to).map(k => { let s = 0; for(const v of state.vouchers || []){ if(!v.date || v.date.slice(0, 7) !== k) continue; for(const x of v.entries || []) if(x.ledgerId === e.id) s += isInc ? (x.cr || 0) - (x.dr || 0) : (x.dr || 0) - (x.cr || 0); } return { label: abMonLab(k + '-01', true), v: s }; });
+  const base = isInc ? f.revenue + f.otherIncome : f.expenses;
+  return abAns({ period: P, title: e.name, value: abShort(cur), sub: abRangeLab(P.from, P.to),
+    text: `**${e.name}** for **${P.label}** is **${abFull(cur)}**${base ? ` — ${abPct(cur / base, false)} of total ${isInc ? 'income' : 'expenses'}` : ''}.${ch != null ? ` That is ${ch >= 0 ? 'up' : 'down'} ${abPct(Math.abs(ch), false)} on ${C.label} (${abShort(prev)}).` : ''}`,
+    facts: [ch != null ? { k: `vs ${C.label}`, v: abPct(ch), tone: (ch >= 0) === isInc ? 'pos' : 'neg' } : null, { k: 'Average / month', v: abShort(series.length ? cur / series.length : 0) }].filter(Boolean),
+    chart: series.length > 1 ? abColChart(series, { aria: `${e.name} by month` }) : '',
+    sources: [`Postings to the ${e.name} ledger dated ${abRangeLab(P.from, P.to)}`],
+    actions: [{ label: `Open ${e.name} ledger`, act: 'ledger', arg: e.id }],
+    followups: [`Show transactions in ${e.name}`, 'Top expenses this year', `Why did ${e.name.toLowerCase()} change?`] });
+}
+// --- a ledger balance ---
+function abHLedger(S){
+  const e = S.entity, l = ledgerOf(e.id), asOf = S.asOf || null;
+  const bal = asOf ? ledgerBalanceAsOf(e.id, asOf) : ledgerBalance(e.id);
+  const t = abToday(), months = [];
+  for(let i = 5; i >= 0; i--){ const k = abAddM(t, -i); const end = i === 0 ? t : abMEnd(k); months.push({ label: abMonLab(k, true), v: ledgerBalanceAsOf(e.id, end) }); }
+  const recent = (state.vouchers || []).filter(v => v.entries && v.entries.some(x => x.ledgerId === e.id) && (!asOf || v.date <= asOf)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  const rows = recent.map(v => { const x = v.entries.find(y => y.ledgerId === e.id); return { attr: abVoucherAttr(v.id), cells: [abFmtD(v.date), v.type, v.narration || '—', (x.dr ? 'Dr ' : 'Cr ') + abFull(x.dr || x.cr)] }; });
+  const natural = ['cash','bank','ca','fa','purch','dexp','iexp'].includes(bucketOf(l));
+  return abAns({ title: `${e.name} balance`, value: abShort(Math.abs(bal)), sub: `${balanceLabel(bal)}${asOf ? ` · as on ${abFmtD(asOf)}` : ' · today'}`,
+    text: `**${e.name}** has a balance of **${abFull(Math.abs(bal))} ${balanceLabel(bal)}**${asOf ? ` as on ${abFmtD(asOf)}` : ''}.${natural && bal < 0 ? ' That is the opposite of this ledger’s usual side — worth a look.' : ''}`,
+    facts: [{ k: '30 days ago', v: abShort(Math.abs(ledgerBalanceAsOf(e.id, abAdd(t, -30)))) }, { k: 'Opening', v: abShort(Math.abs(l.opening || 0)) }],
+    chart: abColChart(months.map(x => ({ ...x, v: natural ? x.v : -x.v })), { aria: `${e.name} month-end balance` }),
+    table: rows.length ? abTable(['Date', 'Type', 'Narration', 'Amount'], rows, { align: [0, 0, 0, 1] }) : null,
+    sources: ['Opening balance plus every posting to this ledger', 'Chart: balance at each month end'],
+    actions: [{ label: 'Open ledger', act: 'ledger', arg: e.id }],
+    followups: [`Show transactions in ${e.name}`, 'What is my cash position?', 'Will I run out of cash?'] });
+}
+// --- cash & bank position ---
+function abHCash(S){
+  const ls = (state.ledgers || []).filter(l => ['cash','bank'].includes(bucketOf(l)));
+  const t = abToday(), asOf = S.asOf;
+  const rows = ls.map(l => ({ l, b: asOf ? ledgerBalanceAsOf(l.id, asOf) : ledgerBalance(l.id) })).sort((a, b) => b.b - a.b);
+  const tot = rows.reduce((s, r) => s + r.b, 0), ago = ls.reduce((s, l) => s + ledgerBalanceAsOf(l.id, abAdd(t, -30)), 0);
+  const months = []; for(let i = 5; i >= 0; i--){ const k = abAddM(t, -i); const end = i === 0 ? t : abMEnd(k); months.push({ label: abMonLab(k, true), v: ls.reduce((s, l) => s + ledgerBalanceAsOf(l.id, end), 0) }); }
+  const cash = rows.filter(r => bucketOf(r.l) === 'cash').reduce((s, r) => s + r.b, 0), bank = tot - cash;
+  const f = abFlows(abAdd(t, -89), t), burn = (f.cashOut - f.cashIn) / 3;
+  return abAns({ title: 'Cash & bank', value: abShort(tot), tone: tot >= 0 ? null : 'neg', sub: asOf ? `as on ${abFmtD(asOf)}` : 'right now',
+    text: `You have **${abFull(tot)}** across ${ls.length} cash and bank account${ls.length === 1 ? '' : 's'} — ${abShort(cash)} cash in hand and ${abShort(bank)} in the bank. That is ${tot >= ago ? 'up' : 'down'} ${abShort(Math.abs(tot - ago))} on 30 days ago.${burn > 0 ? ` Over the last 3 months more went out than came in (about ${abShort(burn)} a month), so at that pace this lasts roughly **${Math.max(0, Math.floor(tot / burn))} months**.` : ' Over the last 3 months more came in than went out.'}`,
+    facts: [{ k: 'Cash in hand', v: abShort(cash) }, { k: 'Bank', v: abShort(bank) }, { k: 'vs 30 days ago', v: `${tot >= ago ? '+' : '−'}${abShort(Math.abs(tot - ago)).replace('−', '')}`, tone: tot >= ago ? 'pos' : 'neg' }],
+    chart: abColChart(months, { hlLast: true, aria: 'Cash and bank at each month end' }),
+    table: abTable(['Account', 'Balance'], rows.map(r => ({ attr: abLedgerAttr(r.l.id), cells: [r.l.name, abFull(r.b)] })), { align: [0, 1] }),
+    sources: ['All Cash-in-Hand and Bank Accounts ledgers', 'Chart: combined balance at each month end'],
+    actions: [{ label: 'Open Bank Reconciliation', act: 'tab', arg: 'reconcile' }],
+    followups: ['Will I run out of cash?', 'Cash flow this year', 'Who owes me the most?'] });
+}
+function abHCashflow(S){
+  const P = S.period || abDefaultPeriod(), f = abFlows(P.from, P.to), net = f.cashIn - f.cashOut;
+  const series = abMonthsBetween(P.from, P.to).map(k => ({ label: abMonLab(k + '-01', true), v: f.months[k] ? f.months[k].cashIn - f.months[k].cashOut : 0 }));
+  return abAns({ period: P, title: 'Net cash flow', value: `${net < 0 ? '−' : ''}${abShort(Math.abs(net))}`, tone: net >= 0 ? 'pos' : 'neg', sub: abRangeLab(P.from, P.to),
+    text: `For **${P.label}**, **${abFull(f.cashIn)}** came into cash and bank and **${abFull(f.cashOut)}** went out, a net ${net >= 0 ? 'inflow' : 'outflow'} of **${abFull(Math.abs(net))}**. Transfers between your own cash and bank accounts are left out.`,
+    facts: [{ k: 'Money in', v: abShort(f.cashIn), tone: 'pos' }, { k: 'Money out', v: abShort(f.cashOut), tone: 'neg' }],
+    chart: series.length > 1 ? abColChart(series, { aria: 'Net cash flow by month' }) : '',
+    sources: ['Movements on Cash-in-Hand and Bank ledgers, excluding Contra vouchers', `Period ${abRangeLab(P.from, P.to)}`],
+    actions: [{ label: 'Open Cash Flow Statement', act: 'report', arg: 'cashFlow' }],
+    followups: ['Will I run out of cash?', 'What is my cash position?', 'Top expenses this year'] });
+}
+// --- rankings ---
+function abHTop(S){
+  const P = S.period || abDefaultPeriod(), f = abFlows(P.from, P.to), h = S.has, m = S.metric;
+  let by = S.by || (h.has('customer') ? 'customer' : h.has('supplier') ? 'supplier' : h.has('stock') ? 'item' : m === 'purchase' ? 'supplier' : m === 'expense' || m === 'profit' ? 'ledger' : m === 'revenue' && S.has.has('top') && /\b(income|revenue) (heads?|ledgers?|sources?)\b/.test(S.q) ? 'ledger' : 'customer');
+  if(by === 'ledger' && m === 'revenue') by = 'income';
+  const n = S.n || 5, least = h.has('least');
+  let list, label, total, attr;
+  if(by === 'customer'){ list = Object.values(f.cust).filter(x => x.amt > 0.004); label = 'customers by sales'; total = f.revenue; attr = x => abPartyAttr(x.id); }
+  else if(by === 'supplier'){ list = Object.values(f.supp).filter(x => x.amt > 0.004); label = 'suppliers by purchases'; total = f.purchases; attr = x => abPartyAttr(x.id); }
+  else if(by === 'item'){ list = Object.values(f.items).filter(x => x.amt > 0.004); label = 'items by sales value'; total = list.reduce((s, x) => s + x.amt, 0); attr = () => ''; }
+  else if(by === 'income'){ list = Object.values(f.led).filter(x => ['sales','dinc'].includes(x.bucket) && x.amt > 0.004); label = 'income heads'; total = f.revenue + f.otherIncome; attr = x => abLedgerAttr(x.id); }
+  else { list = Object.values(f.led).filter(x => ['purch','dexp','iexp'].includes(x.bucket) && x.amt > 0.004); label = 'expense heads'; total = f.expenses; attr = x => abLedgerAttr(x.id); by = 'ledger'; }
+  list.sort((a, b) => least ? a.amt - b.amt : b.amt - a.amt);
+  const shown = list.slice(0, n);
+  if(!shown.length) return abAns({ title: `Top ${label}`, value: '—', sub: abRangeLab(P.from, P.to), text: `I found nothing to rank for **${P.label}**. Try a longer period, e.g. “${by === 'ledger' ? 'top expenses' : 'top customers'} this year”.`, followups: ['Top customers this year', 'Top expenses this year'] });
+  const top1 = shown[0], share1 = total ? top1.amt / total : 0, topShare = total ? shown.reduce((s, x) => s + x.amt, 0) / total : 0;
+  let text = `${least ? 'Smallest' : 'Top'} ${shown.length} ${label} for **${P.label}**: **${top1.name}** ${least ? 'is the smallest at' : 'leads with'} **${abFull(top1.amt)}**${total ? ` (${abPct(share1, false)} of the total)` : ''}. Together these ${shown.length} make up ${abPct(topShare, false)}.`;
+  if(!least && (by === 'customer' || by === 'supplier') && share1 > 0.4) text += ` ⚠ That is a high dependence on one ${by} — losing them would hurt.`;
+  return abAns({ period: P, by, title: `${least ? 'Smallest' : 'Top'} ${label}`, value: top1.name, sub: `${abShort(top1.amt)} · ${abRangeLab(P.from, P.to)}`, text,
+    facts: [{ k: 'Total', v: abShort(total) }, { k: `Top ${shown.length} share`, v: abPct(topShare, false) }, { k: 'Counted', v: `${list.length} ${by === 'ledger' || by === 'income' ? 'heads' : by + 's'}` }],
+    chart: abHBars(shown.map(x => ({ label: x.name, v: x.amt, attr: attr(x), sub: x.n ? `${x.n} ${by === 'customer' ? 'invoice' : by === 'supplier' ? 'bill' : 'entr'}${x.n === 1 ? (by === 'customer' || by === 'supplier' ? '' : 'y') : (by === 'customer' || by === 'supplier' ? 's' : 'ies')}` : x.qty ? `${x.qty} sold` : '' })), { total }),
+    sources: [by === 'customer' ? 'Sales and credit-note vouchers, by customer ledger' : by === 'supplier' ? 'Purchase and debit-note vouchers, by supplier ledger' : by === 'item' ? 'Item lines on Sales vouchers (quantity × rate)' : 'Net postings by ledger', `Period ${abRangeLab(P.from, P.to)}`],
+    actions: by === 'customer' || by === 'supplier' ? [{ label: 'Open Parties', act: 'tab', arg: 'parties' }] : by === 'item' ? [{ label: 'Open Inventory', act: 'tab', arg: 'inventory' }] : [{ label: 'Open Profit & Loss', act: 'report', arg: 'incomeStatement' }],
+    followups: [by === 'customer' || by === 'supplier' ? `Tell me about ${top1.name}` : `How much ${top1.name.toLowerCase()} by month?`, 'Compare with last year', by === 'customer' ? 'Who owes me the most?' : 'Why did profit change?'],
+    csv: { header: ['Name', 'Amount (INR)', 'Share'], rows: list.map(x => [x.name, x.amt.toFixed(2), total ? (x.amt / total * 100).toFixed(1) + '%' : '']), filename: `top-${by}.csv` } });
+}
+// --- receivables ---
+const AB_AGE_COLORS = { '0-30': 'var(--accent1,#2CA01C)', '31-60': '#F2A900', '61-90': '#E07B39', '90+': 'var(--debit,#D64545)' };
+function abHReceivables(S){
+  const cs = (state.ledgers || []).filter(l => l.partyType === 'customer').map(l => ({ l, b: ledgerBalance(l.id) })).filter(x => x.b > 0.004).sort((a, b) => b.b - a.b);
+  const tot = cs.reduce((s, x) => s + x.b, 0), t = abToday();
+  const age = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }, inv = [];
+  cs.forEach(x => { const sm = partyAgeingSummary(x.l.id); Object.keys(age).forEach(k => age[k] += sm.buckets[k] || 0); sm.rows.forEach(r => { const od = x.l.creditDays ? r.ageDays - x.l.creditDays : null; inv.push({ l: x.l, r, od }); }); });
+  const over = inv.filter(i => i.od != null && i.od > 0), overAmt = over.reduce((s, i) => s + i.r.remaining, 0);
+  const n = S.n || 6;
+  let focus = null;
+  if(S.days != null) focus = inv.filter(i => (i.od != null ? i.od : i.r.ageDays) > S.days).sort((a, b) => (b.od ?? b.r.ageDays) - (a.od ?? a.r.ageDays));
+  else if(S.has.has('overdue')) focus = over.sort((a, b) => b.od - a.od);
+  const table = focus ? abTable(['Customer', 'Invoice date', S.days != null ? 'Days' : 'Days overdue', 'Due'], focus.slice(0, 12).map(i => ({ attr: abPartyAttr(i.l.id), cells: [i.l.name, abFmtD(i.r.date), String(i.od != null ? i.od : i.r.ageDays), abFull(i.r.remaining)] })), { more: Math.max(0, focus.length - 12), align: [0, 0, 1, 1] }) : null;
+  const value = focus ? abShort(focus.reduce((s, i) => s + i.r.remaining, 0)) : abShort(tot);
+  let text = focus
+    ? `${focus.length ? `**${focus.length} invoice${focus.length === 1 ? '' : 's'}** worth **${abFull(focus.reduce((s, i) => s + i.r.remaining, 0))}** ${S.days != null ? `are more than ${S.days} days ${over.length ? 'past due' : 'old'}` : 'are overdue'}.` : `No invoices ${S.days != null ? `over ${S.days} days` : 'are overdue'} — nicely done.`}${focus.length ? ` The oldest is ${focus[0].l.name} (${focus[0].od ?? focus[0].r.ageDays} days).` : ''}`
+    : `Customers owe you **${abFull(tot)}** across ${cs.length} account${cs.length === 1 ? '' : 's'}.${cs[0] ? ` **${cs[0].l.name}** owes the most: ${abFull(cs[0].b)} (${abPct(cs[0].b / tot, false)}).` : ''} ${overAmt ? `**${abShort(overAmt)}** of it is past the agreed credit days, across ${over.length} invoice${over.length === 1 ? '' : 's'}.` : 'Nothing is past the agreed credit days.'}`;
+  if(age['90+'] > 0 && !focus) text += ` ${abShort(age['90+'])} is more than 90 days old — consider a reminder or a provision.`;
+  return abAns({ title: focus ? (S.days != null ? `Invoices over ${S.days} days` : 'Overdue invoices') : 'Customers owe you', value, sub: 'outstanding today',
+    text,
+    facts: [{ k: 'Total receivable', v: abShort(tot) }, { k: 'Overdue', v: abShort(overAmt), tone: overAmt ? 'neg' : 'pos' }, { k: '90+ days', v: abShort(age['90+']), tone: age['90+'] ? 'neg' : null }],
+    chart: abStack(Object.keys(age).map(k => ({ label: `${k} days`, v: age[k], color: AB_AGE_COLORS[k] }))) + (focus ? '' : abHBars(cs.slice(0, n).map(x => ({ label: x.l.name, v: x.b, attr: abPartyAttr(x.l.id), sub: x.l.creditDays ? `${x.l.creditDays}-day terms` : '' })), { total: tot })),
+    table,
+    sources: ['Customer ledgers with a debit balance', 'Each payment is matched to the oldest unpaid invoice first (FIFO)', 'Overdue = older than the customer’s credit days'],
+    actions: [{ label: 'Draft reminders (Collections agent)', act: 'report', arg: 'collectionsPayRun' }, { label: 'Open Parties', act: 'tab', arg: 'parties' }],
+    followups: [cs[0] ? `Tell me about ${cs[0].l.name}` : null, 'Which invoices are over 60 days?', 'What is my DSO?', 'Will I run out of cash?'].filter(Boolean),
+    csv: { header: ['Customer', 'Outstanding (INR)'], rows: cs.map(x => [x.l.name, x.b.toFixed(2)]), filename: 'receivables.csv' } });
+}
+// --- payables ---
+function abHPayables(S){
+  const t = abToday(), ss = (state.ledgers || []).filter(l => l.partyType === 'supplier').map(l => ({ l, b: -ledgerBalance(l.id) })).filter(x => x.b > 0.004).sort((a, b) => b.b - a.b);
+  const tot = ss.reduce((s, x) => s + x.b, 0), bills = [];
+  ss.forEach(x => partyOutstandingInvoices(x.l.id).forEach(inv => { const due = addDays(inv.date, x.l.creditDays != null ? x.l.creditDays : 30); bills.push({ l: x.l, inv, due, age: Math.round((abD(t) - abD(inv.date)) / 864e5) }); }));
+  const weekEnd = abAdd(t, 7), dueSoon = bills.filter(b => b.due >= t && b.due <= weekEnd), late = bills.filter(b => b.due < t);
+  const msme = bills.filter(b => b.l.isMSME && b.age > 45);
+  const wantDue = /\bdue\b|\bthis week\b|\bsoon\b|\bnext (7|seven) days\b/.test(S.q);
+  const focus = wantDue ? dueSoon.concat(late).sort((a, b) => a.due.localeCompare(b.due)) : null;
+  let text = `You owe suppliers **${abFull(tot)}** across ${ss.length} account${ss.length === 1 ? '' : 's'}.${ss[0] ? ` The largest is **${ss[0].l.name}** (${abFull(ss[0].b)}).` : ''} ${dueSoon.length ? `${abShort(dueSoon.reduce((s, b) => s + b.inv.remaining, 0))} falls due in the next 7 days.` : 'Nothing falls due in the next 7 days.'}${late.length ? ` ${abShort(late.reduce((s, b) => s + b.inv.remaining, 0))} is already past its due date.` : ''}`;
+  if(msme.length) text += ` ⚠ ${msme.length} bill${msme.length === 1 ? '' : 's'} from MSME suppliers ${msme.length === 1 ? 'is' : 'are'} older than 45 days — pay these first (MSMED Act).`;
+  return abAns({ title: wantDue ? 'Bills due soon' : 'You owe suppliers', value: wantDue ? abShort(focus.reduce((s, b) => s + b.inv.remaining, 0)) : abShort(tot), sub: wantDue ? 'due within 7 days or overdue' : 'outstanding today', text,
+    facts: [{ k: 'Due in 7 days', v: abShort(dueSoon.reduce((s, b) => s + b.inv.remaining, 0)) }, { k: 'Past due', v: abShort(late.reduce((s, b) => s + b.inv.remaining, 0)), tone: late.length ? 'neg' : 'pos' }, { k: 'MSME > 45 days', v: String(msme.length), tone: msme.length ? 'neg' : null }],
+    chart: wantDue ? '' : abHBars(ss.slice(0, S.n || 6).map(x => ({ label: x.l.name, v: x.b, attr: abPartyAttr(x.l.id), sub: x.l.isMSME ? 'MSME' : '' })), { total: tot }),
+    table: wantDue ? abTable(['Supplier', 'Bill date', 'Due', 'Amount'], focus.slice(0, 12).map(b => ({ attr: abPartyAttr(b.l.id), cells: [b.l.name, abFmtD(b.inv.date), b.due < t ? `${abFmtD(b.due)} (late)` : abFmtD(b.due), abFull(b.inv.remaining)] })), { align: [0, 0, 0, 1] }) : null,
+    sources: ['Supplier ledgers with a credit balance', 'Due date = bill date + the supplier’s credit days (30 if not set)'],
+    actions: [{ label: 'Plan this week’s payments', act: 'report', arg: 'collectionsPayRun' }],
+    followups: ['What bills are due this week?', ss[0] ? `Tell me about ${ss[0].l.name}` : null, 'What is my cash position?'].filter(Boolean),
+    csv: { header: ['Supplier', 'Payable (INR)'], rows: ss.map(x => [x.l.name, x.b.toFixed(2)]), filename: 'payables.csv' } });
+}
+// --- one party, everything about it ---
+function abHParty(S){
+  const e = S.entity, l = ledgerOf(e.id), isC = l.partyType === 'customer', t = abToday();
+  const bal = ledgerBalance(e.id), owes = isC ? bal : -bal;
+  const P = abDefaultPeriod(), C = abCmpFor(P), f = abFlows(P.from, P.to), fc = abFlows(C.from, C.to);
+  const cur = ((isC ? f.cust : f.supp)[e.id] || { amt: 0 }).amt, prev = ((isC ? fc.cust : fc.supp)[e.id] || { amt: 0 }).amt;
+  const ag = partyAgeing(e.id), od = l.creditDays ? ag.filter(r => r.ageDays > l.creditDays) : [];
+  const risk = (typeof partyRiskList === 'function' ? partyRiskList() : []).find(r => r.ledger.id === e.id);
+  const last = (state.vouchers || []).filter(v => v.date <= t && v.entries && v.entries.some(x => x.ledgerId === e.id)).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const months = []; for(let i = 11; i >= 0; i--){ const k = abAddM(t, -i); months.push({ label: abMonLab(k, true), v: abPartyMonth(e.id, k.slice(0, 7), isC) }); }
+  let text = isC
+    ? (owes > 0 ? `**${e.name}** owes you **${abFull(owes)}** across ${ag.length} unpaid invoice${ag.length === 1 ? '' : 's'}.` : owes < 0 ? `**${e.name}** has paid you **${abFull(-owes)}** in advance.` : `**${e.name}** owes you nothing right now.`)
+    : (owes > 0 ? `You owe **${e.name}** **${abFull(owes)}** across ${ag.length} unpaid bill${ag.length === 1 ? '' : 's'}.` : owes < 0 ? `You have paid **${e.name}** **${abFull(-owes)}** in advance.` : `You owe **${e.name}** nothing right now.`);
+  if(od.length) text += ` ${abShort(od.reduce((s, r) => s + r.remaining, 0))} is past the ${l.creditDays}-day credit period; the oldest is ${od[0].ageDays} days old.`;
+  text += ` ${isC ? 'Sales' : 'Purchases'} so far this year: ${abShort(cur)}${prev ? ` (${cur >= prev ? 'up' : 'down'} ${abPct(Math.abs(abChg(cur, prev)), false)} on last year)` : ''}.`;
+  if(risk) text += ` Risk: **${partyRiskLevel(risk.score).label}** (score ${Math.round(risk.score)}/100${isC && risk.avgDaysPastTerms ? `; pays about ${Math.round(risk.avgDaysPastTerms)} days past terms` : ''}).`;
+  if(last) text += ` Last transaction: ${last.type} on ${abFmtD(last.date)}.`;
+  return abAns({ title: e.name, value: abShort(Math.abs(owes)), tone: owes > 0 && od.length ? 'neg' : null, sub: isC ? (owes >= 0 ? 'owes you' : 'advance received') : (owes >= 0 ? 'you owe' : 'advance paid'), text,
+    facts: [{ k: isC ? 'Sales this FY' : 'Purchases this FY', v: abShort(cur) }, prev ? { k: 'vs last year', v: abPct(abChg(cur, prev)), tone: (cur >= prev) === isC ? 'pos' : 'neg' } : null, { k: 'Credit days', v: l.creditDays ? String(l.creditDays) : 'not set' }, risk ? { k: 'Risk', v: partyRiskLevel(risk.score).label, tone: risk.score >= 50 ? 'neg' : risk.score >= 25 ? 'warn' : 'pos' } : null].filter(Boolean),
+    chart: abColChart(months, { hlLast: true, aria: `${isC ? 'Sales to' : 'Purchases from'} ${e.name}, last 12 months` }),
+    table: ag.length ? abTable([isC ? 'Invoice' : 'Bill', 'Date', 'Age', 'Unpaid'], ag.slice(0, 10).map(r => ({ attr: abVoucherAttr(r.voucherId), cells: [r.type, abFmtD(r.date), `${r.ageDays} d${l.creditDays && r.ageDays > l.creditDays ? ' · overdue' : ''}`, abFull(r.remaining)] })), { more: Math.max(0, ag.length - 10), align: [0, 0, 1, 1] }) : null,
+    sources: ['Party ledger balance and FIFO invoice matching', 'Chart: monthly ' + (isC ? 'sales (net of credit notes)' : 'purchases') + ', last 12 months', risk ? 'Risk score from the Party Risk model (timing, concentration, credit limit, GSTIN, duplicates)' : null].filter(Boolean),
+    actions: [{ label: `Open ${e.name}`, act: 'party', arg: e.id }].concat(isC && od.length ? [{ label: 'Draft a reminder', act: 'report', arg: 'collectionsPayRun' }] : []),
+    followups: [`Show transactions with ${e.name}`, `${isC ? 'Sales to' : 'Purchases from'} ${e.name} by month`, isC ? 'Who owes me the most?' : 'What bills are due this week?'] });
+}
+// --- transaction search ---
+function abHTxns(S){
+  const P = S.period, t = abToday();
+  let list = (state.vouchers || []).filter(v => v.date && v.date <= t);
+  if(P) list = list.filter(v => v.date >= P.from && v.date <= P.to);
+  const expAmt = v => (v.entries || []).reduce((s, e) => { const l = ledgerOf(e.ledgerId); return s + (l && ['purch','dexp','iexp'].includes(bucketOf(l)) ? (e.dr || 0) - (e.cr || 0) : 0); }, 0);
+  const amtOf = S.metric === 'expense' ? expAmt : abVoucherAmount;
+  if(S.metric === 'expense') list = list.filter(v => expAmt(v) > 0.004);
+  else if(S.metric === 'revenue') list = list.filter(v => v.type === 'Sales');
+  else if(S.metric === 'purchase') list = list.filter(v => v.type === 'Purchase');
+  if(S.txnType && !(S.entity && S.entity.kind === 'ledger' && !S.txnExplicit)) list = list.filter(v => v.type === S.txnType);
+  if(S.entity) list = list.filter(v => (v.entries || []).some(e => e.ledgerId === S.entity.id));
+  if(S.min != null) list = list.filter(v => amtOf(v) >= S.min);
+  if(S.max != null) list = list.filter(v => amtOf(v) <= S.max);
+  const sortLargest = S.sort === 'largest' && !/\b(latest|recent|newest|last \d+)\b/.test(S.q);
+  list.sort((a, b) => sortLargest ? amtOf(b) - amtOf(a) : b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const n = S.n || 10, shown = list.slice(0, n), tot = list.reduce((s, v) => s + amtOf(v), 0);
+  const what = `${S.metric === 'expense' ? 'expense entries' : S.metric === 'revenue' ? 'sales invoices' : S.metric === 'purchase' ? 'purchase bills' : S.txnType && !(S.entity && S.entity.kind === 'ledger' && !S.txnExplicit) ? S.txnType.toLowerCase() + (S.txnType.endsWith('s') ? '' : 's') : 'vouchers'}${S.entity ? ` with ${S.entity.name}` : ''}${S.min != null ? ` over ${abShort(S.min)}` : ''}${S.max != null ? ` under ${abShort(S.max)}` : ''}${P ? ` · ${P.label}` : ''}`;
+  return abAns({ period: P, title: `${sortLargest ? 'Largest' : 'Latest'} ${what}`, value: `${list.length}`, sub: `found · ${abShort(tot)} in total`,
+    text: list.length ? `I found **${list.length}** ${what}, worth **${abFull(tot)}** in total. Showing the ${sortLargest ? 'largest' : 'latest'} ${shown.length}. Tap a row to open it.` : `I found no ${what}. Try a longer period or remove a filter.`,
+    table: shown.length ? abTable(['Date', 'Type', 'Party / ledger', 'Amount'], shown.map(v => { const p = abVoucherParty(v); return { attr: abVoucherAttr(v.id), cells: [abFmtD(v.date), v.type, (p ? p.name : '—') + (v.narration ? ` · ${v.narration}` : ''), abFull(amtOf(v))] }; }), { more: Math.max(0, list.length - n), align: [0, 0, 0, 1] }) : null,
+    sources: ['Day Book vouchers dated up to today', 'Voucher amount = total of its debit side'],
+    actions: [{ label: 'Open Day Book', act: 'tab', arg: 'daybook' }],
+    followups: [sortLargest ? 'Show the latest instead' : 'Show the largest instead', S.txnType === 'Payment' ? 'Show receipts this month' : 'Show payments this month', 'Anything unusual this month?'],
+    csv: list.length ? { header: ['Date', 'Type', 'Party', 'Narration', 'Amount (INR)'], rows: list.map(v => { const p = abVoucherParty(v); return [v.date, v.type, p ? p.name : '', v.narration || '', amtOf(v).toFixed(2)]; }), filename: 'transactions.csv' } : null });
+}
+function abHCount(S){
+  const P = S.period, t = abToday();
+  let list = (state.vouchers || []).filter(v => v.date && v.date <= t && (!P || (v.date >= P.from && v.date <= P.to)));
+  if(S.entity) list = list.filter(v => (v.entries || []).some(e => e.ledgerId === S.entity.id));
+  const byType = {}; list.forEach(v => byType[v.type] = (byType[v.type] || 0) + 1);
+  const sel = S.txnType ? (byType[S.txnType] || 0) : list.length;
+  if(S.has.has('customer') && !S.txnType){ const n = (state.ledgers || []).filter(l => l.partyType === 'customer').length; return abAns({ title: 'Customers', value: String(n), sub: 'customer ledgers', text: `You have **${n} customers** set up.`, followups: ['Top customers this year', 'Who owes me the most?'] }); }
+  if(S.has.has('supplier') && !S.txnType){ const n = (state.ledgers || []).filter(l => l.partyType === 'supplier').length; return abAns({ title: 'Suppliers', value: String(n), sub: 'supplier ledgers', text: `You have **${n} suppliers** set up.`, followups: ['Top suppliers this year', 'What do I owe suppliers?'] }); }
+  if(S.has.has('stock') && !S.txnType){ const n = (state.items || []).length; return abAns({ title: 'Items', value: String(n), sub: 'stock items', text: `You have **${n} stock items**.`, followups: ['What is my stock worth?', 'Which items are running low?'] }); }
+  return abAns({ period: P, title: `${S.txnType ? S.txnType + ' vouchers' : 'Vouchers'}${S.entity ? ' · ' + S.entity.name : ''}`, value: String(sel), sub: P ? abRangeLab(P.from, P.to) : 'all time, up to today',
+    text: `There ${sel === 1 ? 'is' : 'are'} **${sel}** ${S.txnType ? S.txnType.toLowerCase() + ' ' : ''}voucher${sel === 1 ? '' : 's'}${S.entity ? ` involving ${S.entity.name}` : ''}${P ? ` in ${P.label}` : ' in total'}.`,
+    chart: S.txnType ? '' : abHBars(Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: k, v })), { fmt: v => String(v) }),
+    sources: ['Day Book, vouchers dated up to today'], followups: ['Show the latest vouchers', 'Largest payments this year'] });
+}
+// --- stock ---
+function abHStock(S){
+  const rows = stockSummaryAll().map(r => ({ it: r.item, q: r.summary.closing, v: r.summary.value })).sort((a, b) => b.v - a.v);
+  const tot = rows.reduce((s, r) => s + r.v, 0), low = typeof reorderSuggestions === 'function' ? reorderSuggestions() : [], dead = typeof deadStockItems === 'function' ? deadStockItems(90) : [];
+  if(!rows.length) return abAns({ title: 'Stock', value: '₹0', text: 'There are no stock items yet. Add items in Inventory to track quantities and value.', actions: [{ label: 'Open Inventory', act: 'tab', arg: 'inventory' }] });
+  return abAns({ title: 'Stock on hand', value: abShort(tot), sub: `${rows.length} item${rows.length === 1 ? '' : 's'}`,
+    text: `Your stock is worth **${abFull(tot)}** across ${rows.length} items, valued at cost (FIFO / weighted average as set per item).${rows[0] ? ` **${rows[0].it.name}** holds the most value (${abShort(rows[0].v)}).` : ''} ${low.length ? `${low.length} item${low.length === 1 ? ' is' : 's are'} at or below the reorder level.` : 'No item is below its reorder level.'}${dead.length ? ` ${dead.length} item${dead.length === 1 ? ' has' : 's have'} not sold in 90 days (${abShort(dead.reduce((s, r) => s + r.summary.value, 0))} tied up).` : ''}`,
+    facts: [{ k: 'Low stock', v: String(low.length), tone: low.length ? 'neg' : 'pos' }, { k: 'Not moving (90 d)', v: String(dead.length), tone: dead.length ? 'warn' : null }],
+    chart: abHBars(rows.slice(0, S.n || 6).map(r => ({ label: r.it.name, v: r.v, sub: `${r.q} ${r.it.unit || ''}`.trim() })), { total: tot }),
+    sources: ['Item opening quantity plus every stock movement on vouchers and adjustments', 'Valued with each item’s costing method'],
+    actions: [{ label: 'Open Inventory', act: 'tab', arg: 'inventory' }],
+    followups: ['Which items are running low?', 'Which items are not moving?', 'Best-selling items this year'] });
+}
+function abHItem(S){
+  const it = (state.items || []).find(x => x.id === S.entity.id); if(!it) return abHStock(S);
+  const sm = stockSummaryForItem(it), P = abDefaultPeriod(), f = abFlows(P.from, P.to), sold = f.items[it.id] || { qty: 0, amt: 0 };
+  const mv = typeof stockMovementForItem === 'function' ? stockMovementForItem(it.id) : [], last = mv[mv.length - 1];
+  const low = it.reorderLevel != null && sm.closing <= it.reorderLevel;
+  return abAns({ title: it.name, value: `${sm.closing} ${it.unit || ''}`.trim(), tone: low ? 'neg' : null, sub: `on hand · worth ${abShort(sm.value)}`,
+    text: `You have **${sm.closing} ${it.unit || 'units'}** of **${it.name}**, worth **${abFull(sm.value)}** at cost.${it.reorderLevel != null ? ` Reorder level is ${it.reorderLevel}${low ? ' — ⚠ time to reorder' : ''}.` : ''} Sold so far this year: ${sold.qty} (${abShort(sold.amt)}).${last ? ` Last movement: ${last.type} on ${abFmtD(last.date)}.` : ''}`,
+    facts: [{ k: 'Value', v: abShort(sm.value) }, { k: 'Sold this FY', v: String(sold.qty) }, { k: 'Reorder level', v: it.reorderLevel != null ? String(it.reorderLevel) : 'not set' }],
+    sources: ['Opening quantity plus stock movements on vouchers and adjustments'], actions: [{ label: 'Open Inventory', act: 'tab', arg: 'inventory' }], followups: ['Which items are running low?', 'Best-selling items this year'] });
+}
+function abHLowStock(){
+  const low = typeof reorderSuggestions === 'function' ? reorderSuggestions() : [];
+  return abAns({ title: 'Items running low', value: String(low.length), tone: low.length ? 'neg' : 'pos', sub: 'at or below reorder level',
+    text: low.length ? `**${low.length} item${low.length === 1 ? '' : 's'}** ${low.length === 1 ? 'is' : 'are'} at or below the reorder level. I have suggested an order quantity for each (enough to get back to twice the reorder level).` : 'No item is at or below its reorder level right now.',
+    table: low.length ? abTable(['Item', 'On hand', 'Reorder level', 'Suggested order'], low.slice(0, 15).map(r => ({ cells: [r.item.name, String(r.summary.closing), String(r.item.reorderLevel), String(r.suggestedQty)] })), { align: [0, 1, 1, 1] }) : null,
+    sources: ['Items with a reorder level set'], actions: [{ label: 'Open Inventory', act: 'tab', arg: 'inventory' }], followups: ['What is my stock worth?', 'Which items are not moving?'] });
+}
+function abHDeadStock(S){
+  const days = S.days || 90, dead = typeof deadStockItems === 'function' ? deadStockItems(days) : [], tot = dead.reduce((s, r) => s + r.summary.value, 0);
+  return abAns({ title: `Not sold in ${days} days`, value: String(dead.length), sub: `${abShort(tot)} tied up`,
+    text: dead.length ? `**${dead.length} item${dead.length === 1 ? '' : 's'}** with stock on hand ${dead.length === 1 ? 'has' : 'have'} not sold in the last ${days} days, tying up **${abFull(tot)}**. Consider a discount, a bundle or returning them to the supplier.` : `Every item with stock on hand has sold in the last ${days} days.`,
+    chart: abHBars(dead.slice(0, 8).map(r => ({ label: r.item.name, v: r.summary.value, sub: `${r.summary.closing} on hand` }))),
+    sources: [`Items with stock on hand and no outward movement since ${abFmtD(abAdd(abToday(), -days))}`], actions: [{ label: 'Open Inventory', act: 'tab', arg: 'inventory' }], followups: ['Which items are running low?', 'Best-selling items this year'] });
+}
+// --- tax ---
+function abHGst(){
+  const out = gstOutputTotal(), inp = gstInputTotal(), net = out - inp, t = abToday();
+  const due = Number(t.slice(8)) <= 20 ? `${t.slice(0, 8)}20` : `${abAddM(t, 1).slice(0, 8)}20`;
+  return abAns({ title: 'GST position', value: abShort(Math.abs(net)), tone: net > 0 ? 'neg' : 'pos', sub: net >= 0 ? 'net payable' : 'net credit (refundable / carried forward)',
+    text: `Output GST on your sales is **${abFull(out)}** and input GST credit on purchases is **${abFull(inp)}**, so the net is **${abFull(Math.abs(net))} ${net >= 0 ? 'payable' : 'in your favour'}**. The next GSTR-3B is due on **${abFmtD(due)}** (monthly filers).`,
+    facts: [{ k: 'Output GST', v: abShort(out) }, { k: 'Input credit', v: abShort(inp) }, { k: 'Next 3B due', v: abFmtD(due) }],
+    chart: abHBars([{ label: 'Output GST', v: out, tone: 'neg' }, { label: 'Input credit', v: inp }]),
+    sources: ['Balances of the Output and Input GST ledgers (Duties & Taxes)'], actions: [{ label: 'Open GST', act: 'tab', arg: 'gst' }],
+    followups: ['How do I file GSTR-1?', 'What is input tax credit?', 'Anything unusual this month?'] });
+}
+function abHTds(){
+  return abAns({ title: 'TDS / TCS', value: '', text: `${answerQuestionLocally('tds')}`.startsWith('I couldn') ? 'The TDS & Advance-Tax agent checks payments that probably needed TDS, tax withheld but not deposited by the 7th, and your advance-tax instalments.' : answerQuestionLocally('tds'),
+    actions: [{ label: 'Open TDS & Advance-Tax agent', act: 'report', arg: 'tdsAdvanceTax' }], followups: ['What is TDS?', 'Anything unusual this month?'] });
+}
+// --- ratios & balance sheet ---
+const AB_RATIO = {
+  currentRatio: { l: 'Current ratio', f: x => x == null ? '—' : x.toFixed(2) + '×', good: x => x >= 1.5 ? 'pos' : x >= 1 ? 'warn' : 'neg', why: 'current assets ÷ current liabilities. Above 1.5× is comfortable; below 1× means short-term dues exceed short-term assets.' },
+  quickRatio: { l: 'Quick ratio', f: x => x == null ? '—' : x.toFixed(2) + '×', good: x => x >= 1 ? 'pos' : x >= 0.7 ? 'warn' : 'neg', why: '(cash + bank + receivables) ÷ current liabilities — like the current ratio but without stock.' },
+  debtToEquity: { l: 'Debt-to-equity', f: x => x == null ? '—' : x.toFixed(2) + '×', good: x => x <= 1 ? 'pos' : x <= 2 ? 'warn' : 'neg', why: 'total liabilities ÷ owners’ equity. Below 1× means the business is funded more by owners than lenders.' },
+  workingCapital: { l: 'Working capital', f: x => x == null ? '—' : abShort(x), good: x => x > 0 ? 'pos' : 'neg', why: 'current assets − current liabilities: the cushion that funds day-to-day operations.' },
+  dso: { l: 'Days sales outstanding', f: x => x == null ? '—' : Math.round(x) + ' days', good: x => x <= 45 ? 'pos' : x <= 75 ? 'warn' : 'neg', why: 'how many days, on average, customers take to pay (receivables ÷ revenue × 365).' },
+  dpo: { l: 'Days payable outstanding', f: x => x == null ? '—' : Math.round(x) + ' days', good: () => null, why: 'how many days, on average, you take to pay suppliers.' },
+  grossMargin: { l: 'Gross margin', f: x => x == null ? '—' : x.toFixed(1) + '%', good: x => x >= 30 ? 'pos' : x >= 15 ? 'warn' : 'neg', why: 'the share of sales left after the direct cost of goods.' },
+  netMargin: { l: 'Net margin', f: x => x == null ? '—' : x.toFixed(1) + '%', good: x => x >= 10 ? 'pos' : x >= 0 ? 'warn' : 'neg', why: 'the share of sales left as profit after all expenses.' },
+  roe: { l: 'Return on equity', f: x => x == null ? '—' : x.toFixed(1) + '%', good: x => x >= 15 ? 'pos' : x >= 0 ? 'warn' : 'neg', why: 'profit ÷ owners’ equity.' },
+  interestCoverage: { l: 'Interest coverage', f: x => x == null ? '—' : x.toFixed(1) + '×', good: x => x >= 3 ? 'pos' : x >= 1.5 ? 'warn' : 'neg', why: 'operating profit ÷ finance costs; below 1.5× is a warning sign.' },
+};
+function abHRatio(S){
+  const is = incomeStatementData(), bs = balanceSheetIFRSData(is.profitForPeriod), r = ratioAnalysisData(is, bs);
+  const keys = ['currentRatio','quickRatio','debtToEquity','workingCapital','dso','grossMargin','netMargin','roe'];
+  if(S.ratio && S.ratio !== 'all' && AB_RATIO[S.ratio]){
+    const d = AB_RATIO[S.ratio], x = r[S.ratio];
+    return abAns({ title: d.l, value: d.f(x), tone: x == null ? null : d.good(x), sub: 'based on books to date',
+      text: `Your **${d.l.toLowerCase()}** is **${d.f(x)}** — ${d.why}${x == null ? ' It can’t be worked out yet because a figure it needs is zero.' : ''}`,
+      chart: abHBars(keys.filter(k => k !== S.ratio).slice(0, 4).map(k => ({ label: AB_RATIO[k].l, v: r[k] == null ? 0 : Math.abs(r[k]), tone: r[k] == null ? '' : AB_RATIO[k].good(r[k]) || '' })), { fmt: v => '' }).replace(/<div class="ab-hb-v"><\/div>/g, ''),
+      facts: keys.filter(k => k !== S.ratio).slice(0, 4).map(k => ({ k: AB_RATIO[k].l, v: AB_RATIO[k].f(r[k]), tone: r[k] == null ? null : AB_RATIO[k].good(r[k]) })),
+      sources: ['Same calculation as Reports → Ratio Analysis'], actions: [{ label: 'Open Ratio Analysis', act: 'report', arg: 'ratios' }], followups: ['Show all my ratios', 'How is my business doing?', 'What is working capital?'] });
+  }
+  return abAns({ title: 'Key ratios', value: AB_RATIO.currentRatio.f(r.currentRatio), sub: 'current ratio · plus 7 more below',
+    text: 'Here are your key ratios with a traffic-light read of each. Green is healthy, amber is worth watching, red needs attention.',
+    facts: keys.map(k => ({ k: AB_RATIO[k].l, v: AB_RATIO[k].f(r[k]), tone: r[k] == null ? null : AB_RATIO[k].good(r[k]) })),
+    sources: ['Same calculation as Reports → Ratio Analysis'], actions: [{ label: 'Open Ratio Analysis', act: 'report', arg: 'ratios' }], followups: ['What does current ratio mean?', 'What is my DSO?', 'How is my business doing?'] });
+}
+function abHBs(S){
+  const pl = scheduleIIIProfitLossData(), bs = scheduleIIIBalanceSheetData(pl.profitForPeriod);
+  const liab = bs.longTermBorrowingsTotal + bs.currentLiabTotal, h = S.has;
+  const which = h.has('liabilities') ? 'liabilities' : h.has('equity') ? 'equity' : 'assets';
+  const val = which === 'liabilities' ? liab : which === 'equity' ? bs.shareholdersFundsTotal : bs.totalAssets;
+  return abAns({ title: which === 'liabilities' ? 'Total liabilities' : which === 'equity' ? 'Owners’ equity (net worth)' : 'Total assets', value: abShort(val), sub: 'Balance Sheet, today',
+    text: `Total assets are **${abFull(bs.totalAssets)}** (${abShort(bs.ppeTotal)} non-current, ${abShort(bs.currentAssetsTotal)} current). They are funded by **${abFull(liab)}** of liabilities (${abShort(bs.longTermBorrowingsTotal)} long-term, ${abShort(bs.currentLiabTotal)} current, including ${abShort(bs.tradePayablesTotal)} owed to suppliers) and **${abFull(bs.shareholdersFundsTotal)}** of owners’ equity.`,
+    chart: abStack([{ label: 'Equity', v: Math.max(0, bs.shareholdersFundsTotal), color: 'var(--accent1,#2CA01C)' }, { label: 'Long-term debt', v: bs.longTermBorrowingsTotal, color: '#3F72A0' }, { label: 'Current liabilities', v: bs.currentLiabTotal, color: '#F2A900' }]),
+    facts: [{ k: 'Assets', v: abShort(bs.totalAssets) }, { k: 'Liabilities', v: abShort(liab) }, { k: 'Equity', v: abShort(bs.shareholdersFundsTotal) }],
+    sources: ['Schedule III Balance Sheet, same as Reports'], actions: [{ label: 'Open Balance Sheet', act: 'report', arg: 'balanceSheet' }], followups: ['What is my debt-to-equity?', 'What is my current ratio?', 'How is my business doing?'] });
+}
+function abHTb(){
+  return abAns({ title: 'Trial balance', value: '', text: answerQuestionLocally('trial balance'), actions: [{ label: 'Open Trial Balance', act: 'report', arg: 'trialBalance' }], followups: ['Anything unusual this month?', 'Show my balance sheet'] });
+}
+// --- why did it change? ---
+function abHExplain(S){
+  const m = S.metric || 'profit'; let P = S.period || abDefaultPeriod(); if(!abCmpFor(P)) P = abDefaultPeriod(); const C = S.cmp || abCmpFor(P);
+  const f = abFlows(P.from, P.to), fc = abFlows(C.from, C.to), v = abVal(f, m), pv = abVal(fc, m), d = v - pv;
+  const drivers = [];
+  const custDelta = () => { const ids = new Set([...Object.keys(f.cust), ...Object.keys(fc.cust)]); ids.forEach(id => { const a = (f.cust[id] || { amt: 0 }).amt, b = (fc.cust[id] || { amt: 0 }).amt; if(Math.abs(a - b) > 0.5) drivers.push({ label: `Sales to ${(f.cust[id] || fc.cust[id]).name}`, impact: a - b, attr: abPartyAttr(id) }); }); const other = (f.revenue - fc.revenue) - drivers.reduce((s, x) => s + x.impact, 0); if(Math.abs(other) > 0.5) drivers.push({ label: 'Other sales (cash / no customer)', impact: other }); };
+  const ledDelta = (buckets, sign) => { const ids = new Set([...Object.keys(f.led), ...Object.keys(fc.led)]); ids.forEach(id => { const r = f.led[id] || fc.led[id]; if(!buckets.includes(r.bucket)) return; const a = (f.led[id] || { amt: 0 }).amt, b = (fc.led[id] || { amt: 0 }).amt; if(Math.abs(a - b) > 0.5) drivers.push({ label: `${r.name}`, impact: sign * (a - b), attr: abLedgerAttr(id), cost: sign < 0 }); }); };
+  if(m === 'revenue') custDelta();
+  else if(m === 'expense') ledDelta(['purch','dexp','iexp'], 1);
+  else if(m === 'purchase'){ const ids = new Set([...Object.keys(f.supp), ...Object.keys(fc.supp)]); ids.forEach(id => { const a = (f.supp[id] || { amt: 0 }).amt, b = (fc.supp[id] || { amt: 0 }).amt; if(Math.abs(a - b) > 0.5) drivers.push({ label: `Purchases from ${(f.supp[id] || fc.supp[id]).name}`, impact: a - b, attr: abPartyAttr(id) }); }); }
+  else { custDelta(); ledDelta(['dinc'], 1); ledDelta(['purch','dexp','iexp'], -1); }
+  drivers.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+  const top = drivers.slice(0, 6), L = AB_METRIC_LABEL[m] || 'Profit', ch = abChg(v, pv);
+  const describe = x => x.cost ? `${x.label} ${x.impact < 0 ? 'rose' : 'fell'} by ${abShort(Math.abs(x.impact))}` : `${x.label} ${x.impact > 0 ? 'rose' : 'fell'} by ${abShort(Math.abs(x.impact))}`;
+  let text = `${L} is **${abFull(v)}** for **${P.label}**, ${d >= 0 ? 'up' : 'down'} **${abFull(Math.abs(d))}**${ch != null ? ` (${abPct(ch)})` : ''} on ${C.label} (${abShort(pv)}).`;
+  if(top.length){
+    const helped = top.filter(x => x.impact > 0), hurt = top.filter(x => x.impact < 0);
+    text += ` ${m === 'expense' || m === 'purchase' ? 'The biggest changes' : 'What moved it most'}: ${top.slice(0, 3).map(describe).join('; ')}.`;
+    if(m === 'profit' && helped.length && hurt.length) text += ` In short, ${helped[0].label.toLowerCase()} helped most and ${hurt[0].label.toLowerCase()} hurt most.`;
+  } else text += ' Nothing changed enough to single out.';
+  const cover = drivers.length ? Math.min(1, top.reduce((s, x) => s + Math.abs(x.impact), 0) / Math.max(1e-9, drivers.reduce((s, x) => s + Math.abs(x.impact), 0))) : 0;
+  return abAns({ metric: m, period: P, title: `Why ${L.toLowerCase()} ${d >= 0 ? 'went up' : 'went down'}`, value: `${d >= 0 ? '+' : '−'}${abShort(Math.abs(d)).replace('−', '')}`, tone: (d >= 0) === !(m === 'expense' || m === 'purchase') ? 'pos' : 'neg', sub: `${P.label} vs ${C.label}`, text,
+    facts: [{ k: P.label, v: abShort(v) }, { k: C.label, v: abShort(pv) }, top.length ? { k: 'Explained by top drivers', v: abPct(cover, false) } : null].filter(Boolean),
+    chart: abHBars(top.map(x => ({ label: x.cost ? `${x.label} (cost)` : x.label, v: x.impact, attr: x.attr || '', tone: (m === 'expense' || m === 'purchase') ? (x.impact > 0 ? 'neg' : 'pos') : (x.impact >= 0 ? 'pos' : 'neg') })), { fmt: x => `${x >= 0 ? '+' : '−'}${abShort(Math.abs(x)).replace('−', '')}` }),
+    sources: [`Compared ledger by ledger and customer by customer: ${abRangeLab(P.from, P.to)} vs ${abRangeLab(C.from, C.to)}`, m === 'profit' ? 'Green bars raised profit, red bars lowered it' : 'Bars show each item’s change'],
+    actions: [{ label: 'See the profit bridge in Insights Studio', act: 'report', arg: 'insightsStudio' }],
+    followups: [`Show ${L.toLowerCase()} month by month`, top[0] && top[0].attr && top[0].attr.startsWith('data-open-party') ? `Tell me about ${top[0].label.replace(/^(Sales to|Purchases from) /, '')}` : 'Top expenses this year', 'How is my business doing?'] });
+}
+// --- forecasts ---
+function abHForecast(S){
+  const m = S.metric, t = abToday();
+  const hm = S.q.match(/\bnext\s+(\d+)\s+months?\b/), h = Math.max(1, Math.min(12, hm ? Number(hm[1]) : /\bnext (quarter)\b/.test(S.q) ? 3 : /\bnext year\b/.test(S.q) ? 12 : /\bnext month\b/.test(S.q) ? 1 : 3));
+  if(m && m !== 'margin' && typeof isForecast === 'function'){
+    const first = abFirstDate(); const startK = abAddM(first < '9999' ? first : t, 0);
+    const hist = abMonthsBetween(startK, abAddM(t, -1)).slice(-36), f = abFlows(startK, abAdd(t.slice(0, 7) + '-01', -1));
+    const vals = hist.map(k => f.months[k] ? abVal(f.months[k], m) : 0), fc = isForecast(vals, h);
+    if(!fc) return abAns({ title: `${AB_METRIC_LABEL[m]} forecast`, value: '—', text: 'I need at least 4 complete months of history to forecast.', followups: ['Will I run out of cash?'] });
+    const pts = fc.out || fc.points || fc, next = pts.map((p, i) => ({ label: abMonLab(abAddM(t, i), true), v: p.f, lo: p.lo, hi: p.hi }));
+    const sum = next.reduce((s, x) => s + x.v, 0), lastH = vals.slice(-h).reduce((s, x) => s + x, 0);
+    const show = hist.slice(-9).map((k, i, arr) => ({ label: abMonLab(k + '-01', true), v: vals[vals.length - arr.length + i] })).concat(next.map(x => ({ label: x.label, v: x.v, fc: true })));
+    const band = show.map(x => x.fc ? next.find(n => n.label === x.label) : null);
+    return abAns({ metric: m, title: `${AB_METRIC_LABEL[m]} forecast`, value: abShort(sum), sub: `next ${h} month${h === 1 ? '' : 's'} (${next[0].label} – ${next[next.length - 1].label})`,
+      text: `Based on ${vals.length} months of history, I expect ${AB_METRIC_LABEL[m].toLowerCase()} of about **${abFull(Math.round(sum))}** over the next ${h} month${h === 1 ? '' : 's'} — ${sum >= lastH ? 'up' : 'down'} ${abPct(Math.abs(abChg(sum, lastH)) || 0, false)} on the last ${h}. A likely range for next month is ${abShort(next[0].lo)} to ${abShort(next[0].hi)}.`,
+      facts: next.slice(0, 4).map(x => ({ k: x.label, v: abShort(x.v) })).concat(fc.mape != null && fc.mape < 0.6 ? [{ k: 'Back-tested accuracy', v: abPct(Math.max(0, 1 - fc.mape), false) }] : []),
+      chart: abColChart(show, { band, aria: `${AB_METRIC_LABEL[m]}: last 9 months and forecast` }),
+      sources: ['Damped-trend exponential smoothing (Holt), with seasonality once 24+ months exist', 'Range = 80% band from the model’s past errors', 'A forecast, not a promise — it assumes the recent pattern continues'],
+      actions: [{ label: 'Open Insights Studio', act: 'report', arg: 'insightsStudio' }], followups: ['Will I run out of cash?', `Why did ${AB_METRIC_LABEL[m].toLowerCase()} change?`, 'How is my business doing?'] });
+  }
+  const cf = cashFlowForecastData(), ev = cf.events.filter(e => e.date <= addDays(t, 90)).sort((a, b) => a.date.localeCompare(b.date));
+  let run = cf.startCash, low = { v: run, d: t }; ev.forEach(e => { run += e.amount; if(run < low.v) low = { v: run, d: e.date }; });
+  const inflow = ev.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0), outflow = -ev.filter(e => e.amount < 0).reduce((s, e) => s + e.amount, 0);
+  const neg = cf.results.find(r => r.projected < 0) || (low.v < 0 ? { days: Math.round((abD(low.d) - abD(t)) / 864e5) } : null);
+  const series = [{ label: 'Today', v: cf.startCash }].concat(cf.results.map(r => ({ label: `+${r.days} days`, v: r.projected, fc: true })));
+  return abAns({ title: 'Cash outlook', value: abShort(cf.results[2].projected), tone: neg ? 'neg' : 'pos', sub: 'projected in 90 days',
+    text: `You have **${abFull(cf.startCash)}** in cash and bank today. Counting ${abShort(inflow)} expected from customers' open invoices and ${abShort(outflow)} due to suppliers and recurring bills, cash is projected at **${abShort(cf.results[0].projected)}** in 30 days, **${abShort(cf.results[1].projected)}** in 60 and **${abShort(cf.results[2].projected)}** in 90.${neg ? ` ⚠ It dips below zero around **${abFmtD(low.d)}** — collect overdue invoices or phase large payments.` : ` The lowest point is ${abShort(low.v)} around ${abFmtD(low.d)}, so you should not run out.`}`,
+    facts: [{ k: 'Expected in', v: abShort(inflow), tone: 'pos' }, { k: 'Expected out', v: abShort(outflow), tone: 'neg' }, { k: 'Lowest point', v: `${abShort(low.v)} · ${abFmtD(low.d)}`, tone: low.v < 0 ? 'neg' : null }],
+    chart: abColChart(series, { aria: 'Projected cash today and in 30, 60 and 90 days' }),
+    sources: ['Cash and bank balances today', 'Open customer invoices and supplier bills, due by each party’s credit days (late ones assumed to arrive today)', 'Active recurring templates in the next 90 days'],
+    actions: [{ label: 'Open Cash & Working-Capital agent', act: 'report', arg: 'cashWorkingCapital' }],
+    followups: ['Who owes me the most?', 'What bills are due this week?', 'Forecast revenue for the next 3 months'] });
+}
+// --- anything unusual? ---
+function abHAnomaly(){
+  const items = [];
+  try{ glAmountOutliers().forEach(x => items.push({ text: `${x.ledgerName}: ${abShort(x.amount)} on ${abFmtD(x.date)} — usual is up to ${abShort(x.typical)}`, date: x.date, amt: x.amount, attr: abVoucherAttr(x.voucherId), sev: 'medium' })); }catch(e){}
+  try{ if(typeof isAnomalies === 'function' && typeof isRange === 'function') isAnomalies(isRange()).forEach(a => { if(!items.some(i => i.text.slice(0, 24) === (a.text || '').slice(0, 24))) items.push({ text: a.text, date: a.k ? a.k + '-01' : '', sev: a.sev, attr: a.vid ? abVoucherAttr(a.vid) : a.id ? abLedgerAttr(a.id) : '' }); }); }catch(e){}
+  const high = items.filter(i => i.sev === 'high').length;
+  return abAns({ title: 'Unusual items', value: String(items.length), tone: items.length ? 'neg' : 'pos', sub: items.length ? `${high} high · ${items.length - high} medium` : 'nothing unusual',
+    text: items.length ? `I found **${items.length} thing${items.length === 1 ? '' : 's'}** worth a second look. These are not necessarily errors — just postings far from the usual pattern.` : 'I checked every expense ledger, monthly revenue and large vouchers against their usual pattern, and nothing stands out.',
+    table: items.length ? abTable(['What I noticed', 'Severity'], items.slice(0, 12).map(i => ({ attr: i.attr, cells: [i.text, i.sev === 'high' ? 'High' : 'Medium'] }))) : null,
+    sources: ['Expense postings far above their ledger’s usual range (inter-quartile test, last 30 days)', 'Months and vouchers far from their usual level (robust z-score)'],
+    actions: [{ label: 'Open AI Agents Hub', act: 'report', arg: 'agentsHub' }, { label: 'Open Internal Audit', act: 'report', arg: 'internalAudit' }],
+    followups: ['How is my business doing?', 'Largest payments this month', 'Why did expenses change?'] });
+}
+// --- how is my business doing? ---
+function abHSummary(){
+  const P = abDefaultPeriod(), C = abCmpFor(P), f = abFlows(P.from, P.to), fc = abFlows(C.from, C.to);
+  let h = null, tk = null;
+  try{ if(typeof isHealth === 'function' && typeof isRange === 'function'){ const R = isRange(); h = isHealth(R); tk = isTakeaways(R); } }catch(e){ h = null; }
+  const rc = abChg(f.revenue, fc.revenue), pc = abChg(f.profit, fc.profit);
+  const cash = (state.ledgers || []).filter(l => ['cash','bank'].includes(bucketOf(l))).reduce((s, l) => s + ledgerBalance(l.id), 0);
+  const od = overdueInvoices(), odAmt = od.reduce((s, r) => s + r.invoice.remaining, 0);
+  let text = `For **${P.label}**: revenue **${abShort(f.revenue)}**${rc != null ? ` (${abPct(rc)} vs last year)` : ''}, profit **${abShort(f.profit)}**${pc != null ? ` (${abPct(pc)})` : ''}${f.revenue ? `, net margin ${abPct(f.profit / f.revenue, false)}` : ''}. Cash and bank stand at ${abShort(cash)}${odAmt ? `, and ${abShort(odAmt)} is overdue from customers` : ''}.`;
+  if(tk) text += `\n✅ ${tk.good}\n👀 ${tk.watch}\n➡️ ${tk.act}`;
+  return abAns({ period: P, title: 'Business health', value: h ? `${h.score}/100` : abShort(f.profit), tone: h ? (h.tone === 'pos' ? 'pos' : h.tone === 'neg' ? 'neg' : 'warn') : null, sub: h ? h.label : 'profit this year', text,
+    facts: [{ k: 'Revenue', v: abShort(f.revenue), tone: rc != null ? (rc >= 0 ? 'pos' : 'neg') : null }, { k: 'Profit', v: abShort(f.profit), tone: f.profit >= 0 ? 'pos' : 'neg' }, { k: 'Cash & bank', v: abShort(cash) }, { k: 'Overdue', v: abShort(odAmt), tone: odAmt ? 'neg' : 'pos' }],
+    chart: h ? abHBars(h.parts.map(p => ({ label: `${p.k} · ${p.note}`, v: p.v / p.max * 100, tone: p.v / p.max >= 0.7 ? 'pos' : p.v / p.max >= 0.4 ? 'warn' : 'neg' })), { fmt: v => Math.round(v) + '%' }) : '',
+    sources: ['Health score: profitability 25, growth 20, liquidity 20, cash runway 15, collections 10, clean books 10 — the same model as Insights Studio', `Figures for ${abRangeLab(P.from, P.to)}`],
+    actions: [{ label: 'Open Insights Studio', act: 'report', arg: 'insightsStudio' }],
+    followups: ['Why did profit change?', 'Will I run out of cash?', 'Anything unusual this month?'] });
+}
+
+/* ---------- 4. knowledge: how-to and accounting terms (works offline) ---------- */
+const AB_KB = [
+  { k: 'record sale sales invoice bill customer sell raise', t: 'Recording a sale', a: '1. Open **Voucher** and pick **Sales**.\n2. Choose the customer, add items or the sales ledger and the amount — GST is worked out for you.\n3. Save. The invoice can be printed or shared straight away.\nFor a counter sale, **POS / Quick Sale** is faster.', act: { label: 'Open Voucher entry', act: 'tab', arg: 'voucher' } },
+  { k: 'record payment pay supplier expense paid bill rent electricity', t: 'Recording a payment', a: '1. Open **Voucher** and pick **Payment**.\n2. Choose who or what you paid (a supplier, or an expense such as Rent) and the cash or bank account it came from.\n3. Save. Tip: type “paid 500 for rent yesterday” in **Ctrl+K** and the voucher is drafted for you.', act: { label: 'Open Voucher entry', act: 'tab', arg: 'voucher' } },
+  { k: 'record receipt receive received money customer collection collect', t: 'Recording money received', a: '1. Open **Voucher** and pick **Receipt**.\n2. Choose the customer and the cash or bank account the money went into.\n3. Save — the receipt is matched to that customer’s oldest unpaid invoice automatically.', act: { label: 'Open Voucher entry', act: 'tab', arg: 'voucher' } },
+  { k: 'contra deposit withdraw withdrawal cash bank transfer between', t: 'Contra voucher', a: 'A **Contra** voucher moves money between your own cash and bank accounts — depositing cash in the bank, withdrawing cash, or moving money between two bank accounts. It never touches income or expenses.', act: { label: 'Open Voucher entry', act: 'tab', arg: 'voucher' } },
+  { k: 'journal adjustment adjust correction accrual provision', t: 'Journal voucher', a: 'A **Journal** voucher records an adjustment that involves no cash or bank — depreciation, provisions, accruals, or correcting a posting to the wrong ledger. Debits must equal credits before it saves.' },
+  { k: 'credit note debit note return returns refund', t: 'Credit and debit notes', a: 'A **Credit Note** reduces a sale (goods returned by a customer, or a discount after invoicing). A **Debit Note** reduces a purchase (goods you returned to a supplier). Both adjust GST automatically.' },
+  { k: 'reconcile reconciliation bank statement match clear uncleared', t: 'Reconciling the bank', a: '1. Open **Reconcile**.\n2. Import the bank statement (CSV or Excel) or tick lines by hand.\n3. Matched lines are cleared; the screen shows any difference against your books, and AI flags stale uncleared items.', act: { label: 'Open Bank Reconciliation', act: 'tab', arg: 'reconcile' } },
+  { k: 'import statement spreadsheet excel csv upload data', t: 'Importing data', a: 'Use **Smart Import** to bring in a bank statement or a spreadsheet — the columns are mapped to vouchers for you to review before anything is saved.' },
+  { k: 'gstr gstr1 gstr-1 file filing return portal 3b gstr3b', t: 'Filing GST returns', a: '1. Open **GST** and pick the month or quarter.\n2. Run the pre-filing check and fix anything it flags (missing GSTIN, HSN…).\n3. Download the GSTR-1 file in the portal’s own format and upload it on the GST portal yourself.', act: { label: 'Open GST', act: 'tab', arg: 'gst' } },
+  { k: 'backup restore save copy export data safe folder auto', t: 'Backing up your books', a: 'Open **Backup** from the top menu: download a full backup in one click, restore one, or switch on **automatic backup to a folder** on your computer. Encrypted backups are available too.', act: { label: 'Open Backup', act: 'modal', arg: 'backup' } },
+  { k: 'add user team staff access permission role invite', t: 'Adding a team member', a: 'Open the **Administrator / Group Admin** console to add a user, set them to view-only, and limit them to certain ledger groups. Every action is recorded in the audit log.' },
+  { k: 'create new company add company business setup wizard', t: 'Creating a company', a: 'From the company gateway, choose **Create company**. A five-step wizard asks for the name, location, financial year and opening choices before your first voucher.' },
+  { k: 'close year archive financial year end closing', t: 'Closing a financial year', a: 'Run the **Month-End Close checklist**, then close and archive the year. Archived years stay readable but locked, so the books of record cannot change.' },
+  { k: 'scan receipt ocr photo camera whatsapp share bill image', t: 'Scanning a receipt', a: 'Use **Receipt Scan** to photograph or upload a bill — the amount, date and vendor are read in your browser into a draft you review. On a phone you can also share a photo straight from WhatsApp into the app.' },
+  { k: 'insights studio dashboard presentation present board slides', t: 'Insights Studio', a: '**Reports → Analysis & Insights → Insights Studio** turns your books into a presentation dashboard: a health score, forecasts, drill-downs and a full-screen Present mode for the board or the bank.', act: { label: 'Open Insights Studio', act: 'report', arg: 'insightsStudio' } },
+  { k: 'export excel pdf powerpoint ppt download report pack print', t: 'Exporting reports', a: 'Every report has **Excel**, **PDF** and **PowerPoint** buttons. The Excel workbook keeps live formulas; the PDF is a 20-page report pack; the PowerPoint is a management review deck.', act: { label: 'Open Reports', act: 'tab', arg: 'reports' } },
+  { k: 'payroll salary salaries wages employee run pay staff', t: 'Running payroll', a: 'Open **Payroll**, check the employees and click **Run payroll** — one salary voucher is posted for the month, and payslips and the payroll register are ready to export.', act: { label: 'Open Payroll', act: 'tab', arg: 'payroll' } },
+  { k: 'fixed asset depreciation machine machinery vehicle equipment', t: 'Fixed assets', a: 'Add each asset in **Assets** with its cost, date and rate. Depreciation for the year is worked out and posted for you; disposing of an asset posts the gain or loss.', act: { label: 'Open Assets', act: 'tab', arg: 'assets' } },
+  { k: 'pos quick sale counter checkout shop retail', t: 'POS / Quick Sale', a: '**POS / Quick Sale** is a fast cart-based checkout: tap items, take payment, print. Park a sale with **Hold** and pick it up later. Every sale posts to the books and stock.', act: { label: 'Open POS', act: 'tab', arg: 'pos' } },
+  { k: 'dark mode theme night light', t: 'Dark mode', a: 'Use the moon / sun button at the top right to switch between light and dark. By default the app follows your system setting.' },
+  { k: 'debit credit dr cr double entry rule golden', t: 'Debit and credit', a: 'Every transaction has two equal sides. **Debit** an account when assets or expenses go up (or liabilities, income and capital go down); **credit** it when liabilities, income or capital go up (or assets and expenses go down). The app checks that both sides match before a voucher saves.' },
+  { k: 'trial balance tb', t: 'Trial balance', a: 'A **trial balance** lists every ledger’s closing debit or credit balance. Because every voucher has equal debits and credits, the two columns must total the same — if they don’t, something was posted one-sided.', act: { label: 'Open Trial Balance', act: 'report', arg: 'trialBalance' } },
+  { k: 'balance sheet position statement financial', t: 'Balance sheet', a: 'The **balance sheet** is a snapshot of what the business owns (assets) and how it is funded — by lenders and suppliers (liabilities) and by the owners (equity). Assets always equal liabilities plus equity.', act: { label: 'Open Balance Sheet', act: 'report', arg: 'balanceSheet' } },
+  { k: 'profit loss income statement p&l', t: 'Profit and loss', a: 'The **profit and loss statement** shows income less expenses over a period. What is left is the profit (or loss) for that period.', act: { label: 'Open Profit & Loss', act: 'report', arg: 'incomeStatement' } },
+  { k: 'input tax credit itc gst input credit claim', t: 'Input tax credit', a: '**Input tax credit (ITC)** is the GST you paid on purchases. You can deduct it from the GST you collected on sales, so you only pay the difference — provided your supplier has filed and the invoice appears in your GSTR-2B.' },
+  { k: 'tds tax deducted source withholding tcs', t: 'TDS', a: '**TDS (tax deducted at source)** is tax you hold back from certain payments (rent, contractors, professional fees) and deposit with the government by the 7th of the next month. TCS is tax collected on top of certain sales.', act: { label: 'Open TDS & Advance-Tax agent', act: 'report', arg: 'tdsAdvanceTax' } },
+  { k: 'depreciation wear tear asset value', t: 'Depreciation', a: '**Depreciation** spreads the cost of an asset over the years it is used, as an expense each year, instead of charging it all on the day it was bought.' },
+  { k: 'current ratio liquidity', t: 'Current ratio', a: 'The **current ratio** is current assets ÷ current liabilities. Above 1.5× is comfortable; below 1× means the bills due within a year are larger than the assets that turn into cash within a year.' },
+  { k: 'working capital', t: 'Working capital', a: '**Working capital** = current assets − current liabilities. It is the money tied up in running the business day to day: stock and receivables, less what you owe suppliers.' },
+  { k: 'dso days sales outstanding debtor days collection period', t: 'Days sales outstanding (DSO)', a: '**DSO** is how many days, on average, customers take to pay: receivables ÷ revenue × 365. Lower is better.' },
+  { k: 'accrual accruals cash basis accounting', t: 'Accrual accounting', a: 'Under **accrual accounting**, income and expenses are recorded when they are earned or incurred, not when cash moves — so a sale on credit counts this month even if the customer pays next month.' },
+  { k: 'ecl expected credit loss bad debt provision doubtful', t: 'Expected credit loss', a: 'An **expected credit loss (ECL)** provision sets aside part of your receivables you may never collect, based on how old they are and how each customer has paid before. The ECL agent works it out and can post the journal.', act: { label: 'Open Bad-Debt & ECL agent', act: 'report', arg: 'eclProvision' } },
+  { k: 'cost centre center department branch', t: 'Cost centres', a: '**Cost centres** let you tag income and expenses to a branch, department or project, then see a P&L and budget-vs-actual for each.' },
+  { k: 'gross net margin difference', t: 'Gross vs net margin', a: '**Gross margin** is what is left from sales after the direct cost of the goods. **Net margin** is what is left after every expense, including rent, salaries and interest.' },
+];
+function abKB(S){
+  const toks = abWords(S.q).filter(w => !AB_STOP.has(w) && w.length > 1 && !['is','do','i','how','what','mean','means','meaning','define'].includes(w));
+  let best = null, bs = 0;
+  AB_KB.forEach(e => { const ks = e.k.split(' '); let s = 0; toks.forEach(t => { if(ks.includes(t)) s += 1; else if(t.length >= 4 && ks.some(k => k.length >= 4 && (k.startsWith(t) || t.startsWith(k)))) s += 0.6; }); s += e.t.toLowerCase().split(' ').filter(w => toks.includes(w)).length * 0.5; if(s > bs){ bs = s; best = e; } });
+  return bs >= 1 ? best : null;
+}
+function abHKb(S){
+  const e = abKB(S);
+  if(!e) return abHUnknown(S);
+  return abAns({ kind: 'kb', title: e.t, value: '', text: e.a, actions: e.act ? [e.act] : [], sources: ['Built-in help and accounting glossary (on this device)'],
+    followups: ['What can you do?', 'How is my business doing?'] });
+}
+const AB_NAV = [
+  [/\bday ?book\b/, 'tab', 'daybook', 'Day Book'], [/\bpos\b|\bquick sale\b/, 'tab', 'pos', 'POS / Quick Sale'], [/\bvoucher|\bnew entry\b/, 'tab', 'voucher', 'Voucher entry'],
+  [/\bcalendar\b/, 'tab', 'calendar', 'Calendar'], [/\bchart of accounts\b|\bcoa\b/, 'tab', 'coa', 'Chart of Accounts'], [/\bledgers?\b/, 'tab', 'ledgers', 'Ledgers'],
+  [/\binventory\b|\bstock\b|\bitems\b/, 'tab', 'inventory', 'Inventory'], [/\bbalance sheet\b/, 'report', 'balanceSheet', 'Balance Sheet'], [/\btrial balance\b/, 'report', 'trialBalance', 'Trial Balance'],
+  [/\bprofit and loss\b|\bincome statement\b/, 'report', 'incomeStatement', 'Profit & Loss'], [/\bcash ?flow forecast\b/, 'report', 'cashFlowForecast', 'Cash-Flow Forecast'], [/\bcash ?flow\b/, 'report', 'cashFlow', 'Cash Flow Statement'],
+  [/\bratios?\b/, 'report', 'ratios', 'Ratio Analysis'], [/\binsights?\b/, 'report', 'insightsStudio', 'Insights Studio'], [/\bagents?\b/, 'report', 'agentsHub', 'AI Agents Hub'],
+  [/\baudit trail\b/, 'report', 'auditTrail', 'Audit Trail'], [/\binternal audit\b|\baudit\b/, 'report', 'internalAudit', 'Internal Audit'], [/\bsecurity\b/, 'report', 'securityCentre', 'Security Centre'],
+  [/\becl\b|\bbad debt\b/, 'report', 'eclProvision', 'Bad-Debt & ECL'], [/\besg\b|\bsustainab/, 'report', 'esg', 'ESG estimate'], [/\bbudget\b/, 'report', 'budgetVsActual', 'Budget vs Actual'],
+  [/\bcost cent/, 'report', 'costCenterPL', 'Cost Centre P&L'], [/\bwhat[- ]if\b|\bscenario/, 'report', 'scenarios', 'What-If Scenarios'], [/\btds\b/, 'report', 'tdsAdvanceTax', 'TDS & Advance-Tax agent'],
+  [/\breports?\b/, 'tab', 'reports', 'Reports'], [/\bgst\b/, 'tab', 'gst', 'GST'], [/\breconcil/, 'tab', 'reconcile', 'Bank Reconciliation'], [/\bassets?\b/, 'tab', 'assets', 'Fixed Assets'],
+  [/\bpart(y|ies)\b|\bcustomers?\b|\bsuppliers?\b/, 'tab', 'parties', 'Parties'], [/\borders?\b|\bquotations?\b/, 'tab', 'orders', 'Orders'], [/\bpayroll\b|\bsalar/, 'tab', 'payroll', 'Payroll'],
+  [/\bspend\b|\bexpense claims?\b|\bclaims?\b/, 'tab', 'spend', 'Spend Control'], [/\bdashboard\b|\bhome\b/, 'tab', 'dashboard', 'Dashboard'], [/\bbackup\b/, 'modal', 'backup', 'Backup'],
+];
+function abHNav(S){
+  const target = S.q.replace(/^(open|go to|goto|take me to|navigate to|jump to|switch to)\s+(the\s+)?/, '');
+  const hit = AB_NAV.find(([r]) => r.test(target));
+  if(!hit) return abHUnknown(S);
+  return abAns({ kind: 'nav', title: `Open ${hit[3]}`, value: '', text: `Tap below to go to **${hit[3]}**.`, actions: [{ label: `Open ${hit[3]}`, act: hit[1], arg: hit[2], primary: true }], followups: [] });
+}
+function abHDraft(S){
+  return abAns({ kind: 'draft', title: 'Draft this as a voucher?', value: '', text: `That sounds like a transaction: “${S.raw.trim()}”. I can hand it to the **Ctrl+K** command palette, which drafts the voucher for you to check — nothing is saved until you press Save.`, actions: [{ label: 'Draft the voucher', act: 'palette', arg: S.raw.trim(), primary: true }], sources: ['Drafting uses the agentic command palette; Ask Your Books itself never posts anything'], followups: [] });
+}
+function abHGreet(){
+  const nm = (currentUser && currentUser.name || '').split(' ')[0];
+  return abAns({ kind: 'greet', title: `Hello${nm ? ' ' + nm : ''}!`, value: '', text: 'Ask me anything about your books — sales, expenses, profit, cash, who owes you, stock, GST or ratios. I can also explain why a number changed, forecast the next few months, and spot anything unusual.', followups: ['How is my business doing?', 'What is my cash position?', 'Who owes me the most?'] });
+}
+function abHThanks(){ return abAns({ kind: 'greet', title: 'You’re welcome!', value: '', text: 'Ask another question whenever you like.', followups: ['Anything unusual this month?', 'Will I run out of cash?'] }); }
+function abHCapabilities(){
+  return abAns({ kind: 'greet', title: 'What I can do', value: '', text: '**Numbers** — sales, expenses, profit, margin, purchases for any period (“this quarter”, “last 6 months”, “March”, “FY 2025-26”), compared with the period before.\n**Why** — what drove a change, ledger by ledger and customer by customer.\n**People** — who owes you, who you owe, overdue invoices, everything about one customer or supplier.\n**Cash** — position, cash flow, and a 90-day outlook.\n**Forecasts** — the next months of sales, expenses or profit.\n**Find** — the largest or latest payments, receipts or invoices, with filters.\n**Stock, GST, ratios, balance sheet**, **unusual items**, and **how-to help**.\nI work entirely on this device, so nothing leaves your browser — and I never change your books.',
+    followups: ['How is my business doing?', 'Why did profit change?', 'Top customers this year'] });
+}
+const AB_SUGGEST = ['How is my business doing?', 'What is my cash position?', 'Will I run out of cash?', 'Who owes me the most?', 'Which invoices are over 60 days?', 'What bills are due this week?', 'Revenue this year vs last year', 'Profit last month', 'Why did profit change?', 'Top 5 expenses this quarter', 'Top customers this year', 'Revenue by month', 'Expenses by category this year', 'Forecast revenue for the next 3 months', 'Anything unusual this month?', 'Largest payments this year', 'Show the latest receipts', 'What is my GST position?', 'What is my current ratio?', 'Show all my ratios', 'What is my DSO?', 'What is my stock worth?', 'Which items are running low?', 'Which items are not moving?', 'Cash flow this year', 'Total assets', 'What is my net margin?', 'How many vouchers this month?', 'How do I reconcile my bank?', 'How do I file GSTR-1?', 'What is input tax credit?', 'What can you do?'];
+function abSuggestFor(text){
+  const q = abNorm(text); if(q.length < 2) return [];
+  const t = abWords(q), out = [];
+  AB_SUGGEST.forEach(s => { const sw = abWords(s); const sc = t.reduce((a, w) => a + (sw.some(x => x.startsWith(w)) ? 1 : 0), 0); if(sc) out.push([sc + (s.toLowerCase().startsWith(q) ? 2 : 0), s]); });
+  abFindEntities(q).slice(0, 2).forEach(e => { if(e.kind === 'party') out.push([3, `Tell me about ${e.name}`], [2.5, `Show transactions with ${e.name}`]); else if(e.kind === 'item') out.push([3, `How much ${e.name} do I have?`]); else out.push([3, `${e.name} this year`]); });
+  (state.ledgers || []).filter(l => l.partyType && abWords(l.name).some(w => t.some(x => x.length >= 2 && w.startsWith(x)))).slice(0, 3).forEach(l => out.push([2.8, `Tell me about ${l.name}`]));
+  const seen = new Set(); return out.sort((a, b) => b[0] - a[0]).map(x => x[1]).filter(s => !seen.has(s) && seen.add(s)).slice(0, 6);
+}
+function abHUnknown(S){
+  const legacy = (() => { try{ return answerQuestionLocally(S.raw || S.q || ''); }catch(e){ return ''; } })();
+  if(legacy && !/^I couldn't match/.test(legacy)) return abAns({ kind: 'legacy', title: 'Answer', value: '', text: legacy, sources: ['Answered from your ledgers and vouchers'], followups: ['How is my business doing?', 'What can you do?'] });
+  const near = abSuggestFor(S.raw || '').slice(0, 4), ent = S.entities && S.entities[0];
+  return abAns({ kind: 'unknown', title: 'I’m not sure what you mean', value: '', text: `I couldn’t match “${(S.raw || '').trim()}” to something I can work out from your books.${ent ? ` I did spot **${ent.name}** — try one of the suggestions below.` : ''} Try naming what you want (sales, expenses, profit, cash, a customer…) and a period, e.g. “sales last month”.`,
+    followups: (ent && ent.kind === 'party' ? [`Tell me about ${ent.name}`] : []).concat(near.length ? near : ['How is my business doing?', 'Revenue this year', 'Who owes me the most?', 'What can you do?']).slice(0, 4) });
+}
+const AB_H = { metric: abHMetric, trend: abHTrend, ledgerflow: abHLedgerFlow, ledger: abHLedger, cash: abHCash, cashflow: abHCashflow, top: abHTop, receivables: abHReceivables, payables: abHPayables, party: abHParty, txns: abHTxns, count: abHCount, stock: abHStock, item: abHItem, lowstock: abHLowStock, deadstock: abHDeadStock, gst: abHGst, tds: abHTds, ratio: abHRatio, bs: abHBs, tb: abHTb, explain: abHExplain, forecast: abHForecast, anomaly: abHAnomaly, summary: abHSummary, kb: abHKb, nav: abHNav, draft: abHDraft, greet: abHGreet, thanks: abHThanks, capabilities: abHCapabilities, unknown: abHUnknown };
+const AB_INTENT_LABEL = { metric: 'Figure for a period', trend: 'Month-by-month trend', ledgerflow: 'One ledger over a period', ledger: 'Ledger balance', cash: 'Cash and bank', cashflow: 'Cash flow', top: 'Ranking', receivables: 'Money owed to you', payables: 'Money you owe', party: 'Party profile', txns: 'Transaction search', count: 'Count', stock: 'Stock', item: 'One item', lowstock: 'Low stock', deadstock: 'Slow stock', gst: 'GST', tds: 'TDS', ratio: 'Ratios', bs: 'Balance sheet', tb: 'Trial balance', explain: 'What changed and why', forecast: 'Forecast', anomaly: 'Unusual items', summary: 'Business health', kb: 'Help', nav: 'Navigation', draft: 'Draft a voucher' };
+function abUnderstood(S, a){
+  if(!S || ['greet','kb','nav','draft','unknown','legacy'].includes(a.kind) || !AB_INTENT_LABEL[S.intent]) return S && S.fixes && S.fixes.length ? `Read as “${S.q}”` : '';
+  const parts = [AB_INTENT_LABEL[S.intent]];
+  if(a.metric && AB_METRIC_LABEL[a.metric] && !['explain'].includes(S.intent)) parts[0] = `${AB_METRIC_LABEL[a.metric]}${S.intent === 'trend' ? ' by month' : S.intent === 'forecast' ? ' forecast' : ''}`;
+  if(S.entity) parts.push(S.entity.name);
+  const P = a.period || (['metric','trend','top','explain','cashflow','ledgerflow'].includes(S.intent) ? abDefaultPeriod() : S.period);
+  if(P && S.intent !== 'party') parts.push(P.label);
+  const C = S.cmp || (['metric','explain'].includes(S.intent) && P && !(S.entity && S.entity.kind === 'party' && S.intent !== 'metric') ? abCmpFor(P) : null);
+  if(C) parts.push(`vs ${C.label}`);
+  if(S.followUp) parts.push('follow-up');
+  let s = parts.join(' · ');
+  if(S.fixes && S.fixes.length) s += ` · corrected ${S.fixes.map(f => `“${f[0]}”→“${f[1]}”`).join(', ')}`;
+  return s;
+}
+function abAnswer(question, ctx){
+  let S = null, a;
+  try{ S = abResolve(question, ctx); a = (AB_H[S.intent] || abHUnknown)(S); }
+  catch(e){ console.warn('Ask Your Books', e); a = abHUnknown(S || { raw: question, q: abNorm(question), has: new Set(), entities: [] }); }
+  a.understood = abUnderstood(S, a);
+  a.ctx = S ? { intent: S.intent === 'explain' ? 'explain' : S.intent, metric: a.metric || S.metric, period: a.period || S.period, entity: S.entity, by: a.by || S.by, n: S.n, txnType: S.txnType } : null;
+  if(a.ctx && ['greet','kb','nav','draft','unknown','capabilities','thanks'].includes(S.intent)) a.ctx = ctx;
+  return a;
+}
+// Plain-text version (for copy, the Reports page box and Insights Studio's Ask box).
+function abPlain(a){
+  const lines = [];
+  if(a.title) lines.push(a.value ? `${a.title}: ${a.value}${a.sub ? ' (' + a.sub + ')' : ''}` : a.title);
+  if(a.text) lines.push(a.text.replace(/\*\*/g, ''));
+  if(a.facts && a.facts.length) lines.push(a.facts.map(f => `${f.k}: ${f.v}`).join(' · '));
+  if(a.table) a.table.rows.slice(0, 12).forEach(r => lines.push('• ' + r.cells.join(' — ')));
+  return lines.join('\n');
+}
+function answerQuestionLocallyRich(question){
+  const a = abAnswer(question, null);
+  return { content: abPlain(a), chartHtml: a.chart ? `<div class="ab-card ab-inline">${a.chart}</div>` : null, entityHtml: a.table ? `<div class="ab-card ab-inline">${abTableHtml(a.table)}</div>` : null };
+}
+
+/* ---------- 5. the panel ---------- */
+function abMd(s){ return abEsc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>'); }
+function abTableHtml(t){
+  if(!t || !t.rows.length) return '';
+  return `<div class="ab-tbl-wrap"><table class="ab-tbl"><thead><tr>${t.head.map((h, i) => `<th${t.align[i] ? ' class="r"' : ''}>${abEsc(h)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r, ri) => `<tr ${r.attr || ''}${r.attr ? ' class="click" tabindex="0" role="button"' : ''} style="animation-delay:${Math.min(ri, 12) * 30}ms">${r.cells.map((c, i) => `<td${t.align[i] ? ' class="r"' : ''}>${abEsc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>${t.more ? `<div class="ab-more">+ ${t.more} more — export to see all</div>` : ''}</div>`;
+}
+function abCardHtml(a, idx, last){
+  return `<div class="ab-card${a.kind === 'unknown' ? ' unknown' : ''}" data-ab-card="${idx}">
+    ${a.understood ? `<div class="ab-understood" title="How I read your question"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 0 1 6.3 12.9l5.4 5.4-1.4 1.4-5.4-5.4A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg>${abEsc(a.understood)}</div>` : ''}
+    <div class="ab-head"><div class="ab-title">${abEsc(a.title || '')}</div>${a.value ? `<div class="ab-value ${a.tone || ''}">${abEsc(a.value)}</div>` : ''}${a.sub ? `<div class="ab-sub">${abEsc(a.sub)}</div>` : ''}</div>
+    ${a.text ? `<div class="ab-text">${abMd(a.text)}</div>` : ''}
+    ${a.facts && a.facts.length ? `<div class="ab-facts">${a.facts.map(f => `<div class="ab-fact ${f.tone || ''}"><span>${abEsc(f.k)}</span><b>${abEsc(f.v)}</b></div>`).join('')}</div>` : ''}
+    ${a.chart ? `<div class="ab-chart">${a.chart}</div>` : ''}
+    ${a.table ? abTableHtml(a.table) : ''}
+    ${a.sources && a.sources.length ? `<details class="ab-how"><summary>How I worked this out</summary><ul>${a.sources.map(s => `<li>${abEsc(s)}</li>`).join('')}</ul></details>` : ''}
+    <div class="ab-actions">${(a.actions || []).map((x, i) => `<button type="button" class="ab-btn${x.primary ? ' primary' : ''}" data-ab-act="${idx}:${i}">${abEsc(x.label)}</button>`).join('')}${a.csv ? `<button type="button" class="ab-btn ghost" data-ab-csv="${idx}" title="Download these rows as CSV">⬇ CSV</button>` : ''}<button type="button" class="ab-btn ghost" data-ab-copy="${idx}" title="Copy this answer">Copy</button></div>
+    ${last && a.followups && a.followups.length ? `<div class="ab-follow"><span>Ask next</span>${a.followups.slice(0, 4).map(f => `<button type="button" class="ab-chip" ${abAskAttr(f)}>${abEsc(f)}</button>`).join('')}</div>` : ''}
+  </div>`;
+}
+function abBriefing(){
+  try{
+    const t = abToday(), cash = (state.ledgers || []).filter(l => ['cash','bank'].includes(bucketOf(l))).reduce((s, l) => s + ledgerBalance(l.id), 0);
+    const od = overdueInvoices(), odAmt = od.reduce((s, r) => s + r.invoice.remaining, 0);
+    const cm = abFlows(t.slice(0, 7) + '-01', t), lm = abFlows(abAddM(t, -1), abMin(abAdd(abAddM(t, -1), Number(t.slice(8)) - 1), abMEnd(abAddM(t, -1))));
+    const pc = abChg(cm.profit, lm.profit);
+    return [
+      { k: 'Cash & bank', v: abShort(cash), s: 'right now', q: 'What is my cash position?', tone: cash >= 0 ? '' : 'neg' },
+      { k: 'Overdue from customers', v: abShort(odAmt), s: `${od.length} invoice${od.length === 1 ? '' : 's'}`, q: 'Which invoices are overdue?', tone: odAmt ? 'neg' : 'pos' },
+      { k: 'Profit this month', v: abShort(cm.profit), s: pc != null ? `${abPct(pc)} vs same days last month` : 'so far', q: 'Profit this month vs last month', tone: cm.profit >= 0 ? 'pos' : 'neg' },
+    ];
+  }catch(e){ return []; }
+}
+const AB_GROUPS = [
+  ['Money in & out', ['Revenue this year vs last year', 'Top 5 expenses this quarter', 'Why did profit change?']],
+  ['Customers & suppliers', ['Who owes me the most?', 'Which invoices are over 60 days?', 'What bills are due this week?']],
+  ['Cash & the future', ['Will I run out of cash?', 'Forecast revenue for the next 3 months', 'Cash flow this year']],
+  ['Checks & health', ['How is my business doing?', 'Anything unusual this month?', 'Show all my ratios']],
+];
+function qaWidget(){
+  const nm = (currentUser && currentUser.name || '').split(' ')[0];
+  const hr = new Date().getHours(), hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  const lastA = qaMessages.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop();
+  return `
+    <div id="qaFab" class="ab-fab${qaOpen ? ' open' : ''}" title="Ask Your Books — on-device AI" role="button" tabindex="0" aria-expanded="${qaOpen ? 'true' : 'false'}" aria-label="Ask Your Books — ask a question about your numbers" style="position:fixed;right:22px;bottom:22px;width:52px;height:52px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:90;">
+      ${qaOpen ? '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg>' : '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M10 2l1.9 4.6L16.5 8.5l-4.6 1.9L10 15l-1.9-4.6L3.5 8.5l4.6-1.9zM18 12l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1zM6 15l.8 1.7L8.5 17.5l-1.7.8L6 20l-.8-1.7-1.7-.8 1.7-.8z"/></svg>'}
+    </div>
+    ${qaOpen ? `
+    <div id="qaPanel" class="ab-panel${qaExpanded ? ' xl' : ''}" role="dialog" aria-label="Ask Your Books">
+      <div class="ab-top">
+        <div class="ab-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 2l1.9 4.6L16.5 8.5l-4.6 1.9L10 15l-1.9-4.6L3.5 8.5l4.6-1.9zM18 12l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"/></svg></div>
+        <div class="ab-top-t"><strong>Ask Your Books</strong><span><i class="ab-dot"></i>On-device AI · private · ${abEsc(currentCompany && currentCompany.name || '')}</span></div>
+        <button type="button" class="ab-ic" data-ab-new title="New conversation" aria-label="New conversation"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg></button>
+        <button type="button" class="ab-ic" data-ab-expand title="${qaExpanded ? 'Smaller' : 'Larger'}" aria-label="${qaExpanded ? 'Make smaller' : 'Make larger'}"><svg viewBox="0 0 24 24"><path fill="currentColor" d="${qaExpanded ? 'M5 16h3v3h2v-5H5zm3-8H5v2h5V5H8zm6 11h2v-3h3v-2h-5zm2-11V5h-2v5h5V8z' : 'M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z'}"/></svg></button>
+        <button type="button" class="ab-ic" id="qaCloseBtn" title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z"/></svg></button>
+      </div>
+      <div id="qaMessagesEl" class="ab-msgs" aria-live="polite">
+        ${qaMessages.length === 0 ? `
+          <div class="ab-welcome">
+            <div class="ab-hello">${hello}${nm ? ', ' + abEsc(nm) : ''} 👋</div>
+            <p>Ask me anything about <b>${abEsc(currentCompany && currentCompany.name || 'your books')}</b>. I read your ledgers and vouchers right here in the browser — nothing is sent anywhere, and I never change your books.</p>
+            <div class="ab-brief">${abBriefing().map(b => `<button type="button" class="ab-bcard ${b.tone}" ${abAskAttr(b.q)}><span>${abEsc(b.k)}</span><b>${abEsc(b.v)}</b><em>${abEsc(b.s)}</em></button>`).join('')}</div>
+            ${AB_GROUPS.map(([g, qs]) => `<div class="ab-group"><div class="ab-gt">${abEsc(g)}</div><div class="ab-chips">${qs.map(q => `<button type="button" class="ab-chip" data-qa-suggest="${abEsc(q)}" ${abAskAttr(q)}>${abEsc(q)}</button>`).join('')}</div></div>`).join('')}
+            <div class="ab-tip">Tip: ask follow-ups like “what about last month?”, “why?” or “show it as a chart”. Spelling mistakes are fine.</div>
+          </div>` : ''}
+        ${qaMessages.map((m, mi) => m.role === 'user'
+          ? `<div class="ab-u"><div>${abEsc(m.content)}</div></div>`
+          : m.ans ? `<div class="ab-a">${abCardHtml(m.ans, mi, mi === lastA && !qaThinking)}</div>`
+          : `<div class="ab-a"><div class="ab-card"><div class="ab-text">${abMd(m.content)}</div>${m.chartHtml ? `<div class="ab-chart">${m.chartHtml}</div>` : ''}${m.entityHtml ? `<div class="ab-chart">${m.entityHtml}</div>` : ''}</div></div>`).join('')}
+        ${qaThinking ? `<div class="ab-a"><div class="ab-thinking"><i></i><i></i><i></i><span>Reading your books…</span></div></div>` : ''}
+        ${qaError ? `<div class="ab-err">${abEsc(qaError)}</div>` : ''}
+      </div>
+      <div class="ab-compose">
+        <div id="abSuggest" class="ab-suggest" hidden></div>
+        <div class="ab-inrow">
+          <input id="qaInputBox" type="text" autocomplete="off" spellcheck="true" placeholder="${qaMessages.length ? 'Ask a follow-up…' : 'e.g. why did profit drop last month?'}" aria-label="Ask a question about your books" ${qaThinking ? 'disabled' : ''}>
+          <button id="qaSendBtn" class="ab-send" type="button" aria-label="Ask" ${qaThinking ? 'disabled' : ''}><svg viewBox="0 0 24 24"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg></button>
+        </div>
+        <div class="ab-foot"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1 3 5v6c0 5.6 3.8 10.7 9 12 5.2-1.3 9-6.4 9-12V5zm0 6a3 3 0 0 1 3 3v1h1v6H8v-6h1v-1a3 3 0 0 1 3-3zm0 2a1 1 0 0 0-1 1v1h2v-1a1 1 0 0 0-1-1z"/></svg>Worked out on this device · read-only · no data leaves your browser</div>
+      </div>
+    </div>` : ''}
+  `;
+}
+function abStoreKey(){ return 'rb_ask_' + ((currentCompany && currentCompany.id) || 'x'); }
+function abSaveQs(){ try{ localStorage.setItem(abStoreKey(), JSON.stringify(qaMessages.filter(m => m.role === 'user').map(m => m.content).slice(-AB_MAX_STORE))); }catch(e){} }
+function abLoadQs(){ try{ const x = JSON.parse(localStorage.getItem(abStoreKey()) || '[]'); return Array.isArray(x) ? x.filter(s => typeof s === 'string') : []; }catch(e){ return []; } }
+// Replay this company's saved questions against today's books (fresh numbers), once per session.
+function abRestore(){
+  const id = currentCompany && currentCompany.id; if(!id || qaRestoredFor === id) return;
+  if(qaRestoredFor !== null){ qaMessages = []; qaCtx = null; }
+  qaRestoredFor = id;
+  if(qaMessages.length) return;
+  abLoadQs().slice(-6).forEach(q => { const a = abAnswer(q, qaCtx); qaCtx = a.ctx || qaCtx; qaMessages.push({ role: 'user', content: q }); qaMessages.push({ role: 'assistant', ans: a, content: abPlain(a) }); });
+}
+function abScrollEnd(){ const el = document.getElementById('qaMessagesEl'); if(el) el.scrollTop = el.scrollHeight; }
+function askQA(question){
+  question = (question || '').trim();
+  if(!question || qaThinking) return;
+  qaMessages.push({ role: 'user', content: question });
+  qaThinking = true; qaError = ''; qaHistPos = -1;
+  render(); abScrollEnd();
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => {
+    const a = abAnswer(question, qaCtx);
+    if(a.ctx) qaCtx = a.ctx;
+    qaMessages.push({ role: 'assistant', ans: a, content: abPlain(a) });
+    if(qaMessages.length > 80) qaMessages = qaMessages.slice(-60);
+    qaThinking = false; abSaveQs();
+    render();
+    // bring the question and the top of its answer into view (not the bottom of a long answer)
+    const us = document.querySelectorAll('#qaMessagesEl .ab-u'), lastU = us[us.length - 1], el = document.getElementById('qaMessagesEl');
+    if(el && lastU) el.scrollTop = Math.max(0, lastU.offsetTop - el.offsetTop - 10);
+    document.getElementById('qaInputBox')?.focus({ preventScroll: true });
+  }, reduce ? 60 : 380 + Math.min(420, question.length * 6));
+}
+function abRunAction(a, x){
+  const small = window.innerWidth < 700;
+  if(x.act === 'tab'){ if(small) qaOpen = false; modal = null; goToTab(x.arg); render(); }
+  else if(x.act === 'report'){ if(small) qaOpen = false; modal = null; if(view !== 'reports') goToTab('reports'); reportsSelected = x.arg; render(); window.scrollTo(0, 0); }
+  else if(x.act === 'party'){ partyDetailLedgerId = x.arg; modal = 'partyDetail'; render(); }
+  else if(x.act === 'ledger'){ ledgerDetailId = x.arg; modal = 'ledgerDetail'; render(); }
+  else if(x.act === 'modal'){ modal = x.arg; render(); }
+  else if(x.act === 'palette'){ modal = null; openCommandPalette(); cmdkQuery = x.arg; cmdkIndex = 0; render(); const inp = document.getElementById('cmdkInput'); if(inp){ inp.value = x.arg; inp.focus(); } }
+}
+function abToast(msg){ try{ toast(msg); }catch(e){} }
+function wireQAWidget(){
+  const fab = document.getElementById('qaFab');
+  fab?.addEventListener('click', () => { qaOpen = !qaOpen; if(qaOpen) abRestore(); render(); if(qaOpen){ if(qaMessages.length) abScrollEnd(); document.getElementById('qaInputBox')?.focus({ preventScroll: true }); } });
+  wireKeyActivate('qaFab');
+  const panel = document.getElementById('qaPanel');
+  if(!panel) return;
+  document.getElementById('qaCloseBtn')?.addEventListener('click', () => { qaOpen = false; render(); document.getElementById('qaFab')?.focus(); });
+  panel.querySelector('[data-ab-new]')?.addEventListener('click', () => { qaMessages = []; qaCtx = null; qaError = ''; try{ localStorage.removeItem(abStoreKey()); }catch(e){} render(); document.getElementById('qaInputBox')?.focus(); });
+  panel.querySelector('[data-ab-expand]')?.addEventListener('click', () => { qaExpanded = !qaExpanded; render(); abScrollEnd(); });
+  const input = document.getElementById('qaInputBox'), sug = document.getElementById('abSuggest');
+  let sugIdx = -1, sugList = [];
+  const hideSug = () => { if(sug){ sug.hidden = true; sug.innerHTML = ''; } sugIdx = -1; sugList = []; };
+  const paintSug = () => { if(!sug) return; if(!sugList.length){ hideSug(); return; } sug.hidden = false; sug.innerHTML = sugList.map((s, i) => `<button type="button" class="${i === sugIdx ? 'on' : ''}" data-ab-sug="${i}">${abEsc(s)}</button>`).join(''); };
+  const send = () => { const v = input ? input.value : ''; if(input) input.value = ''; hideSug(); askQA(v); };
+  document.getElementById('qaSendBtn')?.addEventListener('click', send);
+  input?.addEventListener('input', () => { sugList = input.value.trim().length >= 2 ? abSuggestFor(input.value) : []; sugIdx = -1; paintSug(); });
+  input?.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); if(sugIdx >= 0 && sugList[sugIdx]){ input.value = sugList[sugIdx]; } send(); return; }
+    if(e.key === 'Escape'){ if(sugList.length){ hideSug(); } else { qaOpen = false; render(); document.getElementById('qaFab')?.focus(); } e.preventDefault(); return; }
+    if(sugList.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){ e.preventDefault(); sugIdx = e.key === 'ArrowDown' ? (sugIdx + 1) % sugList.length : (sugIdx <= 0 ? sugList.length - 1 : sugIdx - 1); paintSug(); return; }
+    if(!input.value || qaHistPos >= 0){
+      const qs = qaMessages.filter(m => m.role === 'user').map(m => m.content);
+      if(e.key === 'ArrowUp' && qs.length){ e.preventDefault(); qaHistPos = qaHistPos < 0 ? qs.length - 1 : Math.max(0, qaHistPos - 1); input.value = qs[qaHistPos]; }
+      else if(e.key === 'ArrowDown' && qaHistPos >= 0){ e.preventDefault(); qaHistPos++; if(qaHistPos >= qs.length){ qaHistPos = -1; input.value = ''; } else input.value = qs[qaHistPos]; }
+    }
+  });
+  sug?.addEventListener('mousedown', e => { const b = e.target.closest('[data-ab-sug]'); if(!b) return; e.preventDefault(); input.value = sugList[Number(b.dataset.abSug)]; send(); });
+  input?.addEventListener('blur', () => setTimeout(hideSug, 150));
+  panel.addEventListener('click', e => {
+    const ask = e.target.closest('[data-ab-ask]'); if(ask){ e.preventDefault(); askQA(ask.dataset.abAsk); return; }
+    const act = e.target.closest('[data-ab-act]'); if(act){ const [mi, ai] = act.dataset.abAct.split(':').map(Number); const m = qaMessages[mi]; if(m && m.ans && m.ans.actions[ai]) abRunAction(m.ans, m.ans.actions[ai]); return; }
+    const csv = e.target.closest('[data-ab-csv]'); if(csv){ const m = qaMessages[Number(csv.dataset.abCsv)]; if(m && m.ans && m.ans.csv) downloadCSV(m.ans.csv.header, m.ans.csv.rows, m.ans.csv.filename); return; }
+    const cp = e.target.closest('[data-ab-copy]'); if(cp){ const m = qaMessages[Number(cp.dataset.abCopy)]; const txt = m ? (m.ans ? abPlain(m.ans) : m.content) : ''; try{ navigator.clipboard.writeText(txt).then(() => abToast('Answer copied'), () => {}); }catch(err){} cp.textContent = 'Copied ✓'; return; }
+    const vo = e.target.closest('[data-ab-voucher]'); if(vo){ if(window.innerWidth < 700) qaOpen = false; if(openVoucherForEditing(vo.dataset.abVoucher)){ modal = null; render(); } return; }
+    const le = e.target.closest('[data-ab-ledger]'); if(le){ ledgerDetailId = le.dataset.abLedger; modal = 'ledgerDetail'; render(); return; }
+  });
+  panel.addEventListener('keydown', e => { if((e.key === 'Enter' || e.key === ' ') && e.target.matches('tr[data-ab-voucher],tr[data-ab-ledger],tr[data-open-party],.ab-hb.click')){ e.preventDefault(); e.target.click(); } });
+}
+
 function askReportsBooks(question){
   question = (question||'').trim();
   if(!question) return;
@@ -19698,27 +21056,6 @@ function wireKeyActivate(id){
   el.addEventListener('keydown', (e)=>{
     if(e.key==='Enter' || e.key===' '){ e.preventDefault(); el.click(); }
   });
-}
-function wireQAWidget(){
-  document.getElementById('qaFab')?.addEventListener('click', ()=>{ qaOpen = !qaOpen; render(); });
-  wireKeyActivate('qaFab');
-  document.getElementById('qaCloseBtn')?.addEventListener('click', ()=>{ qaOpen = false; render(); });
-  const input = document.getElementById('qaInputBox');
-  const send = ()=>{ const v = input?.value||''; if(input) input.value=''; askQA(v); };
-  document.getElementById('qaSendBtn')?.addEventListener('click', send);
-  input?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } });
-  input?.focus();
-  document.querySelectorAll('[data-qa-suggest]').forEach(el=>{
-    el.addEventListener('click', ()=> askQA(el.dataset.qaSuggest));
-  });
-  document.querySelectorAll('[data-qa-export-csv]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const m = qaMessages[Number(el.dataset.qaExportCsv)];
-      if(m && m.csv) downloadCSV(m.csv.header, m.csv.rows, m.csv.filename);
-    });
-  });
-  const msgs = document.getElementById('qaMessagesEl');
-  if(msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 // Wires the Data Interchange bubble/panel declared in diWidget()/diPanel() above. Called on every
 // render (same as wireQAWidget()) — every lookup is optional-chained so it's a no-op whenever the
