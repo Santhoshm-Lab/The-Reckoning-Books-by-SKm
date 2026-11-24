@@ -3910,6 +3910,57 @@
     #qaFab.ab-fab::after{display:none;} .ab-thinking i{animation:none;}
   }
 </style>
+<style id="rbp-css">
+  /* ===== Report PDF window ===== */
+  .rbp-ov{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;box-sizing:border-box;margin:0;z-index:10050;background:rgba(10,24,15,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px;animation:rbpFade .18s ease;}
+  @keyframes rbpFade{from{opacity:0}to{opacity:1}}
+  .rbp-win{width:min(980px,100%);height:min(860px,100%);background:var(--surface,#fff);color:var(--ink,#1B2420);border-radius:18px;box-shadow:0 30px 80px -20px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;animation:rbpUp .25s cubic-bezier(.2,.8,.2,1);}
+  @keyframes rbpUp{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+  .rbp-top{display:flex;align-items:center;gap:12px;padding:14px 16px;background:linear-gradient(120deg,#0F2A17,#123B1C 45%,#1B5E20);color:#fff;flex-wrap:wrap;}
+  .rbp-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,#2CA01C,#F2A900);flex-shrink:0;}
+  .rbp-ic svg{width:22px;height:22px;color:#fff;}
+  .rbp-t{flex:1;min-width:180px;display:flex;flex-direction:column;line-height:1.3;}
+  .rbp-t b{font-size:15.5px;} .rbp-sub{font-size:12px;color:#C8DCCB;}
+  .rbp-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .rbp-btn{font:inherit;font-size:13px;font-weight:700;padding:9px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;white-space:nowrap;}
+  .rbp-btn:hover:not(:disabled){background:rgba(255,255,255,.2);}
+  .rbp-btn.primary{background:#F2A900;border-color:#F2A900;color:#14261A;}
+  .rbp-btn.primary:hover:not(:disabled){background:#FFBD1F;}
+  .rbp-btn.ghost{background:transparent;}
+  .rbp-btn:disabled{opacity:.45;cursor:default;}
+  .rbp-btn:focus-visible,.rbp-x:focus-visible{outline:3px solid #F2A900;outline-offset:2px;}
+  .rbp-x{width:36px;height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.1);color:#fff;font-size:16px;cursor:pointer;}
+  .rbp-x:hover{background:rgba(255,255,255,.22);}
+  .rbp-prog{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border,#E1E7E3);font-size:12.5px;color:var(--ink-soft,#55625A);}
+  .rbp-bar{flex:0 0 180px;height:7px;border-radius:4px;background:color-mix(in srgb, var(--ink,#1B2420) 9%, transparent);overflow:hidden;}
+  .rbp-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#2CA01C,#5BC04A);transition:width .25s ease;}
+  .rbp-bar i.err{background:var(--debit,#C23B3B);}
+  .rbp-ov:not(.ready) .rbp-bar i{background:linear-gradient(90deg,#2CA01C,#9BD88F,#2CA01C);background-size:200% 100%;animation:rbpShim 1.2s linear infinite;}
+  @keyframes rbpShim{from{background-position:200% 0}to{background-position:0 0}}
+  .rbp-body{flex:1;overflow:auto;background:color-mix(in srgb, var(--ink,#1B2420) 6%, var(--surface,#fff));padding:22px;}
+  .rbp-pages{display:flex;flex-direction:column;align-items:center;gap:20px;min-height:100%;}
+  .rbp-page{margin:0;width:min(620px,100%);animation:rbpUp .3s ease both;}
+  .rbp-page.land{width:min(860px,100%);}
+  .rbp-page img{display:block;width:100%;height:auto;border-radius:3px;box-shadow:0 8px 26px -10px rgba(0,0,0,.35),0 0 0 1px rgba(0,0,0,.06);background:#fff;}
+  .rbp-page figcaption{text-align:center;font-size:11.5px;color:var(--ink-faint,#7A897E);margin-top:6px;}
+  .rbp-live{width:100%;height:100%;min-height:600px;border:0;background:#fff;border-radius:4px;box-shadow:0 8px 26px -10px rgba(0,0,0,.35);}
+  .rbp-foot{padding:9px 16px;font-size:11.5px;color:var(--ink-soft,#55625A);border-top:1px solid var(--border,#E1E7E3);}
+  @media (max-width:640px){
+    .rbp-ov{padding:0;} .rbp-win{border-radius:0;height:100%;}
+    .rbp-acts{width:100%;} .rbp-btn{flex:1;padding:9px 8px;font-size:12px;} .rbp-bar{flex-basis:90px;} .rbp-body{padding:12px;}
+  }
+  @media (prefers-reduced-motion: reduce){ .rbp-ov,.rbp-win,.rbp-page{animation:none;} .rbp-ov:not(.ready) .rbp-bar i{animation:none;} }
+</style>
+<style id="navic-css">
+  /* ===== Sidebar "Ledger Line" icons (Nov 2026) ===== */
+  .nav-ic{width:21px;height:21px;flex-shrink:0;display:block;overflow:visible;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;}
+  .nav-ic .d{fill:currentColor;fill-opacity:.17;stroke:none;}
+  .nav-ic .s{fill:currentColor;stroke:none;}
+  .navtab:hover:not(.active) .nav-ic .d{fill-opacity:.26;}
+  .navtab.active .nav-ic{stroke-width:1.9;}
+  .navtab.active .nav-ic .d{fill-opacity:.34;}
+  .cmdk-item-icon .nav-ic{width:17px;height:17px;color:var(--accent1);}
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -16707,17 +16758,247 @@ function rbxPdfHtml(book){
   table.det{margin-bottom:0} .basis{columns:2;column-gap:8mm} .basis h3{column-span:all} .basis p{font-size:6.9pt;color:#4A5751;margin:0 0 1.2mm;line-height:1.38;break-inside:avoid}
   </style></head><body>${sections.join('\n')}</body></html>`;
 }
-async function rbxPdfRun(kind, legacy){
+/* ====== Report PDF window (Nov 2026 fix) ======
+   "Report Pack (PDF)" could appear to do nothing: the pack was built asynchronously and then printed from a
+   hidden frame with no user gesture left, so a browser or app shell that ignores that print showed no sign
+   at all — and if the build failed, the error was swallowed (the pack had no fallback). Now a window opens
+   at once, shows progress, then a page-by-page preview with three ways out:
+     • Download PDF — a real .pdf file made entirely on this device (no library, no upload);
+     • Print / Save as PDF — the browser's own print, started straight from the click (selectable text);
+     • Open in a new tab — for browsers that block printing from inside a page.
+   Any failure is shown in the window with a way forward, never swallowed. */
+const RBP_PX = 96 / 25.4; // CSS px per mm
+const RBP_GEOM = {
+  port: { w: 210, h: 297, ml: 12, mr: 12, mt: 15, mb: 16 },
+  land: { w: 297, h: 210, ml: 12, mr: 12, mt: 15, mb: 16 },
+};
+let rbpState = null; // the open window, if any
+function rbpEsc(s){ return escapeHtml(s == null ? '' : String(s)); }
+function rbpOpen(title, sub){
+  rbpClose();
+  const ov = document.createElement('div');
+  ov.className = 'rbp-ov';
+  ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', title);
+  ov.innerHTML = `<div class="rbp-win">
+    <div class="rbp-top">
+      <div class="rbp-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5zM8 12v6h1.6v-2h1a2 2 0 0 0 0-4zm1.6 1.3h.9a.7.7 0 0 1 0 1.4h-.9zM13 12v6h1.8a3 3 0 0 0 0-6zm1.6 1.3h.2a1.7 1.7 0 0 1 0 3.4h-.2zM18 12h-3v0h3z"/></svg></div>
+      <div class="rbp-t"><b>${rbpEsc(title)}</b><span class="rbp-sub">${rbpEsc(sub || '')}</span></div>
+      <div class="rbp-acts">
+        <button type="button" class="rbp-btn primary" data-rbp="dl" disabled>⬇ Download PDF</button>
+        <button type="button" class="rbp-btn" data-rbp="print" disabled>🖨 Print / Save as PDF</button>
+        <button type="button" class="rbp-btn ghost" data-rbp="tab" disabled>Open in new tab</button>
+        <button type="button" class="rbp-x" data-rbp="x" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="rbp-prog" aria-live="polite"><div class="rbp-bar"><i style="width:6%"></i></div><span class="rbp-msg">Preparing the report…</span></div>
+    <div class="rbp-body"><div class="rbp-pages"></div></div>
+    <div class="rbp-foot">Made on this device — nothing is uploaded. <b>Download PDF</b> saves a picture-perfect copy; <b>Print / Save as PDF</b> keeps the text selectable.</div>
+  </div>`;
+  document.body.appendChild(ov);
+  const st = { ov, html: null, pages: null, base: 'Report', title, frame: null, closed: false, pdfBlob: null };
+  const $ = s => ov.querySelector(s);
+  st.msg = (t, pct) => { $('.rbp-msg').textContent = t; if(pct != null) $('.rbp-bar i').style.width = Math.max(4, Math.min(100, pct)) + '%'; };
+  st.enable = (which, on) => { const b = $(`[data-rbp="${which}"]`); if(b){ b.disabled = !on; b.hidden = false; } };
+  st.hide = which => { const b = $(`[data-rbp="${which}"]`); if(b) b.hidden = true; };
+  st.pagesEl = $('.rbp-pages');
+  ov.addEventListener('click', e => {
+    if(e.target === ov){ rbpClose(); return; }
+    const b = e.target.closest('[data-rbp]'); if(!b || b.disabled) return;
+    const a = b.dataset.rbp;
+    if(a === 'x') rbpClose();
+    else if(a === 'dl') rbpDownload(st);
+    else if(a === 'print') rbpPrint(st);
+    else if(a === 'tab') rbpNewTab(st);
+    else if(a === 'retry' && st.retry) st.retry();
+  });
+  st.onKey = e => { if(e.key === 'Escape'){ e.preventDefault(); e.stopImmediatePropagation(); rbpClose(); } };
+  window.addEventListener('keydown', st.onKey, true);
+  rbpState = st;
+  setTimeout(() => $('[data-rbp="x"]')?.focus(), 30);
+  return st;
+}
+function rbpClose(){
+  const st = rbpState; if(!st) return;
+  st.closed = true; rbpState = null;
+  window.removeEventListener('keydown', st.onKey, true);
+  if(st.frame && st.frame.parentNode) st.frame.parentNode.removeChild(st.frame);
+  if(st.layout && st.layout.parentNode) st.layout.parentNode.removeChild(st.layout);
+  if(st.ov.parentNode) st.ov.parentNode.removeChild(st.ov);
+}
+// A loaded (off-screen) copy of the report, so Print runs synchronously inside the click.
+function rbpPrepFrame(st){
+  const f = document.createElement('iframe');
+  f.className = 'rbp-printframe'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+  f.style.cssText = 'position:fixed;left:-10000px;top:0;width:900px;height:1200px;border:0;';
+  f.onload = () => { try{ f.contentWindow.addEventListener('keydown', st.onKey, true); }catch(e){} };
+  document.body.appendChild(f); f.srcdoc = st.html; st.frame = f;
+}
+function rbpPrint(st){
   try{
-    if(kind==='budget' && !budgetReportFY) budgetReportFY = fyLabelForDate(new Date().toISOString().slice(0,10));
-    const book = await rbxBuild(kind, true);
-    const html = rbxPdfHtml(book);
+    const w = st.frame && st.frame.contentWindow;
+    if(!w || typeof w.print !== 'function') throw new Error('no print');
+    w.focus(); w.print();
+    setTimeout(() => { if(!st.closed) st.ov.querySelector('[data-rbp="print"]')?.focus(); }, 0);
+  }catch(e){ rbpNewTab(st, true); }
+}
+function rbpNewTab(st, auto){
+  try{
+    const html = auto ? st.html.replace('</body>', '<script>setTimeout(function(){try{print()}catch(e){}},400)<\/script></body>') : st.html;
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    const w = window.open(url, '_blank');
+    if(!w) toast('Your browser blocked the new tab — allow pop-ups for this site, or use Download PDF.', { duration: 6000 });
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }catch(e){ toast('Could not open a new tab here — use Download PDF instead.'); }
+}
+function rbpDownload(st){
+  if(!st.pdfBlob) return;
+  const url = URL.createObjectURL(st.pdfBlob), a = document.createElement('a');
+  a.href = url; a.download = st.base + '.pdf'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 8000);
+  toast(`Saved ${st.base}.pdf`, { duration: 3500 });
+}
+const rbpTick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+// Lay the report out page by page (A4, portrait or landscape per section), repeating table headers on
+// continuation pages and never splitting a row — the same rules the print engine follows.
+async function rbpPaginate(st, html){
+  const lay = document.createElement('iframe');
+  lay.setAttribute('aria-hidden', 'true'); lay.tabIndex = -1;
+  lay.style.cssText = 'position:fixed;left:-20000px;top:0;width:1300px;height:1600px;border:0;';
+  const g = RBP_GEOM, cw = m => Math.round((m.w - m.ml - m.mr) * RBP_PX), ch = m => Math.floor((m.h - m.mt - m.mb) * RBP_PX);
+  const layCss = `<style id="rbp-lay">html,body{background:#fff}section{width:${cw(g.port)}px;break-before:auto!important;margin:0 0 60px}section.land{width:${cw(g.land)}px}section.cover{width:${Math.round(g.port.w * RBP_PX)}px;height:${Math.round(g.port.h * RBP_PX)}px}</style>`;
+  st.layout = lay; document.body.appendChild(lay);
+  await new Promise((res, rej) => { lay.onload = res; lay.onerror = rej; lay.srcdoc = html.replace('</head>', layCss + '</head>'); setTimeout(res, 4000); });
+  const doc = lay.contentDocument;
+  try{ if(doc.fonts && doc.fonts.ready) await doc.fonts.ready; }catch(e){}
+  await rbpTick(); await rbpTick();
+  const css = Array.from(doc.querySelectorAll('style')).map(s => s.textContent).join('\n');
+  const pages = [];
+  doc.querySelectorAll('body > section').forEach(sec => {
+    if(sec.classList.contains('cover')){ pages.push({ land: false, cover: true, nodes: [sec.cloneNode(true)], w: Math.round(g.port.w * RBP_PX), h: Math.round(g.port.h * RBP_PX) }); return; }
+    const land = sec.classList.contains('land'), M = land ? g.land : g.port, W = cw(M), H = ch(M);
+    const head = sec.querySelector(':scope > header'), table = sec.querySelector(':scope > table'), sig = sec.querySelector(':scope > .sig');
+    const hh = head ? head.getBoundingClientRect().height + 11 : 0;
+    const thead = table ? table.querySelector('thead') : null, th = thead ? thead.getBoundingClientRect().height : 0;
+    const rows = table ? Array.from(table.querySelectorAll(':scope > tbody > tr')) : [];
+    const mk = first => { const s = sec.cloneNode(false); if(first && head) s.appendChild(head.cloneNode(true)); let t = null, tb = null; if(table){ t = table.cloneNode(false); const cg = table.querySelector('colgroup'); if(cg) t.appendChild(cg.cloneNode(true)); if(thead) t.appendChild(thead.cloneNode(true)); tb = doc.createElement('tbody'); t.appendChild(tb); s.appendChild(t); } return { s, tb, used: (first ? hh : 0) + th, n: 0 }; };
+    let cur = mk(true);
+    const flush = () => { pages.push({ land, nodes: [cur.s], w: W, h: H }); };
+    rows.forEach(tr => {
+      const rh = tr.getBoundingClientRect().height;
+      if(cur.n > 0 && cur.used + rh > H){ flush(); cur = mk(false); }
+      if(tr.classList.contains('sp') && cur.n === 0) return; // no spacer at the top of a page
+      cur.tb.appendChild(tr.cloneNode(true)); cur.used += rh; cur.n++;
+    });
+    if(sig){ const sh = sig.getBoundingClientRect().height + 14; if(cur.used + sh > H && cur.n > 0){ flush(); cur = mk(false); if(cur.tb && cur.tb.parentNode) cur.tb.parentNode.remove(); } cur.s.appendChild(sig.cloneNode(true)); }
+    flush();
+  });
+  return { pages, css };
+}
+async function rbpRender(st, lay, meta, onProgress){
+  const ser = new XMLSerializer(), S = 2, out = [];
+  const g = RBP_GEOM, total = lay.pages.length;
+  for(let i = 0; i < total; i++){
+    if(st.closed) throw new Error('closed');
+    const p = lay.pages[i], M = p.land ? g.land : g.port;
+    const PW = Math.round(M.w * RBP_PX), PH = Math.round(M.h * RBP_PX);
+    const body = p.nodes.map(n => ser.serializeToString(n)).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${p.w}" height="${p.h}"><foreignObject x="0" y="0" width="${p.w}" height="${p.h}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${p.w}px;height:${p.h}px;overflow:hidden;background:#fff;font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;color:#1B2420;font-size:8pt"><style><![CDATA[${lay.css.replace(/\]\]>/g, '')}
+      section{width:${p.w}px!important;margin:0!important;break-before:auto!important}]]></style>${body}</div></foreignObject></svg>`;
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    await (img.decode ? img.decode() : new Promise((res, rej) => { img.onload = res; img.onerror = rej; }));
+    const c = document.createElement('canvas'); c.width = PW * S; c.height = PH * S;
+    const x = c.getContext('2d'); x.scale(S, S); x.fillStyle = '#fff'; x.fillRect(0, 0, PW, PH);
+    if(p.cover) x.drawImage(img, 0, 0, PW, PH);
+    else {
+      x.drawImage(img, M.ml * RBP_PX, M.mt * RBP_PX, p.w, p.h);
+      x.fillStyle = '#66756D'; x.font = '9.3px Arial, Helvetica, sans-serif'; x.textBaseline = 'alphabetic';
+      const yTop = (M.mt - 6) * RBP_PX, yBot = PH - (M.mb - 8) * RBP_PX, L = M.ml * RBP_PX, R = PW - M.mr * RBP_PX;
+      x.textAlign = 'left'; x.fillText(meta.company || '', L, yTop); x.fillText(`Prepared with The Reckoning Books by SKm · ${meta.generated || ''}`, L, yBot);
+      x.textAlign = 'right'; x.fillText(meta.title || '', R, yTop); x.fillText(`Page ${i + 1} of ${total}`, R, yBot);
+    }
+    const jpeg = c.toDataURL('image/jpeg', 0.86); // throws in browsers that will not export this kind of drawing
+    out.push({ jpeg, pw: c.width, ph: c.height, wPt: M.w * 72 / 25.4, hPt: M.h * 72 / 25.4, land: p.land });
+    if(onProgress) onProgress(i + 1, total, jpeg, p.land);
+    await rbpTick();
+  }
+  return out;
+}
+// A minimal PDF writer: one JPEG image per A4 page (DCTDecode), plus document info.
+function rbpMakePdf(pages, info){
+  const enc = new TextEncoder(), chunks = []; let len = 0; const offs = [];
+  const push = b => { if(typeof b === 'string') b = enc.encode(b); chunks.push(b); len += b.length; };
+  const pdfStr = s => '(' + String(s || '').replace(/[^\x20-\x7E]/g, ' ').replace(/([()\\])/g, '\\$1') + ')';
+  const b64 = d => { const s = atob(d.split(',')[1]); const u = new Uint8Array(s.length); for(let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+  push('%PDF-1.4\n'); push(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));
+  const n = pages.length, kids = pages.map((_, i) => `${4 + i * 3} 0 R`).join(' ');
+  const obj = (id, s) => { offs[id] = len; push(`${id} 0 obj\n`); if(typeof s === 'function') s(); else push(s); push('\nendobj\n'); };
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, `<< /Type /Pages /Kids [${kids}] /Count ${n} >>`);
+  const d = new Date(), pd = `D:${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}00`;
+  obj(3, `<< /Title ${pdfStr(info.title)} /Author ${pdfStr(info.author)} /Creator (The Reckoning Books by SKm) /Producer (The Reckoning Books by SKm) /CreationDate (${pd}) >>`);
+  pages.forEach((p, i) => {
+    const pid = 4 + i * 3, cid = pid + 1, iid = pid + 2, W = p.wPt.toFixed(2), H = p.hPt.toFixed(2);
+    obj(pid, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im${i} ${iid} 0 R >> >> /Contents ${cid} 0 R >>`);
+    const cs = `q ${W} 0 0 ${H} 0 0 cm /Im${i} Do Q`;
+    obj(cid, `<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
+    const jb = b64(p.jpeg);
+    obj(iid, () => { push(`<< /Type /XObject /Subtype /Image /Width ${p.pw} /Height ${p.ph} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jb.length} >>\nstream\n`); push(jb); push('\nendstream'); });
+  });
+  const total = 4 + n * 3, xref = len;
+  let x = `xref\n0 ${total}\n0000000000 65535 f \n`;
+  for(let i = 1; i < total; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+  push(x); push(`trailer\n<< /Size ${total} /Root 1 0 R /Info 3 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+const RBP_TITLES = { all: 'Financial Report Pack', tb: 'Trial Balance', pl: 'Statement of Profit and Loss', bs: 'Balance Sheet', cf: 'Cash Flow Statement', ratios: 'Ratio Analysis', cc: 'Cost Center P&L', budget: 'Budget vs Actual', audit: 'Audit Trail' };
+async function rbxPdfRun(kind, legacy){
+  const co = currentCompany || {};
+  const st = rbpOpen(`${RBP_TITLES[kind] || 'Report'} — PDF`, co.name || '');
+  let book, html;
+  try{
+    if(kind === 'budget' && !budgetReportFY) budgetReportFY = fyLabelForDate(new Date().toISOString().slice(0, 10));
+    st.msg(kind === 'all' ? 'Building the report pack — statements, notes, ageing, monthly P&L…' : 'Building the report…', 12);
+    await rbpTick();
+    book = await rbxBuild(kind, true);
+    html = rbxPdfHtml(book);
     window.__rbxLastPdf = { html, book };
-    printHTMLDocument(html);
-    toast('In the print window choose "Save as PDF" to download the report', {duration:5200});
   }catch(err){
-    console.error('Formatted PDF failed, using the plain print instead', err);
-    if(typeof legacy==='function') legacy();
+    console.error('Formatted PDF failed', err);
+    if(typeof legacy === 'function'){ rbpClose(); legacy(); return; }
+    st.msg(`Sorry — the report could not be built (${(err && err.message) || err}). Please try again, or download the Excel pack from the Reports page.`, 100);
+    st.ov.querySelector('.rbp-bar i').classList.add('err');
+    return;
+  }
+  if(st.closed) return;
+  st.html = html; st.base = (typeof rbxFileBase === 'function' && RBX_KINDS[kind]) ? rbxFileBase(kind) : `${(co.name || 'Report').replace(/[^a-z0-9]+/gi, '_')}_Report`;
+  rbpPrepFrame(st);
+  st.enable('print', true); st.enable('tab', true);
+  st.msg('Laying out the pages…', 22);
+  const meta = book.meta || {};
+  try{
+    const lay = await rbpPaginate(st, html);
+    if(st.closed) return;
+    const thumbs = st.pagesEl;
+    st.pages = await rbpRender(st, lay, { company: co.name, title: meta.title || RBP_TITLES[kind], generated: meta.generatedLabel }, (i, n, jpeg, land) => {
+      st.msg(`Drawing page ${i} of ${n}…`, 22 + i / n * 74);
+      const f = document.createElement('figure'); f.className = 'rbp-page' + (land ? ' land' : '');
+      f.innerHTML = `<img src="${jpeg}" alt="Page ${i} of ${n}"><figcaption>Page ${i} of ${n}</figcaption>`;
+      thumbs.appendChild(f);
+    });
+    st.pdfBlob = rbpMakePdf(st.pages, { title: `${co.name || ''} - ${meta.title || RBP_TITLES[kind]}`, author: (currentUser && currentUser.name) || 'The Reckoning Books' });
+    st.enable('dl', true);
+    st.msg(`${st.pages.length} page${st.pages.length === 1 ? '' : 's'} · ${(st.pdfBlob.size / 1048576).toFixed(1)} MB · ready`, 100);
+    st.ov.classList.add('ready');
+    st.ov.querySelector('[data-rbp="dl"]')?.focus();
+  }catch(err){
+    if(st.closed) return;
+    console.warn('PDF file could not be drawn here; offering print instead', err);
+    st.hide('dl'); st.pagesEl.innerHTML = '';
+    const f = document.createElement('iframe'); f.className = 'rbp-live'; f.title = 'Report preview'; f.srcdoc = html; st.pagesEl.appendChild(f);
+    st.msg('Preview ready. This browser can’t save the PDF file directly — use Print / Save as PDF.', 100);
+    st.ov.classList.add('ready');
+    st.ov.querySelector('[data-rbp="print"]')?.focus();
   }
 }
 
@@ -21789,38 +22070,31 @@ function renderPaint(){
   }
 }
 function tabIcon(id){
-  // Oct 15, 2026 round 3 -- moved off the Oct 14 round 2 hand-picked Lucide SVG set onto Google's
-  // Material Symbols Outlined variable font (fonts.google.com/icons -- the current/successor icon
-  // system to the old static "Material Icons", used across Android/Material Design 3, Google
-  // Workspace and most Google web apps; see the <link> in <head>). Each entry below is just the
-  // icon's ligature name -- the font renders the matching glyph for that exact text run, the same
-  // trick Google's own apps use. `translate="no"` keeps a browser's page-translate feature from ever
-  // mangling that ligature text into something the font no longer recognizes.
-  // This earns back the thing the Oct 14 two-SVG-set mockup (outline + a separately hand-drawn solid
-  // version for the active tab) was built to approximate: Material Symbols' own FILL axis does that
-  // in one shared CSS rule (.navtab.active .tab-msym, by .tab-msym above) rather than a second path
-  // per module, and --nav-hue/SIDEBAR_ICON_HUES below needed no changes at all -- a font glyph already
-  // honors `color` exactly like a stroke path did.
-  const icons = {
-    dashboard: 'dashboard',      // bento grid of tiles -- "overview".
-    voucher:   'receipt_long',   // itemized receipt slip.
-    pos:       'point_of_sale',  // cash register.
-    daybook:   'history_edu',    // a page being written on -- today's running entries.
-    calendar:  'calendar_month',
-    ledgers:   'menu_book',      // an open book.
-    coa:       'account_balance',// the classic bank/institution glyph for Chart of Accounts.
-    inventory: 'inventory_2',    // a stocked box.
-    reports:   'bar_chart',
-    gst:       'percent',        // the literal tax-rate symbol, kept from every earlier icon set --
-                                  // it was already the most direct glyph available for a tax module.
-    reconcile: 'sync',           // the two-arrow refresh/sync cycle.
-    assets:    'domain',         // a multi-window building -- fixed-asset property.
-    parties:   'groups',
-    orders:    'list_alt',
-    spend:     'request_quote',  // a bill with a rupee/price tag -- claims and requisitions.
-    payroll:   'payments',       // banknote with a coin.
+  // Nov 2026 — "Ledger Line" icon set: the sidebar's own hand-drawn SVG icons, replacing the Material
+  // Symbols font glyphs (which showed as raw words like "receipt_long" whenever Google Fonts was slow or
+  // blocked). Drawn on one 24px grid with a 1.75 rounded stroke — the calm line style QuickBooks, Xero
+  // and Zoho Books use — plus a soft tinted plane (.d) that gives each icon depth, and accounting-
+  // specific shapes of our own: a T-account on Ledgers, an account tree for the Chart of Accounts, a
+  // matched pair for Reconcile, a tax tag for GST. Colour comes from --nav-hue, as before.
+  const P = {
+    dashboard: '<rect class="d" x="3" y="3" width="8" height="10" rx="2"/><rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="3" width="8" height="6" rx="2"/><rect class="d" x="13" y="11" width="8" height="10" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/><rect x="3" y="15" width="8" height="6" rx="2"/>',
+    voucher:   '<path class="d" d="M6 3h12v18l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3L6 21z"/><path d="M6 3h12v18l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3L6 21z"/><path d="M9 7.5h6M9 11h6M9 14.5h3.5"/>',
+    pos:       '<rect class="d" x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><rect x="8" y="5.5" width="8" height="4.5" rx="1"/><circle class="s" cx="9" cy="13.6" r="1"/><circle class="s" cx="12" cy="13.6" r="1"/><circle class="s" cx="15" cy="13.6" r="1"/><circle class="s" cx="9" cy="17.4" r="1"/><circle class="s" cx="12" cy="17.4" r="1"/><circle class="s" cx="15" cy="17.4" r="1"/>',
+    daybook:   '<path class="d" d="M12 6.5C10 5 7 4.5 3.5 5v14c3.5-.5 6.5 0 8.5 1.5z"/><path d="M12 6.5C10 5 7 4.5 3.5 5v14c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v14"/><path d="M6.5 9.2l3 .4M6.5 12.7l3 .4M14.5 9.6l3-.4M14.5 13.1l3-.4"/>',
+    calendar:  '<path class="d" d="M3 10V7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5V10z"/><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/><circle class="s" cx="8" cy="14" r="1"/><circle class="s" cx="12" cy="14" r="1"/><circle class="s" cx="8" cy="17.5" r="1"/><rect class="s" x="14.6" y="15.6" width="3.8" height="3.8" rx="1"/>',
+    ledgers:   '<rect class="d" x="4.5" y="3" width="15" height="18" rx="2"/><rect x="4.5" y="3" width="15" height="18" rx="2"/><path d="M7.5 3v18M10.5 8.5h6M13.5 8.5V16"/>',
+    coa:       '<rect class="d" x="8.5" y="3" width="7" height="5" rx="1.3"/><rect x="8.5" y="3" width="7" height="5" rx="1.3"/><path d="M12 8v3.5M5.5 15v-3.5h13V15"/><rect x="2.5" y="15" width="6" height="5" rx="1.3"/><rect class="d" x="15.5" y="15" width="6" height="5" rx="1.3"/><rect x="15.5" y="15" width="6" height="5" rx="1.3"/><path d="M12 11.5V15"/><rect x="9" y="15" width="6" height="5" rx="1.3"/>',
+    inventory: '<path class="d" d="M4 7.5l8 4.5v9l-8-4.5z"/><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9M8 5.25l8 4.5"/>',
+    reports:   '<path class="d" d="M6 3h8l4 4v14H6z"/><path d="M6 3h8l4 4v14H6zM14 3v4h4"/><path d="M9 17.5v-3M12 17.5v-6M15 17.5v-4"/>',
+    gst:       '<path class="d" d="M12.6 3H5a2 2 0 0 0-2 2v7.6l8.7 8.7a1.5 1.5 0 0 0 2.1 0l7.5-7.5a1.5 1.5 0 0 0 0-2.1z"/><path d="M12.6 3H5a2 2 0 0 0-2 2v7.6l8.7 8.7a1.5 1.5 0 0 0 2.1 0l7.5-7.5a1.5 1.5 0 0 0 0-2.1z"/><path d="M8.6 14.6l5.6-5.6"/><circle cx="9" cy="9.6" r="1.25"/><circle cx="13.8" cy="14.2" r="1.25"/>',
+    reconcile: '<path d="M10 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2M6 7h2.5M6 10.5h2"/><rect class="d" x="10" y="7" width="11" height="14" rx="2"/><rect x="10" y="7" width="11" height="14" rx="2"/><path d="M13 14.2l2 2 3.5-3.9"/>',
+    assets:    '<path class="d" d="M14 21V5.5A1.5 1.5 0 0 1 15.5 4h3A1.5 1.5 0 0 1 20 5.5V21z"/><path d="M3 21h18M4 21v-9.5l5 3v-3l5 3V5.5A1.5 1.5 0 0 1 15.5 4h3A1.5 1.5 0 0 1 20 5.5V21"/><path d="M7 17.5v.01M10.5 17.5v.01M17 8v.01M17 11.5v.01M17 15v.01"/>',
+    parties:   '<rect class="d" x="3" y="5" width="18" height="14" rx="2.5"/><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10.5" r="2"/><path d="M5.6 15.6c.6-1.5 1.6-2.3 2.9-2.3s2.3.8 2.9 2.3M14 10h4M14 13.5h3"/>',
+    orders:    '<rect class="d" x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 10.6l1.2 1.2 2-2.2M13.2 10.8H16M8 15.6l1.2 1.2 2-2.2M13.2 15.8H16"/>',
+    spend:     '<rect class="d" x="3.5" y="7" width="17" height="13" rx="2.5"/><path d="M5.5 7l9.2-3.4a1.5 1.5 0 0 1 2 1.4V7"/><rect x="3.5" y="7" width="17" height="13" rx="2.5"/><path d="M20.5 11H17a2 2 0 0 0 0 4h3.5"/><circle class="s" cx="17.2" cy="13" r=".9"/>',
+    payroll:   '<path d="M5 5.5h14"/><rect class="d" x="2.5" y="8" width="19" height="11" rx="2"/><rect x="2.5" y="8" width="19" height="11" rx="2"/><circle cx="12" cy="13.5" r="2.4"/><path d="M6 13.5h.01M18 13.5h.01"/>',
   };
-  return `<span class="tab-msym" translate="no">${icons[id]||''}</span>`;
+  return P[id] ? `<svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[id]}</svg>` : '';
 }
 // ---------------- Oct 10, 2026 sidebar upgrade: Pinned Favorites, live status badges, keyboard
 // quick-jump -- all three share this one id->label/shortcut lookup (the same label/letter pairs
