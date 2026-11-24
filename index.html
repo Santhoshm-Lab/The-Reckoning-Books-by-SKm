@@ -3961,6 +3961,276 @@
   .navtab.active .nav-ic .d{fill-opacity:.34;}
   .cmdk-item-icon .nav-ic{width:17px;height:17px;color:var(--accent1);}
 </style>
+<style id="fd26-css">
+  /* ===================== Front door 2026: Landing + one-screen Login ===================== */
+  .landing-page.fx, .rb-bg.fx-login{
+    --fx-ink:#11201A; --fx-ink2:#3E5247; --fx-ink3:#6B7E73; --fx-line:#DFE7E1; --fx-paper:#F5F8F5; --fx-card:#FFFFFF;
+    --fx-green:#1E8E15; --fx-green2:#2CA01C; --fx-deep:#0C2414; --fx-gold:#E9A500; --fx-mint:#D9F2D4;
+    --fx-shadow:0 1px 2px rgb(17 32 26 / .06), 0 12px 32px -12px rgb(17 32 26 / .18);
+    --fx-display:'Bricolage Grotesque','Inter',system-ui,sans-serif;
+  }
+  :root[data-theme="dark"] .landing-page.fx, :root[data-theme="dark"] .rb-bg.fx-login{
+    --fx-ink:#EAF2EC; --fx-ink2:#B9C9BE; --fx-ink3:#8A9C90; --fx-line:#24352B; --fx-paper:#0B130E; --fx-card:#111C15;
+    --fx-green:#3CC22A; --fx-green2:#4BD338; --fx-mint:#163A1D;
+    --fx-shadow:0 1px 2px rgb(0 0 0 / .4), 0 16px 40px -14px rgb(0 0 0 / .7);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"])[data-theme="dark"] .landing-page.fx{--fx-paper:#0B130E;}
+  }
+
+  /* ---------- Landing: page + nav ---------- */
+  .landing-page.fx{background:var(--fx-paper);color:var(--fx-ink);}
+  .landing-page.fx .landing-nav{position:fixed;top:14px;left:50%;transform:translateX(-50%);width:min(1180px,calc(100% - 32px));max-width:none;margin:0;z-index:60;
+    padding:10px 12px 10px 18px;border-radius:18px;background:color-mix(in srgb, var(--fx-card) 72%, transparent);
+    -webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);
+    border:1px solid color-mix(in srgb, var(--fx-line) 80%, transparent);box-shadow:0 10px 30px -18px rgb(17 32 26 / .35);}
+  .landing-page.fx .landing-nav-brand{color:var(--fx-ink);font-family:var(--fx-display);font-weight:800;font-size:17px;letter-spacing:-.01em;}
+  .landing-page.fx .landing-nav-links a{color:var(--fx-ink2);font-weight:600;font-size:13.5px;}
+  .landing-page.fx .landing-nav-links a:hover{color:var(--fx-ink);}
+  .landing-page.fx .landing-nav-actions .btn{border-radius:11px;font-weight:700;}
+  .landing-page.fx .landing-nav-actions .btn.secondary{background:transparent;color:var(--fx-ink);border:1px solid var(--fx-line);box-shadow:none;}
+  .landing-page.fx .landing-nav-actions .btn.secondary:hover{background:color-mix(in srgb, var(--fx-ink) 6%, transparent);}
+  .landing-page.fx .landing-nav-actions #landingLoginBtn{border-color:transparent;}
+  .landing-page.fx .landing-nav-actions .btn:not(.secondary){background:var(--fx-ink);color:var(--fx-paper);border:1px solid var(--fx-ink);box-shadow:none;}
+  .landing-page.fx .landing-nav-burger span, .landing-page.fx .landing-nav-burger span::before, .landing-page.fx .landing-nav-burger span::after{background:var(--fx-ink);}
+
+  /* ---------- Landing: hero ---------- */
+  .landing-page.fx .fx-hero{position:relative;overflow:hidden;background:var(--fx-paper);padding:132px 0 0;color:var(--fx-ink);}
+  .fx-hero-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .fx-grid{position:absolute;inset:0;background-image:linear-gradient(to right, color-mix(in srgb, var(--fx-ink) 6%, transparent) 1px, transparent 1px),linear-gradient(to bottom, color-mix(in srgb, var(--fx-ink) 6%, transparent) 1px, transparent 1px);
+    background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);}
+  .landing-page.fx .fx-hero-bg .lg-blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;}
+  .landing-page.fx .fx-hero-bg .lg-blob-1{width:520px;height:520px;left:-140px;top:-180px;background:radial-gradient(circle,#7BD96B,transparent 65%);}
+  .landing-page.fx .fx-hero-bg .lg-blob-2{width:460px;height:460px;right:-120px;top:-120px;background:radial-gradient(circle,#FFD36B,transparent 65%);opacity:.45;}
+  .landing-page.fx .fx-hero-bg .lg-blob-3{width:700px;height:420px;left:20%;top:520px;background:radial-gradient(circle,#9BE38C,transparent 65%);opacity:.35;}
+  :root[data-theme="dark"] .landing-page.fx .fx-hero-bg .lg-blob{opacity:.22;}
+  .fx-hero-inner{position:relative;max-width:1180px;margin:0 auto;padding:0 28px;}
+  .fx-hero-top{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:56px;align-items:end;}
+  .fx-announce{display:inline-flex;align-items:center;gap:10px;padding:5px 14px 5px 5px;border-radius:999px;background:var(--fx-card);border:1px solid var(--fx-line);
+    color:var(--fx-ink2);font-size:13px;text-decoration:none;box-shadow:var(--fx-shadow);margin:0 0 22px;max-width:100%;transition:transform .2s ease, border-color .2s ease;}
+  .fx-announce:hover{transform:translateY(-1px);border-color:color-mix(in srgb, var(--fx-green) 45%, var(--fx-line));}
+  .fx-announce b{color:var(--fx-ink);}
+  .fx-new{flex:none;padding:3px 9px;border-radius:999px;background:var(--fx-green);color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  .fx-arrow{color:var(--fx-green);font-weight:800;}
+  .landing-page.fx .fx-hero .landing-badge{display:block;background:none;border:0;padding:0;margin:0 0 14px;color:var(--fx-green);font-size:12.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;box-shadow:none;animation:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:0;width:auto;}
+  .landing-page.fx .fx-hero .landing-badge::before, .landing-page.fx .fx-hero .landing-badge::after{display:none;}
+  .landing-page.fx .fx-hero h1{font-family:var(--fx-display);font-size:clamp(44px,6.4vw,88px);line-height:.96;letter-spacing:-.045em;font-weight:800;color:var(--fx-ink);margin:0;text-wrap:balance;}
+  .landing-page.fx .fx-hero h1 em{font-style:normal;background:linear-gradient(100deg,var(--fx-green) 10%,#6CC24A 55%,var(--fx-gold) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .landing-page.fx .fx-hero .landing-hero-sub{font-size:17px;line-height:1.6;color:var(--fx-ink2);margin:0 0 24px;max-width:46ch;}
+  .landing-page.fx .fx-hero .landing-hero-ctas{display:flex;flex-wrap:wrap;gap:10px;margin:0;}
+  .landing-page.fx .fx-hero .landing-hero-ctas .btn{height:50px;padding:0 22px;border-radius:14px;font-size:15px;font-weight:700;}
+  .landing-page.fx .fx-hero #landingHeroSignupBtn{background:var(--fx-green);border:1px solid var(--fx-green);color:#fff;box-shadow:0 10px 24px -10px color-mix(in srgb, var(--fx-green) 80%, transparent), inset 0 1px 0 rgb(255 255 255 / .25);}
+  .landing-page.fx .fx-hero #landingHeroSignupBtn:hover{transform:translateY(-1px);filter:brightness(1.05);}
+  .landing-page.fx .fx-hero #landingHeroTryDemoBtn{background:var(--fx-card);color:var(--fx-ink);border:1px solid var(--fx-line);box-shadow:var(--fx-shadow);}
+  .fx-hero-sublinks{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin:16px 0 0;}
+  .fx-link{background:none;border:0;padding:0;font:inherit;font-size:13.5px;color:var(--fx-ink2);cursor:pointer;}
+  .fx-link b{color:var(--fx-green);}
+  .fx-link:hover{color:var(--fx-ink);}
+  .fx-link:focus-visible{outline:2px solid var(--fx-green);outline-offset:3px;border-radius:4px;}
+  .landing-page.fx .fx-hero .landing-install-wrap.hero{position:relative;}
+  .landing-page.fx .fx-hero .landing-hero-note{color:var(--fx-ink3);font-size:12.5px;margin:14px 0 0;max-width:46ch;}
+  .fx-trust{list-style:none;margin:44px 0 0;padding:18px 0;display:flex;flex-wrap:wrap;gap:10px 26px;border-top:1px solid var(--fx-line);border-bottom:1px solid var(--fx-line);}
+  .fx-trust li{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--fx-ink2);}
+  .fx-trust svg{width:15px;height:15px;fill:none;stroke:var(--fx-green);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .landing-page.fx .fx-hero .landing-audience-picker{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin:26px 0 22px;}
+  .landing-page.fx .fx-hero .landing-audience-picker-label{color:var(--fx-ink3);font-size:12.5px;font-weight:700;letter-spacing:0;text-transform:none;margin:0;}
+  .landing-page.fx .fx-hero .landing-audience-pills{display:flex;flex-wrap:wrap;gap:6px;padding:4px;border-radius:14px;background:color-mix(in srgb, var(--fx-ink) 5%, transparent);}
+  .landing-page.fx .fx-hero .landing-audience-pill{border:0;background:transparent;color:var(--fx-ink2);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:650;box-shadow:none;}
+  .landing-page.fx .fx-hero .landing-audience-pill:hover{color:var(--fx-ink);background:color-mix(in srgb, var(--fx-card) 70%, transparent);}
+  .landing-page.fx .fx-hero .landing-audience-pill.is-active{background:var(--fx-card);color:var(--fx-ink);box-shadow:var(--fx-shadow);}
+  /* product stage */
+  .fx-stage{position:relative;margin:0 auto;max-width:1120px;padding:0 0 0;}
+  .fx-frame{position:relative;border-radius:18px 18px 0 0;overflow:hidden;background:var(--fx-card);border:1px solid var(--fx-line);border-bottom:0;
+    box-shadow:0 -1px 0 rgb(255 255 255 / .6) inset, 0 40px 80px -30px rgb(12 36 20 / .45), 0 0 0 8px color-mix(in srgb, var(--fx-card) 55%, transparent);}
+  .fx-chrome{display:flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-bottom:1px solid var(--fx-line);background:color-mix(in srgb, var(--fx-paper) 70%, var(--fx-card));}
+  .fx-chrome i{width:10px;height:10px;border-radius:50%;background:#E4E9E5;}
+  .fx-chrome i:nth-child(1){background:#F26B5B;} .fx-chrome i:nth-child(2){background:#F5BE4F;} .fx-chrome i:nth-child(3){background:#5CC46B;}
+  .fx-chrome span{margin:0 auto;padding:3px 14px;border-radius:8px;background:var(--fx-card);border:1px solid var(--fx-line);font-size:11.5px;color:var(--fx-ink3);transform:translateX(-24px);}
+  .fx-frame img{display:block;width:100%;height:auto;aspect-ratio:1200/687;}
+  .fx-stage .fx-float{position:absolute;display:flex;align-items:flex-start;gap:10px;max-width:270px;padding:12px 14px;border-radius:16px;font-size:12.5px;line-height:1.4;color:var(--fx-ink2);
+    background:color-mix(in srgb, var(--fx-card) 82%, transparent);-webkit-backdrop-filter:blur(14px) saturate(1.5);backdrop-filter:blur(14px) saturate(1.5);
+    border:1px solid color-mix(in srgb, var(--fx-line) 85%, transparent);box-shadow:0 18px 40px -16px rgb(12 36 20 / .45);font-weight:500;white-space:normal;transform:none;animation:fxFloat 6s ease-in-out infinite;}
+  .fx-stage .fx-float b{display:block;color:var(--fx-ink);font-size:13px;margin-bottom:1px;}
+  .fx-stage .fx-float .fc-icon{flex:none;width:26px;height:26px;border-radius:9px;display:grid;place-items:center;background:var(--fx-mint);color:var(--fx-green);font-weight:900;font-size:13px;}
+  .fx-stage .fx-float .fc-ai{background:linear-gradient(135deg,#FFE7A3,#FFD15C);color:#7A5200;}
+  .fx-stage .fx-float-1{left:-34px;top:18%;}
+  .fx-stage .fx-float-2{right:-30px;top:8%;animation-delay:-2s;}
+  .fx-stage .fx-float-3{right:-22px;bottom:16%;animation-delay:-4s;}
+  @keyframes fxFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  /* metrics band sits under the product shot */
+  .landing-page.fx .landing-metrics-band{position:relative;z-index:2;margin:0;max-width:none;width:100%;box-sizing:border-box;padding:0 28px;background:var(--fx-card);border-top:1px solid var(--fx-line);border-bottom:1px solid var(--fx-line);}
+  .landing-page.fx .landing-stat-strip{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:0;background:none;border:0;box-shadow:none;border-radius:0;padding:0;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .landing-page.fx .landing-stat-strip .landing-stat{padding:26px 12px;text-align:left;border-left:1px solid var(--fx-line);}
+  .landing-page.fx .landing-stat-strip .landing-stat:first-child{border-left:0;}
+  .landing-page.fx .landing-stat .n{font-family:var(--fx-display);font-size:clamp(30px,3.4vw,44px);font-weight:800;letter-spacing:-.04em;color:var(--fx-ink);line-height:1;}
+  .landing-page.fx .landing-stat .l{font-size:12.5px;font-weight:600;color:var(--fx-ink3);letter-spacing:0;text-transform:none;margin-top:6px;}
+
+  /* ---------- Landing: sections (one rhythm) ---------- */
+  .landing-page.fx .landing-section{max-width:1180px;padding:96px 28px;}
+  .landing-page.fx .landing-section > h2, .landing-page.fx .landing-section h2.reveal, .landing-page.fx .landing-intro h2{font-family:var(--fx-display);font-size:clamp(32px,4.2vw,52px);line-height:1.02;letter-spacing:-.04em;font-weight:800;color:var(--fx-ink);text-wrap:balance;margin:0 auto 14px;max-width:18ch;}
+  .landing-page.fx .landing-section-sub{font-size:16.5px;line-height:1.6;color:var(--fx-ink2);max-width:60ch;margin-left:auto;margin-right:auto;}
+  .landing-page.fx .landing-feature-card, .landing-page.fx .landing-mod-card{background:var(--fx-card);border:1px solid var(--fx-line);border-radius:20px;box-shadow:var(--fx-shadow);}
+  .landing-page.fx .landing-feature-card:hover, .landing-page.fx .landing-mod-card:hover{border-color:color-mix(in srgb, var(--fx-green) 35%, var(--fx-line));}
+  .landing-page.fx .landing-feature-card h3, .landing-page.fx .landing-mod-card h4{color:var(--fx-ink);letter-spacing:-.01em;}
+  .landing-page.fx .landing-feature-card p, .landing-page.fx .landing-mod-card p{color:var(--fx-ink2);}
+  .landing-page.fx .landing-feature-icon{border-radius:12px;background:var(--fx-mint);color:var(--fx-green);}
+  .landing-page.fx .landing-intro-grid p{color:var(--fx-ink2);font-size:15.5px;line-height:1.7;}
+  .landing-page.fx .landing-intro-grid strong{color:var(--fx-ink);}
+  .landing-page.fx .landing-cta-banner{border-radius:28px;max-width:1120px;margin:40px auto 80px;background:radial-gradient(ellipse 60% 120% at 0% 0%, #2CA01C 0%, transparent 60%),radial-gradient(ellipse 50% 100% at 100% 100%, #C88A00 0%, transparent 55%),var(--fx-deep);}
+  .landing-page.fx .landing-cta-banner h2{font-size:clamp(32px,4.4vw,56px);letter-spacing:-.04em;line-height:1;}
+  .landing-page.fx .landing-cta-banner #landingCtaBtn{height:52px;padding:0 26px;border-radius:14px;background:#fff;color:#0C2414;border:0;font-weight:800;}
+  .landing-page.fx .landing-footer-main{background:var(--fx-paper);border-top:1px solid var(--fx-line);}
+
+  /* ---------- Landing: responsive ---------- */
+  @media (max-width:1100px){
+    .fx-stage .fx-float-1{left:8px;} .fx-stage .fx-float-2{right:8px;} .fx-stage .fx-float-3{right:8px;}
+  }
+  @media (max-width:900px){
+    .landing-page.fx .fx-hero{padding-top:108px;}
+    .fx-hero-top{grid-template-columns:1fr;gap:22px;}
+    .landing-page.fx .landing-stat-strip{grid-template-columns:repeat(3,1fr);}
+    .landing-page.fx .landing-stat-strip .landing-stat:nth-child(4){border-left:0;}
+    .landing-page.fx .landing-stat-strip .landing-stat:nth-child(n+4){border-top:1px solid var(--fx-line);}
+    .fx-stage .fx-float-3{display:none;}
+  }
+  @media (max-width:640px){
+    .landing-page.fx .landing-nav{top:10px;width:calc(100% - 20px);padding:8px 10px 8px 14px;}
+    .fx-hero-inner{padding:0 16px;}
+    .landing-page.fx .fx-hero h1{font-size:clamp(40px,12vw,56px);}
+    .landing-page.fx .fx-hero .landing-hero-sub{font-size:15.5px;}
+    .landing-page.fx .fx-hero .landing-hero-ctas .btn{flex:1 1 100%;}
+    .fx-announce{font-size:12px;}
+    .fx-trust{gap:8px 16px;margin-top:28px;}
+    .fx-trust li{font-size:12px;}
+    .fx-stage .fx-float{display:none;}
+    .fx-chrome span{display:none;}
+    .landing-page.fx .landing-metrics-band{padding:0 16px;}
+    .landing-page.fx .landing-stat-strip{grid-template-columns:repeat(2,1fr);}
+    .landing-page.fx .landing-stat-strip .landing-stat{border-left:0;border-top:1px solid var(--fx-line);padding:18px 6px;}
+    .landing-page.fx .landing-stat-strip .landing-stat:nth-child(-n+2){border-top:0;}
+    .landing-page.fx .landing-stat-strip .landing-stat:nth-child(even){border-left:1px solid var(--fx-line);padding-left:16px;}
+    .landing-page.fx .landing-section{padding:64px 16px;}
+  }
+  @media (prefers-reduced-motion: reduce){ .fx-stage .fx-float{animation:none;} }
+
+  /* ===================== Login: one screen, no page scroll ===================== */
+  html:has(.rb-bg.fx-login), body:has(.rb-bg.fx-login){height:100%;overflow:hidden;scrollbar-gutter:auto;}
+  .rb-bg.fx-login{position:fixed;inset:0;width:100vw;height:100dvh;min-height:0;overflow:hidden;background:var(--fx-paper);padding:0;}
+  .rb-bg.fx-login > .rb-letter, .rb-bg.fx-login > .aurora-orb{display:none;}
+  .rb-bg.fx-login .rb-content{height:100%;display:flex;flex-direction:column;}
+  .rb-bg.fx-login .titlebar{position:absolute;top:0;left:0;right:0;z-index:20;background:transparent;border:0;padding:18px 28px;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none;}
+  .rb-bg.fx-login .titlebar > *{pointer-events:auto;}
+  .rb-bg.fx-login #backToLandingLink{color:rgb(255 255 255 / .82);font-weight:700;font-size:13px;}
+  .rb-bg.fx-login #backToLandingLink:hover{color:#fff;}
+  .rb-bg.fx-login .login-support-tip-titlebar{color:var(--fx-ink2);border-bottom-color:var(--fx-line);}
+  .rb-bg.fx-login .login-shell{flex:1;min-height:0;height:100%;padding:0;gap:0;display:block;background:none;}
+  .rb-bg.fx-login .login-shell::before, .rb-bg.fx-login .login-shell::after{display:none;}
+  .rb-bg.fx-login .login-split{height:100%;max-width:none;width:100%;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(420px,1fr);border-radius:0;border:0;box-shadow:none;animation:none;background:none;}
+  /* brand side */
+  .rb-bg.fx-login .fx-brand{position:relative;overflow:hidden;min-height:0;padding:clamp(64px,9vh,96px) clamp(32px,4.5vw,72px) clamp(24px,4vh,40px);display:flex;flex-direction:column;justify-content:center;border-radius:0;
+    background:radial-gradient(ellipse 70% 60% at 0% 0%, #2B9A1E 0%, transparent 60%),radial-gradient(ellipse 60% 50% at 100% 100%, rgb(233 165 0 / .5) 0%, transparent 60%),linear-gradient(160deg,#0C2414 0%,#0F2E18 55%,#123A1D 100%);color:#fff;box-shadow:none;}
+  .fx-brand-bg{position:absolute;inset:0;pointer-events:none;}
+  .fx-brand-bg .fx-grid{background-image:linear-gradient(to right, rgb(255 255 255 / .06) 1px, transparent 1px),linear-gradient(to bottom, rgb(255 255 255 / .06) 1px, transparent 1px);
+    -webkit-mask-image:radial-gradient(ellipse 90% 70% at 30% 30%, #000 20%, transparent 75%);mask-image:radial-gradient(ellipse 90% 70% at 30% 30%, #000 20%, transparent 75%);}
+  .rb-bg.fx-login .fx-brand .login-brand-panel-inner{position:relative;z-index:1;max-width:560px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:clamp(12px,2.2vh,22px);}
+  .rb-bg.fx-login .login-brand-kicker{display:flex;align-items:center;gap:10px;margin:0;font-size:13px;letter-spacing:.02em;text-transform:none;color:#fff;font-weight:800;}
+  .fx-mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:11.5px;font-weight:900;color:#0C2414;background:linear-gradient(135deg,#9BE38C,#F2C744);}
+  .rb-bg.fx-login .fx-brand h2{font-family:var(--fx-display);font-size:clamp(28px,min(3.4vw,5.2vh),48px);line-height:1.02;letter-spacing:-.04em;font-weight:800;margin:0;text-wrap:balance;color:#fff;}
+  .rb-bg.fx-login .fx-brand .login-brand-sub{margin:0;max-width:48ch;font-size:clamp(13px,1.7vh,15px);line-height:1.55;color:rgb(255 255 255 / .78);}
+  .fx-preview{display:flex;flex-direction:column;gap:8px;}
+  .fx-pcard{display:flex;align-items:center;gap:12px;padding:clamp(9px,1.4vh,13px) 14px;border-radius:14px;background:rgb(255 255 255 / .07);border:1px solid rgb(255 255 255 / .13);
+    -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgb(255 255 255 / .08);animation:fxIn .6s cubic-bezier(.2,.8,.2,1) both;}
+  .fx-pcard-2{animation-delay:.08s;margin-left:clamp(0px,3vw,28px);} .fx-pcard-3{animation-delay:.16s;margin-left:clamp(0px,6vw,56px);}
+  @keyframes fxIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .fx-pcard > div{flex:1;min-width:0;}
+  .fx-pcard b{display:block;font-size:13.5px;color:#fff;}
+  .fx-pcard span{font-size:12px;color:rgb(255 255 255 / .66);}
+  .fx-pi{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:rgb(155 227 140 / .16);color:#9BE38C;}
+  .fx-pi svg{width:17px;height:17px;}
+  .fx-pi-ai{background:rgb(242 199 68 / .18);color:#F2C744;}
+  .fx-pcard em{flex:none;font-style:normal;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;}
+  .fx-ok{background:rgb(155 227 140 / .18);color:#B6F0A8;}
+  .fx-live{display:inline-flex;align-items:center;gap:6px;background:rgb(242 199 68 / .18);color:#F8DA7E;}
+  .fx-live i{width:6px;height:6px;border-radius:50%;background:#F2C744;box-shadow:0 0 0 0 rgb(242 199 68 / .6);animation:fxPulse 1.8s ease-out infinite;}
+  @keyframes fxPulse{to{box-shadow:0 0 0 7px rgb(242 199 68 / 0)}}
+  .fx-ticker .lg-mini-title{color:rgb(255 255 255 / .55);margin:0 0 8px;font-size:10.5px;}
+  .fx-marquee{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);}
+  .fx-marquee + .fx-marquee{margin-top:6px;}
+  .rb-bg.fx-login .fx-track{display:flex;flex-wrap:nowrap;gap:6px;width:max-content;animation:fxMarquee 46s linear infinite;}
+  .fx-marquee-rev .fx-track{animation-direction:reverse;animation-duration:38s;}
+  .fx-marquee:hover .fx-track{animation-play-state:paused;}
+  .fx-dup{display:contents;}
+  .rb-bg.fx-login .fx-track .lg-chip{flex:none;white-space:nowrap;}
+  @keyframes fxMarquee{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 3px))}}
+  .rb-bg.fx-login .fx-brand .login-brand-stats{display:flex;gap:28px;padding:clamp(10px,1.8vh,16px) 0 0;border-top:1px solid rgb(255 255 255 / .12);}
+  .rb-bg.fx-login .fx-brand .login-brand-stats > div{padding:0;background:none;border:0;box-shadow:none;border-radius:0;}
+  .rb-bg.fx-login .fx-brand .login-brand-stats .n{font-family:var(--fx-display);font-size:clamp(22px,3.2vh,30px);letter-spacing:-.03em;}
+  .rb-bg.fx-login .fx-brand .login-brand-stats .l{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:rgb(255 255 255 / .6);}
+  .fx-brand-foot{font-size:11.5px;color:rgb(255 255 255 / .5);}
+  .fx-brand-foot strong{color:rgb(255 255 255 / .85);}
+  /* form side */
+  .rb-bg.fx-login .login-card{position:relative;min-height:0;height:100%;overflow-y:auto;overscroll-behavior:contain;width:auto;max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;animation:none;
+    background:var(--fx-card);display:flex;flex-direction:column;justify-content:safe center;padding:clamp(56px,8vh,80px) clamp(28px,5vw,88px) clamp(20px,3vh,32px);text-align:left;scrollbar-width:thin;}
+  .rb-bg.fx-login .login-card::before{display:none;}
+  .rb-bg.fx-login .login-card > *{width:100%;max-width:400px;margin-left:auto;margin-right:auto;}
+  .rb-bg.fx-login .login-logo{width:44px;height:44px;border-radius:13px;font-size:14px;margin:0 auto 14px 0;margin-left:max(0px, calc((100% - 400px)/2));animation:none;box-shadow:0 8px 20px -8px rgb(30 142 21 / .6);}
+  .rb-bg.fx-login .login-card h1{font-family:var(--fx-display);font-size:clamp(24px,3.4vh,30px);letter-spacing:-.03em;font-weight:800;color:var(--fx-ink);line-height:1.1;}
+  .rb-bg.fx-login .login-card .login-by{margin:4px auto clamp(14px,2.4vh,22px);color:var(--fx-ink3);letter-spacing:.1em;}
+  .rb-bg.fx-login .login-tagline{margin:clamp(8px,1.4vh,12px) auto clamp(12px,2vh,18px);font-size:13.5px;color:var(--fx-ink2);text-align:left;}
+  .rb-bg.fx-login .auth-mode-switch{margin-bottom:0;}
+  .rb-bg.fx-login .login-card label{margin-top:0;}
+  .rb-bg.fx-login .login-card input[type=text], .rb-bg.fx-login .login-card input[type=password], .rb-bg.fx-login .login-card input[type=email], .rb-bg.fx-login .login-card input[type=tel]{min-height:clamp(40px,5.4vh,46px);border-radius:12px;}
+  .rb-bg.fx-login .login-card .btn{min-height:clamp(40px,5.4vh,46px);border-radius:12px;}
+  .rb-bg.fx-login #authSubmitBtn{margin-top:clamp(12px,2vh,18px) !important;font-size:14.5px;}
+  .rb-bg.fx-login .lg-login-more{display:none;}
+  .rb-bg.fx-login .login-shell > .login-footer{display:none;}
+  .fx-secure{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-top:clamp(12px,2.4vh,22px) !important;font-size:11.5px;color:var(--fx-ink3);text-align:left;}
+  .fx-secure svg{flex:none;}
+  .rb-bg.fx-login .login-card .btn.secondary{background:var(--fx-card);color:var(--fx-ink);border:1px solid var(--fx-line);box-shadow:0 1px 2px rgb(17 32 26 / .06);}
+  .rb-bg.fx-login .login-card .btn.secondary:hover{background:color-mix(in srgb, var(--fx-ink) 4%, var(--fx-card));}
+  .rb-bg.fx-login .login-logo{flex:none;}
+  .fx-secure svg{width:14px;height:14px;fill:none;stroke:var(--fx-green);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  /* short laptop screens: keep everything on one screen */
+  @media (max-height:780px) and (min-width:901px){
+    .fx-ticker .fx-marquee-rev{display:none;}
+    .fx-pcard-3{display:none;}
+    .rb-bg.fx-login .login-logo{display:none;}
+  }
+  @media (max-height:660px) and (min-width:901px){
+    .fx-ticker, .fx-brand-foot{display:none;}
+    .rb-bg.fx-login .fx-brand .login-brand-sub{display:none;}
+    .rb-bg.fx-login .login-card .login-by{display:none;}
+  }
+  /* tablets and phones: one column, compact brand band on top */
+  @media (max-width:900px){
+    .rb-bg.fx-login .login-split{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);}
+    .rb-bg.fx-login .fx-brand{display:flex;padding:58px 20px 18px;}
+    .rb-bg.fx-login .fx-brand .login-brand-panel-inner{gap:6px;max-width:440px;}
+    .rb-bg.fx-login .fx-brand h2{font-size:22px;letter-spacing:-.03em;}
+    .rb-bg.fx-login .fx-brand .login-brand-kicker{display:none;}
+    .rb-bg.fx-login .fx-brand .login-brand-sub, .fx-preview, .fx-ticker, .rb-bg.fx-login .fx-brand .login-brand-stats, .fx-brand-foot{display:none;}
+    .rb-bg.fx-login .titlebar{padding:14px 18px;flex-wrap:nowrap;gap:12px;}
+    .rb-bg.fx-login #backToLandingLink{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+    .rb-bg.fx-login .login-support-tip-titlebar{color:rgb(255 255 255 / .85);border-bottom-color:rgb(255 255 255 / .35);flex:none;}
+    .rb-bg.fx-login .login-support-tip-titlebar .login-support-tip-full{display:none;}
+    .rb-bg.fx-login .login-support-tip-titlebar .login-support-tip-short{display:inline;}
+    .rb-bg.fx-login .login-card{padding:20px 20px 16px;justify-content:flex-start;}
+    .rb-bg.fx-login .login-logo, .rb-bg.fx-login .login-card h1, .rb-bg.fx-login .login-card .login-by{display:none;}
+    .rb-bg.fx-login .login-tagline{margin-top:12px;}
+    .rb-bg.fx-login .lg-login-more{display:block;max-width:400px;margin:8px auto 14px;width:100%;}
+    .rb-bg.fx-login .lg-login-more[open]{max-height:38vh;overflow-y:auto;}
+    .rb-bg.fx-login .login-shell{display:grid;grid-template-rows:minmax(0,1fr) auto auto;grid-template-columns:minmax(0,1fr);align-items:stretch;justify-items:stretch;align-content:stretch;justify-content:stretch;}
+    .rb-bg.fx-login .login-split{height:auto;min-height:0;}
+    .rb-bg.fx-login .lg-login-more{margin-left:auto;margin-right:auto;width:calc(100% - 40px);box-sizing:border-box;}
+    .rb-bg.fx-login .fx-secure{margin-top:14px !important;}
+  }
+  @media (max-width:900px) and (max-height:700px){
+    .rb-bg.fx-login .fx-brand{padding:50px 20px 12px;}
+    .rb-bg.fx-login .fx-brand h2{font-size:18px;}
+    .rb-bg.fx-login .fx-secure{display:none;}
+  }
+  @media (prefers-reduced-motion: reduce){ .rb-bg.fx-login .fx-track, .fx-pcard, .fx-live i{animation:none;} }
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -25427,7 +25697,7 @@ function renderLanding(){
   const heroChip1 = activeAudience ? activeAudience.chip1 : 'Debits = Credits, every time';
   const heroChip2 = activeAudience ? activeAudience.chip2 : `${VOUCHER_TYPES.length} voucher types, fully built`;
   app.innerHTML = `
-    <div class="landing-page">
+    <div class="landing-page fx">
       <div class="landing-nav sticky-nav" id="landingNav">
         <div class="landing-nav-brand"><img src="data:image/png;base64,${LOGO_ICON_B64}" alt="The Reckoning Books"> The Reckoning Books</div>
         <div class="landing-nav-links">
@@ -25466,39 +25736,49 @@ function renderLanding(){
         <button class="btn secondary" id="landingMobileLoginBtn" type="button">Log In</button>
         <button class="btn" id="landingMobileSignupBtn" type="button">Create Account</button>
       </div>
-      <div class="landing-hero">
-        <div class="landing-hero-glow"></div>
-        <div class="lg-blob lg-blob-1" aria-hidden="true"></div><div class="lg-blob lg-blob-2" aria-hidden="true"></div><div class="lg-blob lg-blob-3" aria-hidden="true"></div>
-        <div class="aurora-orb" style="width:340px;height:340px;top:-140px;left:36%;background:radial-gradient(circle,rgba(46,125,50,0.55),transparent 70%);animation:auroraDrift1 12s ease-in-out infinite;"></div>
-        <div class="aurora-orb" style="width:260px;height:260px;bottom:-130px;right:4%;background:radial-gradient(circle,rgba(242,169,0,0.32),transparent 70%);animation:auroraDrift2 14s ease-in-out infinite;"></div>
-        <div class="landing-hero-inner">
-          <div>
-            <div class="landing-audience-picker" role="group" aria-label="Tailor this page for your kind of business">
-              <span class="landing-audience-picker-label">Tailor this page for:</span>
-              <div class="landing-audience-pills">
-                ${LANDING_AUDIENCES.map(a=>`<button type="button" class="landing-audience-pill${activeAudience&&activeAudience.id===a.id?' is-active':''}" data-audience="${a.id}">${escapeHtml(a.label)}</button>`).join('')}
-                ${activeAudience ? `<button type="button" class="landing-audience-pill landing-audience-pill-reset" data-audience="">✕ General</button>` : ''}
-              </div>
+      <div class="landing-hero fx-hero">
+        <div class="fx-hero-bg" aria-hidden="true"><div class="fx-grid"></div><div class="lg-blob lg-blob-1"></div><div class="lg-blob lg-blob-2"></div><div class="lg-blob lg-blob-3"></div></div>
+        <div class="fx-hero-inner">
+          <div class="fx-hero-top">
+            <div class="fx-hero-lead">
+              <a class="fx-announce" href="#ai-agents"><span class="fx-new">New</span><span><b>7 AI agents</b> + on-device Ask Your Books — no data leaves your browser</span><span class="fx-arrow" aria-hidden="true">→</span></a>
+              <div class="landing-badge">${heroBadge}</div>
+              <h1>${heroHeadline}</h1>
             </div>
-            <div class="landing-badge">${heroBadge}</div>
-            <h1>${heroHeadline}</h1>
-            <p class="landing-hero-sub">${heroSub}</p>
-            <div class="landing-hero-ctas">
-              <button class="btn" id="landingHeroSignupBtn" type="button">Create Your Free Account →</button>
-              <button class="btn secondary" id="landingHeroTryDemoBtn" type="button">Try Demo →</button>
-              <button class="btn secondary" id="landingHeroLoginBtn" type="button">Log In</button>
-              <div class="landing-install-wrap hero" id="landingInstallWrapHero">
-                <button class="btn secondary" id="landingInstallBtnHero" type="button">⭳ Install Desktop App</button>
-                <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
+            <div class="fx-hero-side">
+              <p class="landing-hero-sub">${heroSub}</p>
+              <div class="landing-hero-ctas">
+                <button class="btn" id="landingHeroSignupBtn" type="button">Create your free account <span aria-hidden="true">→</span></button>
+                <button class="btn secondary" id="landingHeroTryDemoBtn" type="button">Try the demo</button>
               </div>
+              <div class="fx-hero-sublinks">
+                <button class="fx-link" id="landingHeroLoginBtn" type="button">Already have an account? <b>Log in</b></button>
+                <div class="landing-install-wrap hero" id="landingInstallWrapHero">
+                  <button class="fx-link" id="landingInstallBtnHero" type="button">⭳ Install desktop app</button>
+                  <div class="landing-install-menu" id="landingInstallMenuHero" hidden>${installMenuHtml(detectDesktopPlatform())}</div>
+                </div>
+              </div>
+              <div class="landing-hero-note">Free to start · No credit card · Or explore the SKm Group of Companies demo company first, no sign-up needed</div>
             </div>
-            <a class="lg-hero-ai" href="#ai-agents"><span class="lg-pulse" aria-hidden="true"></span><span><b>7 AI agents + an Agents Hub</b> watch your cash, TDS, spend, collections, GST, audit and bad-debt risk</span><span aria-hidden="true">→</span></a>
-            <div class="landing-hero-note">Free to start · No credit card · Or explore the SKm Group of Companies demo company first, no sign-up needed</div>
           </div>
-          <div class="landing-hero-art">
-            ${svgLedgerHero()}
-            <div class="landing-fact-chip landing-fact-chip-1"><span class="fc-icon">✓</span> ${escapeHtml(heroChip1)}</div>
-            <div class="landing-fact-chip landing-fact-chip-2"><span class="fc-icon">⟳</span> ${escapeHtml(heroChip2)}</div>
+          <ul class="fx-trust" aria-label="Built for Indian compliance">
+            ${['Schedule III statements','GST & GSTR-1 portal file','TDS / 26Q','Companies Act 2013','Income-tax Act 2025','Audit trail (Rule 3(1))'].map(t=>`<li><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.4l2.8 2.8 6.2-6.4"/></svg>${t}</li>`).join('')}
+          </ul>
+          <div class="landing-audience-picker" role="group" aria-label="Tailor this page for your kind of business">
+            <span class="landing-audience-picker-label">Tailor this page for</span>
+            <div class="landing-audience-pills">
+              ${LANDING_AUDIENCES.map(a=>`<button type="button" class="landing-audience-pill${activeAudience&&activeAudience.id===a.id?' is-active':''}" data-audience="${a.id}">${escapeHtml(a.label)}</button>`).join('')}
+              ${activeAudience ? `<button type="button" class="landing-audience-pill landing-audience-pill-reset" data-audience="">✕ General</button>` : ''}
+            </div>
+          </div>
+          <div class="fx-stage landing-hero-art">
+            <div class="fx-frame">
+              <div class="fx-chrome" aria-hidden="true"><i></i><i></i><i></i><span>reckoning-books.web.app/dashboard</span></div>
+              <img src="data:image/webp;base64,${LANDING_SHOT_DASHBOARD_B64}" alt="The Reckoning Books dashboard: profit, cash, receivables and AI insights at a glance" width="1200" height="687" decoding="async">
+            </div>
+            <div class="fx-float fx-float-1"><span class="fc-icon">✓</span><span><b>Trial balance</b>${escapeHtml(heroChip1)}</span></div>
+            <div class="fx-float fx-float-2"><span class="fc-icon">⟳</span><span><b>Vouchers</b>${escapeHtml(heroChip2)}</span></div>
+            <div class="fx-float fx-float-3"><span class="fc-icon fc-ai">✦</span><span><b>Collections agent</b>Flags overdue invoices and drafts the reminder for you</span></div>
           </div>
         </div>
       </div>
@@ -26198,7 +26478,7 @@ function renderLogin(){
   // of the three is missing right here, since the account is already verified and signed in.
   const needsSignupDetails = isSignup && !!pendingVerifyUser && (!authDraft.name || !authDraft.username || !authDraft.mobile);
   app.innerHTML = `
-    <div class="rb-bg">
+    <div class="rb-bg fx-login">
       <span class="rb-letter rb-letter-r">R</span>
       <span class="rb-letter rb-letter-b">B</span>
       <div class="aurora-orb" style="width:260px;height:260px;top:8%;right:6%;background:radial-gradient(circle,rgba(46,125,50,0.4),transparent 70%);animation:auroraDrift1 11s ease-in-out infinite;"></div>
@@ -26219,32 +26499,28 @@ function renderLogin(){
         <div class="login-shell">
           ${glassClarityControl('lg-clarity-login')}
           <div class="login-split">
-          <div class="login-brand-panel">
-            <div class="aurora-orb" style="width:220px;height:220px;top:-8%;right:-10%;background:radial-gradient(circle,rgba(255,255,255,0.16),transparent 70%);animation:auroraDrift1 12s ease-in-out infinite;"></div>
-            <div class="aurora-orb" style="width:200px;height:200px;bottom:-10%;left:-8%;background:radial-gradient(circle,rgba(255,222,158,0.22),transparent 70%);animation:auroraDrift2 14s ease-in-out infinite;"></div>
+          <div class="login-brand-panel fx-brand">
+            <div class="fx-brand-bg" aria-hidden="true"><div class="fx-grid"></div></div>
             <div class="login-brand-panel-inner">
-              <div class="login-brand-kicker">The Reckoning Books</div>
+              <div class="login-brand-kicker"><span class="fx-mark">RB</span>The Reckoning Books</div>
               <h2>Accounting that runs your whole business, not just the ledger.</h2>
               <p class="login-brand-sub">Real double-entry books, GST built in, inventory, payroll and reports — with an AI layer that watches your numbers, not just stores them.</p>
-              <ul class="login-brand-features">
-                <li>${landingFeatureIcon('vouchers')}Real double-entry vouchers, always balanced</li>
-                <li>${landingFeatureIcon('gst')}GST tracked, with a GSTR-1 file for the portal</li>
-                <li>${landingFeatureIcon('ai')}${landingAiCount()} AI features and 7 AI agents watching your books</li>
-                <li>${landingFeatureIcon('security')}Email-verified accounts with a full audit log</li>
-              </ul>
-              <div class="lg-login-block">
-                <div class="lg-mini-title">Inside the app · ${LANDING_MODULE_CATEGORIES.length} modules · ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features</div>
-                <div class="lg-chip-cloud">${loginModuleChips()}</div>
+              <div class="fx-preview" aria-label="What you get">
+                <div class="fx-pcard fx-pcard-1"><span class="fx-pi">${landingFeatureIcon('vouchers')}</span><div><b>Trial balance</b><span>Debits = Credits on every voucher</span></div><em class="fx-ok">✓ Balanced</em></div>
+                <div class="fx-pcard fx-pcard-2"><span class="fx-pi">${landingFeatureIcon('gst')}</span><div><b>GSTR-1</b><span>Portal-ready JSON, HSN and B2B checked</span></div><em class="fx-ok">Ready</em></div>
+                <div class="fx-pcard fx-pcard-3"><span class="fx-pi fx-pi-ai">${landingFeatureIcon('ai')}</span><div><b>${landingAiCount()} AI features · 7 agents</b><span>Cash, TDS, spend, collections, GST, audit, bad debt</span></div><em class="fx-live"><i></i>Watching</em></div>
               </div>
-              <div class="lg-login-block">
-                <div class="lg-mini-title">AI agents · one ranked inbox</div>
-                <div class="lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.slice(0,7).map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</div>
+              <div class="fx-ticker" aria-label="Inside the app">
+                <div class="lg-mini-title">Inside the app · ${LANDING_MODULE_CATEGORIES.length} modules · ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features</div>
+                <div class="fx-marquee"><div class="fx-track lg-chip-cloud">${loginModuleChips()}<span class="fx-dup" aria-hidden="true">${loginModuleChips()}</span></div></div>
+                <div class="fx-marquee fx-marquee-rev"><div class="fx-track lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.slice(0,7).map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}<span class="fx-dup" aria-hidden="true">${LANDING_AI_AGENTS.slice(0,7).map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</span></div></div>
               </div>
               <div class="login-brand-stats">
                 <div><div class="n">${LANDING_MODULE_CATEGORIES.length}</div><div class="l">Modules</div></div>
-                <div><div class="n">${VOUCHER_TYPES.length}</div><div class="l">Voucher Types</div></div>
-                <div><div class="n">${landingAiCount()}</div><div class="l">AI Features</div></div>
+                <div><div class="n">${VOUCHER_TYPES.length}</div><div class="l">Voucher types</div></div>
+                <div><div class="n">${landingAiCount()}</div><div class="l">AI features</div></div>
               </div>
+              <div class="fx-brand-foot">Built by <strong>Santhosh Kumar M</strong> — <em>Accounting at the speed of business</em></div>
             </div>
           </div>
           <div class="login-card">
@@ -26420,6 +26696,7 @@ function renderLogin(){
             `}
             `}
             </div>
+            <p class="fx-secure"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8l5 2v4c0 3-2.2 5.3-5 6.4-2.8-1.1-5-3.4-5-6.4v-4z"/><path d="M5.8 8.2l1.6 1.6 3-3.2"/></svg>Email-verified accounts · encrypted vault · full audit log</p>
           </div>
           </div>
           <details class="lg-login-more">
