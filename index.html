@@ -4231,6 +4231,127 @@
   }
   @media (prefers-reduced-motion: reduce){ .rb-bg.fx-login .fx-track, .fx-pcard, .fx-live i{animation:none;} }
 </style>
+<style id="gw26-css">
+  /* ===================== Front door 2026: Company Gateway ===================== */
+  .rb-bg.fx-gw{
+    --fx-ink:#11201A; --fx-ink2:#3E5247; --fx-ink3:#6B7E73; --fx-line:#DFE7E1; --fx-paper:#F5F8F5; --fx-card:#FFFFFF;
+    --fx-green:#1E8E15; --fx-deep:#0C2414; --fx-gold:#E9A500; --fx-mint:#DDF3D8;
+    --fx-shadow:0 1px 2px rgb(17 32 26 / .05), 0 10px 28px -14px rgb(17 32 26 / .22);
+    --fx-display:'Bricolage Grotesque','Inter',system-ui,sans-serif;
+    background:var(--fx-paper);color:var(--fx-ink);min-height:100vh;}
+  :root[data-theme="dark"] .rb-bg.fx-gw{
+    --fx-ink:#EAF2EC; --fx-ink2:#B9C9BE; --fx-ink3:#8A9C90; --fx-line:#24352B; --fx-paper:#0B130E; --fx-card:#111C15;
+    --fx-green:#3CC22A; --fx-mint:#163A1D; --fx-shadow:0 1px 2px rgb(0 0 0 / .4), 0 14px 34px -14px rgb(0 0 0 / .75);}
+  .rb-bg.fx-gw > .rb-letter{display:none;}
+  .rb-bg.fx-gw::before{content:'';position:absolute;left:0;right:0;top:0;height:620px;pointer-events:none;z-index:0;
+    background:radial-gradient(ellipse 520px 380px at 8% -10%, rgb(123 217 107 / .35), transparent 70%),radial-gradient(ellipse 460px 320px at 96% -6%, rgb(255 211 107 / .3), transparent 70%);}
+  .rb-bg.fx-gw::after{content:'';position:absolute;left:0;right:0;top:0;height:560px;pointer-events:none;z-index:0;
+    background-image:linear-gradient(to right, color-mix(in srgb, var(--fx-ink) 6%, transparent) 1px, transparent 1px),linear-gradient(to bottom, color-mix(in srgb, var(--fx-ink) 6%, transparent) 1px, transparent 1px);background-size:56px 56px;
+    -webkit-mask-image:radial-gradient(ellipse 75% 70% at 50% 0%, #000 25%, transparent 75%);mask-image:radial-gradient(ellipse 75% 70% at 50% 0%, #000 25%, transparent 75%);}
+  :root[data-theme="dark"] .rb-bg.fx-gw::before{opacity:.45;}
+  /* header: brand + menus + avatar in one glass bar */
+  .rb-bg.fx-gw .fx-gw-top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:8px;padding:10px 28px;
+    background:color-mix(in srgb, var(--fx-card) 74%, transparent);-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);border-bottom:1px solid color-mix(in srgb, var(--fx-line) 80%, transparent);}
+  .rb-bg.fx-gw .fx-gw-top .titlebar{background:none;border:0;padding:0;box-shadow:none;flex:none;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .fx-gw-brand{display:flex;align-items:center;gap:10px;font-family:var(--fx-display);font-weight:800;font-size:16.5px;letter-spacing:-.01em;color:var(--fx-ink) !important;}
+  .fx-gw-brand em{font-style:normal;font-family:Inter,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fx-ink3);margin-left:-2px;}
+  .rb-bg.fx-gw .fx-mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-family:Inter,sans-serif;font-size:11.5px;font-weight:900;color:#0C2414;background:linear-gradient(135deg,#9BE38C,#F2C744);box-shadow:0 6px 14px -6px rgb(30 142 21 / .6);}
+  .fx-gw-crumb{display:none;}
+  .rb-bg.fx-gw .fx-gw-top .menubar{flex:1;background:none;border:0;padding:0 0 0 14px;margin-left:6px;border-left:1px solid var(--fx-line);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;font-size:13.5px;}
+  .rb-bg.fx-gw .fx-gw-top .menubar > span{color:var(--fx-ink2);font-weight:600;border-radius:9px;padding:7px 12px;}
+  .rb-bg.fx-gw .fx-gw-top .menubar > span:hover{background:color-mix(in srgb, var(--fx-ink) 6%, transparent);color:var(--fx-ink);}
+  .rb-bg.fx-gw .fx-gw-top .menubar > span:last-child:hover{background:none;}
+  .rb-bg.fx-gw .gw-user-avatar-btn{width:36px;height:36px;border-radius:11px;font-weight:800;}
+  /* hero */
+  .rb-bg.fx-gw .gw-hero{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 28px 8px;background:none;border:0;border-radius:0;box-shadow:none;color:var(--fx-ink);overflow:visible;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .rb-bg.fx-gw .gw-hero::before, .rb-bg.fx-gw .gw-hero::after, .rb-bg.fx-gw .gw-hero-center-glow, .rb-bg.fx-gw .gw-hero .aurora-orb{display:none;}
+  .rb-bg.fx-gw .gw-hero-inner{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:end;}
+  .rb-bg.fx-gw .gw-hero-eyebrow{color:var(--fx-green);font-size:12.5px;font-weight:800;letter-spacing:.12em;margin-bottom:12px;}
+  .rb-bg.fx-gw .gw-hero h1{font-family:var(--fx-display);font-size:clamp(38px,5.2vw,68px);line-height:.98;letter-spacing:-.045em;font-weight:800;color:var(--fx-ink);margin:0;text-wrap:balance;}
+  .rb-bg.fx-gw .gw-hero h1 em{font-style:normal;background:linear-gradient(100deg,var(--fx-green) 10%,#6CC24A 55%,var(--fx-gold) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .rb-bg.fx-gw .gw-hero-sub{font-size:16px;line-height:1.55;color:var(--fx-ink2);margin-top:14px;max-width:48ch;}
+  .rb-bg.fx-gw .gw-resume-card{margin-top:22px;max-width:460px;padding:12px 14px;border-radius:16px;background:var(--fx-card);border:1px solid var(--fx-line);box-shadow:var(--fx-shadow);color:var(--fx-ink);-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .rb-bg.fx-gw .gw-resume-card:hover{border-color:color-mix(in srgb, var(--fx-green) 45%, var(--fx-line));transform:translateY(-1px);}
+  .rb-bg.fx-gw .gw-resume-icon{width:38px;height:38px;border-radius:11px;}
+  .rb-bg.fx-gw .gw-resume-label{color:var(--fx-green);}
+  .rb-bg.fx-gw .gw-resume-detail{color:var(--fx-ink);font-size:14px;}
+  .rb-bg.fx-gw .gw-resume-dot{color:var(--fx-ink3);}
+  .rb-bg.fx-gw .gw-resume-arrow{color:var(--fx-green);font-weight:800;}
+  .rb-bg.fx-gw .gw-hero-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:0;background:var(--fx-card);border:1px solid var(--fx-line);border-radius:20px;box-shadow:var(--fx-shadow);overflow:hidden;}
+  .rb-bg.fx-gw .gw-chip{background:none;border:0;border-left:1px solid var(--fx-line);border-radius:0;padding:20px 18px;text-align:left;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;min-width:0;}
+  .rb-bg.fx-gw .gw-chip:first-child{border-left:0;}
+  .rb-bg.fx-gw .gw-chip-val{font-family:var(--fx-display);font-size:clamp(28px,3vw,40px);font-weight:800;letter-spacing:-.04em;color:var(--fx-ink);line-height:1;font-variant-numeric:tabular-nums;}
+  .rb-bg.fx-gw .gw-chip-lbl{font-size:12.5px;font-weight:600;color:var(--fx-ink3);letter-spacing:0;text-transform:none;margin-top:6px;}
+  .rb-bg.fx-gw .gw-activity-feed{margin-top:28px;padding-top:0;border-top:0;}
+  .rb-bg.fx-gw .gw-activity-feed-label{color:var(--fx-ink3);font-size:12px;letter-spacing:.08em;margin-bottom:10px;}
+  .rb-bg.fx-gw .gw-activity-feed-list{gap:10px;padding-bottom:6px;scrollbar-width:thin;}
+  .rb-bg.fx-gw .gw-activity-feed-item{background:var(--fx-card);border:1px solid var(--fx-line);border-radius:12px;padding:9px 12px;box-shadow:0 1px 2px rgb(17 32 26 / .05);}
+  .rb-bg.fx-gw .gw-activity-feed-text{color:var(--fx-ink2);font-size:12.5px;}
+  .rb-bg.fx-gw .gw-activity-feed-text strong{color:var(--fx-ink);}
+  .rb-bg.fx-gw .gw-activity-feed-time{color:var(--fx-ink3);}
+  /* what's inside */
+  .rb-bg.fx-gw .lg-gw-inside{position:relative;z-index:1;max-width:1180px;margin:22px auto 0;padding:0 28px;}
+  .rb-bg.fx-gw .lg-gw-inside details{border-radius:16px;padding:2px 18px;background:var(--fx-card);border:1px solid var(--fx-line);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .rb-bg.fx-gw .lg-gw-inside summary{font-size:13.5px;color:var(--fx-ink);}
+  .rb-bg.fx-gw .lg-gw-inside summary::before{content:'✦';color:var(--fx-gold);margin-right:2px;}
+  /* companies */
+  .rb-bg.fx-gw .gw-wrap{position:relative;z-index:1;max-width:1180px;padding:40px 28px 24px;}
+  .rb-bg.fx-gw .gw-section-row{align-items:flex-end;margin-bottom:18px;}
+  .rb-bg.fx-gw .gw-section-title{font-family:var(--fx-display);font-size:clamp(24px,2.6vw,32px);font-weight:800;letter-spacing:-.035em;text-transform:none;color:var(--fx-ink);}
+  .rb-bg.fx-gw .gw-toolbar{gap:8px;}
+  .rb-bg.fx-gw .gw-toolbar .btn.secondary{height:38px;border-radius:11px;background:var(--fx-card);border:1px solid var(--fx-line);color:var(--fx-ink);box-shadow:none;font-weight:650;font-size:13px;padding:0 13px;}
+  .rb-bg.fx-gw .gw-toolbar .btn.secondary:hover{border-color:color-mix(in srgb, var(--fx-green) 40%, var(--fx-line));background:var(--fx-card);}
+  .rb-bg.fx-gw .gw-toolbar .btn.secondary.is-active{background:var(--fx-ink);color:var(--fx-paper);border-color:var(--fx-ink);}
+  .rb-bg.fx-gw .gw-search-wrap input, .rb-bg.fx-gw .gw-sort-select{height:38px;border-radius:11px;background:var(--fx-card);border:1px solid var(--fx-line);color:var(--fx-ink);box-shadow:none;}
+  .rb-bg.fx-gw .gw-view-toggle{border-radius:11px;background:color-mix(in srgb, var(--fx-ink) 5%, transparent);border:0;padding:3px;}
+  .rb-bg.fx-gw .gw-view-toggle button{border-radius:8px;}
+  .rb-bg.fx-gw .gw-view-toggle button.is-active{background:var(--fx-card);box-shadow:0 1px 3px rgb(17 32 26 / .12);color:var(--fx-ink);}
+  .rb-bg.fx-gw .gw-folder-chip{border-radius:10px;background:var(--fx-card);border:1px solid var(--fx-line);color:var(--fx-ink2);font-weight:650;}
+  .rb-bg.fx-gw .gw-folder-chip.is-active{background:var(--fx-ink);border-color:var(--fx-ink);color:var(--fx-paper);box-shadow:none;}
+  .rb-bg.fx-gw .gw-folder-chip-add{background:transparent;border-style:dashed;}
+  .rb-bg.fx-gw .company-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;}
+  .rb-bg.fx-gw .company-card{background:var(--fx-card);border:1px solid var(--fx-line);border-radius:20px;padding:20px;box-shadow:var(--fx-shadow);-webkit-backdrop-filter:none;backdrop-filter:none;display:flex;flex-direction:column;}
+  .rb-bg.fx-gw .company-card::before{height:0;}
+  .rb-bg.fx-gw .company-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb, var(--fx-green) 40%, var(--fx-line));box-shadow:0 1px 2px rgb(17 32 26 / .05), 0 22px 40px -18px rgb(17 32 26 / .35);}
+  .rb-bg.fx-gw .company-card:focus-visible{outline:2px solid var(--fx-green);outline-offset:3px;}
+  .rb-bg.fx-gw .company-card-icon{width:46px;height:46px;border-radius:13px;font-size:16px;box-shadow:inset 0 1px 0 rgb(255 255 255 / .3), 0 6px 14px -8px rgb(0 0 0 / .45);}
+  .rb-bg.fx-gw .company-card-name{font-size:16.5px;font-weight:800;color:var(--fx-ink);letter-spacing:-.015em;}
+  .rb-bg.fx-gw .company-card-stats{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:auto;padding-top:14px;border-top:1px solid var(--fx-line);}
+  .rb-bg.fx-gw .company-card-badges + .company-card-stats, .rb-bg.fx-gw .company-card-name + .company-card-stats{margin-top:16px;}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-stats span{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--fx-ink3);font-weight:600;}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-stats span + span{padding-left:14px;border-left:1px solid var(--fx-line);}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-stats b{font-family:var(--fx-display);font-size:24px;font-weight:800;letter-spacing:-.03em;color:var(--fx-ink);line-height:1.05;}
+  .rb-bg.fx-gw .company-card-recency{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12px;color:var(--fx-ink3);}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-recency::before{content:'';width:7px;height:7px;border-radius:50%;background:color-mix(in srgb, var(--fx-ink3) 50%, transparent);flex:none;}
+  .rb-bg.fx-gw .company-card-arrow{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--fx-mint);color:var(--fx-green);font-weight:800;}
+  .rb-bg.fx-gw .company-card-pin, .rb-bg.fx-gw .company-card-menu-btn{border-radius:9px;}
+  .rb-bg.fx-gw .company-card.is-pinned{border-color:color-mix(in srgb, var(--fx-gold) 55%, var(--fx-line));}
+  .rb-bg.fx-gw .company-card-add{border:1.5px dashed color-mix(in srgb, var(--fx-ink3) 45%, transparent);border-radius:20px;background:transparent;color:var(--fx-ink2);min-height:180px;}
+  .rb-bg.fx-gw .company-card-add:hover{border-color:var(--fx-green);background:color-mix(in srgb, var(--fx-mint) 50%, transparent);color:var(--fx-ink);}
+  .rb-bg.fx-gw .company-card-add .gw-add-icon{width:46px;height:46px;border-radius:14px;background:var(--fx-green);color:#fff;font-weight:500;box-shadow:0 10px 22px -10px var(--fx-green);}
+  .rb-bg.fx-gw .company-card-add .gw-add-label{font-size:14px;font-weight:750;}
+  .rb-bg.fx-gw .gw-getting-started{border-radius:22px;background:var(--fx-card);border:1px solid var(--fx-line);box-shadow:var(--fx-shadow);}
+  .rb-bg.fx-gw .gw-gs-title{font-family:var(--fx-display);font-size:22px;letter-spacing:-.03em;}
+  .rb-bg.fx-gw .rb-credit{position:relative;z-index:1;color:var(--fx-ink3);padding-bottom:28px;}
+  /* responsive */
+  @media (max-width:900px){
+    .rb-bg.fx-gw .gw-hero-inner{grid-template-columns:1fr;gap:22px;}
+    .rb-bg.fx-gw .fx-gw-brand em{display:none;}
+  }
+  @media (max-width:640px){
+    .rb-bg.fx-gw .fx-gw-top{padding:8px 14px;gap:4px;}
+    .rb-bg.fx-gw .fx-gw-brand{font-size:0;gap:0;}
+    .rb-bg.fx-gw .fx-gw-top .menubar{padding-left:8px;margin-left:4px;font-size:13px;overflow-x:auto;}
+    .rb-bg.fx-gw .fx-gw-top .menubar > span{padding:6px 9px;}
+    .rb-bg.fx-gw .gw-hero{padding:28px 16px 4px;}
+    .rb-bg.fx-gw .gw-hero h1{font-size:clamp(34px,10vw,44px);}
+    .rb-bg.fx-gw .gw-hero-sub{font-size:14.5px;}
+    .rb-bg.fx-gw .gw-chip{padding:14px 12px;}
+    .rb-bg.fx-gw .lg-gw-inside{padding:0 16px;}
+    .rb-bg.fx-gw .gw-wrap{padding:30px 16px 18px;}
+    .rb-bg.fx-gw .company-grid{grid-template-columns:1fr;}
+  }
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -27747,12 +27868,13 @@ function consolidationModal(){
 function renderGateway(){
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="rb-bg">
+    <div class="rb-bg fx-gw">
       <span class="rb-letter rb-letter-r">R</span>
       <span class="rb-letter rb-letter-b">B</span>
       <div class="rb-content">
+    <header class="fx-gw-top">
     <div class="titlebar">
-      <span>The Reckoning Books by SKm — Company Info</span>
+      <span class="fx-gw-brand"><span class="fx-mark">RB</span>The Reckoning Books<em>by SKm</em></span><span class="fx-gw-crumb">Company Info</span>
       <span class="winbtns"><span>_</span><span>▢</span><span>✕</span></span>
     </div>
     <div class="menubar">
@@ -27767,6 +27889,7 @@ function renderGateway(){
         ${userProfileMenuOpen?userProfileDropdown():''}
       </span>` : ''}
     </div>
+    </header>
     ${currentUser && !currentUser.isAdmin && announcement.active && announcement.message && !announcementDismissed ? `
     <div style="background:#F2A900;color:#2a2200;padding:10px 20px;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:12px;">
       <span>📢 ${escapeHtml(announcement.message)}</span>
@@ -27786,7 +27909,7 @@ function renderGateway(){
         <div class="aurora-orb gw-hero-aurora-2"></div>
         <div class="gw-hero-inner">
           <div>
-            <div class="gw-hero-eyebrow">${escapeHtml(greeting)}</div>
+            <div class="gw-hero-eyebrow">${escapeHtml(greeting)} · ${escapeHtml(new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'}))}</div>
             <h1>Welcome back, <em>${escapeHtml(currentUser.name.split(' ')[0]||currentUser.name)}</em></h1>
             <div class="gw-hero-sub">Select a company below to pick up where you left off, or create a new one to get started.</div>
             ${(()=>{
@@ -27880,7 +28003,7 @@ function renderGateway(){
         </div>` : '';
         return `
       <div class="gw-section-row">
-        <div class="gw-section-title">Your Companies</div>
+        <div class="gw-section-title">Your companies</div>
         <div class="gw-toolbar">
         <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently" style="position:relative;">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:var(--on-fill);margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
         ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
