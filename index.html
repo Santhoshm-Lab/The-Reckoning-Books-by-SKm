@@ -4352,6 +4352,157 @@
     .rb-bg.fx-gw .company-grid{grid-template-columns:1fr;}
   }
 </style>
+<style id="cowiz-css">
+  /* ===================== Create Company wizard (Nov 2026) ===================== */
+  .cw-overlay{--cw-ink:var(--ink,#11201A);--cw-ink2:var(--ink-soft,#3E5247);--cw-ink3:var(--ink-faint,#6B7E73);--cw-line:var(--border,#DFE7E1);--cw-card:var(--surface,#fff);--cw-green:#1E8E15;--cw-mint:#DDF3D8;
+    padding:20px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  :root[data-theme="dark"] .cw-overlay{--cw-green:#3CC22A;--cw-mint:#163A1D;}
+  .cw-card{width:min(1060px,100%);height:min(760px,calc(100vh - 40px));max-height:none;padding:0;display:grid;grid-template-columns:270px minmax(0,1fr);overflow:hidden;border-radius:24px;background:var(--cw-card);border:1px solid var(--cw-line);box-shadow:0 40px 100px -30px rgb(12 36 20 / .55);}
+  /* left rail */
+  .cw-rail{position:relative;display:flex;flex-direction:column;gap:22px;padding:26px 20px 20px;color:#fff;overflow:hidden;
+    background:radial-gradient(ellipse 120% 60% at 0% 0%, #2B9A1E 0%, transparent 60%),radial-gradient(ellipse 90% 50% at 100% 100%, rgb(233 165 0 / .45) 0%, transparent 60%),linear-gradient(170deg,#0C2414,#123A1D);}
+  .cw-rail::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(to right, rgb(255 255 255 / .05) 1px, transparent 1px),linear-gradient(to bottom, rgb(255 255 255 / .05) 1px, transparent 1px);background-size:40px 40px;-webkit-mask-image:linear-gradient(180deg,#000,transparent 70%);mask-image:linear-gradient(180deg,#000,transparent 70%);}
+  .cw-rail > *{position:relative;z-index:1;}
+  .cw-brand{display:flex;align-items:center;gap:12px;}
+  .cw-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:12.5px;font-weight:900;color:#0C2414;background:linear-gradient(135deg,#9BE38C,#F2C744);flex:none;}
+  .cw-kicker{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgb(255 255 255 / .6);}
+  .cw-brand h2{margin:2px 0 0;font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:21px;font-weight:800;letter-spacing:-.03em;color:#fff;}
+  .cw-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;flex:1;}
+  .cw-steps li{position:relative;}
+  .cw-steps li:not(:last-child)::after{content:'';position:absolute;left:23px;top:40px;bottom:-6px;width:2px;border-radius:2px;background:rgb(255 255 255 / .14);}
+  .cw-steps li.is-done:not(:last-child)::after{background:#9BE38C;}
+  .cw-steps button{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:12px;cursor:default;}
+  .cw-steps li.is-done button{cursor:pointer;}
+  .cw-steps li.is-done button:hover{background:rgb(255 255 255 / .07);}
+  .cw-steps li.is-cur button{background:rgb(255 255 255 / .1);box-shadow:inset 0 0 0 1px rgb(255 255 255 / .14);}
+  .cw-steps button:focus-visible{outline:2px solid #F2C744;outline-offset:2px;}
+  .cw-steps i{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:12.5px;font-weight:800;color:rgb(255 255 255 / .6);border:1.5px solid rgb(255 255 255 / .25);background:rgb(0 0 0 / .1);}
+  .cw-steps li.is-cur i{background:#fff;color:#0C2414;border-color:#fff;}
+  .cw-steps li.is-done i{background:#9BE38C;color:#0C2414;border-color:#9BE38C;}
+  .cw-steps span{display:flex;flex-direction:column;min-width:0;}
+  .cw-steps b{font-size:13.5px;font-weight:700;color:rgb(255 255 255 / .75);}
+  .cw-steps li.is-cur b, .cw-steps li.is-done b{color:#fff;}
+  .cw-steps em{font-style:normal;font-size:11.5px;color:rgb(255 255 255 / .5);}
+  .cw-mini{display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;background:rgb(255 255 255 / .08);border:1px solid rgb(255 255 255 / .12);}
+  .cw-mini-logo{flex:none;width:38px;height:38px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;}
+  .cw-mini-logo img{max-width:100%;max-height:100%;object-fit:contain;}
+  .cw-mini-logo span{font-weight:800;font-size:13px;color:#1E8E15;}
+  .cw-mini-txt{min-width:0;display:flex;flex-direction:column;}
+  .cw-mini-txt b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cw-mini-txt span{font-size:11.5px;color:rgb(255 255 255 / .6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* main */
+  .cw-main{display:flex;flex-direction:column;min-width:0;min-height:0;}
+  .cw-top{display:flex;align-items:center;gap:14px;padding:16px 22px 0 30px;}
+  .cw-prog{flex:1;height:5px;border-radius:5px;background:color-mix(in srgb, var(--cw-ink) 8%, transparent);overflow:hidden;}
+  .cw-prog span{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--cw-green),#6CC24A);transition:width .35s cubic-bezier(.2,.8,.2,1);}
+  .cw-count{font-size:12px;font-weight:700;color:var(--cw-ink3);white-space:nowrap;}
+  .cw-x{width:34px;height:34px;border-radius:10px;border:1px solid var(--cw-line);background:var(--cw-card);color:var(--cw-ink2);cursor:pointer;font-size:14px;}
+  .cw-x:hover{background:color-mix(in srgb, var(--cw-ink) 6%, var(--cw-card));}
+  .cw-body{flex:1;min-height:0;overflow-y:auto;padding:18px 30px 24px;}
+  .cw-head{margin:0 0 18px;}
+  .cw-head h3{margin:0;font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:clamp(22px,2.4vw,28px);font-weight:800;letter-spacing:-.035em;color:var(--cw-ink);}
+  .cw-head p{margin:6px 0 0;font-size:13.5px;line-height:1.5;color:var(--cw-ink2);max-width:62ch;}
+  .cw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;}
+  .cw-field{min-width:0;display:flex;flex-direction:column;}
+  .cw-wide{grid-column:1/-1;}
+  .cw-field > label{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.01em;text-transform:none;color:var(--cw-ink2);display:flex;align-items:center;gap:5px;}
+  .cw-req{color:#D23B3B;font-weight:800;}
+  .cw-opt{font-weight:600;font-size:11px;color:var(--cw-ink3);}
+  .cw-field input:not([type=checkbox]):not([type=hidden]), .cw-field select{height:44px;border-radius:12px;font-size:14px;}
+  .cw-field .phone-field{min-height:44px;}
+  .cw-help{margin-top:5px;font-size:11.5px;line-height:1.45;color:var(--cw-ink3);}
+  .cw-okmsg{color:var(--cw-green);font-weight:700;}
+  .cw-invalid{border-color:#D23B3B !important;box-shadow:0 0 0 3px rgb(210 59 59 / .14) !important;}
+  .cw-sub{margin:20px 0 10px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--cw-ink3);}
+  .cw-check{display:flex;align-items:center;gap:8px;margin:14px 0 0;font-size:13px;font-weight:500;text-transform:none;color:var(--cw-ink2);}
+  .cw-check input{width:auto;}
+  .cw-example{margin-top:12px;padding:10px 14px;border-radius:12px;background:color-mix(in srgb, var(--cw-ink) 4%, transparent);font-size:13px;color:var(--cw-ink2);}
+  .cw-example b{font-variant-numeric:tabular-nums;color:var(--cw-ink);}
+  .cw-note{margin-top:14px;font-size:12px;color:var(--cw-ink3);}
+  /* logo uploader */
+  .cw-logo{display:flex;align-items:center;gap:18px;padding:16px;margin:0 0 20px;border-radius:18px;border:1.5px dashed color-mix(in srgb, var(--cw-ink3) 45%, transparent);background:color-mix(in srgb, var(--cw-ink) 2.5%, transparent);cursor:pointer;transition:border-color .2s, background .2s;}
+  .cw-logo:hover, .cw-logo.is-drag{border-color:var(--cw-green);background:color-mix(in srgb, var(--cw-mint) 55%, transparent);}
+  .cw-logo:focus-visible{outline:2px solid var(--cw-green);outline-offset:3px;}
+  .cw-logo.has-logo{border-style:solid;border-color:var(--cw-line);background:var(--cw-card);}
+  .cw-logo-img{flex:none;width:84px;height:84px;border-radius:16px;display:grid;place-items:center;overflow:hidden;background:#fff;border:1px solid var(--cw-line);
+    background-image:linear-gradient(45deg,#F1F4F2 25%,transparent 25%),linear-gradient(-45deg,#F1F4F2 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#F1F4F2 75%),linear-gradient(-45deg,transparent 75%,#F1F4F2 75%);background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0;}
+  .cw-logo:not(.has-logo) .cw-logo-img{background:var(--cw-mint);border-color:transparent;}
+  .cw-logo-img img{max-width:92%;max-height:92%;object-fit:contain;}
+  .cw-logo-img svg{width:34px;height:34px;fill:none;stroke:var(--cw-green);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .cw-logo-txt{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .cw-logo-txt b{font-size:14.5px;color:var(--cw-ink);}
+  .cw-logo-txt span{font-size:12.5px;color:var(--cw-ink3);line-height:1.45;}
+  .cw-logo-acts{display:flex;gap:8px;margin-top:8px;}
+  .cw-btn-sm{height:32px;padding:0 12px;border-radius:9px;border:1px solid var(--cw-line);background:var(--cw-card);color:var(--cw-ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .cw-btn-sm:hover{border-color:var(--cw-green);}
+  .cw-danger{color:#C23B3B;}
+  /* segmented GST type + currency pills */
+  .cw-seg{display:flex;flex-wrap:wrap;gap:6px;padding:4px;margin:0 0 18px;border-radius:14px;background:color-mix(in srgb, var(--cw-ink) 5%, transparent);}
+  .cw-seg button{flex:1 1 auto;border:0;background:transparent;border-radius:10px;padding:9px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--cw-ink2);cursor:pointer;}
+  .cw-seg button.is-on{background:var(--cw-card);color:var(--cw-ink);box-shadow:0 1px 3px rgb(17 32 26 / .14);}
+  .cw-cur{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;margin:0 0 16px;}
+  .cw-cur button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px;border-radius:12px;border:1px solid var(--cw-line);background:var(--cw-card);cursor:pointer;font:inherit;color:var(--cw-ink2);}
+  .cw-cur button b{font-size:17px;color:var(--cw-ink);}
+  .cw-cur button span{font-size:11px;font-weight:700;}
+  .cw-cur button.is-on{border-color:var(--cw-green);box-shadow:0 0 0 3px color-mix(in srgb, var(--cw-green) 18%, transparent);background:color-mix(in srgb, var(--cw-mint) 45%, var(--cw-card));}
+  /* review */
+  .cw-letter{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;padding:20px;border-radius:18px;background:var(--cw-card);border:1px solid var(--cw-line);box-shadow:0 14px 34px -20px rgb(17 32 26 / .4);position:relative;overflow:hidden;}
+  .cw-letter::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--cw-green),#E9A500);}
+  .cw-letter-logo{width:72px;height:72px;border-radius:16px;display:grid;place-items:center;overflow:hidden;background:#fff;border:1px solid var(--cw-line);}
+  .cw-letter-logo img{max-width:90%;max-height:90%;object-fit:contain;}
+  .cw-letter-logo span{font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:24px;font-weight:800;color:var(--cw-green);}
+  .cw-letter-main{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .cw-letter-main b{font-family:'Bricolage Grotesque','Inter',sans-serif;font-size:20px;letter-spacing:-.02em;color:var(--cw-ink);}
+  .cw-letter-main span{font-size:12.5px;color:var(--cw-ink2);}
+  .cw-letter-main .cw-trade{font-style:italic;color:var(--cw-ink3);}
+  .cw-letter-ids{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:11.5px;color:var(--cw-ink3);}
+  .cw-letter-ids b{color:var(--cw-ink);font-variant-numeric:tabular-nums;letter-spacing:.02em;}
+  .cw-meter{display:flex;align-items:center;gap:14px;margin:16px 0;font-size:12.5px;color:var(--cw-ink2);}
+  .cw-meter b{color:var(--cw-ink);}
+  .cw-meter i{flex:1;height:6px;border-radius:6px;background:color-mix(in srgb, var(--cw-ink) 8%, transparent);overflow:hidden;}
+  .cw-meter i span{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--cw-green),#E9A500);}
+  .cw-rsec{border:1px solid var(--cw-line);border-radius:14px;padding:12px 14px;margin-top:10px;}
+  .cw-rsec header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .cw-rsec header b{font-size:13px;color:var(--cw-ink);}
+  .cw-edit{border:0;background:none;color:var(--cw-green);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .cw-rgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 14px;}
+  .cw-rv{display:flex;flex-direction:column;min-width:0;}
+  .cw-rv span{font-size:11px;font-weight:600;color:var(--cw-ink3);}
+  .cw-rv b{font-size:12.5px;color:var(--cw-ink);word-break:break-word;}
+  /* footer */
+  .cw-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 30px;border-top:1px solid var(--cw-line);background:color-mix(in srgb, var(--cw-ink) 2.5%, var(--cw-card));}
+  .cw-foot .btn{height:44px;padding:0 20px;border-radius:12px;font-weight:700;}
+  .cw-foot-note{font-size:11.5px;color:var(--cw-ink3);}
+  /* phones & tablets */
+  @media (max-width:860px){
+    .cw-overlay{padding:0;width:100vw;align-items:stretch;justify-content:stretch;}
+    .cw-card{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);height:100dvh !important;max-height:none !important;border-radius:0 !important;width:100% !important;max-width:none !important;margin:0 !important;display:grid !important;padding:0 !important;transform:none !important;}
+    .cw-card::before, .cw-card::after{display:none !important;}
+    .cw-rail{min-height:64px;flex:none;}
+    .cw-rail{flex-direction:row;align-items:center;gap:12px;padding:14px 16px;}
+    .cw-brand h2{font-size:17px;}
+    .cw-steps, .cw-mini{display:none;}
+    .cw-top{padding:12px 16px 0;}
+    .cw-body{padding:14px 16px 18px;}
+    .cw-grid{grid-template-columns:1fr;}
+    .cw-rgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .cw-cur{grid-template-columns:repeat(auto-fill,minmax(62px,1fr));}
+    .cw-letter{grid-template-columns:auto minmax(0,1fr);}
+    .cw-letter-ids{grid-column:1/-1;align-items:flex-start;flex-direction:row;flex-wrap:wrap;gap:4px 14px;}
+    .cw-foot{padding:12px 16px;}
+    .cw-foot-note{display:none;}
+    .cw-logo{flex-direction:row;padding:12px;gap:12px;}
+    .cw-logo-img{width:64px;height:64px;}
+  }
+  /* logos on cards and in the sidebar */
+  .company-card-icon.has-logo, .gw-resume-icon.has-logo, .sidebar-company-avatar.has-logo{background:#fff !important;border:1px solid var(--border,#DFE7E1);overflow:hidden;padding:3px;box-sizing:border-box;}
+  .company-card-icon.has-logo img, .gw-resume-icon.has-logo img, .sidebar-company-avatar.has-logo img{max-width:100%;max-height:100%;object-fit:contain;display:block;}
+  .ec-logo{display:flex;align-items:center;gap:14px;}
+  .ec-logo-img{flex:none;width:64px;height:64px;border-radius:14px;border:1px solid var(--border);background:#fff;display:grid;place-items:center;overflow:hidden;}
+  .ec-logo-img img{max-width:90%;max-height:90%;object-fit:contain;}
+  .ec-logo-img span{font-weight:800;color:var(--accent1);font-size:18px;}
+  .ec-logo-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -8434,9 +8585,9 @@ let resetShowPassword = false;     // show/hide toggle state for this card's own
 let signupUsePasskey = false;
 let passkeyLoginBusy = false;
 let passkeyLoginError = '';
-let coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa', cloneFromId:'' };
+let coform = { name:'', mailingName:'', constitution:'', industry:'', incorporationDate:'', cin:'', logo:'', address:'', address2:'', city:'', state:'', pincode:'', country:'India', contactPerson:'', phone:'', mobile:'', email:'', website:'', signatoryName:'', signatoryDesignation:'', gstRegType:'regular', gstin:'', gstRegDate:'', pan:'', tan:'', udyam:'', iec:'', fyStart:'', booksFrom:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa', cloneFromId:'' };
 let companyCreateModalOpen = false; // true while the "Create Company" modal (Gateway screen) is open
-let coformStep = 1; // 1-5 -- which page of the multi-step Create Company wizard is showing (see companyCreateModal())
+let coformStep = 1; // 1-6 -- which page of the multi-step Create Company wizard is showing (see companyCreateModal())
 // Gateway 2026 round 2: grid/list toggle + sort mode are per-browser display preferences (same
 // localStorage convention as companyOpenedAt/companyPinned above); the quick-actions menu and
 // rename modal state are purely transient (never persisted).
@@ -22350,6 +22501,9 @@ function renderPaint(){
   }
   if(modal==='editCompany'){
     document.getElementById('editCoName').addEventListener('input', e=> editCoDraft.name = e.target.value);
+    document.getElementById('editCoLogoPick')?.addEventListener('click', ()=> document.getElementById('editCoLogoInput')?.click());
+    document.getElementById('editCoLogoRemove')?.addEventListener('click', ()=>{ editCoDraft.logo = ''; render(); });
+    document.getElementById('editCoLogoInput')?.addEventListener('change', async e=>{ const f = e.target.files && e.target.files[0]; if(!f) return; try{ editCoDraft.logo = await coProcessLogo(f); render(); }catch(err){ toast(err.message || 'Could not use that image.'); } });
     document.getElementById('editCoMailingName').addEventListener('input', e=> editCoDraft.mailingName = e.target.value);
     document.getElementById('editCoAddress').addEventListener('input', e=> editCoDraft.address = e.target.value);
     function bindEditCoStateField(){
@@ -22415,6 +22569,7 @@ function renderPaint(){
     document.getElementById('saveCoEditBtn').addEventListener('click', async ()=>{
       if(!editCoDraft.name.trim()){ toast('Enter a company name'); return; }
       if(editCoDraft.gstin.trim() && !isValidGSTIN(editCoDraft.gstin)){ toast('That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.'); return; }
+      if(editCoDraft.logo !== undefined){ const prevLogo = currentCompany.logo || ''; currentCompany.logo = editCoDraft.logo; const isx = currentCompany.invoiceSettings || {}; if(!isx.logoDataUrl || isx.logoDataUrl===prevLogo) currentCompany.invoiceSettings = { ...isx, logoDataUrl: editCoDraft.logo }; }
       Object.assign(currentCompany, {
         name: editCoDraft.name.trim(),
         mailingName: editCoDraft.mailingName.trim(),
@@ -23221,7 +23376,7 @@ function sidebarCompanyCard(){
   const others = visibleCompanies().filter(c=>c.id!==currentCompany.id && canAccessCompany(c));
   return `<div class="sidebar-company-wrap">
     <button class="sidebar-company-card" id="sidebarCompanyCardBtn" type="button" title="Switch company" aria-haspopup="true" aria-expanded="${sidebarPopoverOpen==='company'}">
-      <span class="sidebar-company-avatar">${escapeHtml(companyInitials(currentCompany.name))}</span>
+      ${currentCompany.logo ? `<span class="sidebar-company-avatar has-logo"><img src="${currentCompany.logo}" alt=""></span>` : `<span class="sidebar-company-avatar">${escapeHtml(companyInitials(currentCompany.name))}</span>`}
       <span class="sidebar-company-info"><span class="sidebar-company-name">${escapeHtml(currentCompany.name)}</span><span class="sidebar-company-sub">${others.length?'Switch company':'Manage companies'}</span></span>
       <svg class="sidebar-company-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
@@ -24006,6 +24161,7 @@ function editCompanyModal(){
       <div class="modal-card" style="width:460px;">
         <div class="panel-head"><h2>Edit Company</h2><button class="btn secondary small" id="modalClose" type="button" aria-label="Close">✕</button></div>
         <div class="panel-body" style="max-height:75vh;overflow-y:auto;">
+          ${(()=>{ const lg = editCoDraft.logo !== undefined ? editCoDraft.logo : (currentCompany.logo||''); return `<div class="field"><label>Company Logo</label><div class="ec-logo"><div class="ec-logo-img">${lg ? `<img src="${lg}" alt="Company logo">` : `<span>${escapeHtml(companyInitials(currentCompany.name))}</span>`}</div><div class="ec-logo-acts"><button type="button" class="btn secondary small" id="editCoLogoPick">${lg?'Change logo':'Upload logo'}</button>${lg?`<button type="button" class="btn secondary small" id="editCoLogoRemove">Remove</button>`:''}<div class="muted" style="font-size:11px;margin-top:4px;">PNG, JPG, WebP or SVG — shown on invoices, reports and your company card.</div></div><input type="file" id="editCoLogoInput" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" hidden></div></div>`; })()}
           <div class="field"><label>Company Name</label><input type="text" id="editCoName" value="${escapeAttr(editCoDraft.name)}"></div>
           <div class="field"><label>Mailing Name (if different)</label><input type="text" id="editCoMailingName" value="${escapeAttr(editCoDraft.mailingName)}"></div>
           <div class="field"><label>Address</label><input type="text" id="editCoAddress" value="${escapeAttr(editCoDraft.address)}"></div>
@@ -27403,189 +27559,242 @@ function renderLogin(){
 // The "Create Company" form used to sit permanently open next to the company list on the Gateway
 // screen. It's now a modal, opened by a big obvious "+ Create Company" button, so the list itself
 // isn't crowded by a long form the person may not be about to fill in.
-// Create Company is deliberately a big, 5-step wizard rather than one dense form -- starting a new
-// company's books is a meaningful, one-time event (everything downstream -- financial year, currency,
-// tax IDs -- is hard to change later), so it gets a correspondingly considered, step-by-step flow
-// instead of being squeezed into a small dialog. coformStep (1-5) tracks which page is showing;
-// coform itself (see its declaration) holds every field across all five pages so nothing is lost when
-// a step's own inputs leave the DOM. See wireGateway... (the companyCreateModalOpen block below
-// renderGateway()) for the Next/Back/field wiring.
+// Create Company — Nov 2026 rebuild. Six short steps that collect everything a business actually needs
+// to open its books (identity + logo, registered address, contact & signatory, GST/PAN/TAN and other
+// registrations, financial year & currency, then a letterhead-style review). Only the current step's
+// inputs are in the DOM; every field writes straight into `coform`, so nothing is lost moving between
+// steps. The final "Create Company" handler (wiring below renderGateway()) builds the company from
+// `coform` alone and saves it with saveCompanyMeta() — exactly as before, just with more fields.
 const CO_WIZARD_STEPS = [
-  { n:1, icon:'🏢', label:'Basic Info' },
-  { n:2, icon:'📍', label:'Address' },
-  { n:3, icon:'☎️', label:'Contact' },
-  { n:4, icon:'📅', label:'Financial & Tax' },
-  { n:5, icon:'💱', label:'Currency & Review' },
+  { n:1, key:'identity', label:'Business',      hint:'Name, logo & type' },
+  { n:2, key:'address',  label:'Address',       hint:'Registered office' },
+  { n:3, key:'contact',  label:'Contact',       hint:'Phone, email, signatory' },
+  { n:4, key:'tax',      label:'Tax & IDs',     hint:'GST, PAN, TAN, MSME' },
+  { n:5, key:'books',    label:'Books',         hint:'Year & currency' },
+  { n:6, key:'review',   label:'Review',        hint:'Check & create' },
 ];
-function coStepHeader(icon, title, sub){
-  return `
-  <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
-    <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(44,160,28,.3);">${icon}</div>
-    <div>
-      <div style="font-size:16px;font-weight:800;color:var(--ink);">${title}</div>
-      <div class="muted" style="font-size:12px;margin-top:2px;">${sub}</div>
-    </div>
-  </div>`;
+const CO_CONSTITUTIONS = ['Sole Proprietorship','Partnership Firm','Limited Liability Partnership (LLP)','Private Limited Company','Public Limited Company','One Person Company (OPC)','Hindu Undivided Family (HUF)','Trust','Society / Club','Section 8 Company (Non-profit)','Co-operative Society','Government Body','Other'];
+const CO_GST_TYPES = [
+  { id:'regular',     label:'Registered — Regular',      needs:true  },
+  { id:'composition', label:'Registered — Composition',  needs:true  },
+  { id:'sez',         label:'SEZ unit / developer',       needs:true  },
+  { id:'unregistered',label:'Not registered under GST',   needs:false },
+];
+const CO_CURRENCIES = [
+  { code:'INR', symbol:'₹',   fraction:'Paisa', name:'Indian Rupee' },
+  { code:'USD', symbol:'$',   fraction:'Cent',  name:'US Dollar' },
+  { code:'EUR', symbol:'€',   fraction:'Cent',  name:'Euro' },
+  { code:'GBP', symbol:'£',   fraction:'Penny', name:'Pound Sterling' },
+  { code:'AED', symbol:'AED', fraction:'Fils',  name:'UAE Dirham' },
+  { code:'SGD', symbol:'S$',  fraction:'Cent',  name:'Singapore Dollar' },
+  { code:'KES', symbol:'KSh', fraction:'Cent',  name:'Kenyan Shilling' },
+  { code:'NGN', symbol:'₦',   fraction:'Kobo',  name:'Nigerian Naira' },
+  { code:'ZAR', symbol:'R',   fraction:'Cent',  name:'South African Rand' },
+];
+const CO_LOGO_MAX_SIDE = 360;        // px — plenty for invoices/reports, small enough for the company record
+const CO_LOGO_MAX_BYTES = 110*1024;  // stored size cap after resizing (the record also holds the books)
+function coBlankForm(){
+  return { name:'', mailingName:'', constitution:'', industry:'', incorporationDate:'', cin:'', logo:'',
+    address:'', address2:'', city:'', state:'', pincode:'', country:'India',
+    contactPerson:'', phone:'', mobile:'', email:'', website:'', signatoryName:'', signatoryDesignation:'',
+    gstRegType:'regular', gstin:'', gstRegDate:'', pan:'', tan:'', udyam:'', iec:'',
+    fyStart:'', booksFrom:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa', cloneFromId:'' };
+}
+function coNeedsGstin(){ const t = CO_GST_TYPES.find(x=>x.id===coform.gstRegType); return !!(t && t.needs); }
+function coCinLabel(){ return /LLP/.test(coform.constitution) ? 'LLPIN' : 'CIN'; }
+function coShowsCin(){ return /Limited|OPC|LLP|Section 8/.test(coform.constitution||''); }
+function coAddressLine(c){ return [c.address, c.address2, c.city].map(x=>String(x||'').trim()).filter(Boolean).join(', '); }
+function coField(label, inner, opts){
+  opts = opts || {};
+  return `<div class="cw-field${opts.wide?' cw-wide':''}"><label${opts.for?` for="${opts.for}"`:''}>${label}${opts.req?' <b class="cw-req" aria-hidden="true">*</b>':''}${opts.opt?' <span class="cw-opt">optional</span>':''}</label>${inner}${opts.help?`<div class="cw-help">${opts.help}</div>`:''}</div>`;
+}
+function coStepHeader(title, sub){
+  return `<div class="cw-head"><h3>${title}</h3><p>${sub}</p></div>`;
 }
 function coReviewRow(label, value){
-  return `<div><div class="muted" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;">${escapeHtml(label)}</div><div style="font-weight:600;color:var(--ink);margin-top:2px;word-break:break-word;">${escapeHtml(value)}</div></div>`;
+  return `<div class="cw-rv"><span>${escapeHtml(label)}</span><b>${escapeHtml(value||'—')}</b></div>`;
+}
+function coLogoBox(){
+  const has = !!coform.logo;
+  return `<div class="cw-logo${has?' has-logo':''}" id="coLogoDrop" tabindex="0" role="button" aria-label="${has?'Change company logo':'Upload company logo'}">
+    <div class="cw-logo-img">${has ? `<img src="${coform.logo}" alt="Company logo preview">` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l4.5-4.5a2 2 0 0 1 2.8 0L16 16m-2-2l1.5-1.5a2 2 0 0 1 2.8 0L20 14M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="15" cy="8.5" r="1.4"/></svg>`}</div>
+    <div class="cw-logo-txt">
+      <b>${has?'Company logo added':'Upload your company logo'}</b>
+      <span>${has?'Shown on invoices, reports and your company card.':'Drag a file here or click to browse · PNG, JPG, WebP or SVG · up to 5 MB'}</span>
+      <div class="cw-logo-acts">
+        <button type="button" class="cw-btn-sm" id="coLogoPick">${has?'Change logo':'Choose file'}</button>
+        ${has?`<button type="button" class="cw-btn-sm cw-danger" id="coLogoRemove">Remove</button>`:''}
+      </div>
+    </div>
+    <input type="file" id="coLogoInput" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" hidden>
+  </div>`;
 }
 function coStepBasicInfo(){
+  const templates = visibleCompanies().filter(c=>!isSharedDemoId(c.id));
   return `
-  ${coStepHeader('🏢','Tell us about your business', "The name and industry you pick here show up on the dashboard, invoices, and reports.")}
-  <label>Company Name</label>
-  <input type="text" id="coName" placeholder="e.g. Sunrise Traders" value="${escapeAttr(coform.name)}">
-  <label>Mailing Name (if different)</label>
-  <input type="text" id="coMailingName" placeholder="Same as company name if left blank" value="${escapeAttr(coform.mailingName)}">
-  <label>Industry Type</label>
-  <select id="coIndustry">
-    <option value="">Select an industry…</option>
-    ${INDUSTRY_TYPES.map(g=>`<optgroup label="${escapeAttr(g.group)}">${g.options.map(o=>`<option value="${escapeAttr(o)}" ${coform.industry===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</optgroup>`).join('')}
-  </select>
-  <p class="muted" style="font-size:11px;margin-top:6px;">Picking the closest match helps tailor reports later — you can change it anytime from Company settings. Don't see an exact fit? Use "Other / General Services" at the end of the list.</p>
-  ${(()=>{
-    // Oct 12, 2026 round: clone-from-template -- an optional shortcut that copies ledger NAMES/GROUPS
-    // from an existing company of yours (see cloneLedgersFromCompany()) so you don't have to rebuild
-    // the same Chart of Accounts from scratch for a second branch/outlet. Opening balances always
-    // reset to zero and nothing else (vouchers, parties, items) is copied, so this is deliberately
-    // only ever a starting-point shortcut, never a real duplicate of another company's books.
-    const templates = visibleCompanies().filter(c=>!isSharedDemoId(c.id));
-    if(!templates.length) return '';
-    return `
-    <label style="margin-top:10px;">Start From</label>
-    <select id="coCloneFrom">
-      <option value="">Blank company (just Cash, Bank, Capital)</option>
-      ${templates.map(c=>`<option value="${c.id}" ${coform.cloneFromId===c.id?'selected':''}>Copy ledgers from "${escapeAttr(c.name)}"</option>`).join('')}
-    </select>
-    <p class="muted" style="font-size:11px;margin-top:6px;">Only ledger names and groups are copied — opening balances start at ₹0 and nothing else (vouchers, parties, items) comes along.</p>`;
-  })()}
+  ${coStepHeader('Tell us about your business', 'Your legal name, logo and type of business appear on invoices, reports and returns.')}
+  ${coLogoBox()}
+  <div class="cw-grid">
+    ${coField('Legal name of the business', `<input type="text" id="coName" placeholder="e.g. Sunrise Traders Pvt Ltd" value="${escapeAttr(coform.name)}" autocomplete="organization">`, {req:true, wide:true, for:'coName', help:'Exactly as on your PAN / registration certificate.'})}
+    ${coField('Trade / brand name', `<input type="text" id="coMailingName" placeholder="Same as legal name if left blank" value="${escapeAttr(coform.mailingName)}">`, {opt:true, for:'coMailingName'})}
+    ${coField('Type of business', `<select id="coConstitution"><option value="">Select…</option>${CO_CONSTITUTIONS.map(o=>`<option ${coform.constitution===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select>`, {req:true, for:'coConstitution'})}
+    ${coField('Industry', `<select id="coIndustry"><option value="">Select an industry…</option>${INDUSTRY_TYPES.map(g=>`<optgroup label="${escapeAttr(g.group)}">${g.options.map(o=>`<option value="${escapeAttr(o)}" ${coform.industry===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}</optgroup>`).join('')}</select>`, {req:true, for:'coIndustry', help:'Helps tailor reports. Not listed? Pick "Other / General Services".'})}
+    ${coField('Date of incorporation / start', `<input type="date" id="coIncDate" value="${escapeAttr(coform.incorporationDate)}">`, {opt:true, for:'coIncDate'})}
+    ${coShowsCin() ? coField(coCinLabel(), `<input type="text" id="coCIN" placeholder="${coCinLabel()==='LLPIN'?'AAA-1234':'U12345TN2020PTC123456'}" value="${escapeAttr(coform.cin)}" maxlength="21" style="text-transform:uppercase">`, {opt:true, for:'coCIN', help:coCinLabel()==='LLPIN'?'From your LLP incorporation certificate.':'21-character Corporate Identity Number from the MCA.'}) : ''}
+    ${templates.length ? coField('Start from', `<select id="coCloneFrom"><option value="">Blank company (just Cash, Bank, Capital)</option>${templates.map(c=>`<option value="${c.id}" ${coform.cloneFromId===c.id?'selected':''}>Copy ledgers from "${escapeAttr(c.name)}"</option>`).join('')}</select>`, {wide:true, for:'coCloneFrom', help:'Only ledger names and groups are copied — balances start at ₹0; no vouchers, parties or items.'}) : ''}
+  </div>
   ${isDemoUser ? `<p class="auth-error" style="margin-top:12px;">Demo accounts can't create a company — sign up for your own free account to add your own.</p>` : ''}
   `;
 }
 function coStepAddress(){
   return `
-  ${coStepHeader('📍','Where are you located?', 'Used on invoices and for state-wise / GST reporting.')}
-  <label>Address</label>
-  <input type="text" id="coAddress" placeholder="Building, street, area" value="${escapeAttr(coform.address)}">
-  <label>Country</label>
-  <select id="coCountry">
-    ${COUNTRIES.map(c=>`<option value="${escapeAttr(c)}" ${(coform.country||'India')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}
-  </select>
-  <div class="row" style="gap:10px;">
-    <div style="flex:2;">
-      <label>State / Province</label>
-      <div id="coStateWrap">${stateProvinceControl('coState', coform.country, coform.state)}</div>
-    </div>
-    <div style="flex:1;">
-      <label>Pincode</label>
-      <input type="text" id="coPincode" placeholder="e.g. 600001" value="${escapeAttr(coform.pincode)}">
-    </div>
-  </div>
-  `;
+  ${coStepHeader('Registered office address', 'Printed on invoices, and your state decides CGST + SGST vs IGST on every sale.')}
+  <div class="cw-grid">
+    ${coField('Address line 1', `<input type="text" id="coAddress" placeholder="Building / door no., street" value="${escapeAttr(coform.address)}" autocomplete="address-line1">`, {req:true, wide:true, for:'coAddress'})}
+    ${coField('Address line 2', `<input type="text" id="coAddress2" placeholder="Area, landmark" value="${escapeAttr(coform.address2)}" autocomplete="address-line2">`, {opt:true, wide:true, for:'coAddress2'})}
+    ${coField('City / town', `<input type="text" id="coCity" placeholder="e.g. Chennai" value="${escapeAttr(coform.city)}" autocomplete="address-level2">`, {req:true, for:'coCity'})}
+    ${coField('Country', `<select id="coCountry">${COUNTRIES.map(c=>`<option value="${escapeAttr(c)}" ${(coform.country||'India')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select>`, {req:true, for:'coCountry'})}
+    ${coField('State / province', `<div id="coStateWrap">${stateProvinceControl('coState', coform.country, coform.state)}</div>`, {req:true, for:'coState'})}
+    ${coField((coform.country||'India')==='India'?'PIN code':'Postal code', `<input type="text" id="coPincode" placeholder="${(coform.country||'India')==='India'?'6 digits, e.g. 600001':'Postal code'}" value="${escapeAttr(coform.pincode)}" inputmode="${(coform.country||'India')==='India'?'numeric':'text'}" maxlength="10" autocomplete="postal-code">`, {req:(coform.country||'India')==='India', for:'coPincode'})}
+  </div>`;
 }
 function coStepContact(){
   return `
-  ${coStepHeader('☎️','How can people reach you?', 'Shown on invoices and used for any reminders you send out.')}
-  <div class="row" style="gap:10px;">
-    <div style="flex:1;min-width:0;"><label>Phone</label>${phoneInputHtml('coPhone', coform.phone, {placeholder:'Landline', label:'Phone'})}</div>
-    <div style="flex:1;min-width:0;"><label>Mobile</label>${phoneInputHtml('coMobile', coform.mobile, {label:'Mobile'})}</div>
-  </div>
-  <div class="row" style="gap:10px;">
-    <div style="flex:1;"><label>Email</label><input type="text" id="coEmail" placeholder="name@company.com" value="${escapeAttr(coform.email)}"></div>
-    <div style="flex:1;"><label>Website</label><input type="text" id="coWebsite" placeholder="www.company.com" value="${escapeAttr(coform.website)}"></div>
-  </div>
-  `;
+  ${coStepHeader('Contact & authorised signatory', 'Shown on invoices and statements; the signatory signs your financial statements.')}
+  <div class="cw-grid">
+    ${coField('Contact person', `<input type="text" id="coContactPerson" placeholder="e.g. Santhosh Kumar" value="${escapeAttr(coform.contactPerson)}" autocomplete="name">`, {opt:true, for:'coContactPerson'})}
+    ${coField('Email', `<input type="email" id="coEmail" placeholder="accounts@company.com" value="${escapeAttr(coform.email)}" autocomplete="email">`, {req:true, for:'coEmail'})}
+    ${coField('Mobile', phoneInputHtml('coMobile', coform.mobile, {label:'Mobile'}), {req:true})}
+    ${coField('Phone / landline', phoneInputHtml('coPhone', coform.phone, {placeholder:'Landline', label:'Phone'}), {opt:true})}
+    ${coField('Website', `<input type="text" id="coWebsite" placeholder="www.company.com" value="${escapeAttr(coform.website)}" autocomplete="url">`, {opt:true, wide:true, for:'coWebsite'})}
+    ${coField('Authorised signatory', `<input type="text" id="coSignatory" placeholder="Name as it should be signed" value="${escapeAttr(coform.signatoryName)}">`, {opt:true, for:'coSignatory'})}
+    ${coField('Designation', `<input type="text" id="coSignatoryDesig" list="coDesigList" placeholder="e.g. Director, Proprietor, Partner" value="${escapeAttr(coform.signatoryDesignation)}"><datalist id="coDesigList">${['Proprietor','Partner','Designated Partner','Director','Managing Director','Karta','Trustee','Secretary','Chief Financial Officer','Authorised Signatory'].map(d=>`<option value="${d}">`).join('')}</datalist>`, {opt:true, for:'coSignatoryDesig'})}
+  </div>`;
 }
 function coStepFinancialTax(){
+  const needs = coNeedsGstin(), g = (coform.gstin||'').toUpperCase(), gOk = isValidGSTIN(g);
+  const gState = gOk && typeof GST_STATE_NAME_BY_CODE!=='undefined' ? GST_STATE_NAME_BY_CODE[g.slice(0,2)] : '';
   return `
-  ${coStepHeader('📅','Financial year & tax registration', 'Sets when your books start, and GST/PAN appear on returns and reports.')}
-  <div class="row" style="gap:10px;">
-    <div style="flex:1;"><label>Financial Year Begins From</label><input type="date" id="coFY" value="${coform.fyStart || defaultFYStart()}"></div>
-    <div style="flex:1;"><label>Books Beginning From</label><input type="date" id="coBooksFrom" value="${coform.booksFrom || coform.fyStart || defaultFYStart()}"></div>
+  ${coStepHeader('Tax registration & statutory IDs', 'GSTIN, PAN and TAN appear on invoices, GST returns and TDS forms. Fill in what you have — you can add the rest later.')}
+  <div class="cw-seg" role="radiogroup" aria-label="GST registration">
+    ${CO_GST_TYPES.map(t=>`<button type="button" role="radio" aria-checked="${coform.gstRegType===t.id}" class="${coform.gstRegType===t.id?'is-on':''}" data-co-gst="${t.id}">${escapeHtml(t.label)}</button>`).join('')}
   </div>
-  <div class="section-title" style="margin-top:18px;">Tax Registration Details</div>
-  <label>GSTIN / UIN (optional)</label>
-  <input type="text" id="coGSTIN" placeholder="22AAAAA0000A1Z5" value="${escapeAttr(coform.gstin)}">
-  <label>PAN / Income Tax No. (optional)</label>
-  <input type="text" id="coPAN" placeholder="AAAAA0000A" value="${escapeAttr(coform.pan)}">
-  `;
+  <div class="cw-grid">
+    ${needs ? coField('GSTIN', `<input type="text" id="coGSTIN" placeholder="33ABCDE1234F1Z5" value="${escapeAttr(coform.gstin)}" maxlength="15" style="text-transform:uppercase" autocomplete="off">`, {req:true, for:'coGSTIN', help: gOk ? `<span class="cw-okmsg">✓ Valid format${gState?` · ${escapeHtml(gState)}`:''} · PAN ${escapeHtml(g.slice(2,12))}</span>` : '15 characters. We fill in your PAN and check the state for you.'}) : ''}
+    ${needs ? coField('GST registration date', `<input type="date" id="coGstRegDate" value="${escapeAttr(coform.gstRegDate)}">`, {opt:true, for:'coGstRegDate'}) : ''}
+    ${coField('PAN', `<input type="text" id="coPAN" placeholder="ABCDE1234F" value="${escapeAttr(coform.pan)}" maxlength="10" style="text-transform:uppercase" autocomplete="off">`, {req:false, opt:!needs, for:'coPAN', help:'10 characters — the business PAN (or the proprietor\'s, for a sole proprietorship).'})}
+    ${coField('TAN', `<input type="text" id="coTAN" placeholder="CHEA12345B" value="${escapeAttr(coform.tan)}" maxlength="10" style="text-transform:uppercase" autocomplete="off">`, {opt:true, for:'coTAN', help:'Needed if you deduct TDS (salaries, rent, contractors).'})}
+    ${coField('Udyam (MSME) number', `<input type="text" id="coUdyam" placeholder="UDYAM-TN-02-0012345" value="${escapeAttr(coform.udyam)}" maxlength="19" style="text-transform:uppercase" autocomplete="off">`, {opt:true, for:'coUdyam'})}
+    ${coField('Import Export Code (IEC)', `<input type="text" id="coIEC" placeholder="10 characters" value="${escapeAttr(coform.iec)}" maxlength="10" style="text-transform:uppercase" autocomplete="off">`, {opt:true, for:'coIEC', help:'Only if you import or export.'})}
+  </div>`;
+}
+function coStepBooks(){
+  const cur = CO_CURRENCIES.find(c=>c.code===coform.currencyFormalName);
+  return `
+  ${coStepHeader('Financial year & currency', 'When your books start and how amounts are shown. These are hard to change later, so double-check them.')}
+  <div class="cw-grid">
+    ${coField('Financial year begins', `<input type="date" id="coFY" value="${coform.fyStart || defaultFYStart()}">`, {req:true, for:'coFY', help:'In India this is 1 April.'})}
+    ${coField('Books beginning from', `<input type="date" id="coBooksFrom" value="${coform.booksFrom || coform.fyStart || defaultFYStart()}">`, {req:true, for:'coBooksFrom', help:'The first date you will enter vouchers for. Opening balances are as on this date.'})}
+  </div>
+  <div class="cw-sub">Base currency</div>
+  <div class="cw-cur" role="radiogroup" aria-label="Base currency">
+    ${CO_CURRENCIES.map(c=>`<button type="button" role="radio" aria-checked="${coform.currencyFormalName===c.code}" class="${coform.currencyFormalName===c.code?'is-on':''}" data-co-cur="${c.code}"><b>${escapeHtml(c.symbol)}</b><span>${c.code}</span></button>`).join('')}
+  </div>
+  <div class="cw-grid">
+    ${coField('Symbol', `<input type="text" id="coCurrencySymbol" value="${escapeAttr(coform.currencySymbol||'₹')}" maxlength="4">`, {for:'coCurrencySymbol'})}
+    ${coField('Formal name', `<input type="text" id="coCurrencyFormalName" value="${escapeAttr(coform.currencyFormalName||'INR')}" maxlength="8">`, {for:'coCurrencyFormalName', help: cur ? escapeHtml(cur.name) : ''})}
+    ${coField('Decimal places', `<select id="coDecimalPlaces">${[0,1,2,3,4].map(d=>`<option value="${d}" ${Number(coform.decimalPlaces)===d?'selected':''}>${d}</option>`).join('')}</select>`, {for:'coDecimalPlaces'})}
+    ${coField('Fraction unit', `<input type="text" id="coFractionUnit" value="${escapeAttr(coform.fractionUnit||'Paisa')}">`, {for:'coFractionUnit'})}
+  </div>
+  <label class="cw-check"><input type="checkbox" id="coSuffixSymbol" ${coform.suffixSymbol?'checked':''}> Show the symbol after the amount (100${escapeHtml(coform.currencySymbol||'₹')} instead of ${escapeHtml(coform.currencySymbol||'₹')}100)</label>
+  <div class="cw-example">Amounts will look like <b>${coform.suffixSymbol ? '' : escapeHtml(coform.currencySymbol||'₹')+' '}${(123456.789).toLocaleString((coform.currencyFormalName||'INR')==='INR'?'en-IN':'en-US',{minimumFractionDigits:Number(coform.decimalPlaces)||0,maximumFractionDigits:Number(coform.decimalPlaces)||0})}${coform.suffixSymbol ? ' '+escapeHtml(coform.currencySymbol||'₹') : ''}</b></div>`;
+}
+function coCompleteness(){
+  const keys = ['logo','name','constitution','industry','address','city','state','pincode','email','mobile','signatoryName','pan','fyStart'];
+  if(coNeedsGstin()) keys.push('gstin');
+  const done = keys.filter(k=> k==='fyStart' ? true : String(coform[k]||'').trim()).length;
+  return Math.round(done/keys.length*100);
 }
 function coStepCurrencyReview(){
+  const f = coform, pct = coCompleteness();
+  const gst = CO_GST_TYPES.find(t=>t.id===f.gstRegType);
+  const sec = (n, title, rows) => `<section class="cw-rsec"><header><b>${title}</b><button type="button" class="cw-edit" data-co-step-jump="${n}">Edit</button></header><div class="cw-rgrid">${rows}</div></section>`;
   return `
-  ${coStepHeader('💱','Currency & final review', "Last step — check everything looks right, then create the company.")}
-  <div class="section-title" style="margin-top:0;">Base Currency Information</div>
-  <div class="row" style="gap:10px;">
-    <div style="flex:1;"><label>Base Currency Symbol</label><input type="text" id="coCurrencySymbol" value="${escapeAttr(coform.currencySymbol||'₹')}"></div>
-    <div style="flex:1;"><label>Formal Name</label><input type="text" id="coCurrencyFormalName" value="${escapeAttr(coform.currencyFormalName||'INR')}"></div>
-  </div>
-  <div class="row" style="gap:10px;">
-    <div style="flex:1;">
-      <label>Decimal Places</label>
-      <select id="coDecimalPlaces">
-        ${[0,1,2,3,4].map(d=>`<option value="${d}" ${Number(coform.decimalPlaces)===d?'selected':''}>${d}</option>`).join('')}
-      </select>
+  ${coStepHeader('Review & create', 'This is how your company will look on invoices and reports. Edit any section before you create it.')}
+  <div class="cw-letter">
+    <div class="cw-letter-logo">${f.logo ? `<img src="${f.logo}" alt="">` : `<span>${escapeHtml((f.name||'?').trim().slice(0,2).toUpperCase())}</span>`}</div>
+    <div class="cw-letter-main">
+      <b>${escapeHtml(f.name||'Your company name')}</b>
+      ${f.mailingName ? `<span class="cw-trade">Trading as ${escapeHtml(f.mailingName)}</span>` : ''}
+      <span>${escapeHtml([coAddressLine(f), f.state, f.pincode].filter(Boolean).join(', ') || 'Address')}</span>
+      <span>${escapeHtml([f.mobile, f.email, f.website].filter(Boolean).join(' · ') || 'Contact')}</span>
     </div>
-    <div style="flex:1;"><label>Fraction Unit (e.g. Paisa, Cents)</label><input type="text" id="coFractionUnit" value="${escapeAttr(coform.fractionUnit||'Paisa')}"></div>
+    <div class="cw-letter-ids">${f.gstin && coNeedsGstin() ? `<span>GSTIN <b>${escapeHtml(f.gstin.toUpperCase())}</b></span>` : ''}${f.pan ? `<span>PAN <b>${escapeHtml(f.pan.toUpperCase())}</b></span>` : ''}${f.cin && coShowsCin() ? `<span>${coCinLabel()} <b>${escapeHtml(f.cin.toUpperCase())}</b></span>` : ''}</div>
   </div>
-  <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--ink);font-weight:500;margin-top:2px;">
-    <input type="checkbox" id="coSuffixSymbol" style="width:auto;" ${coform.suffixSymbol?'checked':''}> Show symbol after the amount (e.g. 100₹ instead of ₹100)
-  </label>
-  ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="muted" style="font-size:11px;margin-top:10px;">This company will be shared with the rest of your group — everyone in it will be able to work in the same books.</p>` : ''}
-
-  <div class="section-title">Review</div>
-  <div style="background:var(--surface-strong);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;font-size:12px;">
-    ${coReviewRow('Company', coform.name||'—')}
-    ${coReviewRow('Industry', coform.industry||'—')}
-    ${coReviewRow('Address', [coform.address,coform.state,coform.country].filter(Boolean).join(', ')||'—')}
-    ${coReviewRow('Contact', [coform.mobile,coform.email].filter(Boolean).join(' · ')||'—')}
-    ${coReviewRow('Financial Year', coform.fyStart||defaultFYStart())}
-    ${coReviewRow('GSTIN', coform.gstin||'—')}
-    ${coReviewRow('Currency', `${coform.currencySymbol||'₹'} (${coform.currencyFormalName||'INR'})`)}
-  </div>
-  `;
+  <div class="cw-meter"><div><b>${pct}%</b> of the recommended details filled in</div><i><span style="width:${pct}%"></span></i></div>
+  ${sec(1,'Business', coReviewRow('Type', f.constitution)+coReviewRow('Industry', f.industry)+coReviewRow('Started', f.incorporationDate)+coReviewRow('Logo', f.logo?'Added':'Not added'))}
+  ${sec(3,'Contact', coReviewRow('Contact person', f.contactPerson)+coReviewRow('Mobile', f.mobile)+coReviewRow('Email', f.email)+coReviewRow('Signatory', [f.signatoryName, f.signatoryDesignation].filter(Boolean).join(', ')))}
+  ${sec(4,'Tax & IDs', coReviewRow('GST', gst?gst.label:'—')+coReviewRow('TAN', f.tan)+coReviewRow('Udyam', f.udyam)+coReviewRow('IEC', f.iec))}
+  ${sec(5,'Books', coReviewRow('Financial year from', f.fyStart||defaultFYStart())+coReviewRow('Books from', f.booksFrom||f.fyStart||defaultFYStart())+coReviewRow('Currency', `${f.currencySymbol||'₹'} ${f.currencyFormalName||'INR'} · ${Number(f.decimalPlaces)} decimals`))}
+  ${currentUser && (currentUser.groupOwnerId || currentUser.role==='support') ? `<p class="cw-note">This company will be shared with the rest of your group — everyone in it can work in the same books.</p>` : ''}`;
 }
 function companyCreateModal(){
-  const step = coformStep || 1;
+  const step = Math.min(coformStep || 1, CO_WIZARD_STEPS.length);
+  const cur = CO_WIZARD_STEPS[step-1];
+  const body = step===1?coStepBasicInfo():step===2?coStepAddress():step===3?coStepContact():step===4?coStepFinancialTax():step===5?coStepBooks():coStepCurrencyReview();
   return `
-  <div class="modal-overlay" id="createCoModalOverlayBg" role="dialog" aria-modal="true">
-    <div class="modal-card" style="width:900px;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:20px;">
-      <div style="position:relative;overflow:hidden;padding:26px 30px 22px;background:linear-gradient(120deg,#173B1E 0%,#1E7A12 55%,#2CA01C 100%);color:#fff;flex-shrink:0;">
-        <div style="position:absolute;top:-55%;right:-6%;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(242,153,74,0.4),transparent 70%);pointer-events:none;"></div>
-        <div style="position:absolute;bottom:-70%;left:-6%;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.10),transparent 70%);pointer-events:none;"></div>
-        <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
-          <div>
-            <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:6px;">New Company</div>
-            <h2 style="font-size:23px;font-weight:800;margin:0;letter-spacing:-.02em;">🏢 Let's set up your books</h2>
-            <div style="font-size:12.5px;color:rgba(255,255,255,.85);margin-top:6px;max-width:500px;">A few quick steps to get your company's details, financial year, and currency right from day one.</div>
-          </div>
-          <button class="btn secondary small" id="closeCreateCoBtn" type="button" style="background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.32);color:#fff;flex-shrink:0;">✕</button>
+  <div class="modal-overlay cw-overlay" id="createCoModalOverlayBg" role="dialog" aria-modal="true" aria-labelledby="cwTitle">
+    <div class="modal-card cw-card">
+      <aside class="cw-rail">
+        <div class="cw-brand"><span class="cw-mark">RB</span><div><div class="cw-kicker">New company</div><h2 id="cwTitle">Set up your books</h2></div></div>
+        <ol class="cw-steps">
+          ${CO_WIZARD_STEPS.map(s=>`<li class="${s.n<step?'is-done':s.n===step?'is-cur':''}"><button type="button" data-co-step-jump="${s.n}" ${s.n<step?'':'tabindex="-1"'} aria-current="${s.n===step?'step':'false'}"><i>${s.n<step?'✓':s.n}</i><span><b>${s.label}</b><em>${s.hint}</em></span></button></li>`).join('')}
+        </ol>
+        <div class="cw-mini">
+          <div class="cw-mini-logo">${coform.logo ? `<img src="${coform.logo}" alt="">` : `<span>${escapeHtml((coform.name||'?').trim().slice(0,2).toUpperCase())}</span>`}</div>
+          <div class="cw-mini-txt"><b>${escapeHtml(coform.name||'Your company')}</b><span>${escapeHtml([coform.city, coform.state].filter(Boolean).join(', ') || 'Live preview')}</span></div>
         </div>
-        <div style="position:relative;z-index:1;display:flex;align-items:flex-start;gap:0;margin-top:24px;">
-          ${CO_WIZARD_STEPS.map((s,i)=>`
-            <div style="display:flex;align-items:center;flex:${i<CO_WIZARD_STEPS.length-1?'1':'0'};">
-              <div data-co-step-jump="${s.n}" style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:${s.n<=step?'pointer':'default'};min-width:68px;">
-                <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;
-                  background:${s.n<step?'#fff':s.n===step?'rgba(255,255,255,.95)':'rgba(255,255,255,.16)'};
-                  color:${s.n<=step?'#1E7A12':'rgba(255,255,255,.65)'};
-                  border:2px solid ${s.n<=step?'#fff':'rgba(255,255,255,.32)'};">${s.n<step?'✓':s.icon}</div>
-                <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:${s.n<=step?'#fff':'rgba(255,255,255,.55)'};white-space:nowrap;">${s.label}</div>
-              </div>
-              ${i<CO_WIZARD_STEPS.length-1?`<div style="flex:1;height:2px;margin:0 2px 18px;background:${s.n<step?'#fff':'rgba(255,255,255,.25)'};"></div>`:''}
-            </div>
-          `).join('')}
+      </aside>
+      <div class="cw-main">
+        <div class="cw-top">
+          <div class="cw-prog" aria-hidden="true"><span style="width:${Math.round(step/CO_WIZARD_STEPS.length*100)}%"></span></div>
+          <div class="cw-count">Step ${step} of ${CO_WIZARD_STEPS.length} · ${cur.label}</div>
+          <button class="cw-x" id="closeCreateCoBtn" type="button" aria-label="Close">✕</button>
         </div>
-      </div>
-      <div style="padding:24px 30px;overflow-y:auto;flex:1;min-height:0;">
-        ${step===1?coStepBasicInfo():step===2?coStepAddress():step===3?coStepContact():step===4?coStepFinancialTax():coStepCurrencyReview()}
-      </div>
-      <div style="padding:16px 30px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:var(--surface-strong);">
-        <button class="btn secondary" id="coBackBtn" type="button" style="${step===1?'visibility:hidden;':''}">‹ Back</button>
-        <div class="muted" style="font-size:11px;">Step ${step} of ${CO_WIZARD_STEPS.length}</div>
-        ${step<CO_WIZARD_STEPS.length?`<button class="btn" id="coNextBtn" type="button">Next ›</button>`:`<button class="btn" id="createCoBtn" type="button">✓ Create Company</button>`}
+        <div class="cw-body" id="cwBody">${body}</div>
+        <div class="cw-foot">
+          <button class="btn secondary" id="coBackBtn" type="button" style="${step===1?'visibility:hidden;':''}">← Back</button>
+          <span class="cw-foot-note"><b class="cw-req">*</b> required</span>
+          ${step<CO_WIZARD_STEPS.length?`<button class="btn" id="coNextBtn" type="button">Continue →</button>`:`<button class="btn" id="createCoBtn" type="button">✓ Create company</button>`}
+        </div>
       </div>
     </div>
-  </div>
-  `;
+  </div>`;
+}
+// Reads an image file, scales it to fit CO_LOGO_MAX_SIDE and returns a compact data URL (PNG keeps
+// transparency; falls back to WebP/JPEG only if the PNG is still too large).
+async function coProcessLogo(file){
+  if(!file) throw new Error('No file');
+  if(!/^image\/(png|jpe?g|webp|svg\+xml|gif)$/.test(file.type)) throw new Error('Please choose a PNG, JPG, WebP or SVG image.');
+  if(file.size > 5*1024*1024) throw new Error('That image is over 5 MB — please choose a smaller file.');
+  const src = await fileToDataUrl(file);
+  const img = new Image();
+  await new Promise((res, rej)=>{ img.onload = res; img.onerror = ()=>rej(new Error('That file could not be read as an image.')); img.src = src; });
+  let w = img.naturalWidth || 512, h = img.naturalHeight || 512;
+  if(!w || !h){ w = 512; h = 512; }
+  const encode = (side, type, q) => {
+    const s = Math.min(1, side/Math.max(w,h)), cw = Math.max(1, Math.round(w*s)), ch = Math.max(1, Math.round(h*s));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const x = c.getContext('2d'); if(type==='image/jpeg'){ x.fillStyle='#fff'; x.fillRect(0,0,cw,ch); }
+    x.drawImage(img, 0, 0, cw, ch);
+    return c.toDataURL(type, q);
+  };
+  const size = d => Math.round((d.length - d.indexOf(',') - 1) * 3/4);
+  for(const [side,type,q] of [[CO_LOGO_MAX_SIDE,'image/png'],[CO_LOGO_MAX_SIDE,'image/webp',0.9],[256,'image/webp',0.85],[256,'image/jpeg',0.85],[160,'image/jpeg',0.8]]){
+    const d = encode(side, type, q);
+    if(d.startsWith('data:'+type) && size(d) <= CO_LOGO_MAX_BYTES) return d;
+  }
+  throw new Error('That logo is too detailed to store — please try a simpler or smaller image.');
 }
 // Lightweight rename-only modal for the Gateway's per-card quick-actions (⋮) menu -- deliberately
 // NOT the big editCompanyModal() (that form is built around editCoDraft/currentCompany state that
@@ -27922,7 +28131,7 @@ function renderGateway(){
               const bg = palette[Math.abs((resumeCo.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
               return `
               <div class="gw-resume-card" id="gwResumeBtn" data-resume-co="${resumeCo.id}" role="button" tabindex="0" aria-label="Continue in ${escapeAttr(resumeCo.name)}, ${escapeAttr(resumeTab)}">
-                <div class="gw-resume-icon" style="background:${bg};">${escapeHtml(initials)}</div>
+                ${resumeCo.logo ? `<div class="gw-resume-icon has-logo"><img src="${resumeCo.logo}" alt=""></div>` : `<div class="gw-resume-icon" style="background:${bg};">${escapeHtml(initials)}</div>`}
                 <div class="gw-resume-body">
                   <div class="gw-resume-label">Continue where you left off</div>
                   <div class="gw-resume-detail">${escapeHtml(resumeCo.name)} <span class="gw-resume-dot">·</span> ${escapeHtml(resumeTab)}</div>
@@ -28126,7 +28335,7 @@ function renderGateway(){
           if(gatewayViewMode==='list'){
             return `<div class="company-card company-card-row${pinned?' is-pinned':''}${selected?' is-bulk-selected':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*30}ms;">
               ${bulkCheckboxHtml}
-              <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
+              ${c.logo ? `<div class="company-card-icon has-logo"><img src="${c.logo}" alt=""></div>` : `<div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>`}
               <div class="company-card-body">
                 <div class="company-card-name">${escapeHtml(c.name)}</div>
                 <div class="company-card-recency">${recencyText}</div>
@@ -28144,7 +28353,7 @@ function renderGateway(){
           return `<div class="company-card${pinned?' is-pinned':''}${selected?' is-bulk-selected':''}" data-select-co="${c.id}" tabindex="0" role="button" aria-label="Open ${escapeAttr(c.name)}" style="animation-delay:${Math.min(i,10)*45}ms;">
             ${bulkCheckboxHtml}
             <div class="company-card-top">
-              <div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>
+              ${c.logo ? `<div class="company-card-icon has-logo"><img src="${c.logo}" alt=""></div>` : `<div class="company-card-icon" style="background:${bg};">${escapeHtml(initials)}</div>`}
               <div class="company-card-top-right">${actionsHtml}</div>
             </div>
             <div class="company-card-name">${escapeHtml(c.name)}</div>
@@ -28464,158 +28673,172 @@ function renderGateway(){
     }
   });
   if(companyCreateModalOpen){
-  document.getElementById('closeCreateCoBtn')?.addEventListener('click', ()=>{
-    companyCreateModalOpen = false;
-    renderGateway();
-  });
+  const coRerender = (focusId)=>{ const body = document.getElementById('cwBody'); const top = body ? body.scrollTop : 0; renderGateway(); const nb = document.getElementById('cwBody'); if(nb) nb.scrollTop = top; if(focusId){ const el = document.getElementById(focusId); if(el){ el.focus(); try{ const v=el.value; el.setSelectionRange(v.length, v.length); }catch(e){} } } };
+  document.getElementById('closeCreateCoBtn')?.addEventListener('click', ()=>{ companyCreateModalOpen = false; renderGateway(); });
   document.getElementById('createCoModalOverlayBg')?.addEventListener('click', (e)=>{
     if(e.target.id==='createCoModalOverlayBg'){ companyCreateModalOpen = false; renderGateway(); }
   });
-  // Every field below is guarded with ?. because only the CURRENT step's inputs exist in the DOM at
-  // any one time (companyCreateModal() renders one step's fields, not all five) -- each listener
-  // writes straight into coform as the person types, so coform carries the full draft across steps
-  // even after a step's own inputs are gone, and the final "Create Company" submit (at the bottom of
-  // this block) reads only from coform, never from document.getElementById(...).value.
-  document.getElementById('coName')?.addEventListener('input', e=> coform.name = e.target.value);
-  document.getElementById('coMailingName')?.addEventListener('input', e=> coform.mailingName = e.target.value);
-  document.getElementById('coIndustry')?.addEventListener('change', e=> coform.industry = e.target.value);
-  document.getElementById('coCloneFrom')?.addEventListener('change', e=> coform.cloneFromId = e.target.value);
-  document.getElementById('coAddress')?.addEventListener('input', e=> coform.address = e.target.value);
-  function bindCoStateField(){
-    const el = document.getElementById('coState');
-    if(!el) return;
-    el.addEventListener(el.tagName==='SELECT' ? 'change' : 'input', e=> coform.state = e.target.value);
-  }
+  document.getElementById('createCoModalOverlayBg')?.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ companyCreateModalOpen = false; renderGateway(); } });
+  // Every field writes straight into coform as the person types (only the current step is in the DOM).
+  const bind = (id, key, ev, fx) => document.getElementById(id)?.addEventListener(ev||'input', e=>{ coform[key] = fx ? fx(e.target) : e.target.value; });
+  document.getElementById('coName')?.addEventListener('input', e=>{ coform.name = e.target.value; const m = document.querySelector('.cw-mini-txt b'); if(m) m.textContent = e.target.value || 'Your company'; const ml = document.querySelector('.cw-mini-logo span'); if(ml) ml.textContent = (e.target.value||'?').trim().slice(0,2).toUpperCase(); }); bind('coMailingName','mailingName'); bind('coIndustry','industry','change'); bind('coCloneFrom','cloneFromId','change');
+  bind('coIncDate','incorporationDate'); bind('coCIN','cin');
+  document.getElementById('coConstitution')?.addEventListener('change', e=>{ coform.constitution = e.target.value; coRerender('coConstitution'); });
+  bind('coAddress','address'); bind('coAddress2','address2'); bind('coCity','city'); bind('coPincode','pincode');
+  function bindCoStateField(){ const el = document.getElementById('coState'); if(!el) return; el.addEventListener(el.tagName==='SELECT' ? 'change' : 'input', e=> coform.state = e.target.value); }
   bindCoStateField();
-  document.getElementById('coPincode')?.addEventListener('input', e=> coform.pincode = e.target.value);
-  document.getElementById('coCountry')?.addEventListener('change', e=>{
-    coform.country = e.target.value;
-    // The State/Province control depends on the selected country (India gets a dropdown of Indian
-    // states, everywhere else gets free text) — swap it in place and clear the old value, since a
-    // previously-picked Indian state wouldn't make sense once the country changes away from India.
-    coform.state = '';
-    document.getElementById('coStateWrap').innerHTML = stateProvinceControl('coState', coform.country, coform.state);
-    bindCoStateField();
+  document.getElementById('coCountry')?.addEventListener('change', e=>{ coform.country = e.target.value; coform.state = ''; coRerender('coCountry'); });
+  bind('coContactPerson','contactPerson'); bind('coPhone','phone'); bind('coMobile','mobile'); bind('coEmail','email'); bind('coWebsite','website');
+  bind('coSignatory','signatoryName'); bind('coSignatoryDesig','signatoryDesignation');
+  document.querySelectorAll('[data-co-gst]').forEach(b=>b.addEventListener('click', ()=>{ coform.gstRegType = b.dataset.coGst; coRerender(); }));
+  document.getElementById('coGSTIN')?.addEventListener('input', e=>{
+    const g = e.target.value.toUpperCase().replace(/\s/g,''); coform.gstin = g;
+    if(isValidGSTIN(g)){
+      // A valid GSTIN carries the PAN (characters 3–12) and the state code (first two digits).
+      if(!coform.pan) coform.pan = g.slice(2,12);
+      const st = typeof GST_STATE_NAME_BY_CODE!=='undefined' ? GST_STATE_NAME_BY_CODE[g.slice(0,2)] : '';
+      if(st && (coform.country||'India')==='India' && !coform.state) coform.state = st;
+      coRerender('coGSTIN');
+    }
   });
-  document.getElementById('coPhone')?.addEventListener('input', e=> coform.phone = e.target.value);
-  document.getElementById('coMobile')?.addEventListener('input', e=> coform.mobile = e.target.value);
-  document.getElementById('coEmail')?.addEventListener('input', e=> coform.email = e.target.value);
-  document.getElementById('coWebsite')?.addEventListener('input', e=> coform.website = e.target.value);
-  document.getElementById('coFY')?.addEventListener('input', e=> coform.fyStart = e.target.value);
-  document.getElementById('coBooksFrom')?.addEventListener('input', e=> coform.booksFrom = e.target.value);
-  document.getElementById('coGSTIN')?.addEventListener('input', e=> coform.gstin = e.target.value);
-  document.getElementById('coPAN')?.addEventListener('input', e=> coform.pan = e.target.value);
-  document.getElementById('coCurrencySymbol')?.addEventListener('input', e=> coform.currencySymbol = e.target.value);
-  document.getElementById('coCurrencyFormalName')?.addEventListener('input', e=> coform.currencyFormalName = e.target.value);
-  document.getElementById('coDecimalPlaces')?.addEventListener('change', e=> coform.decimalPlaces = Number(e.target.value));
-  document.getElementById('coFractionUnit')?.addEventListener('input', e=> coform.fractionUnit = e.target.value);
-  document.getElementById('coSuffixSymbol')?.addEventListener('change', e=> coform.suffixSymbol = e.target.checked);
-  // Per-step validation gating "Next" -- only the two steps with a real correctness requirement block
-  // progress; everything else is optional and can be filled in (or skipped) in any order of thoroughness.
+  bind('coGstRegDate','gstRegDate'); bind('coPAN','pan', 'input', t=>t.value.toUpperCase()); bind('coTAN','tan', 'input', t=>t.value.toUpperCase());
+  bind('coUdyam','udyam', 'input', t=>t.value.toUpperCase()); bind('coIEC','iec', 'input', t=>t.value.toUpperCase());
+  bind('coFY','fyStart'); bind('coBooksFrom','booksFrom');
+  document.getElementById('coFY')?.addEventListener('change', e=>{ if(!coform.booksFrom || coform.booksFrom < e.target.value){ coform.booksFrom = e.target.value; coRerender(); } });
+  document.querySelectorAll('[data-co-cur]').forEach(b=>b.addEventListener('click', ()=>{ const c = CO_CURRENCIES.find(x=>x.code===b.dataset.coCur); if(!c) return; coform.currencyFormalName = c.code; coform.currencySymbol = c.symbol; coform.fractionUnit = c.fraction; coRerender(); }));
+  bind('coCurrencySymbol','currencySymbol'); bind('coCurrencyFormalName','currencyFormalName');
+  document.getElementById('coDecimalPlaces')?.addEventListener('change', e=>{ coform.decimalPlaces = Number(e.target.value); coRerender(); });
+  bind('coFractionUnit','fractionUnit');
+  document.getElementById('coSuffixSymbol')?.addEventListener('change', e=>{ coform.suffixSymbol = e.target.checked; coRerender(); });
+  // Logo: click / keyboard / drag-and-drop → resized, compressed data URL kept in coform.logo.
+  const logoInput = document.getElementById('coLogoInput'), drop = document.getElementById('coLogoDrop');
+  const takeLogo = async (file)=>{ try{ coform.logo = await coProcessLogo(file); coRerender(); toast('Logo added', {type:'success'}); }catch(err){ toast(err.message || 'Could not use that image.'); } };
+  document.getElementById('coLogoPick')?.addEventListener('click', e=>{ e.stopPropagation(); logoInput?.click(); });
+  document.getElementById('coLogoRemove')?.addEventListener('click', e=>{ e.stopPropagation(); coform.logo = ''; coRerender(); });
+  drop?.addEventListener('click', ()=> logoInput?.click());
+  drop?.addEventListener('keydown', e=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); logoInput?.click(); } });
+  logoInput?.addEventListener('change', e=>{ const f = e.target.files && e.target.files[0]; if(f) takeLogo(f); });
+  drop?.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('is-drag'); });
+  drop?.addEventListener('dragleave', ()=> drop.classList.remove('is-drag'));
+  drop?.addEventListener('drop', e=>{ e.preventDefault(); drop.classList.remove('is-drag'); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if(f) takeLogo(f); });
+  // Per-step checks. Returns {msg, field} for the first problem, or null.
   function coValidateStep(step){
+    const f = coform, india = (f.country||'India')==='India';
     if(step===1){
-      if(isDemoUser) return 'Demo accounts can\'t create a company — sign up for your own free account to add your own.';
-      if(isTeamAccessOnlyUser()) return 'Team Access accounts can\'t create a company — ask the company owner for access instead.';
-      if(!coform.name.trim()) return 'Enter a company name.';
-      if(!coform.industry) return 'Pick an industry type — it helps tailor reports to your business.';
+      if(isDemoUser) return {msg:'Demo accounts can\'t create a company — sign up for your own free account to add your own.'};
+      if(isTeamAccessOnlyUser()) return {msg:'Team Access accounts can\'t create a company — ask the company owner for access instead.'};
+      if(!f.name.trim()) return {msg:'Enter the legal name of the business.', field:'coName'};
+      if(!f.constitution) return {msg:'Choose the type of business (proprietorship, partnership, company…).', field:'coConstitution'};
+      if(!f.industry) return {msg:'Pick an industry — it helps tailor reports to your business.', field:'coIndustry'};
+      if(f.cin && coShowsCin()){ const c = f.cin.trim().toUpperCase(); const ok = coCinLabel()==='LLPIN' ? /^[A-Z]{3}-\d{4}$/.test(c) : /^[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}$/.test(c); if(!ok) return {msg:`That ${coCinLabel()} doesn't look right — check it against your certificate, or leave it blank.`, field:'coCIN'}; }
+      return null;
+    }
+    if(step===2){
+      if(!f.address.trim()) return {msg:'Enter the first line of the registered address.', field:'coAddress'};
+      if(!f.city.trim()) return {msg:'Enter the city or town.', field:'coCity'};
+      if(!f.state) return {msg:'Choose the state — it decides how GST is charged.', field:'coState'};
+      if(india && !/^[1-9]\d{5}$/.test(f.pincode.trim())) return {msg:'Enter a 6-digit PIN code.', field:'coPincode'};
+      return null;
+    }
+    if(step===3){
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim())) return {msg:'Enter a valid email address for the business.', field:'coEmail'};
+      const digits = String(f.mobile||'').replace(/^\+\d+\s*/,'').replace(/\D/g,'');
+      if(digits.length < 6) return {msg:'Enter a mobile number.'};
       return null;
     }
     if(step===4){
-      const gstinEntered = coform.gstin.trim();
-      if(gstinEntered && !isValidGSTIN(gstinEntered)) return 'That GSTIN doesn\'t look right — it should be 15 characters like 22AAAAA0000A1Z5. Leave it blank if you don\'t have it yet.';
+      const g = (f.gstin||'').trim().toUpperCase();
+      if(coNeedsGstin()){
+        if(!g) return {msg:'Enter your GSTIN, or choose "Not registered under GST".', field:'coGSTIN'};
+        if(!isValidGSTIN(g)) return {msg:'That GSTIN doesn\'t look right — it should be 15 characters like 33ABCDE1234F1Z5.', field:'coGSTIN'};
+        const code = india && typeof GST_STATE_CODES!=='undefined' ? GST_STATE_CODES[f.state] : '';
+        if(code && g.slice(0,2)!==code && f.gstRegType!=='sez') return {msg:`This GSTIN is registered in ${GST_STATE_NAME_BY_CODE[g.slice(0,2)]||'another state'}, but the address is in ${f.state}. Fix the state on the Address step or check the GSTIN.`, field:'coGSTIN'};
+      }
+      const p = (f.pan||'').trim().toUpperCase();
+      if(p && !/^[A-Z]{5}\d{4}[A-Z]$/.test(p)) return {msg:'PAN should be 10 characters like ABCDE1234F.', field:'coPAN'};
+      if(p && coNeedsGstin() && isValidGSTIN(g) && g.slice(2,12)!==p) return {msg:'The PAN doesn\'t match the PAN inside your GSTIN (characters 3–12).', field:'coPAN'};
+      if(f.tan && !/^[A-Z]{4}\d{5}[A-Z]$/.test(f.tan.trim().toUpperCase())) return {msg:'TAN should be 10 characters like CHEA12345B.', field:'coTAN'};
+      if(f.udyam && !/^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/.test(f.udyam.trim().toUpperCase())) return {msg:'Udyam number should look like UDYAM-TN-02-0012345.', field:'coUdyam'};
+      if(f.iec && !/^[A-Z0-9]{10}$/.test(f.iec.trim().toUpperCase())) return {msg:'IEC should be 10 letters/digits.', field:'coIEC'};
+      return null;
+    }
+    if(step===5){
+      const fy = f.fyStart || defaultFYStart(), bf = f.booksFrom || fy;
+      if(bf < fy) return {msg:'Books can\'t begin before the financial year starts.', field:'coBooksFrom'};
+      if(!String(f.currencySymbol||'').trim()) return {msg:'Enter a currency symbol.', field:'coCurrencySymbol'};
       return null;
     }
     return null;
   }
+  const showErr = (err)=>{ toast(err.msg); if(err.field){ const el = document.getElementById(err.field); if(el){ el.classList.add('cw-invalid'); el.setAttribute('aria-invalid','true'); el.focus(); el.addEventListener('input', ()=>{ el.classList.remove('cw-invalid'); el.removeAttribute('aria-invalid'); }, {once:true}); } } };
   document.getElementById('coNextBtn')?.addEventListener('click', ()=>{
     const err = coValidateStep(coformStep);
-    if(err){ toast(err); return; }
+    if(err){ showErr(err); return; }
     coformStep = Math.min(coformStep+1, CO_WIZARD_STEPS.length);
-    renderGateway();
+    renderGateway(); document.querySelector('#cwBody input, #cwBody select')?.focus();
   });
-  document.getElementById('coBackBtn')?.addEventListener('click', ()=>{
-    coformStep = Math.max(coformStep-1, 1);
-    renderGateway();
-  });
-  // Clicking an earlier step's bubble jumps straight back to it (only steps already reached are
-  // clickable -- see companyCreateModal()'s cursor styling -- so this never lets someone skip ahead
-  // past validation).
+  document.getElementById('coBackBtn')?.addEventListener('click', ()=>{ coformStep = Math.max(coformStep-1, 1); renderGateway(); });
   document.querySelectorAll('[data-co-step-jump]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const n = Number(el.dataset.coStepJump);
-      if(n>=coformStep) return;
-      coformStep = n;
-      renderGateway();
-    });
+    el.addEventListener('click', ()=>{ const n = Number(el.dataset.coStepJump); if(n>=coformStep) return; coformStep = n; renderGateway(); });
   });
+  // Enter moves to the next step (not inside textareas / buttons).
+  document.getElementById('cwBody')?.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.tagName==='INPUT' && e.target.type!=='checkbox' && !e.target.closest('.phone-field .pf-cc')){ e.preventDefault(); (document.getElementById('coNextBtn')||document.getElementById('createCoBtn'))?.click(); } });
   document.getElementById('createCoBtn')?.addEventListener('click', async ()=>{
-    // Re-run every step's validation (not just the last one) -- a person can jump back and forth with
-    // the step bubbles, and nothing re-checks an earlier step on the way past it, so this is the one
-    // place that guarantees name/industry/GSTIN are still valid at the moment of creation.
+    // Re-check every step — a person can jump back and forth with the step list.
     for(const s of CO_WIZARD_STEPS){
       const err = coValidateStep(s.n);
-      if(err){ toast(err); coformStep = s.n; renderGateway(); return; }
+      if(err){ coformStep = s.n; renderGateway(); showErr(err); return; }
     }
-    const name = coform.name.trim();
-    const fyStart = coform.fyStart || defaultFYStart();
+    const f = coform, name = f.name.trim();
+    const fyStart = f.fyStart || defaultFYStart();
+    const up = v => String(v||'').trim().toUpperCase();
+    const needsGst = coNeedsGstin();
     const company = {
       id: uid('co'), name,
-      mailingName: coform.mailingName.trim(),
-      industry: coform.industry,
-      address: coform.address.trim(),
-      state: coform.state,
-      pincode: coform.pincode.trim(),
-      country: coform.country.trim() || 'India',
-      phone: coform.phone.trim(),
-      mobile: coform.mobile.trim(),
-      email: coform.email.trim(),
-      website: coform.website.trim(),
+      mailingName: f.mailingName.trim(),
+      constitution: f.constitution,
+      industry: f.industry,
+      incorporationDate: f.incorporationDate || '',
+      cin: coShowsCin() ? up(f.cin) : '',
+      address: coAddressLine(f),
+      addressLine1: f.address.trim(), addressLine2: f.address2.trim(), city: f.city.trim(),
+      state: f.state,
+      pincode: f.pincode.trim(),
+      country: (f.country||'').trim() || 'India',
+      contactPerson: f.contactPerson.trim(),
+      phone: f.phone.trim(),
+      mobile: f.mobile.trim(),
+      email: f.email.trim(),
+      website: f.website.trim(),
+      signatoryName: f.signatoryName.trim(), signatoryDesignation: f.signatoryDesignation.trim(),
       fyStart,
-      booksFrom: coform.booksFrom || fyStart,
-      gstin: coform.gstin.trim(),
-      pan: coform.pan.trim(),
-      currencySymbol: coform.currencySymbol.trim() || '₹',
-      currencyFormalName: coform.currencyFormalName.trim() || 'INR',
-      decimalPlaces: Number(coform.decimalPlaces),
-      fractionUnit: coform.fractionUnit.trim() || 'Paisa',
-      suffixSymbol: !!coform.suffixSymbol,
+      booksFrom: f.booksFrom || fyStart,
+      gstRegType: f.gstRegType,
+      gstin: needsGst ? up(f.gstin) : '',
+      gstRegDate: needsGst ? (f.gstRegDate||'') : '',
+      pan: up(f.pan),
+      tan: up(f.tan),
+      udyam: up(f.udyam),
+      iec: up(f.iec),
+      currencySymbol: f.currencySymbol.trim() || '₹',
+      currencyFormalName: f.currencyFormalName.trim() || 'INR',
+      decimalPlaces: Number(f.decimalPlaces),
+      fractionUnit: f.fractionUnit.trim() || 'Paisa',
+      suffixSymbol: !!f.suffixSymbol,
       ownerId: currentUser ? currentUser.id : null,
-      // If this account belongs to a Support user's group (either because they WERE created by one,
-      // or because they ARE that Support user), stamp the company with that group's id so every
-      // member of the group -- and the Support user who administers it -- can see and use it, not
-      // just whoever happened to click "Create Company". See canAccessCompany()/loadCompanies() for
-      // the read side of this sharing, and the Firestore rules for the actual enforcement.
+      // Group-shared companies: see canAccessCompany()/loadCompanies() and the Firestore rules.
       groupId: currentUser ? (currentUser.groupOwnerId || (currentUser.role==='support' ? currentUser.id : null)) : null,
-      // Oct 12, 2026 round: createdAt powers the new-company Setup Checklist (see
-      // shouldShowSetupChecklist()) -- the only way to know "how new is this company" reliably, since
-      // nothing else on the company doc carries a creation timestamp.
       createdAt: new Date().toISOString(),
     };
-    // Clone-from-template: only set a `ledgers` field at all when a template was actually picked --
-    // leaving it unset for a blank company preserves the existing behaviour exactly (ensureCoreLedgers()
-    // seeds DEFAULT_LEDGERS the first time the company is opened, same as before this round).
-    if(coform.cloneFromId){
-      const templateCo = companies.find(c=>c.id===coform.cloneFromId);
-      company.ledgers = cloneLedgersFromCompany(templateCo);
-    }
-    // Don't touch local state or open the company until the write is CONFIRMED to have landed in
-    // Firestore — pushing optimistically and opening it regardless (the old behaviour) meant a
-    // failed save was invisible at the moment it happened, and the "created" company would just be
-    // gone the next time this user logged in, with no error ever shown. Disable the button and show
-    // a clear retry path instead of losing the person's entered details on failure.
+    if(f.logo){ company.logo = f.logo; company.invoiceSettings = { logoDataUrl: f.logo }; }
+    if(f.cloneFromId){ const templateCo = companies.find(c=>c.id===f.cloneFromId); company.ledgers = cloneLedgersFromCompany(templateCo); }
+    // Only open the company once the save is confirmed — a failed save keeps the form and says so.
     const btn = document.getElementById('createCoBtn');
-    btn.disabled = true;
-    const originalLabel = btn.textContent;
-    btn.textContent = 'Creating…';
+    btn.disabled = true; const originalLabel = btn.textContent; btn.textContent = 'Creating…';
     const saved = await saveCompanyMeta(company);
-    if(!saved){
-      btn.disabled = false;
-      btn.textContent = originalLabel;
-      toast('Company was not saved — check your connection and try again.');
-      return;
-    }
+    if(!saved){ btn.disabled = false; btn.textContent = originalLabel; toast('Company was not saved — check your connection and try again.'); return; }
     companies.push(company);
-    coform = { name:'', mailingName:'', industry:'', address:'', state:'', pincode:'', country:'India', phone:'', mobile:'', email:'', website:'', fyStart:'', booksFrom:'', gstin:'', pan:'', currencySymbol:'₹', currencyFormalName:'INR', suffixSymbol:false, decimalPlaces:2, fractionUnit:'Paisa', cloneFromId:'' };
+    coform = coBlankForm();
     coformStep = 1;
     companyCreateModalOpen = false;
     await enterCompanyApp(company);
