@@ -4232,125 +4232,172 @@
   @media (prefers-reduced-motion: reduce){ .rb-bg.fx-login .fx-track, .fx-pcard, .fx-live i{animation:none;} }
 </style>
 <style id="gw26-css">
-  /* ===================== Front door 2026: Company Gateway ===================== */
+  /* ===================== Company Gateway — workspace (Nov 2026 v2) ===================== */
   .rb-bg.fx-gw{
-    --fx-ink:#11201A; --fx-ink2:#3E5247; --fx-ink3:#6B7E73; --fx-line:#DFE7E1; --fx-paper:#F5F8F5; --fx-card:#FFFFFF;
-    --fx-green:#1E8E15; --fx-deep:#0C2414; --fx-gold:#E9A500; --fx-mint:#DDF3D8;
-    --fx-shadow:0 1px 2px rgb(17 32 26 / .05), 0 10px 28px -14px rgb(17 32 26 / .22);
-    --fx-display:'Bricolage Grotesque','Inter',system-ui,sans-serif;
-    background:var(--fx-paper);color:var(--fx-ink);min-height:100vh;}
+    --gx-bg:#F1F4F2; --gx-card:#FFFFFF; --gx-ink:#13211A; --gx-ink2:#43554A; --gx-ink3:#6E8076; --gx-line:#E0E7E2; --gx-line2:#EDF1EE;
+    --gx-green:#1E8E15; --gx-green-soft:#E3F4DF; --gx-bar:#0E2716; --gx-gold:#D99A00;
+    --gx-bad:#C23B3B; --gx-bad-soft:#FCE9E7; --gx-warn:#B7791F; --gx-warn-soft:#FDF2DD; --gx-info:#2563AD; --gx-info-soft:#E6EFFA;
+    --gx-shadow:0 1px 2px rgb(19 33 26 / .05), 0 4px 14px -8px rgb(19 33 26 / .18);
+    background:var(--gx-bg);color:var(--gx-ink);min-height:100vh;font-family:Inter,system-ui,sans-serif;}
   :root[data-theme="dark"] .rb-bg.fx-gw{
-    --fx-ink:#EAF2EC; --fx-ink2:#B9C9BE; --fx-ink3:#8A9C90; --fx-line:#24352B; --fx-paper:#0B130E; --fx-card:#111C15;
-    --fx-green:#3CC22A; --fx-mint:#163A1D; --fx-shadow:0 1px 2px rgb(0 0 0 / .4), 0 14px 34px -14px rgb(0 0 0 / .75);}
-  .rb-bg.fx-gw > .rb-letter{display:none;}
-  .rb-bg.fx-gw::before{content:'';position:absolute;left:0;right:0;top:0;height:620px;pointer-events:none;z-index:0;
-    background:radial-gradient(ellipse 520px 380px at 8% -10%, rgb(123 217 107 / .35), transparent 70%),radial-gradient(ellipse 460px 320px at 96% -6%, rgb(255 211 107 / .3), transparent 70%);}
-  .rb-bg.fx-gw::after{content:'';position:absolute;left:0;right:0;top:0;height:560px;pointer-events:none;z-index:0;
-    background-image:linear-gradient(to right, color-mix(in srgb, var(--fx-ink) 6%, transparent) 1px, transparent 1px),linear-gradient(to bottom, color-mix(in srgb, var(--fx-ink) 6%, transparent) 1px, transparent 1px);background-size:56px 56px;
-    -webkit-mask-image:radial-gradient(ellipse 75% 70% at 50% 0%, #000 25%, transparent 75%);mask-image:radial-gradient(ellipse 75% 70% at 50% 0%, #000 25%, transparent 75%);}
-  :root[data-theme="dark"] .rb-bg.fx-gw::before{opacity:.45;}
-  /* header: brand + menus + avatar in one glass bar */
-  .rb-bg.fx-gw .fx-gw-top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:8px;padding:10px 28px;
-    background:color-mix(in srgb, var(--fx-card) 74%, transparent);-webkit-backdrop-filter:blur(16px) saturate(1.5);backdrop-filter:blur(16px) saturate(1.5);border-bottom:1px solid color-mix(in srgb, var(--fx-line) 80%, transparent);}
+    --gx-bg:#0A110C; --gx-card:#111A14; --gx-ink:#E8F0EA; --gx-ink2:#B3C3B8; --gx-ink3:#84968A; --gx-line:#223127; --gx-line2:#18241C;
+    --gx-green:#45C832; --gx-green-soft:#163A1D; --gx-bar:#07140B;
+    --gx-bad:#F07A6E; --gx-bad-soft:#3A1715; --gx-warn:#E9B44C; --gx-warn-soft:#33270E; --gx-info:#7FB0F0; --gx-info-soft:#14243A;
+    --gx-shadow:0 1px 2px rgb(0 0 0 / .4), 0 6px 18px -10px rgb(0 0 0 / .7);}
+  .rb-bg.fx-gw > .rb-letter, .rb-bg.fx-gw::before, .rb-bg.fx-gw::after{display:none;}
+  /* app bar — deep green, like the inside of the app, not the website */
+  .rb-bg.fx-gw .fx-gw-top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:8px;height:56px;padding:0 24px;background:var(--gx-bar);border-bottom:1px solid rgb(255 255 255 / .06);box-shadow:0 1px 0 rgb(0 0 0 / .2);}
   .rb-bg.fx-gw .fx-gw-top .titlebar{background:none;border:0;padding:0;box-shadow:none;flex:none;-webkit-backdrop-filter:none;backdrop-filter:none;}
-  .fx-gw-brand{display:flex;align-items:center;gap:10px;font-family:var(--fx-display);font-weight:800;font-size:16.5px;letter-spacing:-.01em;color:var(--fx-ink) !important;}
-  .fx-gw-brand em{font-style:normal;font-family:Inter,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--fx-ink3);margin-left:-2px;}
-  .rb-bg.fx-gw .fx-mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-family:Inter,sans-serif;font-size:11.5px;font-weight:900;color:#0C2414;background:linear-gradient(135deg,#9BE38C,#F2C744);box-shadow:0 6px 14px -6px rgb(30 142 21 / .6);}
-  .fx-gw-crumb{display:none;}
-  .rb-bg.fx-gw .fx-gw-top .menubar{flex:1;background:none;border:0;padding:0 0 0 14px;margin-left:6px;border-left:1px solid var(--fx-line);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;font-size:13.5px;}
-  .rb-bg.fx-gw .fx-gw-top .menubar > span{color:var(--fx-ink2);font-weight:600;border-radius:9px;padding:7px 12px;}
-  .rb-bg.fx-gw .fx-gw-top .menubar > span:hover{background:color-mix(in srgb, var(--fx-ink) 6%, transparent);color:var(--fx-ink);}
+  .rb-bg.fx-gw .fx-gw-brand{display:flex;align-items:center;gap:10px;font-family:Inter,sans-serif;font-weight:800;font-size:14.5px;letter-spacing:-.005em;color:#fff !important;}
+  .rb-bg.fx-gw .fx-gw-brand em{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgb(255 255 255 / .5);}
+  .rb-bg.fx-gw .fx-mark{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:900;color:#0C2414;background:linear-gradient(135deg,#9BE38C,#F2C744);}
+  .rb-bg.fx-gw .fx-gw-crumb{display:inline-flex;align-items:center;margin-left:14px;padding-left:14px;border-left:1px solid rgb(255 255 255 / .16);font-size:13px;font-weight:600;color:rgb(255 255 255 / .7);}
+  .rb-bg.fx-gw .fx-gw-top .menubar{flex:1;background:none;border:0;padding:0 0 0 10px;margin-left:10px;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;font-size:13px;}
+  .rb-bg.fx-gw .fx-gw-top .menubar > span{color:rgb(255 255 255 / .78);font-weight:600;border-radius:8px;padding:6px 11px;}
+  .rb-bg.fx-gw .fx-gw-top .menubar > span:hover{background:rgb(255 255 255 / .1);color:#fff;}
   .rb-bg.fx-gw .fx-gw-top .menubar > span:last-child:hover{background:none;}
-  .rb-bg.fx-gw .gw-user-avatar-btn{width:36px;height:36px;border-radius:11px;font-weight:800;}
-  /* hero */
-  .rb-bg.fx-gw .gw-hero{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 28px 8px;background:none;border:0;border-radius:0;box-shadow:none;color:var(--fx-ink);overflow:visible;-webkit-backdrop-filter:none;backdrop-filter:none;}
-  .rb-bg.fx-gw .gw-hero::before, .rb-bg.fx-gw .gw-hero::after, .rb-bg.fx-gw .gw-hero-center-glow, .rb-bg.fx-gw .gw-hero .aurora-orb{display:none;}
-  .rb-bg.fx-gw .gw-hero-inner{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:end;}
-  .rb-bg.fx-gw .gw-hero-eyebrow{color:var(--fx-green);font-size:12.5px;font-weight:800;letter-spacing:.12em;margin-bottom:12px;}
-  .rb-bg.fx-gw .gw-hero h1{font-family:var(--fx-display);font-size:clamp(38px,5.2vw,68px);line-height:.98;letter-spacing:-.045em;font-weight:800;color:var(--fx-ink);margin:0;text-wrap:balance;}
-  .rb-bg.fx-gw .gw-hero h1 em{font-style:normal;background:linear-gradient(100deg,var(--fx-green) 10%,#6CC24A 55%,var(--fx-gold) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .rb-bg.fx-gw .gw-hero-sub{font-size:16px;line-height:1.55;color:var(--fx-ink2);margin-top:14px;max-width:48ch;}
-  .rb-bg.fx-gw .gw-resume-card{margin-top:22px;max-width:460px;padding:12px 14px;border-radius:16px;background:var(--fx-card);border:1px solid var(--fx-line);box-shadow:var(--fx-shadow);color:var(--fx-ink);-webkit-backdrop-filter:none;backdrop-filter:none;}
-  .rb-bg.fx-gw .gw-resume-card:hover{border-color:color-mix(in srgb, var(--fx-green) 45%, var(--fx-line));transform:translateY(-1px);}
-  .rb-bg.fx-gw .gw-resume-icon{width:38px;height:38px;border-radius:11px;}
-  .rb-bg.fx-gw .gw-resume-label{color:var(--fx-green);}
-  .rb-bg.fx-gw .gw-resume-detail{color:var(--fx-ink);font-size:14px;}
-  .rb-bg.fx-gw .gw-resume-dot{color:var(--fx-ink3);}
-  .rb-bg.fx-gw .gw-resume-arrow{color:var(--fx-green);font-weight:800;}
-  .rb-bg.fx-gw .gw-hero-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:0;background:var(--fx-card);border:1px solid var(--fx-line);border-radius:20px;box-shadow:var(--fx-shadow);overflow:hidden;}
-  .rb-bg.fx-gw .gw-chip{background:none;border:0;border-left:1px solid var(--fx-line);border-radius:0;padding:20px 18px;text-align:left;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;min-width:0;}
-  .rb-bg.fx-gw .gw-chip:first-child{border-left:0;}
-  .rb-bg.fx-gw .gw-chip-val{font-family:var(--fx-display);font-size:clamp(28px,3vw,40px);font-weight:800;letter-spacing:-.04em;color:var(--fx-ink);line-height:1;font-variant-numeric:tabular-nums;}
-  .rb-bg.fx-gw .gw-chip-lbl{font-size:12.5px;font-weight:600;color:var(--fx-ink3);letter-spacing:0;text-transform:none;margin-top:6px;}
-  .rb-bg.fx-gw .gw-activity-feed{margin-top:28px;padding-top:0;border-top:0;}
-  .rb-bg.fx-gw .gw-activity-feed-label{color:var(--fx-ink3);font-size:12px;letter-spacing:.08em;margin-bottom:10px;}
-  .rb-bg.fx-gw .gw-activity-feed-list{gap:10px;padding-bottom:6px;scrollbar-width:thin;}
-  .rb-bg.fx-gw .gw-activity-feed-item{background:var(--fx-card);border:1px solid var(--fx-line);border-radius:12px;padding:9px 12px;box-shadow:0 1px 2px rgb(17 32 26 / .05);}
-  .rb-bg.fx-gw .gw-activity-feed-text{color:var(--fx-ink2);font-size:12.5px;}
-  .rb-bg.fx-gw .gw-activity-feed-text strong{color:var(--fx-ink);}
-  .rb-bg.fx-gw .gw-activity-feed-time{color:var(--fx-ink3);}
-  /* what's inside */
-  .rb-bg.fx-gw .lg-gw-inside{position:relative;z-index:1;max-width:1180px;margin:22px auto 0;padding:0 28px;}
-  .rb-bg.fx-gw .lg-gw-inside details{border-radius:16px;padding:2px 18px;background:var(--fx-card);border:1px solid var(--fx-line);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;}
-  .rb-bg.fx-gw .lg-gw-inside summary{font-size:13.5px;color:var(--fx-ink);}
-  .rb-bg.fx-gw .lg-gw-inside summary::before{content:'✦';color:var(--fx-gold);margin-right:2px;}
-  /* companies */
-  .rb-bg.fx-gw .gw-wrap{position:relative;z-index:1;max-width:1180px;padding:40px 28px 24px;}
-  .rb-bg.fx-gw .gw-section-row{align-items:flex-end;margin-bottom:18px;}
-  .rb-bg.fx-gw .gw-section-title{font-family:var(--fx-display);font-size:clamp(24px,2.6vw,32px);font-weight:800;letter-spacing:-.035em;text-transform:none;color:var(--fx-ink);}
+  .rb-bg.fx-gw .gw-user-avatar-btn{width:34px;height:34px;border-radius:50%;font-weight:800;box-shadow:0 0 0 2px rgb(255 255 255 / .18);}
+  /* layout */
+  .gx-shell{max-width:1320px;margin:0 auto;padding:24px 24px 8px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start;}
+  .gx-main{min-width:0;}
+  .gx-side{display:flex;flex-direction:column;gap:16px;position:sticky;top:80px;max-height:calc(100vh - 96px);overflow-y:auto;scrollbar-width:thin;padding-bottom:4px;}
+  /* greeting bar */
+  .rb-bg.fx-gw .gx-hero{position:relative;max-width:none;margin:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:var(--gx-ink);overflow:visible;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .rb-bg.fx-gw .gx-hero::before, .rb-bg.fx-gw .gx-hero::after{display:none;}
+  .rb-bg.fx-gw .gx-hero .gw-hero-inner{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+  .rb-bg.fx-gw .gx-hero .gw-hero-eyebrow{color:var(--gx-ink3);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .rb-bg.fx-gw .gx-hero h1{font-family:Inter,sans-serif;font-size:clamp(24px,2.4vw,30px);line-height:1.15;letter-spacing:-.025em;font-weight:800;color:var(--gx-ink);margin:0;}
+  .rb-bg.fx-gw .gx-hero h1 em{font-style:normal;color:var(--gx-green);background:none;-webkit-text-fill-color:currentColor;}
+  .rb-bg.fx-gw .gx-hero .gw-hero-sub{font-size:14px;color:var(--gx-ink2);margin-top:4px;max-width:none;}
+  .rb-bg.fx-gw .gx-hero .gw-hero-chips{display:flex;gap:10px;flex-wrap:wrap;background:none;border:0;box-shadow:none;border-radius:0;overflow:visible;}
+  .rb-bg.fx-gw .gx-hero .gw-chip{display:flex;align-items:center;gap:10px;background:var(--gx-card);border:1px solid var(--gx-line);border-radius:12px;padding:10px 14px;min-width:132px;box-shadow:var(--gx-shadow);text-align:left;}
+  .gx-chip-ic{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--gx-green-soft);color:var(--gx-green);}
+  .gx-chip-ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .rb-bg.fx-gw .gx-hero .gw-chip-val{font-family:Inter,sans-serif;font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--gx-ink);line-height:1.1;}
+  .rb-bg.fx-gw .gx-hero .gw-chip-lbl{font-size:11.5px;font-weight:600;color:var(--gx-ink3);text-transform:none;letter-spacing:0;margin-top:1px;}
+  /* jump back in */
+  .rb-bg.fx-gw .gx-resume{display:flex;align-items:center;gap:14px;margin:18px 0 0;max-width:none;padding:14px 16px;border-radius:14px;color:#fff;border:0;
+    background:radial-gradient(ellipse 60% 140% at 100% 0%, rgb(242 199 68 / .28), transparent 60%),linear-gradient(110deg,#123A1D,#1B5E20);box-shadow:0 10px 24px -14px rgb(18 58 29 / .8);}
+  .rb-bg.fx-gw .gx-resume:hover{transform:translateY(-1px);filter:brightness(1.05);}
+  .rb-bg.fx-gw .gx-resume .gw-resume-icon{width:44px;height:44px;border-radius:12px;font-weight:800;font-size:15px;}
+  .rb-bg.fx-gw .gx-resume .gx-ini{background:rgb(255 255 255 / .16);color:#fff;}
+  .rb-bg.fx-gw .gx-resume .gw-resume-body{flex:1;min-width:0;}
+  .rb-bg.fx-gw .gx-resume .gw-resume-label{color:#B6F0A8;font-size:11px;letter-spacing:.08em;}
+  .rb-bg.fx-gw .gx-resume .gw-resume-detail{color:#fff;font-size:16px;font-weight:800;}
+  .gx-resume-sub{font-size:12px;color:rgb(255 255 255 / .7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rb-bg.fx-gw .gx-resume .gx-open{flex:none;margin:0;padding:9px 14px;border-radius:10px;background:#fff;color:#123A1D;font-weight:800;font-size:13px;}
+  /* companies section */
+  .rb-bg.fx-gw .gw-wrap{max-width:none;margin:0;padding:26px 0 8px;}
+  .rb-bg.fx-gw .gw-section-row{align-items:center;margin-bottom:14px;gap:12px;}
+  .rb-bg.fx-gw .gw-section-title{font-family:Inter,sans-serif;font-size:17px;font-weight:800;letter-spacing:-.01em;text-transform:none;color:var(--gx-ink);}
   .rb-bg.fx-gw .gw-toolbar{gap:8px;}
-  .rb-bg.fx-gw .gw-toolbar .btn.secondary{height:38px;border-radius:11px;background:var(--fx-card);border:1px solid var(--fx-line);color:var(--fx-ink);box-shadow:none;font-weight:650;font-size:13px;padding:0 13px;}
-  .rb-bg.fx-gw .gw-toolbar .btn.secondary:hover{border-color:color-mix(in srgb, var(--fx-green) 40%, var(--fx-line));background:var(--fx-card);}
-  .rb-bg.fx-gw .gw-toolbar .btn.secondary.is-active{background:var(--fx-ink);color:var(--fx-paper);border-color:var(--fx-ink);}
-  .rb-bg.fx-gw .gw-search-wrap input, .rb-bg.fx-gw .gw-sort-select{height:38px;border-radius:11px;background:var(--fx-card);border:1px solid var(--fx-line);color:var(--fx-ink);box-shadow:none;}
-  .rb-bg.fx-gw .gw-view-toggle{border-radius:11px;background:color-mix(in srgb, var(--fx-ink) 5%, transparent);border:0;padding:3px;}
+  .rb-bg.fx-gw .gw-toolbar .btn.secondary{height:36px;border-radius:10px;background:var(--gx-card);border:1px solid var(--gx-line);color:var(--gx-ink);box-shadow:none;font-weight:650;font-size:13px;padding:0 12px;}
+  .rb-bg.fx-gw .gw-toolbar .btn.secondary.is-active{background:var(--gx-ink);color:var(--gx-card);border-color:var(--gx-ink);}
+  .rb-bg.fx-gw .gw-search-wrap input, .rb-bg.fx-gw .gw-sort-select{height:36px;border-radius:10px;background:var(--gx-card);border:1px solid var(--gx-line);color:var(--gx-ink);box-shadow:none;}
+  .rb-bg.fx-gw .gw-search-wrap{min-width:240px;}
+  .rb-bg.fx-gw .gw-view-toggle{border-radius:10px;background:var(--gx-line2);border:1px solid var(--gx-line);padding:2px;}
   .rb-bg.fx-gw .gw-view-toggle button{border-radius:8px;}
-  .rb-bg.fx-gw .gw-view-toggle button.is-active{background:var(--fx-card);box-shadow:0 1px 3px rgb(17 32 26 / .12);color:var(--fx-ink);}
-  .rb-bg.fx-gw .gw-folder-chip{border-radius:10px;background:var(--fx-card);border:1px solid var(--fx-line);color:var(--fx-ink2);font-weight:650;}
-  .rb-bg.fx-gw .gw-folder-chip.is-active{background:var(--fx-ink);border-color:var(--fx-ink);color:var(--fx-paper);box-shadow:none;}
+  .rb-bg.fx-gw .gw-view-toggle button.is-active{background:var(--gx-card);box-shadow:0 1px 3px rgb(19 33 26 / .15);color:var(--gx-ink);}
+  .rb-bg.fx-gw .gw-folder-chip{border-radius:999px;background:var(--gx-card);border:1px solid var(--gx-line);color:var(--gx-ink2);font-weight:650;}
+  .rb-bg.fx-gw .gw-folder-chip.is-active{background:var(--gx-green);border-color:var(--gx-green);color:#fff;box-shadow:none;}
   .rb-bg.fx-gw .gw-folder-chip-add{background:transparent;border-style:dashed;}
-  .rb-bg.fx-gw .company-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;}
-  .rb-bg.fx-gw .company-card{background:var(--fx-card);border:1px solid var(--fx-line);border-radius:20px;padding:20px;box-shadow:var(--fx-shadow);-webkit-backdrop-filter:none;backdrop-filter:none;display:flex;flex-direction:column;}
-  .rb-bg.fx-gw .company-card::before{height:0;}
-  .rb-bg.fx-gw .company-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb, var(--fx-green) 40%, var(--fx-line));box-shadow:0 1px 2px rgb(17 32 26 / .05), 0 22px 40px -18px rgb(17 32 26 / .35);}
-  .rb-bg.fx-gw .company-card:focus-visible{outline:2px solid var(--fx-green);outline-offset:3px;}
-  .rb-bg.fx-gw .company-card-icon{width:46px;height:46px;border-radius:13px;font-size:16px;box-shadow:inset 0 1px 0 rgb(255 255 255 / .3), 0 6px 14px -8px rgb(0 0 0 / .45);}
-  .rb-bg.fx-gw .company-card-name{font-size:16.5px;font-weight:800;color:var(--fx-ink);letter-spacing:-.015em;}
-  .rb-bg.fx-gw .company-card-stats{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:auto;padding-top:14px;border-top:1px solid var(--fx-line);}
-  .rb-bg.fx-gw .company-card-badges + .company-card-stats, .rb-bg.fx-gw .company-card-name + .company-card-stats{margin-top:16px;}
-  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-stats span{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--fx-ink3);font-weight:600;}
-  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-stats span + span{padding-left:14px;border-left:1px solid var(--fx-line);}
-  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-stats b{font-family:var(--fx-display);font-size:24px;font-weight:800;letter-spacing:-.03em;color:var(--fx-ink);line-height:1.05;}
-  .rb-bg.fx-gw .company-card-recency{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12px;color:var(--fx-ink3);}
-  .rb-bg.fx-gw .company-card:not(.company-card-row) .company-card-recency::before{content:'';width:7px;height:7px;border-radius:50%;background:color-mix(in srgb, var(--fx-ink3) 50%, transparent);flex:none;}
-  .rb-bg.fx-gw .company-card-arrow{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--fx-mint);color:var(--fx-green);font-weight:800;}
-  .rb-bg.fx-gw .company-card-pin, .rb-bg.fx-gw .company-card-menu-btn{border-radius:9px;}
-  .rb-bg.fx-gw .company-card.is-pinned{border-color:color-mix(in srgb, var(--fx-gold) 55%, var(--fx-line));}
-  .rb-bg.fx-gw .company-card-add{border:1.5px dashed color-mix(in srgb, var(--fx-ink3) 45%, transparent);border-radius:20px;background:transparent;color:var(--fx-ink2);min-height:180px;}
-  .rb-bg.fx-gw .company-card-add:hover{border-color:var(--fx-green);background:color-mix(in srgb, var(--fx-mint) 50%, transparent);color:var(--fx-ink);}
-  .rb-bg.fx-gw .company-card-add .gw-add-icon{width:46px;height:46px;border-radius:14px;background:var(--fx-green);color:#fff;font-weight:500;box-shadow:0 10px 22px -10px var(--fx-green);}
+  .rb-bg.fx-gw .company-grid{grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+  /* company card */
+  .rb-bg.fx-gw .company-card{background:var(--gx-card);border:1px solid var(--gx-line);border-radius:14px;padding:16px;box-shadow:var(--gx-shadow);display:flex;flex-direction:column;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .rb-bg.fx-gw .company-card::before{display:block;height:3px;opacity:0;background:linear-gradient(90deg,var(--gx-green),var(--gx-gold));}
+  .rb-bg.fx-gw .company-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb, var(--gx-green) 35%, var(--gx-line));box-shadow:0 1px 2px rgb(19 33 26 / .05), 0 16px 30px -18px rgb(19 33 26 / .4);}
+  .rb-bg.fx-gw .company-card:hover::before{opacity:1;}
+  .rb-bg.fx-gw .company-card:focus-visible{outline:2px solid var(--gx-green);outline-offset:2px;}
+  .rb-bg.fx-gw .company-card-top{margin-bottom:10px;}
+  .rb-bg.fx-gw .company-card-icon{width:42px;height:42px;border-radius:11px;font-size:15px;box-shadow:inset 0 1px 0 rgb(255 255 255 / .25);}
+  .rb-bg.fx-gw .company-card-name{font-family:Inter,sans-serif;font-size:15.5px;font-weight:800;color:var(--gx-ink);letter-spacing:-.01em;}
+  .gx-meta{margin-top:3px;font-size:12px;color:var(--gx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gx-ids{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .gx-gst.is-none{background:transparent;border:1px dashed var(--gx-line);color:var(--gx-ink3);font-weight:600;}
+  .gx-gst{font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:1px 7px;border-radius:6px;background:var(--gx-line2);color:var(--gx-ink2);font-variant-numeric:tabular-nums;}
+  .gx-pulse{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--gx-line2);display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
+  .gx-pulse-lbl{font-size:11.5px;font-weight:700;color:var(--gx-ink2);align-self:center;line-height:1.3;}
+  .gx-pulse-lbl span{font-weight:500;color:var(--gx-ink3);font-size:11px;}
+  .gx-spark{width:120px;height:30px;flex:none;}
+  .gx-spark rect{fill:color-mix(in srgb, var(--gx-green) 45%, transparent);}
+  .gx-spark rect.is-now{fill:var(--gx-green);}
+  .gx-spark rect.is-zero{fill:color-mix(in srgb, var(--gx-ink3) 30%, transparent);}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .gx-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:12px;padding-top:12px;border-top:1px solid var(--gx-line);}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .gx-stats span{display:flex;flex-direction:column;gap:1px;font-size:11px;font-weight:600;color:var(--gx-ink3);}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .gx-stats span + span{padding-left:12px;border-left:1px solid var(--gx-line);}
+  .rb-bg.fx-gw .company-card:not(.company-card-row) .gx-stats b{font-family:Inter,sans-serif;font-size:16px;font-weight:800;color:var(--gx-ink);letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+  .rb-bg.fx-gw .company-card-recency{display:block;margin-top:10px;font-size:11.5px;color:var(--gx-ink3);}
+  .rb-bg.fx-gw .company-card-recency::before{display:none !important;}
+  .rb-bg.fx-gw .company-card-arrow{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--gx-green-soft);color:var(--gx-green);font-weight:800;}
+  .rb-bg.fx-gw .company-card-health{margin-top:10px;}
+  .rb-bg.fx-gw .company-card-health-flag{background:var(--gx-warn-soft);color:var(--gx-warn);border-color:transparent;}
+  .rb-bg.fx-gw .company-card.is-pinned{border-color:color-mix(in srgb, var(--gx-gold) 55%, var(--gx-line));}
+  .rb-bg.fx-gw .company-card-row{border-radius:12px;padding:12px 14px;}
+  .rb-bg.fx-gw .company-card-add{border:1.5px dashed color-mix(in srgb, var(--gx-ink3) 45%, transparent);border-radius:14px;background:transparent;color:var(--gx-ink2);min-height:200px;}
+  .rb-bg.fx-gw .company-card-add:hover{border-color:var(--gx-green);background:color-mix(in srgb, var(--gx-green-soft) 55%, transparent);color:var(--gx-ink);}
+  .rb-bg.fx-gw .company-card-add .gw-add-icon{width:44px;height:44px;border-radius:12px;background:var(--gx-green);color:#fff;font-weight:500;}
   .rb-bg.fx-gw .company-card-add .gw-add-label{font-size:14px;font-weight:750;}
-  .rb-bg.fx-gw .gw-getting-started{border-radius:22px;background:var(--fx-card);border:1px solid var(--fx-line);box-shadow:var(--fx-shadow);}
-  .rb-bg.fx-gw .gw-gs-title{font-family:var(--fx-display);font-size:22px;letter-spacing:-.03em;}
-  .rb-bg.fx-gw .rb-credit{position:relative;z-index:1;color:var(--fx-ink3);padding-bottom:28px;}
+  .rb-bg.fx-gw .gw-getting-started{border-radius:16px;background:var(--gx-card);border:1px solid var(--gx-line);box-shadow:var(--gx-shadow);}
+  /* side rail panels */
+  .gx-panel{background:var(--gx-card);border:1px solid var(--gx-line);border-radius:14px;padding:14px;box-shadow:var(--gx-shadow);}
+  .gx-panel > header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .gx-panel h2{margin:0;font-family:Inter,sans-serif;font-size:13.5px;font-weight:800;color:var(--gx-ink);letter-spacing:0;}
+  .gx-count{min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:grid;place-items:center;background:var(--gx-bad);color:#fff;font-size:11.5px;font-weight:800;}
+  .gx-attn ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .gx-attn-item{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;border:1px solid transparent;}
+  .gx-attn-item:hover{border-color:var(--gx-line);background:var(--gx-line2);}
+  .gx-attn-item:focus-visible{outline:2px solid var(--gx-green);outline-offset:1px;}
+  .gx-attn-ic{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:14px;}
+  .tone-bad .gx-attn-ic{background:var(--gx-bad-soft);} .tone-warn .gx-attn-ic{background:var(--gx-warn-soft);} .tone-info .gx-attn-ic{background:var(--gx-info-soft);}
+  .gx-attn-item > span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;}
+  .gx-attn-item b{font-size:12.5px;font-weight:700;color:var(--gx-ink);}
+  .tone-bad b{color:var(--gx-bad);}
+  .gx-attn-item em{font-style:normal;font-size:11.5px;color:var(--gx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gx-go{color:var(--gx-ink3);font-size:18px;}
+  .gx-empty{display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;background:var(--gx-green-soft);color:var(--gx-green);font-size:12.5px;font-weight:700;}
+  .gx-more{margin-top:8px;font-size:11.5px;color:var(--gx-ink3);}
+  .gx-qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .gx-qa{all:unset;box-sizing:border-box;position:relative;display:flex;align-items:flex-start;gap:8px;padding:10px;border-radius:11px;border:1px solid var(--gx-line);cursor:pointer;min-width:0;}
+  .gx-qa:hover{border-color:color-mix(in srgb, var(--gx-green) 40%, var(--gx-line));background:var(--gx-line2);}
+  .gx-qa:focus-visible{outline:2px solid var(--gx-green);outline-offset:1px;}
+  .gx-qa-ic{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--gx-line2);font-size:13px;}
+  #gxCreateCoBtn .gx-qa-ic{background:var(--gx-green);color:#fff;font-weight:800;}
+  .gx-qa > span:nth-child(2){display:flex;flex-direction:column;min-width:0;}
+  .gx-qa b{font-size:12.5px;font-weight:700;color:var(--gx-ink);line-height:1.25;}
+  .gx-qa em{font-style:normal;font-size:11px;color:var(--gx-ink3);line-height:1.3;}
+  .gx-badge{position:absolute;top:6px;right:6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--gx-bad);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;}
+  .gx-feed{list-style:none;margin:0;padding:0;position:relative;}
+  .gx-feed::before{content:'';position:absolute;left:13px;top:6px;bottom:6px;width:2px;background:var(--gx-line);border-radius:2px;}
+  .gx-feed li{position:relative;display:flex;gap:10px;padding:6px 0;}
+  .gx-feed-dot{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--gx-card);border:1px solid var(--gx-line);font-size:12px;z-index:1;}
+  .gx-feed b{font-size:12.5px;color:var(--gx-ink);}
+  .gx-feed div{font-size:12.5px;color:var(--gx-ink2);display:flex;flex-direction:column;min-width:0;}
+  .gx-feed em{font-style:normal;font-size:11.5px;color:var(--gx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rb-bg.fx-gw .gx-inside{max-width:none;margin:0;padding:4px 14px;display:block;}
+  .rb-bg.fx-gw .gx-inside details{background:none;border:0;box-shadow:none;padding:0;border-radius:0;-webkit-backdrop-filter:none;backdrop-filter:none;}
+  .rb-bg.fx-gw .gx-inside summary{font-size:12.5px;color:var(--gx-ink);padding:10px 0;}
+  .rb-bg.fx-gw .gx-inside summary::before{content:'✦';color:var(--gx-gold);margin-right:4px;}
+  .rb-bg.fx-gw .gx-inside .lg-chip{font-size:10.5px;}
+  .rb-bg.fx-gw .rb-credit{color:var(--gx-ink3);padding:12px 20px 26px;}
   /* responsive */
+  @media (max-width:1100px){ .gx-shell{grid-template-columns:minmax(0,1fr) 300px;gap:18px;} }
   @media (max-width:900px){
-    .rb-bg.fx-gw .gw-hero-inner{grid-template-columns:1fr;gap:22px;}
-    .rb-bg.fx-gw .fx-gw-brand em{display:none;}
+    .gx-shell{grid-template-columns:1fr;padding:18px 16px 8px;}
+    .gx-side{position:static;max-height:none;overflow:visible;}
+    .rb-bg.fx-gw .fx-gw-brand em, .rb-bg.fx-gw .fx-gw-crumb{display:none;}
   }
   @media (max-width:640px){
-    .rb-bg.fx-gw .fx-gw-top{padding:8px 14px;gap:4px;}
+    .rb-bg.fx-gw .fx-gw-top{padding:0 12px;gap:4px;}
     .rb-bg.fx-gw .fx-gw-brand{font-size:0;gap:0;}
-    .rb-bg.fx-gw .fx-gw-top .menubar{padding-left:8px;margin-left:4px;font-size:13px;overflow-x:auto;}
-    .rb-bg.fx-gw .fx-gw-top .menubar > span{padding:6px 9px;}
-    .rb-bg.fx-gw .gw-hero{padding:28px 16px 4px;}
-    .rb-bg.fx-gw .gw-hero h1{font-size:clamp(34px,10vw,44px);}
-    .rb-bg.fx-gw .gw-hero-sub{font-size:14.5px;}
-    .rb-bg.fx-gw .gw-chip{padding:14px 12px;}
-    .rb-bg.fx-gw .lg-gw-inside{padding:0 16px;}
-    .rb-bg.fx-gw .gw-wrap{padding:30px 16px 18px;}
+    .rb-bg.fx-gw .fx-gw-top .menubar{padding-left:4px;margin-left:4px;overflow-x:auto;}
+    .rb-bg.fx-gw .gx-hero .gw-hero-chips{display:grid;grid-template-columns:repeat(3,1fr);width:100%;gap:8px;}
+    .rb-bg.fx-gw .gx-hero .gw-chip{min-width:0;flex-direction:column;align-items:flex-start;gap:6px;padding:10px;}
+    .rb-bg.fx-gw .gx-resume .gx-open{display:none;}
+    .rb-bg.fx-gw .gw-search-wrap{min-width:0;flex:1 1 100%;}
     .rb-bg.fx-gw .company-grid{grid-template-columns:1fr;}
+    .gx-qa-grid{grid-template-columns:1fr;}
   }
+  .rb-bg.fx-gw .company-card-badges:empty{display:none;}
 </style>
 <style id="cowiz-css">
   /* ===================== Create Company wizard (Nov 2026) ===================== */
@@ -28074,6 +28121,127 @@ function consolidationModal(){
   </div>
   `;
 }
+/* ---- Company Gateway workspace (Nov 2026 v2): an app home, not a marketing page. A compact greeting
+   bar with totals, a "Jump back in" card, the company grid with richer cards (type/state, GSTIN, a
+   6-month voucher sparkline, last entry), and a right-hand rail: Needs attention (across every
+   company), Quick actions, Recent activity and What's inside. Everything here only READS the stored
+   company records — no figures are computed differently and nothing is written. ---- */
+function gxMonthKeys(n){ const out=[], d=new Date(); d.setDate(1); for(let i=n-1;i>=0;i--){ const x=new Date(d.getFullYear(), d.getMonth()-i, 1); out.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')); } return out; }
+function gxCompanyPulse(c){
+  const keys = gxMonthKeys(6), counts = Object.fromEntries(keys.map(k=>[k,0]));
+  let last = '';
+  for(const v of (c.vouchers||[])){ const d = v.date||''; if(d > last) last = d; const k = d.slice(0,7); if(k in counts) counts[k]++; }
+  return { keys, counts: keys.map(k=>counts[k]), last };
+}
+function gxSpark(pulse){
+  const max = Math.max(1, ...pulse.counts), W = 120, H = 30, bw = 14, gap = (W - bw*6)/5;
+  const label = pulse.keys.map((k,i)=>`${new Date(k+'-01').toLocaleDateString('en-IN',{month:'short'})} ${pulse.counts[i]}`).join(', ');
+  return `<svg class="gx-spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Vouchers per month: ${escapeAttr(label)}">${pulse.counts.map((n,i)=>{ const h = n ? Math.max(3, Math.round(n/max*(H-2))) : 2; return `<rect x="${(i*(bw+gap)).toFixed(1)}" y="${H-h}" width="${bw}" height="${h}" rx="3" class="${i===5?'is-now':''}${n?'':' is-zero'}"><title>${escapeHtml(label.split(', ')[i])}</title></rect>`; }).join('')}</svg>`;
+}
+function gxShortDate(d){ if(!d) return '—'; try{ return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}); }catch(e){ return d; } }
+function gxCardMeta(c){
+  const bits = [c.constitution || c.industry, c.city || c.state].filter(Boolean);
+  return `<div class="gx-meta">${bits.length ? escapeHtml(bits.join(' · ')) : '&nbsp;'}</div><div class="gx-ids">${c.gstin ? `<span class="gx-gst" title="GSTIN">GSTIN ${escapeHtml(c.gstin)}</span>` : `<span class="gx-gst is-none">No GSTIN</span>`}${c.pan && !c.gstin ? `<span class="gx-gst">PAN ${escapeHtml(c.pan)}</span>` : ''}</div>`;
+}
+function gxCardPulse(c){
+  const p = gxCompanyPulse(c);
+  return `<div class="gx-pulse"><div class="gx-pulse-lbl">Activity<br><span>last 6 months</span></div>${gxSpark(p)}</div>
+            <div class="company-card-stats gx-stats">
+              <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
+              <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
+              <span><b>${gxShortDate(p.last)}</b> last entry</span>
+            </div>`;
+}
+function gxAttentionItems(cos){
+  const items = [];
+  for(const c of cos){
+    let n;
+    try{ n = companyOverdueInvoices(c).length; if(n) items.push({ c, tone:'bad', icon:'🧾', text:`${n} overdue invoice${n===1?'':'s'}`, w:3 }); }catch(e){}
+    try{ const g = companyGstFilingDue(c); if(g) items.push({ c, tone: g.daysLeft<=5?'bad':'warn', icon:'🧮', text:`GST return due in ${g.daysLeft} day${g.daysLeft===1?'':'s'}`, w: g.daysLeft<=5?3:2 }); }catch(e){}
+    try{ n = companyPendingApprovalsCount(c); if(n) items.push({ c, tone:'warn', icon:'✋', text:`${n} voucher${n===1?'':'s'} awaiting approval`, w:2 }); }catch(e){}
+    try{ n = companyUnreconciledBankCount(c); if(n) items.push({ c, tone:'info', icon:'🏦', text:`${n} bank entr${n===1?'y':'ies'} to reconcile`, w:1 }); }catch(e){}
+    try{ n = companyLowStockCount(c); if(n) items.push({ c, tone:'info', icon:'📦', text:`${n} item${n===1?'':'s'} low on stock`, w:1 }); }catch(e){}
+  }
+  return items.sort((a,b)=>b.w-a.w);
+}
+function gxHeroHtml(){
+  const myCompanies = visibleCompanies();
+  const totalLedgers = myCompanies.reduce((s,c)=>s+(c.ledgers||[]).length,0);
+  const totalVouchers = myCompanies.reduce((s,c)=>s+(c.vouchers||[]).length,0);
+  const hour = new Date().getHours();
+  const greeting = hour<12 ? 'Good morning' : hour<17 ? 'Good afternoon' : 'Good evening';
+  const first = escapeHtml(currentUser.name.split(' ')[0]||currentUser.name);
+  let resume = '';
+  if(myCompanies.length>=2){
+    const rc = mostRecentlyOpenedCompany(myCompanies);
+    if(rc){
+      const tab = lastViewedTabLabel(rc.id) || 'Dashboard';
+      const p = gxCompanyPulse(rc);
+      resume = `<div class="gw-resume-card gx-resume" id="gwResumeBtn" data-resume-co="${rc.id}" role="button" tabindex="0" aria-label="Continue in ${escapeAttr(rc.name)}, ${escapeAttr(tab)}">
+        ${rc.logo ? `<div class="gw-resume-icon has-logo"><img src="${rc.logo}" alt=""></div>` : `<div class="gw-resume-icon gx-ini">${escapeHtml((rc.name||'?').trim().slice(0,2).toUpperCase())}</div>`}
+        <div class="gw-resume-body"><div class="gw-resume-label">Jump back in</div><div class="gw-resume-detail">${escapeHtml(rc.name)}</div><div class="gx-resume-sub">${escapeHtml(tab)} · opened ${escapeHtml(relativeTimeAgo(companyOpenedAt[rc.id])||'recently')} · last entry ${gxShortDate(p.last)}</div></div>
+        <span class="gw-resume-arrow gx-open">Open <span aria-hidden="true">→</span></span>
+      </div>`;
+    }
+  }
+  return `
+    <section class="gw-hero gx-hero">
+      <div class="gw-hero-inner">
+        <div class="gx-hello">
+          <div class="gw-hero-eyebrow">${escapeHtml(greeting)} · ${escapeHtml(new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'}))}</div>
+          <h1>Welcome back, <em>${first}</em></h1>
+          <div class="gw-hero-sub">Choose a company to open its books, or start a new one.</div>
+        </div>
+        <div class="gw-hero-chips">
+          <div class="gw-chip"><span class="gx-chip-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 21V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v15M15 10h3a2 2 0 0 1 2 2v9M3 21h18M8 8h3M8 12h3M8 16h3"/></svg></span><div><div class="gw-chip-val" data-count="${myCompanies.length}">0</div><div class="gw-chip-lbl">Compan${myCompanies.length===1?'y':'ies'}</div></div></div>
+          <div class="gw-chip"><span class="gx-chip-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4.5" y="3" width="15" height="18" rx="2"/><path d="M7.5 3v18M10.5 8.5h6M13.5 8.5V16"/></svg></span><div><div class="gw-chip-val" data-count="${totalLedgers}">0</div><div class="gw-chip-lbl">Ledgers</div></div></div>
+          <div class="gw-chip"><span class="gx-chip-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3L6 21z"/><path d="M9 7.5h6M9 11h6M9 14.5h3.5"/></svg></span><div><div class="gw-chip-val" data-count="${totalVouchers}">0</div><div class="gw-chip-lbl">Vouchers</div></div></div>
+        </div>
+      </div>
+      ${resume}
+    </section>`;
+}
+function gxAsideHtml(){
+  if(!currentUser) return '';
+  const all = visibleCompanies();
+  const att = gxAttentionItems(all);
+  const feed = all.length ? gatewayRecentActivityItems(all, 6) : [];
+  const qa = (id, icon, label, sub) => `<button type="button" class="gx-qa" id="${id}"><span class="gx-qa-ic" aria-hidden="true">${icon}</span><span><b>${label}</b><em>${sub}</em></span></button>`;
+  const canCreate = !isDemoUser && !isTeamAccessOnlyUser();
+  return `
+    <aside class="gx-side" aria-label="Workspace">
+      <section class="gx-panel gx-attn">
+        <header><h2>Needs attention</h2>${att.length?`<span class="gx-count">${att.length}</span>`:''}</header>
+        ${att.length ? `<ul>${att.slice(0,6).map(a=>`<li><button type="button" class="gx-attn-item tone-${a.tone}" data-gx-open="${a.c.id}"><span class="gx-attn-ic" aria-hidden="true">${a.icon}</span><span><b>${escapeHtml(a.text)}</b><em>${escapeHtml(a.c.name)}</em></span><span class="gx-go" aria-hidden="true">›</span></button></li>`).join('')}</ul>${att.length>6?`<div class="gx-more">+${att.length-6} more — see Accountant Dashboard</div>`:''}` : `<div class="gx-empty"><span aria-hidden="true">✓</span> All caught up across your companies</div>`}
+      </section>
+      <section class="gx-panel">
+        <header><h2>Quick actions</h2></header>
+        <div class="gx-qa-grid">
+          ${canCreate ? qa('gxCreateCoBtn','＋','New company','6 quick steps') : ''}
+          ${!isDemoUser ? qa('openAccountantDashBtn','📊','Accountant dashboard','Which books need you') : ''}
+          ${!isDemoUser && all.length>1 ? qa('openConsolidationBtn','🧮','Consolidation','Group P&amp;L and BS') : ''}
+          ${!isDemoUser && all.length>1 ? qa('openComparisonBtn','⚖️','Compare','2–3 companies side by side') : ''}
+          ${`<button type="button" class="gx-qa" id="openWhatsNewBtn"><span class="gx-qa-ic" aria-hidden="true">✨</span><span><b>What's new</b><em>Latest features</em></span>${whatsNewUnseenCount()>0?`<span class="gx-badge">${whatsNewUnseenCount()}</span>`:''}</button>`}
+          ${!isDemoUser ? qa('openInviteEarnBtn','🎁','Invite &amp; earn','Share your link') : ''}
+        </div>
+      </section>
+      ${feed.length ? `
+      <section class="gx-panel">
+        <header><h2>Recent activity</h2></header>
+        <ol class="gx-feed">${feed.map(it=>`<li><span class="gx-feed-dot" aria-hidden="true">${GATEWAY_ACTIVITY_ICONS[it.type]||'📄'}</span><div><span><b>${escapeHtml(it.type)}</b> · ₹${fmt(it.amount)}</span><em>${escapeHtml(it.companyName)} · ${escapeHtml(relativeTimeAgo(it.stamp)||'')}</em></div></li>`).join('')}</ol>
+      </section>` : ''}
+      <div class="lg-gw-inside gx-panel gx-inside">
+        ${glassClarityControl('lg-clarity-gw')}
+        <details>
+          <summary><span>What's inside — ${LANDING_MODULE_CATEGORIES.length} modules, ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features &amp; 7 AI agents</span></summary>
+          <div class="lg-mini-title">The ${LANDING_MODULE_CATEGORIES.length} modules · features in each</div>
+          <div class="lg-chip-cloud">${loginModuleChips()}</div>
+          <div class="lg-mini-title">AI agents · one ranked inbox in Reports → AI &amp; Predictive Insights</div>
+          <div class="lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</div>
+        </details>
+      </div>
+    </aside>`;
+}
 function renderGateway(){
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -28105,82 +28273,9 @@ function renderGateway(){
       <button class="btn secondary small" id="dismissAnnouncementBtn" type="button" style="background:#fff;color:#1B2420;flex-shrink:0;">Dismiss</button>
     </div>
     ` : ''}
-    ${currentUser ? (()=>{
-      const myCompanies = visibleCompanies();
-      const totalLedgers = myCompanies.reduce((s,c)=>s+(c.ledgers||[]).length,0);
-      const totalVouchers = myCompanies.reduce((s,c)=>s+(c.vouchers||[]).length,0);
-      const hour = new Date().getHours();
-      const greeting = hour<12 ? 'Good morning' : hour<17 ? 'Good afternoon' : 'Good evening';
-      return `
-      <div class="gw-hero">
-        <div class="gw-hero-center-glow"></div>
-        <div class="aurora-orb gw-hero-aurora-1"></div>
-        <div class="aurora-orb gw-hero-aurora-2"></div>
-        <div class="gw-hero-inner">
-          <div>
-            <div class="gw-hero-eyebrow">${escapeHtml(greeting)} · ${escapeHtml(new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'}))}</div>
-            <h1>Welcome back, <em>${escapeHtml(currentUser.name.split(' ')[0]||currentUser.name)}</em></h1>
-            <div class="gw-hero-sub">Select a company below to pick up where you left off, or create a new one to get started.</div>
-            ${(()=>{
-              if(myCompanies.length<2) return '';
-              const resumeCo = mostRecentlyOpenedCompany(myCompanies);
-              if(!resumeCo) return '';
-              const resumeTab = lastViewedTabLabel(resumeCo.id) || 'Dashboard';
-              const initials = (resumeCo.name||'?').trim().slice(0,2).toUpperCase();
-              const palette = ['linear-gradient(135deg,#2CA01C,#1E7A12)','linear-gradient(135deg,#F2994A,#C9701A)','linear-gradient(135deg,#4A90D9,#2563AD)','linear-gradient(135deg,#B15CDE,#7B3FA0)','linear-gradient(135deg,#E0546B,#B23350)','linear-gradient(135deg,#2FB6A6,#1D8377)'];
-              const bg = palette[Math.abs((resumeCo.name||'').split('').reduce((h,ch)=>h+ch.charCodeAt(0),0))%palette.length];
-              return `
-              <div class="gw-resume-card" id="gwResumeBtn" data-resume-co="${resumeCo.id}" role="button" tabindex="0" aria-label="Continue in ${escapeAttr(resumeCo.name)}, ${escapeAttr(resumeTab)}">
-                ${resumeCo.logo ? `<div class="gw-resume-icon has-logo"><img src="${resumeCo.logo}" alt=""></div>` : `<div class="gw-resume-icon" style="background:${bg};">${escapeHtml(initials)}</div>`}
-                <div class="gw-resume-body">
-                  <div class="gw-resume-label">Continue where you left off</div>
-                  <div class="gw-resume-detail">${escapeHtml(resumeCo.name)} <span class="gw-resume-dot">·</span> ${escapeHtml(resumeTab)}</div>
-                </div>
-                <span class="gw-resume-arrow">→</span>
-              </div>`;
-            })()}
-          </div>
-          <div class="gw-hero-chips">
-            <div class="gw-chip"><div class="gw-chip-val" data-count="${myCompanies.length}">0</div><div class="gw-chip-lbl">Compan${myCompanies.length===1?'y':'ies'}</div></div>
-            <div class="gw-chip"><div class="gw-chip-val" data-count="${totalLedgers}">0</div><div class="gw-chip-lbl">Ledgers</div></div>
-            <div class="gw-chip"><div class="gw-chip-val" data-count="${totalVouchers}">0</div><div class="gw-chip-lbl">Vouchers</div></div>
-          </div>
-        </div>
-        ${(()=>{
-          // Round 7: cross-company recent activity feed -- only worth showing once there's more than
-          // one company to actually merge activity ACROSS (a single-company account already sees its
-          // own activity the moment it opens that company), and only once there's something to show.
-          if(myCompanies.length<2) return '';
-          const feedItems = gatewayRecentActivityItems(myCompanies, 5);
-          if(!feedItems.length) return '';
-          return `
-          <div class="gw-activity-feed">
-            <div class="gw-activity-feed-label">Recent Activity</div>
-            <div class="gw-activity-feed-list">
-              ${feedItems.map(it=>`
-                <div class="gw-activity-feed-item" title="${escapeAttr(it.type)} in ${escapeAttr(it.companyName)} — ₹${fmt(it.amount)}">
-                  <span class="gw-activity-feed-icon" aria-hidden="true">${GATEWAY_ACTIVITY_ICONS[it.type]||'📄'}</span>
-                  <span class="gw-activity-feed-text"><strong>${escapeHtml(it.type)}</strong> · ${escapeHtml(it.companyName)}</span>
-                  <span class="gw-activity-feed-time">${escapeHtml(relativeTimeAgo(it.stamp)||'')}</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>`;
-        })()}
-      </div>
-      `;
-    })() : ''}
-    ${currentUser ? `
-    <div class="lg-gw-inside">
-      ${glassClarityControl('lg-clarity-gw')}
-      <details>
-        <summary><span>What's inside your books — ${LANDING_MODULE_CATEGORIES.length} modules, ${LANDING_MODULE_CATEGORIES.reduce((n,c)=>n+c.modules.length,0)} features &amp; 7 AI agents</span><span class="lg-gw-sub">tap to explore</span></summary>
-        <div class="lg-mini-title">The ${LANDING_MODULE_CATEGORIES.length} modules · features in each</div>
-        <div class="lg-chip-cloud">${loginModuleChips()}</div>
-        <div class="lg-mini-title">AI agents · one ranked inbox in Reports → AI &amp; Predictive Insights</div>
-        <div class="lg-chip-cloud lg-chip-cloud-ai">${LANDING_AI_AGENTS.map(a=>`<span class="lg-chip lg-chip-ai">${escapeHtml(a.name)}</span>`).join('')}</div>
-      </details>
-    </div>` : ''}
+    <div class="gx-shell">
+    <main class="gx-main">
+    ${currentUser ? gxHeroHtml() : ''}
     <div class="gw-wrap">
       ${(()=>{
         const allMyCompanies = visibleCompanies();
@@ -28214,11 +28309,6 @@ function renderGateway(){
       <div class="gw-section-row">
         <div class="gw-section-title">Your companies</div>
         <div class="gw-toolbar">
-        <button class="btn secondary" id="openWhatsNewBtn" type="button" title="See what's been added to the app recently" style="position:relative;">✨ What's New${whatsNewUnseenCount()>0?` <span class="pill" style="font-size:9.5px;background:var(--debit);color:var(--on-fill);margin-left:2px;">${whatsNewUnseenCount()}</span>`:''}</button>
-        ${!isDemoUser ? `<button class="btn secondary" id="openAccountantDashBtn" type="button" title="Which of your companies' books need attention">📊 Accountant Dashboard</button>` : ''}
-        ${!isDemoUser ? `<button class="btn secondary" id="openInviteEarnBtn" type="button" title="Invite other businesses and see who's joined through your link">🎁 Invite &amp; Earn</button>` : ''}
-        ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openConsolidationBtn" type="button" title="Combined P&amp;L and Balance Sheet across a group of your companies">🧮 Consolidation Report</button>` : ''}
-        ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary" id="openComparisonBtn" type="button" title="Put 2 or 3 companies side by side to see how they stack up">⚖️ Compare</button>` : ''}
         ${!isDemoUser && allMyCompanies.length > 1 ? `<button class="btn secondary ${gatewayBulkMode?'is-active':''}" id="gwBulkModeBtn" type="button" title="Select multiple companies">${gatewayBulkMode?'✕ Cancel Select':'☑ Select'}</button>` : ''}
         ${allMyCompanies.length > 1 ? `
         <div class="gw-search-wrap">
@@ -28357,13 +28447,11 @@ function renderGateway(){
               <div class="company-card-top-right">${actionsHtml}</div>
             </div>
             <div class="company-card-name">${escapeHtml(c.name)}</div>
+            ${gxCardMeta(c)}
             <div class="company-card-badges">${badgesHtml}${folderBadge}</div>
             ${healthHtml}
             ${checklistHtml}
-            <div class="company-card-stats">
-              <span><b>${(c.ledgers||[]).length}</b> ledgers</span>
-              <span><b>${(c.vouchers||[]).length}</b> vouchers</span>
-            </div>
+            ${gxCardPulse(c)}
             <div class="company-card-recency">${recencyText}</div>
           </div>`;
         }).join('') || (allMyCompanies.length ? `
@@ -28419,6 +28507,9 @@ function renderGateway(){
         `;
       })()}
     </div>
+    </main>
+    ${gxAsideHtml()}
+    </div>
     <div class="rb-credit">Created by <strong>SKm</strong></div>
     ${modal==='help' ? helpModal() : ''}
     ${modal==='adminPanel' ? adminPanelModal() : ''}
@@ -28470,6 +28561,8 @@ function renderGateway(){
     el.addEventListener('click', (e)=>{ e.stopPropagation(); toggleGatewaySelected(el.dataset.bulkSelectCo); });
   });
   document.getElementById('gwBulkModeBtn')?.addEventListener('click', toggleGatewayBulkMode);
+  document.getElementById('gxCreateCoBtn')?.addEventListener('click', ()=>{ companyCreateModalOpen = true; coformStep = 1; renderGateway(); });
+  document.querySelectorAll('[data-gx-open]').forEach(el=> el.addEventListener('click', async ()=>{ const c = companies.find(x=>x.id===el.dataset.gxOpen); if(!c || !canAccessCompany(c)) return; await enterCompanyApp(c); }));
   document.getElementById('gwBulkSelectAllBtn')?.addEventListener('click', ()=>{
     const ids = Array.from(document.querySelectorAll('[data-select-co]')).map(el=>el.dataset.selectCo);
     gatewaySelectedCoIds = gatewaySelectedCoIds.length===ids.length ? [] : ids;
