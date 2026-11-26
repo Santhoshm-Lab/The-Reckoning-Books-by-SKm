@@ -4982,6 +4982,100 @@ html:not([data-theme="dark"]){ --ink-faint:#5F6B63; --debit:#BF3333; --credit:#2
 }
 @media (prefers-reduced-motion: reduce){ .ux-coll-row{transition:none;} }
 </style>
+<style id="ux-admin-css">
+/* ===== Admin access + command centre (Nov 2026) ===== */
+.ux-aic{width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+/* Gateway header: one-click Admin Panel / Group Admin */
+.ux-admin-entry{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 12px;margin-right:10px;border-radius:10px;cursor:pointer;
+  font:700 12.5px/1 Inter,system-ui,sans-serif;color:#fff;background:rgb(255 255 255 / .1);border:1px solid rgb(255 255 255 / .28);transition:background .15s,border-color .15s;}
+.ux-admin-entry:hover{background:rgb(255 255 255 / .18);border-color:rgb(255 255 255 / .45);}
+.ux-admin-entry:focus-visible{outline:2px solid #9BE38A;outline-offset:2px;}
+.menubar .ux-admin-entry span{color:inherit;padding:0;background:none;border-radius:0;font-weight:700;}
+.menubar .ux-admin-entry span:hover{background:none;color:inherit;}
+.ux-admin-entry .ux-aic{width:17px;height:17px;color:#9BE38A;}
+.ux-admin-entry i{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#E5484D;color:#fff;font-size:10.5px;display:grid;place-items:center;}
+.ux-admin-entry kbd{font:600 10px/1 Inter,system-ui,sans-serif;color:rgb(255 255 255 / .7);border:1px solid rgb(255 255 255 / .25);border-radius:5px;padding:3px 5px;}
+/* Gateway side card */
+.ux-admin-card{border-color:color-mix(in srgb, var(--accent1) 35%, var(--gx-line, var(--border)));}
+.ux-admin-card header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.ux-admin-card h2{display:flex;align-items:center;gap:7px;}
+.ux-admin-card h2 .ux-aic{color:var(--accent1);}
+.ux-admin-role{font-size:11px;font-weight:600;color:var(--ink-faint);}
+.ux-admin-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ux-admin-tile{all:unset;box-sizing:border-box;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:8px;align-items:center;padding:9px 10px;border-radius:10px;border:1px solid var(--gx-line, var(--border));cursor:pointer;min-width:0;transition:background .15s,border-color .15s;}
+.ux-admin-tile:hover{background:var(--surface-strong);border-color:var(--border-strong);}
+.ux-admin-tile:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+.ux-admin-tile .ux-aic{grid-row:1 / span 2;color:var(--accent1);}
+.ux-admin-tile b{font-size:12.5px;font-weight:700;color:var(--ink);}
+.ux-admin-tile em{font-style:normal;font-size:11px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ux-admin-open{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;height:38px;border-radius:10px;background:var(--accent1);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;}
+.ux-admin-open:hover{filter:brightness(1.06);}
+.ux-admin-open:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+.ux-admin-open kbd{font:600 10px/1 Inter,system-ui,sans-serif;border:1px solid rgb(255 255 255 / .4);border-radius:5px;padding:3px 5px;color:rgb(255 255 255 / .85);}
+/* Admin Panel / Group Admin: clickable header chips and KPI cards */
+.acs-stat-chip[data-ux-admin-go]{cursor:pointer;transition:background .15s,transform .15s;}
+.acs-stat-chip[data-ux-admin-go]:hover{background:rgba(255,255,255,0.22);transform:translateY(-1px);}
+.admin-console-body .stat[data-ux-admin-go]{cursor:pointer;transition:border-color .15s, box-shadow .15s;}
+.admin-console-body .stat[data-ux-admin-go]:hover{border-color:var(--border-strong);box-shadow:0 6px 18px rgb(20 30 25 / .08);}
+/* Command centre */
+.ux-ac-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 6px;}
+.ux-ac-panel{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:14px 16px;min-width:0;}
+.ux-ac-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+.ux-ac-head h3{margin:0;font-size:13.5px;font-weight:800;color:var(--ink);}
+.ux-ac-head > span{font-size:11.5px;font-weight:600;color:var(--ink-faint);}
+.ux-ac-link{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--accent1);}
+.ux-ac-link .ux-aic{width:14px;height:14px;}
+.ux-ac-link:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;border-radius:4px;}
+.ux-att{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.ux-att-row{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:32px 1fr auto 16px;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);cursor:pointer;transition:background .15s,border-color .15s;}
+.ux-att-row:hover{background:var(--surface-strong);border-color:var(--border-strong);}
+.ux-att-row:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+.ux-att-ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;}
+.tone-bad .ux-att-ic{background:var(--debit-bg);color:var(--debit);}
+.tone-warn .ux-att-ic{background:color-mix(in srgb, var(--gold-ink) 13%, transparent);color:var(--gold-ink);}
+.tone-info .ux-att-ic{background:color-mix(in srgb, #4F8EF7 13%, transparent);color:#2F6FD6;}
+.ux-att-t{min-width:0;}
+.ux-att-t b{display:block;font-size:12.5px;font-weight:700;color:var(--ink);}
+.ux-att-t em{display:block;font-style:normal;font-size:11px;color:var(--ink-faint);}
+.ux-att-n{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink);}
+.tone-bad .ux-att-n{color:var(--debit);}
+.ux-att-go{color:var(--ink-faint);display:grid;}
+.ux-att-go .ux-aic{width:14px;height:14px;}
+.ux-att-clear{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--credit);font-weight:600;padding:10px;border-radius:10px;background:var(--credit-bg);}
+.ux-att-clear.muted{color:var(--ink-faint);background:var(--surface-strong);font-weight:500;}
+.ux-bars{width:100%;height:auto;display:block;}
+.ux-bar{fill:color-mix(in srgb, var(--accent1) 45%, transparent);}
+.ux-bar.now{fill:var(--accent1);}
+.ux-bar-v{font-size:10px;font-weight:700;fill:var(--ink-soft);}
+.ux-bar-l{font-size:10px;font-weight:600;fill:var(--ink-faint);}
+.ux-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
+.ux-feed li{display:grid;grid-template-columns:10px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--ink);}
+.ux-feed li:last-child{border-bottom:0;}
+.ux-feed-dot{width:8px;height:8px;border-radius:50%;background:var(--accent1);margin-top:5px;}
+.ux-feed em{display:block;font-style:normal;font-size:11px;color:var(--ink-faint);margin-top:1px;}
+.ux-qa{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ux-qa-btn{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:10px;border:1px solid var(--border);cursor:pointer;font-size:12.5px;font-weight:700;color:var(--ink);transition:background .15s,border-color .15s;}
+.ux-qa-btn .ux-aic{color:var(--accent1);}
+.ux-qa-btn:hover{background:var(--surface-strong);border-color:var(--border-strong);}
+.ux-qa-btn:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+.ux-ac-sechead{font-size:11.5px;font-weight:800;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 6px;padding-top:14px;border-top:1px solid var(--border);}
+/* Users tables: date on one line, time below, no 4-line wrap */
+.ux-stamp{white-space:nowrap;}
+.ux-stamp .ux-t{display:block;color:var(--ink-faint);font-size:10.5px;}
+.admin-console-body td .ux-stamp{font-size:11px;}
+/* keep the Users table inside the panel at laptop widths */
+.admin-console-body table th,.admin-console-body table td{padding-left:8px;padding-right:8px;}
+.admin-console-body td .btn.small{padding:5px 9px;}
+.admin-console-body td select[data-status-select],.admin-console-body td select[data-group-status-select]{width:auto;min-width:0;padding-right:26px;}
+@media (max-width:900px){ .ux-ac-grid{grid-template-columns:1fr;} }
+@media (max-width:720px){
+  .ux-admin-entry span,.ux-admin-entry kbd{display:none;}
+  .ux-admin-entry{padding:0 9px;margin-right:6px;}
+  .ux-att-row{min-height:48px;}
+  .ux-qa-btn{min-height:44px;}
+}
+@media (prefers-reduced-motion: reduce){ .ux-admin-entry,.ux-admin-tile,.ux-att-row,.ux-qa-btn,.acs-stat-chip[data-ux-admin-go]{transition:none;} .acs-stat-chip[data-ux-admin-go]:hover{transform:none;} }
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -9355,6 +9449,8 @@ function autofocusModalIfNeeded(){
   // plain "first focusable element" query would land focus there instead of on the field the person
   // is actually here to fill in. Only fall back to a button (skipping modalClose) for a modal that's
   // genuinely just a confirmation/detail view with no fields of its own.
+  const consoleNav = overlay.querySelector('.admin-console .admin-console-navbtn.active');
+  if(consoleNav){ consoleNav.focus({preventScroll:true}); return; }
   const field = overlay.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
   if(field){ field.focus(); return; }
   const btn = Array.from(overlay.querySelectorAll('button:not([disabled])')).find(b=>b.id!=='modalClose');
@@ -23005,7 +23101,7 @@ function renderPaint(){
            still sees Approvals here too. -->
       ${(currentUser && currentUser.role!=='support' && (canApproveVouchers() || state.pendingVouchers.some(p=>p.submittedBy===(currentUser&&currentUser.id)))) ? `<span id="menuApprovals">Approvals${state.pendingVouchers.length?` (${state.pendingVouchers.length})`:''}</span>` : ''}
       ${isCompanyOwner() && !(currentUser && currentUser.role==='support') ? `<span id="menuTeamAccess">Team Access</span>` : ''}
-      ${currentUser && currentUser.role==='support' ? `<span id="menuGroupAdmin">Admin</span>` : ''}
+      ${uxAdminRole() ? `<span id="menuAdminEntry" class="ux-menu-admin" data-ux-admin-go="overview" title="Alt+A">${uxAdminRole()==='admin'?'Admin Panel':'Group Admin'}</span>` : ''}
       ${!isCompanyTeamMember() && canDeleteCompanyQuick(currentCompany) ? `<span id="menuDeleteCompany" class="menu-danger">Delete Company</span>` : ''}
       <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
         <button class="theme-toggle" id="cmdkOpenBtn" type="button" title="Search ledgers, parties, vouchers, items, or jump to a screen" aria-label="Open command palette">🔎 Search <kbd style="margin-left:5px;background:var(--surface-strong);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:inherit;font-size:10px;">Ctrl K</kbd></button>
@@ -29054,6 +29150,7 @@ function gxAsideHtml(){
   const canCreate = !isDemoUser && !isTeamAccessOnlyUser();
   return `
     <aside class="gx-side" aria-label="Workspace">
+      ${uxAdminGatewayCard()}
       <section class="gx-panel gx-attn">
         <header><h2>Needs attention</h2>${att.length?`<span class="gx-count">${att.length}</span>`:''}</header>
         ${att.length ? `<ul>${att.slice(0,6).map(a=>`<li><button type="button" class="gx-attn-item tone-${a.tone}" data-gx-open="${a.c.id}"><span class="gx-attn-ic" aria-hidden="true">${a.icon}</span><span><b>${escapeHtml(a.text)}</b><em>${escapeHtml(a.c.name)}</em></span><span class="gx-go" aria-hidden="true">›</span></button></li>`).join('')}</ul>${att.length>6?`<div class="gx-more">+${att.length-6} more — see Accountant Dashboard</div>`:''}` : `<div class="gx-empty"><span aria-hidden="true">✓</span> All caught up across your companies</div>`}
@@ -29102,10 +29199,9 @@ function renderGateway(){
       <span id="gwMenuFile" style="position:relative;">File${fileMenuOpen?fileDropdown():''}</span>
       <span id="gwMenuCompany">Company</span>
       <span id="gwMenuHelp">Help</span>
-      ${currentUser && currentUser.role==='support' ? `<span id="gwMenuGroupAdmin">Admin</span>` : ''}
-      ${isFullAdmin() ? `<span id="gwMenuServices" style="position:relative;">Services${servicesMenuOpen?servicesDropdown():''}</span>` : ''}
       ${currentUser ? `
       <span style="margin-left:auto;position:relative;display:flex;align-items:center;">
+        ${uxAdminEntryBtn()}
         <button class="gw-user-avatar-btn" id="gwUserAvatarBtn" type="button" title="${escapeAttr(currentUser.name||'Account')}" aria-haspopup="true" aria-expanded="${userProfileMenuOpen}">${escapeHtml(userInitials(currentUser.name))}</button>
         ${userProfileMenuOpen?userProfileDropdown():''}
       </span>` : ''}
@@ -31648,6 +31744,192 @@ function adminTabBtn(id, label){
   const count = m ? m[2] : null;
   return `<button class="admin-console-navbtn ${active?'active':''}" data-admin-tab="${id}" type="button" title="${escapeAttr(text)}">${adminTabIcon(id)}<span>${escapeHtml(text)}</span>${count?`<span class="tab-count">${count}</span>`:''}</button>`;
 }
+/* ===== Admin access + Admin Panel command centre (Nov 2026, UI/UX) =====
+   One-click entry to the Admin Panel (full Administrator) or Group Admin panel (Support) from the Gateway
+   header, a Gateway side card with deep links, an in-company menu item, and Alt+A. Every entry point uses
+   the SAME role checks the old Services menu used (isFullAdmin() / role==='support'), the same loaders
+   (loadAdminPanelData / loadGroupAdminData) and the same per-tab refreshes — access rules are untouched. */
+const UX_ADMIN_IC = {
+  shield:'<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.1-7.5 9.5-4.3-1.4-7.5-4.9-7.5-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>',
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.1 2.8-5 5.5-5s4.9 1.9 5.5 5M16 4.8a3.2 3.2 0 0 1 0 6.4M17.5 14.6c1.8.6 3 2.3 3.4 4.9"/>',
+  building:'<rect x="4" y="3.5" width="11" height="17" rx="1.8"/><path d="M15 9h3.5A1.5 1.5 0 0 1 20 10.5v10M7.5 7.5h4M7.5 11h4M7.5 14.5h4M3 20.5h18"/>',
+  ticket:'<path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4z"/><path d="M9.5 9.5h5M9.5 14.5h5"/>',
+  lock:'<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  orphan:'<path d="M12 3.5l8 4.5v8L12 20.5 4 16V8z"/><path d="M9.5 10l5 5M14.5 10l-5 5"/>',
+  seat:'<path d="M6 11V6.5A2.5 2.5 0 0 1 8.5 4h7A2.5 2.5 0 0 1 18 6.5V11M4.5 11h15l-1 5h-13zM7 16v4M17 16v4"/>',
+  spark:'<path d="M12 4v4M12 16v4M4 12h4M16 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  megaphone:'<path d="M4 10v4a1.5 1.5 0 0 0 1.5 1.5H7l5 4V4.5l-5 4H5.5A1.5 1.5 0 0 0 4 10zM16 8.5a5 5 0 0 1 0 7"/>',
+  log:'<path d="M14 3H6.5A2.5 2.5 0 0 0 4 5.5v13A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V9zM14 3v6h6M8 13h8M8 17h5"/>',
+  key:'<circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5L19 4M16 7l2.5 2.5M14 9l2 2"/>',
+  arrow:'<path d="M5 12h13M13 6.5L18.5 12 13 17.5"/>',
+};
+function uxAIc(n){ return UX_ADMIN_IC[n] ? `<svg class="ux-aic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${UX_ADMIN_IC[n]}</svg>` : ''; }
+function uxAdminRole(){ if(!currentUser) return ''; if(isFullAdmin()) return 'admin'; if(currentUser.role==='support') return 'support'; return ''; }
+function uxAdminOpenTickets(){
+  const r = uxAdminRole();
+  try{ return r==='admin' ? supportTickets.filter(t=>t.status==='open').length : r==='support' ? groupTickets.filter(t=>t.status==='open').length : 0; }catch(e){ return 0; }
+}
+function uxAdminEntryBtn(){
+  const r = uxAdminRole(); if(!r) return '';
+  const n = uxAdminOpenTickets(), label = r==='admin' ? 'Admin Panel' : 'Group Admin';
+  return `<button type="button" class="ux-admin-entry" id="uxAdminEntryBtn" data-ux-admin-go="overview" title="Open the ${label} (Alt+A)" aria-keyshortcuts="Alt+A">${uxAIc('shield')}<span>${label}</span>${n?`<i aria-label="${n} open ticket${n===1?'':'s'}">${n}</i>`:''}<kbd>Alt A</kbd></button>`;
+}
+// Gateway side card: the Admin Panel's main areas, one click each.
+function uxAdminGatewayCard(){
+  const r = uxAdminRole(); if(!r) return '';
+  const loaded = r==='admin' ? (Array.isArray(users) && users.length>0) : (Array.isArray(groupMembers) && groupMembers.length>0);
+  let tiles;
+  if(r==='admin'){
+    const s = loaded ? computeAdminStats() : null, open = uxAdminOpenTickets();
+    tiles = [['users','users','Users', s ? s.totalUsers : ''],['companies','building','Companies', s ? s.totalCompanies : ''],['support','ticket','Support', loaded ? `${open} open` : ''],['auditLog','log','Audit log','']];
+  } else {
+    const s = loaded ? computeGroupAdminStats() : null, open = uxAdminOpenTickets();
+    tiles = [['users','users','Users', s ? `${s.totalUsers} / ${s.limit} seats` : ''],['companies','building','Companies', s ? s.totalCompanies : ''],['support','ticket','Support', loaded ? `${open} open` : ''],['features','key','Feature access','']];
+  }
+  return `<section class="gx-panel ux-admin-card" aria-label="${r==='admin'?'Administrator':'Group admin'} tools">
+    <header><h2>${uxAIc('shield')}${r==='admin'?'Administrator':'Group admin'}</h2><span class="ux-admin-role">${r==='admin'?'Full platform access':escapeHtml((currentUser.groupName)||'Your group')}</span></header>
+    <div class="ux-admin-tiles">${tiles.map(([tab,ic,l,v])=>`<button type="button" class="ux-admin-tile" data-ux-admin-go="${tab}">${uxAIc(ic)}<b>${l}</b>${v!==''?`<em>${escapeHtml(String(v))}</em>`:''}</button>`).join('')}</div>
+    <button type="button" class="ux-admin-open" data-ux-admin-go="overview">Open ${r==='admin'?'Admin Panel':'Group Admin'} ${uxAIc('arrow')}<kbd>Alt A</kbd></button>
+  </section>`;
+}
+// Opens the right panel on the right tab (with an optional filter), from the Gateway or from inside a company.
+async function uxOpenAdmin(tab, opts){
+  opts = opts || {};
+  const r = uxAdminRole(); if(!r) return;
+  try{ fileMenuOpen = false; servicesMenuOpen = false; userProfileMenuOpen = false; }catch(e){}
+  if(r==='admin'){
+    if(modal!=='adminPanel') await loadAdminPanelData();
+    adminTab = tab || 'overview';
+    editingUserId = null; editingPlanUserId = null; reassigningCompanyId = null; editingTicketId = null;
+    adminUserDetailId = null; selectedUserIds = {}; adminGroupDetailId = null;
+    if(opts.filter && adminTab==='users') adminUserFilter = opts.filter;
+    if(adminTab==='auditLog') await refreshAuditLog();
+    if(adminTab==='support') await refreshSupportTickets();
+    if(adminTab==='settings') await refreshErrorLog();
+    if(adminTab==='newsletter') await refreshNewsletterSignups();
+    adminAddUserOpen = !!opts.add && adminTab==='users';
+    modal = 'adminPanel';
+  } else {
+    if(modal!=='groupAdmin') await loadGroupAdminData();
+    groupAdminTab = tab || 'overview';
+    editingUserId = null; groupEditingTicketId = null; groupUserDetailId = null; groupSelectedUserIds = {};
+    groupAdminCompanyModalType = null;
+    if(opts.filter && groupAdminTab==='users') groupUserFilter = opts.filter;
+    if(opts.filter && groupAdminTab==='support') groupTicketStatusFilter = opts.filter;
+    groupAddUserOpen = !!opts.add && groupAdminTab==='users';
+    modal = 'groupAdmin';
+  }
+  if(screen!=='gateway'){ screen = 'gateway'; renderGateway(); try{ pushHistory(); }catch(e){} }
+  else renderGateway();
+  if(opts.focus) setTimeout(()=>{ const el = document.getElementById(opts.focus); if(el){ el.scrollIntoView({block:'center'}); el.focus(); } }, 30);
+}
+document.addEventListener('click', e=>{
+  const el = e.target && e.target.closest && e.target.closest('[data-ux-admin-go]');
+  if(!el) return;
+  e.preventDefault(); e.stopPropagation();
+  uxOpenAdmin(el.dataset.uxAdminGo, { filter: el.dataset.uxFilter, add: el.dataset.uxAdd==='1', focus: el.dataset.uxFocus });
+}, true);
+document.addEventListener('keydown', e=>{
+  if(!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.code!=='KeyA') return;
+  if(!uxAdminRole() || (screen!=='app' && screen!=='gateway')) return;
+  if(modal==='adminPanel' || modal==='groupAdmin') return;
+  if(modal) return;
+  e.preventDefault();
+  uxOpenAdmin('overview');
+});
+
+/* ---- Overview: a command centre instead of four numbers ---- */
+function uxWeekly(list, weeks){
+  const now = new Date(); now.setHours(23,59,59,999);
+  const out = [];
+  for(let i=weeks-1;i>=0;i--){
+    const end = new Date(now.getTime() - i*7*86400000), start = new Date(end.getTime() - 7*86400000);
+    out.push({ end, n: list.filter(u=>{ const t = u.createdAt ? new Date(u.createdAt).getTime() : NaN; return t>start.getTime() && t<=end.getTime(); }).length });
+  }
+  return out;
+}
+function uxSignupChart(list, label){
+  const w = uxWeekly(list, 12), max = Math.max(1, ...w.map(x=>x.n)), total = w.reduce((s,x)=>s+x.n,0);
+  const W = 520, H = 150, bw = W/12, bar = bw*0.58;
+  const bars = w.map((x,i)=>{ const h = Math.max(x.n?4:1.5, (x.n/max)*(H-40)); const xx = i*bw + (bw-bar)/2, y = H-18-h;
+    return `<rect x="${xx.toFixed(1)}" y="${y.toFixed(1)}" width="${bar.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="ux-bar ${i===11?'now':''}"><title>${x.n} in the week to ${x.end.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</title></rect>${x.n?`<text x="${(xx+bar/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" class="ux-bar-v">${x.n}</text>`:''}`; }).join('');
+  const ticks = [0,4,8,11].map(i=>`<text x="${(i===0?2:i===11?W-2:i*bw+bw/2).toFixed(1)}" y="${H-3}" text-anchor="${i===0?'start':i===11?'end':'middle'}" class="ux-bar-l">${w[i].end.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</text>`).join('');
+  return `<div class="ux-ac-panel"><div class="ux-ac-head"><h3>${escapeHtml(label)}</h3><span>${total} in 12 weeks</span></div>
+    <svg viewBox="0 0 ${W} ${H}" class="ux-bars" role="img" aria-label="${escapeAttr(label)}: ${total} in the last 12 weeks">${bars}${ticks}</svg></div>`;
+}
+function uxAttentionList(items){
+  const live = items.filter(x=>x.n>0);
+  return `<div class="ux-ac-panel"><div class="ux-ac-head"><h3>Needs your attention</h3><span>${live.length ? `${live.length} item${live.length===1?'':'s'}` : 'All clear'}</span></div>
+    ${live.length ? `<ul class="ux-att">${live.map(x=>`<li><button type="button" class="ux-att-row tone-${x.tone}" data-ux-admin-go="${x.tab}" ${x.filter?`data-ux-filter="${x.filter}"`:''} ${x.focus?`data-ux-focus="${x.focus}"`:''}>
+        <span class="ux-att-ic">${uxAIc(x.icon)}</span><span class="ux-att-t"><b>${x.title}</b><em>${x.sub}</em></span><span class="ux-att-n">${x.n}</span><span class="ux-att-go">${uxAIc('arrow')}</span></button></li>`).join('')}</ul>`
+      : `<div class="ux-att-clear">${uxAIc('check')} Nothing waiting — no open tickets, blocked accounts or expired plans.</div>`}
+  </div>`;
+}
+function uxRecentActivity(list, emptyText, tab){
+  const rows = (list||[]).slice(0,6);
+  return `<div class="ux-ac-panel"><div class="ux-ac-head"><h3>Recent activity</h3><button type="button" class="ux-ac-link" data-ux-admin-go="${tab}">View all ${uxAIc('arrow')}</button></div>
+    ${rows.length ? `<ul class="ux-feed">${rows.map(a=>`<li><span class="ux-feed-dot"></span><div><b>${escapeHtml(a.action||'Event')}</b>${a.targetName?` · ${escapeHtml(a.targetName)}`:''}<em>${escapeHtml(a.actorName||'')}${a.at?` · ${escapeHtml(relativeTimeShort(a.at))}`:''}</em></div></li>`).join('')}</ul>` : `<div class="ux-att-clear muted">${emptyText}</div>`}
+  </div>`;
+}
+function relativeTimeShort(iso){
+  const t = new Date(iso).getTime(); if(isNaN(t)) return '';
+  const m = Math.round((Date.now()-t)/60000);
+  if(m<1) return 'just now'; if(m<60) return `${m} min ago`;
+  const h = Math.round(m/60); if(h<24) return `${h} h ago`;
+  const d = Math.round(h/24); if(d<30) return `${d} day${d===1?'':'s'} ago`;
+  return new Date(t).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+}
+function uxQuickActions(list){
+  return `<div class="ux-ac-panel"><div class="ux-ac-head"><h3>Quick actions</h3></div><div class="ux-qa">${list.map(q=>`<button type="button" class="ux-qa-btn" data-ux-admin-go="${q.tab}" ${q.add?'data-ux-add="1"':''} ${q.focus?`data-ux-focus="${q.focus}"`:''} ${q.filter?`data-ux-filter="${q.filter}"`:''}>${uxAIc(q.icon)}<span>${q.label}</span></button>`).join('')}</div></div>`;
+}
+function uxAdminCommandCenter(){
+  const real = users.filter(u=>u.role!=='admin');
+  const open = supportTickets.filter(t=>t.status==='open').length;
+  const expired = real.filter(u=>u.plan==='paid' && isPlanExpired(u)).length;
+  const blocked = real.filter(u=>u.blocked).length;
+  const orphans = findOrphanedCompanies().length;
+  const overSeat = users.filter(u=>u.role==='support').filter(s=>users.filter(m=>m.groupOwnerId===s.id).length > (s.groupUserLimit||3)).length;
+  const items = [
+    { n:open, tone:'bad', icon:'ticket', title:'Open support tickets', sub:'Users are waiting for a reply', tab:'support' },
+    { n:blocked, tone:'warn', icon:'lock', title:'Blocked accounts', sub:'Review and unblock or delete', tab:'users', filter:'blocked' },
+    { n:expired, tone:'warn', icon:'clock', title:'Paid plans expired', sub:'Renew or move them to Free', tab:'users', filter:'expired' },
+    { n:overSeat, tone:'warn', icon:'seat', title:'Groups over their seat limit', sub:'Support accounts with more users than seats', tab:'users', filter:'staff' },
+    { n:orphans, tone:'info', icon:'orphan', title:'Orphaned companies', sub:'Owner account no longer exists — listed below', tab:'overview', focus:'uxOrphansAnchor' },
+  ];
+  return `<div class="ux-ac-grid">
+    ${uxAttentionList(items)}
+    ${uxSignupChart(real, 'New sign-ups per week')}
+    ${uxRecentActivity(auditLog, 'No admin activity recorded yet.', 'auditLog')}
+    ${uxQuickActions([{tab:'users',add:true,icon:'plus',label:'Add a user'},{tab:'overview',focus:'announcementMessage',icon:'megaphone',label:'Post an announcement'},{tab:'support',icon:'ticket',label:'Answer tickets'},{tab:'settings',icon:'key',label:'Feature flags'},{tab:'companies',icon:'building',label:'Review companies'},{tab:'auditLog',icon:'log',label:'Audit log'}])}
+  </div>
+  <div class="ux-ac-sechead">Platform broadcast</div>`;
+}
+function uxGroupCommandCenter(){
+  const s = computeGroupAdminStats();
+  const open = groupTickets.filter(t=>t.status==='open').length;
+  let approvals = 0; try{ approvals = groupCompanies.reduce((n,c)=>n+(companyPendingApprovalsCount(c)||0),0); }catch(e){}
+  const items = [
+    { n: s.totalUsers>s.limit ? s.totalUsers-s.limit : 0, tone:'bad', icon:'seat', title:`${s.totalUsers} users on ${s.limit} seats`, sub:'Over your seat limit — ask the Administrator to raise it', tab:'users' },
+    { n:open, tone:'bad', icon:'ticket', title:'Open support tickets', sub:'From people in your group', tab:'support', filter:'open' },
+    { n:approvals, tone:'warn', icon:'check', title:'Vouchers waiting for approval', sub:'Across your group\'s companies', tab:'companies' },
+    { n:s.blocked, tone:'warn', icon:'lock', title:'Blocked accounts', sub:'Review and unblock or remove', tab:'users', filter:'blocked' },
+  ];
+  return `<div class="ux-ac-grid">
+    ${uxAttentionList(items)}
+    ${uxSignupChart(groupMembers, 'Users added per week')}
+    ${uxRecentActivity(groupAuditLog, 'No activity in your group yet.', 'audit')}
+    ${uxQuickActions([{tab:'users',add:true,icon:'plus',label:'Add a user'},{tab:'companies',icon:'building',label:'Manage companies'},{tab:'features',icon:'key',label:'Feature access'},{tab:'support',icon:'ticket',label:'Support tickets'},{tab:'users',filter:'blocked',icon:'lock',label:'Blocked users'},{tab:'audit',icon:'log',label:'Group audit log'}])}
+  </div>`;
+}
+// Sign-up / last-active cells: same text, the time on its own quieter line
+function uxStamp(iso){
+  const s = fmtTimestamp(iso); const i = s.lastIndexOf(', ');
+  return i>0 ? `<span class="ux-stamp">${s.slice(0,i)},<span class="ux-t"> ${s.slice(i+2)}</span></span>` : s;
+}
+
 function adminPanelModal(){
   const stats = computeAdminStats();
   const openTicketCount = supportTickets.filter(t=>t.status==='open').length;
@@ -31673,10 +31955,10 @@ function adminPanelModal(){
             <div class="aurora-orb amh-aurora-1"></div><div class="aurora-orb amh-aurora-2"></div>
             <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;"><div class="amh-icon">🛡️</div><div><h2>Admin Panel</h2><div class="amh-sub">Full platform administration</div></div></div>
             <div class="admin-console-stats">
-              <div class="acs-stat-chip"><div class="n">${stats.totalUsers}</div><div class="l">Users</div></div>
-              <div class="acs-stat-chip"><div class="n">${stats.totalCompanies}</div><div class="l">Companies</div></div>
-              <div class="acs-stat-chip"><div class="n ${openTicketCount?'neg':''}">${openTicketCount}</div><div class="l">Open Tickets</div></div>
-              <div class="acs-stat-chip"><div class="n ${stats.blocked?'neg':''}">${stats.blocked}</div><div class="l">Blocked</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="users" role="button" tabindex="0"><div class="n">${stats.totalUsers}</div><div class="l">Users</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="companies" role="button" tabindex="0"><div class="n">${stats.totalCompanies}</div><div class="l">Companies</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="support" role="button" tabindex="0"><div class="n ${openTicketCount?'neg':''}">${openTicketCount}</div><div class="l">Open Tickets</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="users" data-ux-filter="blocked" role="button" tabindex="0"><div class="n ${stats.blocked?'neg':''}">${stats.blocked}</div><div class="l">Blocked</div></div>
             </div>
             <button class="btn secondary small admin-theme-btn" id="adminThemeBtn" type="button" title="${darkMode?'Switch to light mode':'Switch to dark mode'}" aria-label="${darkMode?'Switch to light mode':'Switch to dark mode'}" style="position:relative;z-index:1;">${darkMode?'☀️ Light':'🌙 Dark'}</button>
             <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:relative;z-index:1;">✕</button>
@@ -31701,12 +31983,12 @@ function adminOverviewTab(){
   const orphans = findOrphanedCompanies();
   return `
     <div class="grid" style="grid-template-columns:repeat(4,1fr);">
-      <div class="stat"><div class="label">Total Users</div><div class="val">${stats.totalUsers}</div></div>
-      <div class="stat"><div class="label">Total Companies</div><div class="val">${stats.totalCompanies}</div></div>
-      <div class="stat"><div class="label">Blocked Accounts</div><div class="val ${stats.blocked?'neg':''}">${stats.blocked}</div></div>
-      <div class="stat"><div class="label">New This Week</div><div class="val ${stats.newThisWeek?'pos':''}">${stats.newThisWeek}</div></div>
+      <div class="stat" data-ux-admin-go="users"><div class="label">Total Users</div><div class="val">${stats.totalUsers}</div></div>
+      <div class="stat" data-ux-admin-go="companies"><div class="label">Total Companies</div><div class="val">${stats.totalCompanies}</div></div>
+      <div class="stat" data-ux-admin-go="users" data-ux-filter="blocked"><div class="label">Blocked Accounts</div><div class="val ${stats.blocked?'neg':''}">${stats.blocked}</div></div>
+      <div class="stat" data-ux-admin-go="users"><div class="label">New This Week</div><div class="val ${stats.newThisWeek?'pos':''}">${stats.newThisWeek}</div></div>
     </div>
-
+    ${uxAdminCommandCenter()}
     <div class="section-title" style="margin-top:6px;">Announcement Banner</div>
     <p class="muted" style="font-size:12px;margin-top:0;">Shown to every regular user on the Gateway screen while active.</p>
     <textarea id="announcementMessage" rows="2" placeholder="e.g. Scheduled maintenance this Sunday, 2–4 AM." ${isFullAdmin()?'':'disabled'}>${escapeHtml(announcementDraft.message)}</textarea>
@@ -31724,7 +32006,7 @@ function adminOverviewTab(){
     <button class="btn secondary small" id="refreshPublicStatsBtn" type="button" ${isFullAdmin()?'':'disabled'} ${publicStatsRefreshing?'disabled':''}>${publicStatsRefreshing?'Refreshing…':'Refresh Public Stats'}</button>
 
     <details class="disclosure" ${orphans.length?'open':''}>
-      <summary>Orphaned Companies <span class="pill ${orphans.length?'neg':''}" style="margin-left:6px;">${orphans.length}</span></summary>
+      <summary id="uxOrphansAnchor">Orphaned Companies <span class="pill ${orphans.length?'neg':''}" style="margin-left:6px;">${orphans.length}</span></summary>
       <div class="disclosure-body">
         <p class="muted" style="font-size:12px;margin-top:0;">Companies whose owner account no longer exists.</p>
         ${orphans.length ? `
@@ -32519,8 +32801,8 @@ function adminUsersTab(){
           </td>
           <td class="muted">${isEditing ? phoneInputHtml('', editUserDraft.mobile, {compact:true, label:'Mobile', attrs:`data-edit-mobile="${escapeAttr(u.id)}"`}) : escapeHtml(u.mobile||'—')}</td>
           <td class="muted">${isEditing ? `<input type="email" data-edit-email="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.email)}">` : escapeHtml(u.email||'—')}</td>
-          <td class="muted" style="font-size:11px;">${fmtTimestamp(u.createdAt)}</td>
-          <td class="muted" style="font-size:11px;">${u.lastLoginAt ? fmtTimestamp(u.lastLoginAt) : '—'}</td>
+          <td class="muted" style="font-size:11px;">${uxStamp(u.createdAt)}</td>
+          <td class="muted" style="font-size:11px;">${u.lastLoginAt ? uxStamp(u.lastLoginAt) : '—'}</td>
           <td>
             ${isEditingPlan ? `
               <select data-plan-select="${escapeAttr(u.id)}">
@@ -32870,10 +33152,10 @@ function groupAdminModal(){
             <div class="aurora-orb amh-aurora-1"></div><div class="aurora-orb amh-aurora-2"></div>
             <div style="display:flex;align-items:center;gap:12px;position:relative;z-index:1;"><div class="amh-icon">👥</div><div><h2>Admin — ${escapeHtml(groupLabel)}</h2><div class="amh-sub">Manage your group's users, companies, and access</div></div></div>
             <div class="admin-console-stats">
-              <div class="acs-stat-chip"><div class="n">${gstats.totalUsers} / ${gstats.limit}</div><div class="l">Seats Used</div></div>
-              <div class="acs-stat-chip"><div class="n">${gstats.totalCompanies}</div><div class="l">Companies</div></div>
-              <div class="acs-stat-chip"><div class="n ${openTickets?'neg':''}">${openTickets}</div><div class="l">Open Tickets</div></div>
-              <div class="acs-stat-chip"><div class="n ${gstats.blocked?'neg':''}">${gstats.blocked}</div><div class="l">Blocked</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="users" role="button" tabindex="0"><div class="n">${gstats.totalUsers} / ${gstats.limit}</div><div class="l">Seats Used</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="companies" role="button" tabindex="0"><div class="n">${gstats.totalCompanies}</div><div class="l">Companies</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="support" data-ux-filter="open" role="button" tabindex="0"><div class="n ${openTickets?'neg':''}">${openTickets}</div><div class="l">Open Tickets</div></div>
+              <div class="acs-stat-chip" data-ux-admin-go="users" data-ux-filter="blocked" role="button" tabindex="0"><div class="n ${gstats.blocked?'neg':''}">${gstats.blocked}</div><div class="l">Blocked</div></div>
             </div>
             <button class="btn secondary small admin-theme-btn" id="adminThemeBtn" type="button" title="${darkMode?'Switch to light mode':'Switch to dark mode'}" aria-label="${darkMode?'Switch to light mode':'Switch to dark mode'}" style="position:relative;z-index:1;">${darkMode?'☀️ Light':'🌙 Dark'}</button>
             <button class="btn secondary small" id="modalClose" type="button" aria-label="Close" style="position:relative;z-index:1;">✕</button>
@@ -32897,12 +33179,12 @@ function groupAdminOverviewTab(){
   const stats = computeGroupAdminStats();
   return `
     <div class="grid" style="grid-template-columns:repeat(4,1fr);">
-      <div class="stat"><div class="label">Your Users</div><div class="val">${stats.totalUsers} / ${stats.limit}</div></div>
-      <div class="stat"><div class="label">Their Companies</div><div class="val">${stats.totalCompanies}</div></div>
-      <div class="stat"><div class="label">Blocked Accounts</div><div class="val ${stats.blocked?'neg':''}">${stats.blocked}</div></div>
-      <div class="stat"><div class="label">New This Week</div><div class="val ${stats.newThisWeek?'pos':''}">${stats.newThisWeek}</div></div>
+      <div class="stat" data-ux-admin-go="users"><div class="label">Your Users</div><div class="val">${stats.totalUsers} / ${stats.limit}</div></div>
+      <div class="stat" data-ux-admin-go="companies"><div class="label">Their Companies</div><div class="val">${stats.totalCompanies}</div></div>
+      <div class="stat" data-ux-admin-go="users" data-ux-filter="blocked"><div class="label">Blocked Accounts</div><div class="val ${stats.blocked?'neg':''}">${stats.blocked}</div></div>
+      <div class="stat" data-ux-admin-go="users"><div class="label">New This Week</div><div class="val ${stats.newThisWeek?'pos':''}">${stats.newThisWeek}</div></div>
     </div>
-    <p class="muted" style="font-size:12px;">See the Company tab for the full list of every company in your group, with the ability to open, edit, or delete any of them.</p>
+    ${uxGroupCommandCenter()}
   `;
 }
 function groupAdminCompaniesTab(){
@@ -33003,7 +33285,7 @@ function groupAdminUsersTab(){
           </td>
           <td class="muted">${isEditing ? phoneInputHtml('', editUserDraft.mobile, {compact:true, label:'Mobile', attrs:`data-edit-mobile="${escapeAttr(u.id)}"`}) : escapeHtml(u.mobile||'—')}</td>
           <td class="muted">${isEditing ? `<input type="email" data-edit-email="${escapeAttr(u.id)}" value="${escapeAttr(editUserDraft.email)}">` : escapeHtml(u.email||'—')}</td>
-          <td class="muted" style="font-size:11px;">${fmtTimestamp(u.createdAt)}</td>
+          <td class="muted" style="font-size:11px;">${uxStamp(u.createdAt)}</td>
           <td class="num">${groupCompanies.filter(c=>c.ownerId===u.id).length}</td>
           <td>
             <select data-group-status-select="${escapeAttr(u.id)}">
