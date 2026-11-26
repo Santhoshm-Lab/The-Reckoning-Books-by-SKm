@@ -4550,6 +4550,259 @@
   .ec-logo-img span{font-weight:800;color:var(--accent1);font-size:18px;}
   .ec-logo-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
 </style>
+<style id="dx-css">
+  /* ===================== Data Interchange 2.0 ===================== */
+  .dx-panel{--dx-ac:#2563EB;--dx-ac2:#1D4ED8;--dx-ac-soft:#E8EFFE;--dx-bg:#FFFFFF;--dx-bg2:#F5F7FA;--dx-ink:#111827;--dx-ink2:#4B5563;--dx-ink3:#6B7280;--dx-line:#E3E7EE;--dx-mine:#2563EB;--dx-mine-ink:#fff;--dx-other:#F1F4F8;--dx-ann:#FEF3C7;--dx-ann-ink:#78350F;--dx-ann-line:#F5C451;--dx-good:#15803D;--dx-bad:#C2410C;
+    position:fixed;right:86px;bottom:86px;z-index:1200;width:420px;max-width:calc(100vw - 32px);height:640px;max-height:calc(100vh - 110px);
+    display:flex;flex-direction:column;background:var(--dx-bg);color:var(--dx-ink);border:1px solid var(--dx-line);border-radius:18px;overflow:hidden;
+    box-shadow:0 30px 70px -20px rgb(15 23 42 / .45), 0 0 0 1px rgb(15 23 42 / .03);font-family:Inter,system-ui,sans-serif;animation:dxIn .2s cubic-bezier(.2,.8,.2,1);}
+  :root[data-theme="dark"] .dx-panel{--dx-ac:#60A5FA;--dx-ac2:#3B82F6;--dx-ac-soft:#172554;--dx-bg:#0F1520;--dx-bg2:#151D2B;--dx-ink:#E5EAF2;--dx-ink2:#B4BFCF;--dx-ink3:#8693A6;--dx-line:#243046;--dx-mine:#2563EB;--dx-other:#1B2536;--dx-ann:#3A2C0C;--dx-ann-ink:#FCD98A;--dx-ann-line:#7A5A12;--dx-good:#4ADE80;--dx-bad:#FB923C;}
+  @keyframes dxIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .dx-panel.is-expanded{right:auto;bottom:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1240px,calc(100vw - 48px));height:min(820px,calc(100vh - 48px));max-height:none;animation:dxInX .22s cubic-bezier(.2,.8,.2,1);z-index:1201;}
+  @keyframes dxInX{from{opacity:0;transform:translate(-50%,-48%) scale(.985)}to{opacity:1;transform:translate(-50%,-50%)}}
+  .dx-scrim{position:fixed;inset:0;z-index:1199;background:rgb(15 23 42 / .45);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+  .dx-panel button{font:inherit;}
+  /* header */
+  .dx-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 10px 10px 14px;background:linear-gradient(120deg,#1E3A8A,#2563EB 60%,#3B82F6);color:#fff;flex:none;}
+  .dx-top-t{display:flex;align-items:center;gap:10px;min-width:0;}
+  .dx-logo{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:rgb(255 255 255 / .16);flex:none;}
+  .dx-logo svg{width:20px;height:20px;}
+  .dx-top-t div{min-width:0;display:flex;flex-direction:column;}
+  .dx-top-t b{font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-top-t span{font-size:11.5px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-top-acts{display:flex;gap:2px;flex:none;}
+  .dx-top-acts button{position:relative;width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:#fff;cursor:pointer;font-size:14px;display:grid;place-items:center;opacity:.85;}
+  .dx-top-acts button:hover, .dx-top-acts button.is-on{background:rgb(255 255 255 / .16);opacity:1;}
+  .dx-top-acts button:focus-visible{outline:2px solid #fff;outline-offset:-2px;}
+  .dx-top-acts i{position:absolute;top:2px;right:1px;min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:#F59E0B;color:#111;font-size:9.5px;font-style:normal;font-weight:800;display:grid;place-items:center;}
+  /* compact channel strip */
+  .dx-strip{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;border-bottom:1px solid var(--dx-line);background:var(--dx-bg2);flex:none;scrollbar-width:none;}
+  .dx-strip::-webkit-scrollbar{display:none;}
+  .dx-strip-b{flex:none;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;border:1px solid var(--dx-line);background:var(--dx-bg);color:var(--dx-ink2);font-size:12px;font-weight:650;cursor:pointer;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-strip-b.is-on{background:var(--dx-ac);border-color:var(--dx-ac);color:#fff;}
+  .dx-strip-b i{font-style:normal;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#EF4444;color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;}
+  .dx-strip-add{border-style:dashed;}
+  /* search */
+  .dx-search{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--dx-line);background:var(--dx-bg2);flex:none;}
+  .dx-search input{flex:1;height:34px;border-radius:9px;border:1px solid var(--dx-line);background:var(--dx-bg);color:var(--dx-ink);padding:0 10px;font-size:13px;}
+  .dx-search span{font-size:11.5px;color:var(--dx-ink3);white-space:nowrap;}
+  .dx-search button{width:28px;height:28px;border-radius:8px;border:1px solid var(--dx-line);background:var(--dx-bg);color:var(--dx-ink2);cursor:pointer;}
+  .dx-search button:disabled{opacity:.4;cursor:default;}
+  /* layout */
+  .dx-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);}
+  .dx-panel.is-expanded .dx-grid{grid-template-columns:250px minmax(0,1fr) 300px;}
+  .dx-center{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;}
+  .dx-channels{border-right:1px solid var(--dx-line);background:var(--dx-bg2);overflow-y:auto;padding:10px 8px;}
+  .dx-ch-sec{display:flex;align-items:center;justify-content:space-between;margin:10px 8px 6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dx-ink3);}
+  .dx-ch-sec:first-child{margin-top:2px;}
+  .dx-ch-add{width:22px;height:22px;border-radius:6px;border:0;background:transparent;color:var(--dx-ink2);cursor:pointer;font-size:14px;}
+  .dx-ch-add:hover{background:var(--dx-line);}
+  .dx-ch{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;cursor:pointer;color:var(--dx-ink2);}
+  .dx-ch:hover{background:color-mix(in srgb, var(--dx-ink) 6%, transparent);}
+  .dx-ch.is-on{background:var(--dx-ac-soft);color:var(--dx-ink);}
+  .dx-ch:focus-visible{outline:2px solid var(--dx-ac);outline-offset:-2px;}
+  .dx-ch-ic{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12.5px;font-weight:800;color:var(--dx-ink3);flex:none;}
+  .dx-ch.is-on .dx-ch-ic{color:var(--dx-ac);}
+  .dx-ch-t{min-width:0;flex:1;display:flex;flex-direction:column;}
+  .dx-ch-t b{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-ch.is-on .dx-ch-t b{font-weight:800;}
+  .dx-ch-t em{font-style:normal;font-size:11px;color:var(--dx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-n{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#EF4444;color:#fff;font-size:10.5px;font-weight:800;display:grid;place-items:center;}
+  .dx-dot{width:8px;height:8px;border-radius:50%;background:var(--dx-ac);}
+  /* messages */
+  .dx-list{flex:1;min-height:0;overflow-y:auto;padding:12px 14px 6px;scroll-behavior:auto;}
+  .dx-pane{padding:10px;}
+  .dx-back{all:unset;cursor:pointer;margin:8px 14px 0;font-size:12px;font-weight:700;color:var(--dx-ac);}
+  .dx-pinbar{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:6px;margin:8px 12px 0;padding:7px 10px;border-radius:10px;background:var(--dx-ann);color:var(--dx-ann-ink);font-size:12px;cursor:pointer;flex:none;white-space:nowrap;overflow:hidden;}
+  .dx-pinbar span{overflow:hidden;text-overflow:ellipsis;flex:1;}
+  .dx-pinbar em{font-style:normal;font-weight:800;}
+  .dx-day{display:flex;align-items:center;gap:10px;margin:10px 0 8px;color:var(--dx-ink3);font-size:11px;font-weight:700;}
+  .dx-day::before, .dx-day::after{content:'';flex:1;height:1px;background:var(--dx-line);}
+  .dx-new{display:flex;align-items:center;gap:8px;margin:8px 0;color:#EF4444;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;}
+  .dx-new::after{content:'';flex:1;height:1px;background:#EF4444;opacity:.5;}
+  .dx-msg{position:relative;display:flex;gap:10px;padding:5px 6px;margin:0 -6px;border-radius:10px;}
+  .dx-msg.is-grouped{padding-top:1px;}
+  .dx-msg:hover{background:color-mix(in srgb, var(--dx-ink) 3.5%, transparent);}
+  .dx-msg.is-flash{background:var(--dx-ac-soft);transition:background .6s;}
+  .dx-msg.is-active .dx-bubble{outline:2px solid var(--dx-ac);outline-offset:2px;}
+  .dx-av{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;background:hsl(var(--h) 55% 45%);}
+  .dx-av-sp{flex:none;width:32px;}
+  .dx-body{min-width:0;flex:1;}
+  .dx-meta{display:flex;align-items:baseline;gap:7px;margin-bottom:2px;}
+  .dx-meta b{font-size:13px;font-weight:800;color:var(--dx-ink);}
+  .dx-role{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;background:var(--dx-ac-soft);color:var(--dx-ac);}
+  .dx-meta time{font-size:11px;color:var(--dx-ink3);}
+  .dx-pin-flag{font-size:11px;}
+  .dx-bubble{font-size:13.5px;line-height:1.5;color:var(--dx-ink);word-break:break-word;}
+  .dx-text{white-space:pre-wrap;}
+  .dx-text a{color:var(--dx-ac);text-decoration:underline;}
+  .dx-text code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;padding:1px 5px;border-radius:5px;background:var(--dx-other);}
+  .dx-text mark{background:#FDE68A;color:#111;border-radius:3px;}
+  .dx-mention{color:var(--dx-ac);font-weight:700;background:var(--dx-ac-soft);padding:0 3px;border-radius:4px;}
+  .dx-mention.is-me{background:#FDE68A;color:#78350F;}
+  .dx-msg.is-mine .dx-meta b{color:var(--dx-ac);}
+  .dx-msg.is-broadcast .dx-bubble{background:var(--dx-ann);border:1px solid var(--dx-ann-line);color:var(--dx-ann-ink);padding:8px 10px;border-radius:12px;}
+  .dx-ann{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;}
+  .dx-msg.is-pinned .dx-bubble{box-shadow:inset 3px 0 0 #F59E0B;padding-left:9px;}
+  .dx-del{color:var(--dx-ink3);font-size:12.5px;}
+  .dx-edited{font-size:10.5px;color:var(--dx-ink3);margin-left:4px;}
+  .dx-quote{all:unset;box-sizing:border-box;display:flex;flex-direction:column;max-width:100%;margin:0 0 5px;padding:5px 9px;border-left:3px solid var(--dx-ac);border-radius:6px;background:var(--dx-other);cursor:pointer;font-size:12px;}
+  .dx-quote b{font-size:11.5px;color:var(--dx-ac);}
+  .dx-quote span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dx-ink2);}
+  .dx-bubble img{max-width:min(100%,260px);max-height:200px;border-radius:10px;border:1px solid var(--dx-line);}
+  .dx-reacts{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+  .dx-react{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;border:1px solid var(--dx-line);background:var(--dx-bg);cursor:pointer;font-size:12.5px;color:var(--dx-ink2);}
+  .dx-react b{font-size:11.5px;}
+  .dx-react.is-mine{border-color:var(--dx-ac);background:var(--dx-ac-soft);color:var(--dx-ac);}
+  .dx-react-pick{display:inline-flex;gap:2px;margin-top:5px;padding:4px;border-radius:12px;border:1px solid var(--dx-line);background:var(--dx-bg);box-shadow:0 8px 20px -10px rgb(0 0 0 / .3);}
+  .dx-react-pick button{width:30px;height:30px;border:0;background:transparent;border-radius:8px;cursor:pointer;font-size:16px;}
+  .dx-react-pick button:hover{background:var(--dx-other);transform:scale(1.15);}
+  .dx-seen{font-size:11px;color:var(--dx-ink3);margin-top:3px;}
+  .dx-actions{position:absolute;top:-12px;right:8px;display:none;gap:2px;padding:3px;border-radius:10px;border:1px solid var(--dx-line);background:var(--dx-bg);box-shadow:0 6px 16px -8px rgb(0 0 0 / .3);z-index:2;}
+  .dx-msg:hover .dx-actions, .dx-msg:focus-within .dx-actions{display:flex;}
+  .dx-actions button{width:28px;height:26px;border:0;background:transparent;border-radius:7px;cursor:pointer;font-size:13px;color:var(--dx-ink2);}
+  .dx-actions button:hover{background:var(--dx-other);color:var(--dx-ink);}
+  .dx-edit textarea{width:100%;min-height:54px;border-radius:10px;border:1px solid var(--dx-ac);padding:8px 10px;font:inherit;font-size:13.5px;background:var(--dx-bg);color:var(--dx-ink);resize:vertical;}
+  .dx-edit div{display:flex;gap:6px;justify-content:flex-end;margin-top:6px;}
+  /* cards & tasks */
+  .dx-card{margin-top:6px;max-width:360px;border:1px solid var(--dx-line);border-radius:14px;background:var(--dx-bg);overflow:hidden;box-shadow:0 1px 2px rgb(0 0 0 / .04);}
+  .dx-card-h{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--dx-line);background:linear-gradient(180deg,var(--dx-bg2),var(--dx-bg));}
+  .dx-card-ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--dx-ac-soft);font-size:16px;flex:none;}
+  .dx-card-h div{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .dx-card-h b{font-size:13px;color:var(--dx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-card-h span{font-size:11px;color:var(--dx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-card-h em{font-style:normal;font-weight:800;font-size:13px;color:var(--dx-ink);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .dx-card-sub{padding:7px 12px 0;font-size:12px;color:var(--dx-ink2);}
+  .dx-card-lines{padding:6px 12px 8px;display:flex;flex-direction:column;gap:3px;}
+  .dx-card-lines div{display:flex;justify-content:space-between;gap:10px;font-size:12px;}
+  .dx-card-lines span{color:var(--dx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-card-lines b{color:var(--dx-ink);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .dx-card-open{all:unset;box-sizing:border-box;display:block;width:100%;padding:8px 12px;border-top:1px solid var(--dx-line);font-size:12.5px;font-weight:800;color:var(--dx-ac);cursor:pointer;text-align:left;}
+  .dx-card-open:hover{background:var(--dx-ac-soft);}
+  .dx-card-note{padding:7px 12px;border-top:1px solid var(--dx-line);font-size:11px;color:var(--dx-ink3);}
+  .dx-task{display:flex;align-items:flex-start;gap:10px;margin-top:6px;padding:10px 12px;border-radius:12px;border:1px solid var(--dx-line);background:var(--dx-bg);max-width:360px;}
+  .dx-task > div{display:flex;flex-direction:column;min-width:0;}
+  .dx-task b{font-size:13px;color:var(--dx-ink);}
+  .dx-task span{font-size:11.5px;color:var(--dx-ink3);}
+  .dx-task.is-done b{text-decoration:line-through;color:var(--dx-ink3);}
+  .dx-task.is-overdue{border-color:color-mix(in srgb, var(--dx-bad) 45%, var(--dx-line));}
+  .dx-task.is-overdue span{color:var(--dx-bad);}
+  .dx-task-chk{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--dx-ink3);background:transparent;cursor:pointer;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:900;margin-top:1px;}
+  .dx-task.is-done .dx-task-chk{background:var(--dx-good);border-color:var(--dx-good);}
+  .dx-task-chk:focus-visible{outline:2px solid var(--dx-ac);outline-offset:2px;}
+  /* empty states */
+  .dx-empty{margin:auto;padding:30px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--dx-ink3);font-size:12.5px;max-width:340px;}
+  .dx-empty b{font-size:14.5px;color:var(--dx-ink);}
+  .dx-empty-ic{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--dx-ac-soft);font-size:26px;margin-bottom:4px;}
+  .dx-muted{font-size:11.5px;}
+  .dx-spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--dx-line);border-top-color:var(--dx-ac);animation:dxSpin .8s linear infinite;}
+  @keyframes dxSpin{to{transform:rotate(360deg)}}
+  .dx-err{margin:0 12px 6px;padding:7px 10px;border-radius:9px;background:#FEE2E2;color:#991B1B;font-size:12px;}
+  .dx-jump{position:absolute;right:16px;bottom:120px;z-index:3;border:0;border-radius:999px;padding:6px 12px;background:var(--dx-ink);color:var(--dx-bg);font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 16px -6px rgb(0 0 0 / .4);}
+  .dx-drop{position:absolute;inset:8px;z-index:10;border:2px dashed var(--dx-ac);border-radius:14px;background:color-mix(in srgb, var(--dx-ac-soft) 85%, transparent);display:grid;place-items:center;font-weight:800;color:var(--dx-ac);}
+  /* composer */
+  .dx-compose{position:relative;flex:none;padding:8px 10px 10px;border-top:1px solid var(--dx-line);background:var(--dx-bg);}
+  .dx-compose-box{border:1px solid var(--dx-line);border-radius:14px;background:var(--dx-bg);transition:border-color .15s, box-shadow .15s;}
+  .dx-compose-box:focus-within{border-color:var(--dx-ac);box-shadow:0 0 0 3px color-mix(in srgb, var(--dx-ac) 16%, transparent);}
+  .dx-compose textarea{display:block;width:100%;box-sizing:border-box;border:0;outline:0;resize:none;background:transparent;color:var(--dx-ink);font:inherit;font-size:13.5px;line-height:1.45;padding:10px 12px 4px;min-height:40px;max-height:160px;}
+  .dx-compose-bar{display:flex;align-items:center;gap:2px;padding:4px 6px 6px;}
+  .dx-tool{width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:var(--dx-ink2);cursor:pointer;display:grid;place-items:center;font-size:16px;}
+  .dx-tool:hover{background:var(--dx-other);color:var(--dx-ink);}
+  .dx-ann-toggle{display:inline-flex;align-items:center;gap:5px;margin-left:4px;padding:4px 9px;border-radius:999px;border:1px solid var(--dx-line);font-size:11.5px;font-weight:700;color:var(--dx-ink2);cursor:pointer;text-transform:none;letter-spacing:0;}
+  .dx-ann-toggle input{display:none;}
+  .dx-ann-toggle.is-on{background:var(--dx-ann);border-color:var(--dx-ann-line);color:var(--dx-ann-ink);}
+  .dx-len{margin-left:auto;font-size:11px;color:var(--dx-ink3);}
+  .dx-len.is-warn{color:var(--dx-bad);font-weight:800;}
+  .dx-send{margin-left:6px;height:34px;padding:0 14px;border-radius:10px;border:0;background:var(--dx-ac);color:#fff;font-weight:800;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+  .dx-send:hover{background:var(--dx-ac2);}
+  .dx-send:disabled{opacity:.6;cursor:default;}
+  .dx-replying{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:6px 10px;border-radius:10px;background:var(--dx-other);border-left:3px solid var(--dx-ac);}
+  .dx-replying div{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .dx-replying b{font-size:11.5px;color:var(--dx-ac);}
+  .dx-replying span{font-size:12px;color:var(--dx-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-x-sm{width:24px;height:24px;border-radius:7px;border:0;background:transparent;color:var(--dx-ink2);cursor:pointer;}
+  .dx-x-sm:hover{background:var(--dx-line);}
+  .dx-pending{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+  .dx-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 6px 4px 9px;border-radius:999px;background:var(--dx-other);font-size:12px;color:var(--dx-ink);max-width:100%;}
+  .dx-chip em{font-style:normal;color:var(--dx-ink3);font-size:11px;}
+  .dx-chip button{border:0;background:transparent;cursor:pointer;color:var(--dx-ink3);}
+  /* popovers above the composer */
+  .dx-pick, .dx-mention-pop{position:absolute;left:10px;right:10px;bottom:calc(100% - 4px);z-index:20;background:var(--dx-bg);border:1px solid var(--dx-line);border-radius:14px;box-shadow:0 18px 40px -14px rgb(15 23 42 / .45);max-height:330px;display:flex;flex-direction:column;overflow:hidden;}
+  .dx-pick-h{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--dx-line);font-size:13px;}
+  .dx-menu{padding:6px;gap:2px;overflow-y:auto;}
+  .dx-menu button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;}
+  .dx-menu button:hover:not([disabled]){background:var(--dx-other);}
+  .dx-menu button[disabled]{opacity:.5;cursor:default;}
+  .dx-menu button > span:first-child{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--dx-ac-soft);font-size:15px;flex:none;font-weight:800;color:var(--dx-ac);}
+  .dx-menu b{display:block;font-size:13px;color:var(--dx-ink);}
+  .dx-menu em{display:block;font-style:normal;font-size:11.5px;color:var(--dx-ink3);}
+  .dx-pick-search{margin:8px 10px;height:34px;border-radius:9px;border:1px solid var(--dx-line);padding:0 10px;font-size:13px;background:var(--dx-bg);color:var(--dx-ink);}
+  .dx-pick-list{overflow-y:auto;padding:0 6px 6px;}
+  .dx-pick-row{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:8px;border-radius:9px;cursor:pointer;}
+  .dx-pick-row:hover{background:var(--dx-other);}
+  .dx-pick-row span{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .dx-pick-row b{font-size:13px;color:var(--dx-ink);}
+  .dx-pick-row em{font-style:normal;font-size:11.5px;color:var(--dx-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-pick-row span:only-child{font-size:13px;color:var(--dx-ink);white-space:normal;}
+  .dx-pick-row i{font-style:normal;font-weight:800;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--dx-ink);white-space:nowrap;}
+  .dx-pick-form{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;}
+  .dx-pick-form label{font-size:11.5px;font-weight:700;color:var(--dx-ink2);margin:4px 0 0;text-transform:none;letter-spacing:0;}
+  .dx-pick-form input, .dx-pick-form select{height:36px;border-radius:9px;border:1px solid var(--dx-line);padding:0 10px;font-size:13px;background:var(--dx-bg);color:var(--dx-ink);}
+  .dx-two{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .dx-two > div{display:flex;flex-direction:column;}
+  .dx-btn{height:36px;border-radius:10px;border:1px solid var(--dx-line);background:var(--dx-bg);color:var(--dx-ink);font-weight:800;font-size:13px;cursor:pointer;margin-top:6px;}
+  .dx-btn.is-primary, .dx-btn-sm.is-primary{background:var(--dx-ac);border-color:var(--dx-ac);color:#fff;}
+  .dx-btn-sm{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--dx-line);background:var(--dx-bg);color:var(--dx-ink);font-weight:700;font-size:12px;cursor:pointer;}
+  .dx-emoji-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:2px;padding:8px;overflow-y:auto;}
+  .dx-emoji-grid button{height:34px;border:0;background:transparent;border-radius:8px;cursor:pointer;font-size:18px;}
+  .dx-emoji-grid button:hover{background:var(--dx-other);}
+  .dx-mention-pop{max-height:240px;padding:4px;}
+  .dx-mention-pop button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:9px;cursor:pointer;font-size:13px;color:var(--dx-ink);}
+  .dx-mention-pop button.is-first, .dx-mention-pop button:hover{background:var(--dx-ac-soft);}
+  .dx-mention-pop .dx-av{width:24px;height:24px;border-radius:7px;font-size:10px;}
+  .dx-mention-pop em{margin-left:auto;font-style:normal;font-size:11px;color:var(--dx-ink3);}
+  /* side panel (expanded) */
+  .dx-side{border-left:1px solid var(--dx-line);display:flex;flex-direction:column;min-height:0;background:var(--dx-bg);}
+  .dx-side-tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--dx-line);flex:none;}
+  .dx-side-tabs button{border:0;background:transparent;padding:10px 4px;font-size:11.5px;font-weight:700;color:var(--dx-ink3);cursor:pointer;border-bottom:2px solid transparent;}
+  .dx-side-tabs button.is-on{color:var(--dx-ac);border-bottom-color:var(--dx-ac);}
+  .dx-side-tabs i{font-style:normal;padding:0 5px;border-radius:7px;background:#F59E0B;color:#111;font-size:10px;font-weight:800;}
+  .dx-side-body{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px;}
+  .dx-side-empty{padding:16px 8px;text-align:center;font-size:12.5px;color:var(--dx-ink3);}
+  .dx-side-item{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:2px;padding:9px 10px;border:1px solid var(--dx-line);border-radius:11px;cursor:pointer;}
+  .dx-side-item:hover{border-color:var(--dx-ac);}
+  .dx-side-item b{font-size:12.5px;color:var(--dx-ink);}
+  .dx-side-item span{font-size:12.5px;color:var(--dx-ink2);}
+  .dx-side-item em{font-style:normal;font-size:11px;color:var(--dx-ink3);}
+  .dx-file{flex-direction:row;align-items:center;gap:10px;}
+  .dx-file-ic{font-size:20px;flex:none;}
+  .dx-file-t{display:flex;flex-direction:column;min-width:0;}
+  .dx-file-t b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dx-side-add{border:1px dashed var(--dx-line);background:transparent;border-radius:10px;padding:8px;font-weight:800;font-size:12.5px;color:var(--dx-ac);cursor:pointer;}
+  .dx-side-task{position:relative;}
+  .dx-side-task .dx-task{max-width:none;margin:0;padding-right:34px;}
+  .dx-side-jump{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:24px;height:24px;border:0;border-radius:7px;background:transparent;cursor:pointer;color:var(--dx-ink3);font-size:16px;}
+  .dx-seg-sm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:3px;border-radius:10px;background:var(--dx-other);}
+  .dx-seg-sm button{border:0;background:transparent;border-radius:8px;padding:6px 4px;font-size:11.5px;font-weight:700;color:var(--dx-ink2);cursor:pointer;}
+  .dx-seg-sm button.is-on{background:var(--dx-bg);color:var(--dx-ink);box-shadow:0 1px 3px rgb(0 0 0 / .12);}
+  .dx-person{display:flex;align-items:center;gap:10px;padding:6px 4px;}
+  .dx-person div{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .dx-person b{font-size:13px;color:var(--dx-ink);}
+  .dx-person span{font-size:11.5px;color:var(--dx-ink3);}
+  /* phones: full-screen sheet */
+  @media (max-width:640px){
+    #diPanelEl.dx-panel, #diPanelEl.dx-panel.is-expanded{left:0 !important;right:0 !important;top:0 !important;bottom:0 !important;transform:none;width:100vw !important;max-width:none !important;height:100dvh !important;max-height:none !important;border-radius:0;animation:none;z-index:1300;}
+    .dx-panel.is-expanded .dx-grid{grid-template-columns:minmax(0,1fr);}
+    .dx-panel.is-expanded .dx-channels, .dx-panel.is-expanded .dx-side{display:none;}
+    #dxExpandBtn{display:none !important;}
+    .dx-scrim{display:none;}
+    .dx-actions{display:flex;position:static;margin-top:4px;width:max-content;box-shadow:none;}
+    .dx-msg:not(:hover):not(:focus-within) .dx-actions{display:none;}
+  }
+  @media (max-width:1000px) and (min-width:641px){ .dx-panel.is-expanded .dx-grid{grid-template-columns:220px minmax(0,1fr);} .dx-panel.is-expanded .dx-side{display:none;} }
+  @media (prefers-reduced-motion: reduce){ .dx-panel, .dx-panel.is-expanded{animation:none;} .dx-spin{animation:none;} }
+  .dx-panel [hidden]{display:none !important;}
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -10604,12 +10857,16 @@ function diAdminThreadId(supportUid){
   return supportUid ? `admin_${supportUid}` : null;
 }
 function diRerender(){
+  const a = document.activeElement, fid = a && a.id && a.closest && a.closest('#diPanelEl') ? a.id : '';
+  let s0 = null, s1 = null; try{ if(fid){ s0 = a.selectionStart; s1 = a.selectionEnd; } }catch(e){}
   if(screen==='app') render();
   else if(screen==='gateway') renderGateway();
+  if(fid){ const n = document.getElementById(fid); if(n && n!==document.activeElement){ try{ n.focus({preventScroll:true}); if(s0!=null) n.setSelectionRange(s0, s1); }catch(e){} } }
 }
 async function diLoadThread(threadId, threadType, groupOwnerId){
   if(!threadId) return;
-  diLoading = true; diError = ''; diRerender();
+  const hadRows = !!diMessages[threadId];
+  diLoading = true; diError = ''; if(!hadRows) diRerender();
   try{
     // Deliberately filtered on groupOwnerId + threadType -- the SAME two fields the
     // interchangeMessages security rule itself checks -- rather than on threadId (which encodes
@@ -10643,16 +10900,17 @@ async function diLoadThread(threadId, threadType, groupOwnerId){
   diLoading = false;
   diRerender();
   const el = document.getElementById('diMessagesEl');
-  if(el) el.scrollTop = el.scrollHeight;
+  if(el && (typeof dxStickBottom==='undefined' || dxStickBottom)) el.scrollTop = el.scrollHeight;
 }
-async function diSendMessage(threadId, threadType, groupOwnerId, text, attachments, broadcast, replyTo){
+async function diSendMessage(threadId, threadType, groupOwnerId, text, attachments, broadcast, replyTo, extra){
   // Deliberately NOT gated by isReadOnlyMode() -- that flag is about a specific company's ledger data
   // (the shared demo company, an admin's view-only peek, per-module View Only access) and has nothing
   // to do with this messaging feature, which isn't scoped to any one company.
   if(!currentUser || !threadId) return;
   const trimmed = (text||'').trim();
   const atts = Array.isArray(attachments) ? attachments.filter(Boolean) : [];
-  if(!trimmed && !atts.length) return;
+  const ex = extra || {};
+  if(!trimmed && !atts.length && !ex.card && !ex.task) return;
   // Broadcast is a Support-only, group-thread-only concept -- re-checked here (not just hidden in
   // the UI) so a stray true from a stale draft never silently marks an admin-thread or non-Support
   // message as a group-wide announcement. The Firestore rule re-checks the same thing server-side.
@@ -10670,14 +10928,18 @@ async function diSendMessage(threadId, threadType, groupOwnerId, text, attachmen
       // { id, senderName, preview } (see wireDIWidget's [data-di-reply-to] handler), so this is a
       // flat, small object straight onto the doc, same spirit as attachments.
       replyTo: (replyTo && replyTo.id) ? replyTo : null,
+      topic: ex.topic || 'general', topicName: ex.topicName || '',
+      card: ex.card || null, task: ex.task || null, mentions: Array.isArray(ex.mentions) ? ex.mentions.slice(0,20) : [],
       createdAt: now,
     });
     const attachmentSummary = atts.length ? `📎 ${atts.length>1 ? `${atts.length} files` : atts[0].name}` : '';
     const threadUpdate = {
       id: threadId, type: threadType, groupOwnerId,
       updatedAt: now, lastSenderId: currentUser.id, lastSenderName: senderName,
-      lastMessageText: trimmed || attachmentSummary,
+      lastMessageText: trimmed || (ex.card ? `🧾 ${ex.card.title}` : ex.task ? `✅ Task: ${ex.task.title}` : attachmentSummary),
       lastMessageBroadcast: isBroadcast,
+      lastTopic: ex.topic || 'general', lastTopicName: ex.topicName || '',
+      lastMentions: Array.isArray(ex.mentions) ? ex.mentions.slice(0,20) : [],
     };
     // Denormalize a label onto the thread doc so the Admin inbox (and a group thread's header) can
     // show "who"/"which group" without a second read per row -- but only from the side that actually
@@ -10954,7 +11216,9 @@ function diNotifyNewMessage(t){
   // account itself (e.g. a teammate messaging their own group thread).
   const who = t.lastSenderName || t.supportName || 'Someone';
   const preview = t.lastMessageText || '📎 sent a file';
-  const title = t.lastMessageBroadcast ? `📢 Announcement from ${who}` : `💬 ${who}`;
+  const mentioned = Array.isArray(t.lastMentions) && currentUser && t.lastMentions.includes(currentUser.id);
+  const where = t.lastTopicName && t.lastTopic && t.lastTopic!=='general' ? ` in #${t.lastTopicName}` : '';
+  const title = t.lastMessageBroadcast ? `📢 Announcement from ${who}` : mentioned ? `@ ${who} mentioned you${where}` : `💬 ${who}${where}`;
   toast(t.lastMessageBroadcast ? `${title}: ${preview}` : `${title}: ${preview}`, {type:'info'});
   diPlayAlertSound();
   // A real OS-level notification on top of the in-app toast -- only when the person opted in AND the
@@ -10974,6 +11238,11 @@ function diNotifyNewMessage(t){
 // a new message, so the first callback only records updatedAt and never alerts).
 function diReactToThreadDoc(id, t, primed){
   if(!t) return;
+  if(t.lastEventAt && t.lastEventAt!==diLastKnownEventAt[id]){
+    const fromOther = t.lastEventBy && t.lastEventBy!==currentUser.id;
+    if(primed && fromOther && diOpen){ const p = (typeof dxActiveParts==='function' ? dxActiveParts() : diOpenThreadParts()); if(p && p.threadId===id) diLoadThread(p.threadId, p.threadType, p.groupOwnerId); }
+    diLastKnownEventAt[id] = t.lastEventAt;
+  }
   const fromOthers = t.lastSenderId && t.lastSenderId!==currentUser.id;
   const isNewUpdate = t.updatedAt && t.updatedAt!==diLastKnownUpdatedAt[id];
   if(primed && fromOthers && isNewUpdate){
@@ -19930,116 +20199,405 @@ function diAdminInboxHtml(){
     </div>
   `;
 }
+/* ===================== Data Interchange 2.0 (Nov 2026) =====================
+   A business messenger that speaks accounting. Same Firestore collections and security rules as
+   before (interchangeThreads / interchangeMessages / interchangeReceipts) — nothing about who can read
+   or write a thread changes. Everything new rides on extra fields of NEW message documents (messages
+   stay create-only), and is folded together on the client:
+     • topic  — channels inside the group thread: #general, one per company, and custom topics
+     • card   — a shared voucher / ledger / key-figures snapshot from the books, with "Open in books"
+     • task   — a task or request with assignee and due date; status changes are events
+     • mentions — @name, highlighted and alerted to the person mentioned
+     • ev     — events applied to an earlier message: react, edit, delete (sender only), pin/unpin,
+                task status, topic creation. Thread summaries record events in lastEventAt so the
+                unread badge and alerts only fire for real messages. */
+let dxExpanded = (()=>{ try{ return localStorage.getItem('rb_dxExpanded')==='1'; }catch(e){ return false; } })();
+let dxTopic = 'general';          // current channel inside the group thread
+let dxPane = 'chat';              // compact panel: 'chat' | 'pinned' | 'tasks' | 'files' — expanded shows the side pane separately
+let dxSidePane = 'pinned';        // expanded panel's right column: 'pinned' | 'tasks' | 'files' | 'people'
+let dxPicker = null;              // null | 'menu' | 'voucher' | 'ledger' | 'report' | 'task' | 'emoji' | 'topic' | 'templates'
+let dxPickerQuery = '';
+let dxTaskDraft = { title:'', assigneeId:'', due:'' };
+let dxEditing = null;             // { id, text } while editing one of my own messages
+let dxReactFor = null;            // message id whose reaction picker is open
+let dxNewTopic = '';
+let dxMention = null;             // { query, start } while typing an @mention
+let dxTaskFilter = 'open';        // 'open' | 'mine' | 'done'
+const DX_REACTIONS = ['👍','✅','👀','🙏','🎉','❤️'];
+const DX_EMOJI = ['😀','😂','😊','🙂','😉','😍','🤝','👏','🙌','👍','👎','✅','❌','⚠️','📌','📎','🧾','💰','💸','🏦','📊','📈','📉','🧮','🗂️','⏰','📅','🔔','🎉','🙏','👀','❤️','🔥','💯','✔️','➡️'];
+const DX_TEMPLATES = [
+  'Please share the bank statement for last month.',
+  'Payment received — thank you! Receipt entered in the books.',
+  'GST return filed ✅ Acknowledgement attached.',
+  'Please approve the pending vouchers when you get a moment.',
+  'Invoice sent to the customer. Due in 30 days.',
+  'Month-end close is done — reports are ready to review.',
+  'Can you send the original bill for this expense?',
+  'TDS paid and challan saved. 26Q data is ready.',
+];
+function dxKey(name){ return 'rb_dx'+name+'_'+((currentUser&&currentUser.id)||'anon'); }
+function dxLoadJSON(name, def){ try{ const v = JSON.parse(localStorage.getItem(dxKey(name))||'null'); return v==null?def:v; }catch(e){ return def; } }
+function dxSaveJSON(name, v){ try{ localStorage.setItem(dxKey(name), JSON.stringify(v)); }catch(e){} }
+function dxHue(s){ let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return h%360; }
+function dxAvatar(name, id){ const ini = userInitials(name||'?'); return `<span class="dx-av" style="--h:${dxHue(id||name)}" aria-hidden="true">${escapeHtml(ini)}</span>`; }
+function dxDayLabel(iso){
+  if(!iso) return '';
+  const d = new Date(iso), t = new Date(); const strip = x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const diff = Math.round((strip(t)-strip(d))/86400000);
+  if(diff===0) return 'Today'; if(diff===1) return 'Yesterday';
+  return d.toLocaleDateString('en-IN',{weekday: diff<7?'long':undefined, day:'numeric', month:'short', year: d.getFullYear()!==t.getFullYear()?'numeric':undefined});
+}
+function dxTime(iso){ try{ return new Date(iso).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+function dxTopicId(m){ return (m && m.topic) || 'general'; }
+// Folds raw rows (messages + events) into a view model. Memoised per thread on the row count.
+const dxViewCache = {};
+function dxView(threadId){
+  const rows = diMessages[threadId] || [];
+  const cached = dxViewCache[threadId];
+  if(cached && cached.n===rows.length && cached.last===(rows.length?rows[rows.length-1].id:'')) return cached.v;
+  const msgs = [], byId = {}, topics = {}, pins = {}, taskStatus = {};
+  for(const r of rows){
+    if(r.ev && r.ev.type){
+      const e = r.ev, t = e.target && byId[e.target];
+      if(e.type==='topic' && e.topic && e.topic.id){ if(!topics[e.topic.id]) topics[e.topic.id] = { id:e.topic.id, name:e.topic.name, by:r.senderName, at:r.createdAt }; continue; }
+      if(!t) continue;
+      if(e.type==='react' && e.emoji){
+        const key = e.emoji; t.reactions[key] = t.reactions[key] || {};
+        if(t.reactions[key][r.senderId]) delete t.reactions[key][r.senderId]; else t.reactions[key][r.senderId] = r.senderName||'';
+        if(!Object.keys(t.reactions[key]).length) delete t.reactions[key];
+      } else if(e.type==='edit' && r.senderId===t.senderId && typeof e.text==='string'){ t.text = e.text; t.edited = r.createdAt; }
+      else if(e.type==='delete' && r.senderId===t.senderId){ t.deleted = true; t.text=''; t.attachments=[]; t.attachment=null; t.card=null; t.task=null; }
+      else if(e.type==='pin'){ pins[t.id] = { by:r.senderName, at:r.createdAt }; t.pinned = true; }
+      else if(e.type==='unpin'){ delete pins[t.id]; t.pinned = false; }
+      else if(e.type==='task' && t.task){ taskStatus[t.id] = { status:e.status, by:r.senderName, at:r.createdAt }; t.taskStatus = e.status; t.taskBy = r.senderName; }
+      continue;
+    }
+    const m = { ...r, reactions:{}, topic: dxTopicId(r) };
+    if(m.topic!=='general' && !topics[m.topic]) topics[m.topic] = { id:m.topic, name: r.topicName || m.topic };
+    msgs.push(m); byId[m.id] = m;
+  }
+  const v = { msgs, byId, topics, pins };
+  dxViewCache[threadId] = { n: rows.length, last: rows.length?rows[rows.length-1].id:'', v };
+  return v;
+}
+function dxVNo(v){ try{ return v.type==='Sales' ? String(salesVoucherInvoiceNumber(v)||'') : ''; }catch(e){ return ''; } }
+function dxIsGroup(parts){ return parts && parts.threadType==='group'; }
+// Channels: #general, one per company this person can see, plus any created or used in the thread.
+function dxTopicsFor(threadId){
+  const v = dxView(threadId), list = [{ id:'general', name:'general', icon:'#' }];
+  const seen = new Set(['general']);
+  for(const c of (typeof visibleCompanies==='function' ? visibleCompanies() : [])){
+    const id = 'co_'+c.id; if(seen.has(id)) continue; seen.add(id); list.push({ id, name:c.name, icon:'🏢', company:c.id });
+  }
+  for(const t of Object.values(v.topics)){ if(seen.has(t.id)) continue; seen.add(t.id); list.push({ id:t.id, name:t.name, icon: t.id.startsWith('co_')?'🏢':'#' }); }
+  return list;
+}
+function dxTopicName(threadId, id){ const t = dxTopicsFor(threadId).find(x=>x.id===id); return t ? t.name : (id==='general'?'general':id); }
+function dxSeenMap(){ return dxLoadJSON('TopicSeen', {}); }
+function dxMarkTopicSeen(threadId, topic){
+  const v = dxView(threadId); const list = v.msgs.filter(m=>m.topic===topic); const last = list.length ? list[list.length-1].createdAt : new Date().toISOString();
+  const map = dxSeenMap(); const k = threadId+'|'+topic; if((map[k]||'') < last){ map[k] = last; dxSaveJSON('TopicSeen', map); }
+}
+function dxUnread(threadId, topic){
+  const seen = dxSeenMap()[threadId+'|'+topic] || '';
+  return dxView(threadId).msgs.filter(m=>m.topic===topic && m.senderId!==currentUser.id && !m.deleted && (m.createdAt||'') > seen).length;
+}
+function dxMembers(threadId){
+  const map = new Map();
+  if(currentUser) map.set(currentUser.id, { id:currentUser.id, name:currentUser.name||currentUser.username||'Me', role:currentUser.role });
+  (typeof groupMembers!=='undefined' && Array.isArray(groupMembers) ? groupMembers : []).forEach(u=>{ if(u && u.id) map.set(u.id, { id:u.id, name:u.name||u.username||'Member', role:u.role||'user' }); });
+  (diMessages[threadId]||[]).forEach(m=>{ if(m.senderId && !map.has(m.senderId)) map.set(m.senderId, { id:m.senderId, name:m.senderName||'Member', role:m.senderRole||'user' }); });
+  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+// Text formatting: escaped first, then safe links, **bold**, `code`, @mentions, search highlight.
+function dxFormat(text, threadId, query){
+  let h = escapeHtml(text||'');
+  h = h.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g, u=>`<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
+  h = h.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>').replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  const names = dxMembers(threadId).map(m=>m.name).filter(Boolean).sort((a,b)=>b.length-a.length);
+  for(const n of names){ const en = escapeHtml(n).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); h = h.replace(new RegExp('@'+en+'(?![\\w])','g'), `<span class="dx-mention${n===(currentUser.name||'')?' is-me':''}">@${escapeHtml(n)}</span>`); }
+  const q = (query||'').trim();
+  if(q){ const eq = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); try{ h = h.replace(new RegExp('(?![^<]*>)'+eq,'gi'), x=>`<mark>${x}</mark>`); }catch(e){} }
+  return h;
+}
+function dxCardHtml(card){
+  if(!card || !card.kind) return '';
+  const icon = card.kind==='voucher' ? '🧾' : card.kind==='ledger' ? '📒' : '📊';
+  const canOpen = !!(card.companyId && companies.some(c=>c.id===card.companyId));
+  return `<div class="dx-card dx-card-${escapeAttr(card.kind)}">
+    <div class="dx-card-h"><span class="dx-card-ic" aria-hidden="true">${icon}</span><div><b>${escapeHtml(card.title||'')}</b><span>${escapeHtml(card.companyName||'')}${card.date?' · '+escapeHtml(card.date):''}</span></div>${card.amount!=null && card.amount!=='' ? `<em>${escapeHtml(card.amountLabel || ('₹'+fmt(Math.abs(Number(card.amount)||0))))}</em>` : ''}</div>
+    ${card.sub ? `<div class="dx-card-sub">${escapeHtml(card.sub)}</div>` : ''}
+    ${Array.isArray(card.lines) && card.lines.length ? `<div class="dx-card-lines">${card.lines.slice(0,6).map(l=>`<div><span>${escapeHtml(String(l[0]||''))}</span><b>${escapeHtml(String(l[1]||''))}</b></div>`).join('')}</div>` : ''}
+    ${canOpen ? `<button type="button" class="dx-card-open" data-dx-open-card="${escapeAttr(JSON.stringify({k:card.kind,c:card.companyId,r:card.refId||''}))}">Open in books →</button>` : `<div class="dx-card-note">Snapshot shared from ${escapeHtml(card.companyName||'the books')}</div>`}
+  </div>`;
+}
+function dxTaskHtml(m){
+  const t = m.task; if(!t) return '';
+  const done = m.taskStatus==='done';
+  const today = new Date().toISOString().slice(0,10);
+  const overdue = !done && t.due && t.due < today;
+  return `<div class="dx-task${done?' is-done':''}${overdue?' is-overdue':''}">
+    <button type="button" class="dx-task-chk" data-dx-task-toggle="${escapeAttr(m.id)}" role="checkbox" aria-checked="${done}" aria-label="${done?'Reopen':'Mark done'}: ${escapeAttr(t.title)}">${done?'✓':''}</button>
+    <div><b>${escapeHtml(t.title)}</b><span>${t.assigneeName?`👤 ${escapeHtml(t.assigneeName)}`:'Unassigned'}${t.due?` · 📅 ${escapeHtml(new Date(t.due+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}))}${overdue?' · overdue':''}`:''}${done&&m.taskBy?` · done by ${escapeHtml(m.taskBy)}`:''}</span></div>
+  </div>`;
+}
+function dxMessageHtml(m, threadId, prev, opts){
+  const mine = m.senderId===currentUser.id;
+  const grouped = prev && !prev.ev && prev.senderId===m.senderId && !m.broadcast && !prev.broadcast && (new Date(m.createdAt)-new Date(prev.createdAt) < 5*60000) && dxDayLabel(prev.createdAt)===dxDayLabel(m.createdAt);
+  const q = opts.search;
+  const active = q && opts.activeId===m.id;
+  const seenList = m.broadcast ? (((diReceipts[threadId]||{})[m.id])||[]) : [];
+  const reacts = Object.entries(m.reactions||{});
+  const role = m.senderRole==='support'?'Support':m.senderRole==='admin'?'Admin':'';
+  const editing = dxEditing && dxEditing.id===m.id;
+  return `<div class="dx-msg${mine?' is-mine':''}${grouped?' is-grouped':''}${m.broadcast?' is-broadcast':''}${m.deleted?' is-deleted':''}${active?' is-active':''}${m.pinned?' is-pinned':''}" id="diMsg-${escapeAttr(m.id)}">
+    ${grouped ? '<span class="dx-av-sp"></span>' : dxAvatar(m.senderName, m.senderId)}
+    <div class="dx-body">
+      ${grouped ? '' : `<div class="dx-meta"><b>${escapeHtml(mine?'You':(m.senderName||''))}</b>${role?`<span class="dx-role">${role}</span>`:''}<time datetime="${escapeAttr(m.createdAt||'')}" title="${escapeAttr(fmtTimestamp(m.createdAt))}">${dxTime(m.createdAt)}</time>${m.pinned?'<span class="dx-pin-flag" title="Pinned">📌</span>':''}</div>`}
+      <div class="dx-bubble">
+        ${m.broadcast ? `<div class="dx-ann">📢 Announcement</div>` : ''}
+        ${m.replyTo && !m.deleted ? `<button type="button" class="dx-quote" data-di-jump-to-msg="${escapeAttr(m.replyTo.id)}"><b>${escapeHtml(m.replyTo.senderName||'')}</b><span>${escapeHtml(m.replyTo.preview||'')}</span></button>` : ''}
+        ${m.deleted ? `<i class="dx-del">This message was deleted</i>` : editing ? `<div class="dx-edit"><textarea id="dxEditBox" rows="2" maxlength="3900">${escapeHtml(dxEditing.text)}</textarea><div><button type="button" class="dx-btn-sm" id="dxEditCancel">Cancel</button><button type="button" class="dx-btn-sm is-primary" id="dxEditSave">Save</button></div></div>` : (m.text ? `<div class="dx-text">${dxFormat(m.text, threadId, q)}</div>` : '')}
+        ${!m.deleted ? dxCardHtml(m.card) : ''}
+        ${!m.deleted ? dxTaskHtml(m) : ''}
+        ${!m.deleted ? diMessageAttachmentsHtml(m) : ''}
+        ${m.edited && !m.deleted ? `<span class="dx-edited" title="Edited ${escapeAttr(fmtTimestamp(m.edited))}">edited</span>` : ''}
+      </div>
+      ${reacts.length ? `<div class="dx-reacts">${reacts.map(([e,who])=>`<button type="button" class="dx-react${who[currentUser.id]!==undefined?' is-mine':''}" data-dx-react="${escapeAttr(m.id)}" data-dx-emoji="${escapeAttr(e)}" title="${escapeAttr(Object.values(who).join(', '))}">${e} <b>${Object.keys(who).length}</b></button>`).join('')}</div>` : ''}
+      ${m.broadcast && seenList.length ? `<div class="dx-seen">👁 Seen by ${escapeHtml(seenList.slice(0,3).map(r=>r.name||'someone').join(', '))}${seenList.length>3?` +${seenList.length-3} more`:''}</div>` : ''}
+      ${dxReactFor===m.id ? `<div class="dx-react-pick" role="menu">${DX_REACTIONS.map(e=>`<button type="button" data-dx-react="${escapeAttr(m.id)}" data-dx-emoji="${e}" role="menuitem">${e}</button>`).join('')}</div>` : ''}
+    </div>
+    ${m.deleted || editing ? '' : `<div class="dx-actions" role="toolbar" aria-label="Message actions">
+      <button type="button" data-dx-react-open="${escapeAttr(m.id)}" title="React" aria-label="React">☺</button>
+      <button type="button" data-di-reply-to="${escapeAttr(m.id)}" title="Reply" aria-label="Reply">↩</button>
+      <button type="button" data-dx-pin="${escapeAttr(m.id)}" title="${m.pinned?'Unpin':'Pin'}" aria-label="${m.pinned?'Unpin':'Pin'}">📌</button>
+      ${mine && m.text && !m.card ? `<button type="button" data-dx-edit="${escapeAttr(m.id)}" title="Edit" aria-label="Edit">✎</button>` : ''}
+      ${mine ? `<button type="button" data-dx-delete="${escapeAttr(m.id)}" title="Delete" aria-label="Delete">🗑</button>` : ''}
+    </div>`}
+  </div>`;
+}
+function dxMessagesHtml(parts){
+  const { threadId } = parts;
+  const v = dxView(threadId);
+  const inTopic = dxIsGroup(parts) ? v.msgs.filter(m=>m.topic===dxTopic) : v.msgs;
+  if(!diMessages[threadId]) return `<div class="dx-empty"><div class="dx-spin" aria-hidden="true"></div>Loading conversation…</div>`;
+  if(!inTopic.length) return `<div class="dx-empty"><div class="dx-empty-ic" aria-hidden="true">💬</div><b>No messages ${dxIsGroup(parts)?`in #${escapeHtml(dxTopicName(threadId, dxTopic))} `:''}yet</b><span>Say hello, share a voucher or ledger from your books, or create a task.</span></div>`;
+  const seen = dxSeenMap()[threadId+'|'+(dxIsGroup(parts)?dxTopic:'general')] || '';
+  let out = '', lastDay = '', prev = null, newShown = false;
+  const opts = { search: diSearchOpen ? diSearchQuery : '', activeId: diSearchMatchIds[diSearchActiveIdx] };
+  for(const m of inTopic){
+    const day = dxDayLabel(m.createdAt);
+    if(day!==lastDay){ out += `<div class="dx-day"><span>${escapeHtml(day)}</span></div>`; lastDay = day; prev = null; }
+    if(!newShown && seen && (m.createdAt||'') > seen && m.senderId!==currentUser.id){ out += `<div class="dx-new" id="dxNewMarker"><span>New</span></div>`; newShown = true; prev = null; }
+    out += dxMessageHtml(m, threadId, prev, opts); prev = m;
+  }
+  return out;
+}
+function dxPinnedHtml(threadId){
+  const v = dxView(threadId); const list = v.msgs.filter(m=>m.pinned && !m.deleted);
+  if(!list.length) return `<div class="dx-side-empty">📌 Nothing pinned yet. Pin a message to keep it here for everyone.</div>`;
+  return list.slice().reverse().map(m=>`<button type="button" class="dx-side-item" data-di-jump-to-msg="${escapeAttr(m.id)}" data-dx-topic-of="${escapeAttr(m.topic)}"><b>${escapeHtml(m.senderName||'')}</b><span>${escapeHtml((m.text || (m.card&&m.card.title) || (m.task&&m.task.title) || '📎 file').slice(0,120))}</span><em>#${escapeHtml(dxTopicName(threadId,m.topic))} · ${escapeHtml(dxDayLabel(m.createdAt))}</em></button>`).join('');
+}
+function dxTasksHtml(threadId){
+  const v = dxView(threadId); const today = new Date().toISOString().slice(0,10);
+  let list = v.msgs.filter(m=>m.task && !m.deleted);
+  const counts = { open: list.filter(m=>m.taskStatus!=='done').length, mine: list.filter(m=>m.taskStatus!=='done' && m.task.assigneeId===currentUser.id).length, done: list.filter(m=>m.taskStatus==='done').length };
+  list = dxTaskFilter==='done' ? list.filter(m=>m.taskStatus==='done') : dxTaskFilter==='mine' ? list.filter(m=>m.taskStatus!=='done' && m.task.assigneeId===currentUser.id) : list.filter(m=>m.taskStatus!=='done');
+  list.sort((a,b)=> (a.task.due||'9999').localeCompare(b.task.due||'9999'));
+  return `<div class="dx-seg-sm" role="tablist">${[['open','Open'],['mine','Mine'],['done','Done']].map(([k,l])=>`<button type="button" role="tab" aria-selected="${dxTaskFilter===k}" class="${dxTaskFilter===k?'is-on':''}" data-dx-task-filter="${k}">${l} <b>${counts[k]}</b></button>`).join('')}</div>
+    <button type="button" class="dx-side-add" data-dx-picker="task">＋ New task</button>
+    ${list.length ? list.map(m=>`<div class="dx-side-task">${dxTaskHtml(m)}<button type="button" class="dx-side-jump" data-di-jump-to-msg="${escapeAttr(m.id)}" data-dx-topic-of="${escapeAttr(m.topic)}" aria-label="Show in chat">›</button></div>`).join('') : `<div class="dx-side-empty">${dxTaskFilter==='done'?'No finished tasks yet.':'No open tasks — nice.'}</div>`}`;
+}
+function dxFilesHtml(threadId){
+  const files = diFilesForThread(threadId);
+  if(!files.length) return `<div class="dx-side-empty">📁 No files shared yet. Drag files into the chat or use 📎.</div>`;
+  return files.map(f=>`<button type="button" class="dx-side-item dx-file" data-di-jump-to-msg="${escapeAttr(f.msgId)}"><span class="dx-file-ic" aria-hidden="true">${(f.att.mimeType||'').startsWith('image/')?'🖼️':/pdf/i.test(f.att.mimeType||f.att.name||'')?'📕':/sheet|excel|csv|xls/i.test(f.att.mimeType||f.att.name||'')?'📗':'📄'}</span><span class="dx-file-t"><b>${escapeHtml(f.att.name)}</b><em>${escapeHtml(f.senderName||'')} · ${escapeHtml(dxDayLabel(f.createdAt))} · ${fmt((f.att.size||0)/1024)} KB</em></span></button>`).join('');
+}
+function dxPeopleHtml(threadId){
+  const mem = dxMembers(threadId);
+  return mem.map(u=>`<div class="dx-person">${dxAvatar(u.name,u.id)}<div><b>${escapeHtml(u.name)}${u.id===currentUser.id?' (you)':''}</b><span>${u.role==='support'?'Support':u.role==='admin'?'Administrator':'Member'}</span></div><button type="button" class="dx-btn-sm" data-dx-mention-user="${escapeAttr(u.name)}" title="Mention">@</button></div>`).join('');
+}
+// "Share from your books" pickers — only inside an open company (the books are loaded in `state`).
+function dxPickerHtml(parts){
+  if(!dxPicker) return '';
+  const q = dxPickerQuery.trim().toLowerCase();
+  const head = (title)=>`<div class="dx-pick-h"><b>${title}</b><button type="button" class="dx-x-sm" data-dx-picker-close aria-label="Close">✕</button></div>`;
+  const inBooks = screen==='app' && currentCompany && state && Array.isArray(state.vouchers);
+  if(dxPicker==='menu'){
+    return `<div class="dx-pick dx-menu" role="menu">
+      ${[['voucher','🧾','Share a voucher','Send a voucher with its amount and entries'],['ledger','📒','Share a ledger','Balance and group, with a link back'],['report','📊','Share key figures','Revenue, expenses, profit, cash & bank'],['task','✅','Create a task','Assign someone with a due date'],['templates','⚡','Quick replies','Ready-made messages for common updates'],...(dxIsGroup(parts)?[['topic','#','New topic','Start a channel for a subject']]:[])].map(([k,i,t,s])=>`<button type="button" role="menuitem" data-dx-picker="${k}" ${['voucher','ledger','report'].includes(k)&&!inBooks?'disabled title="Open a company to share from its books"':''}><span aria-hidden="true">${i}</span><span><b>${t}</b><em>${k!=='task'&&k!=='templates'&&k!=='topic'&&!inBooks?'Open a company first':s}</em></span></button>`).join('')}
+    </div>`;
+  }
+  if(dxPicker==='emoji'){
+    return `<div class="dx-pick dx-emoji">${head('Emoji')}<div class="dx-emoji-grid">${DX_EMOJI.map(e=>`<button type="button" data-dx-emoji-insert="${e}">${e}</button>`).join('')}</div></div>`;
+  }
+  if(dxPicker==='templates'){
+    return `<div class="dx-pick">${head('Quick replies')}<div class="dx-pick-list">${DX_TEMPLATES.map((t,i)=>`<button type="button" class="dx-pick-row" data-dx-template="${i}"><span>${escapeHtml(t)}</span></button>`).join('')}</div></div>`;
+  }
+  if(dxPicker==='topic'){
+    return `<div class="dx-pick">${head('New topic')}<div class="dx-pick-form"><label for="dxTopicName">Topic name</label><input id="dxTopicName" type="text" maxlength="40" placeholder="e.g. gst-filing, payroll, audit-2026" value="${escapeAttr(dxNewTopic)}"><button type="button" class="dx-btn is-primary" id="dxTopicCreate">Create topic</button></div></div>`;
+  }
+  if(dxPicker==='task'){
+    const mem = dxMembers(parts.threadId);
+    return `<div class="dx-pick">${head('New task')}<div class="dx-pick-form">
+      <label for="dxTaskTitle">What needs doing?</label><input id="dxTaskTitle" type="text" maxlength="200" placeholder="e.g. Send October bank statement" value="${escapeAttr(dxTaskDraft.title)}">
+      <div class="dx-two"><div><label for="dxTaskWho">Assign to</label><select id="dxTaskWho"><option value="">Anyone</option>${mem.map(u=>`<option value="${escapeAttr(u.id)}" ${dxTaskDraft.assigneeId===u.id?'selected':''}>${escapeHtml(u.name)}${u.id===currentUser.id?' (you)':''}</option>`).join('')}</select></div>
+      <div><label for="dxTaskDue">Due</label><input id="dxTaskDue" type="date" value="${escapeAttr(dxTaskDraft.due)}"></div></div>
+      <button type="button" class="dx-btn is-primary" id="dxTaskCreate">Create task</button></div></div>`;
+  }
+  if(!inBooks) return `<div class="dx-pick">${head('Share from your books')}<div class="dx-side-empty">Open a company first — sharing reads from the books you have open.</div></div>`;
+  if(dxPicker==='voucher'){
+    const list = state.vouchers.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(v=>{
+      if(!q) return true; const party = (v.entries||[]).map(e=>{ const l = ledgerOf(e.ledgerId); return l?l.name:''; }).join(' ');
+      return `${v.type} ${v.narration||''} ${party} ${voucherAmount(v)} ${v.date||''}`.toLowerCase().includes(q);
+    }).slice(0,40);
+    return `<div class="dx-pick">${head('Share a voucher')}<input id="dxPickSearch" class="dx-pick-search" type="search" placeholder="Search by type, party, narration or amount" value="${escapeAttr(dxPickerQuery)}">
+      <div class="dx-pick-list">${list.map(v=>{ const party = (v.entries||[]).map(e=>ledgerOf(e.ledgerId)).filter(l=>l && !['cash','bank'].includes(bucketOf(l))).map(l=>l.name)[0] || ''; return `<button type="button" class="dx-pick-row" data-dx-share-voucher="${escapeAttr(v.id)}"><span><b>${escapeHtml(v.type)}${(()=>{ const n = dxVNo(v); return n?' '+escapeHtml(n):''; })()}</b><em>${escapeHtml(v.date||'')} · ${escapeHtml(party||v.narration||'')}</em></span><i>₹${fmt(voucherAmount(v))}</i></button>`; }).join('') || '<div class="dx-side-empty">No vouchers match.</div>'}</div></div>`;
+  }
+  if(dxPicker==='ledger'){
+    const list = state.ledgers.filter(l=>!q || (l.name||'').toLowerCase().includes(q)).slice(0,60);
+    return `<div class="dx-pick">${head('Share a ledger')}<input id="dxPickSearch" class="dx-pick-search" type="search" placeholder="Search ledgers" value="${escapeAttr(dxPickerQuery)}">
+      <div class="dx-pick-list">${list.map(l=>{ const b = ledgerBalance(l.id); return `<button type="button" class="dx-pick-row" data-dx-share-ledger="${escapeAttr(l.id)}"><span><b>${escapeHtml(l.name)}</b><em>${escapeHtml((groupOf(l.group)||{}).name||l.group||'')}</em></span><i>₹${fmt(Math.abs(b))} ${b>=0?'Dr':'Cr'}</i></button>`; }).join('') || '<div class="dx-side-empty">No ledgers match.</div>'}</div></div>`;
+  }
+  if(dxPicker==='report'){
+    return `<div class="dx-pick">${head('Share key figures')}<div class="dx-pick-list">${[['fy','This financial year to date'],['month','This month'],['lastmonth','Last month']].map(([k,l])=>`<button type="button" class="dx-pick-row" data-dx-share-report="${k}"><span><b>${l}</b><em>Revenue, expenses, profit, cash & bank</em></span><i>›</i></button>`).join('')}</div></div>`;
+  }
+  return '';
+}
+function dxMentionHtml(parts){
+  if(!dxMention) return '';
+  const q = dxMention.query.toLowerCase();
+  const list = dxMembers(parts.threadId).filter(u=>u.id!==currentUser.id && u.name.toLowerCase().includes(q)).slice(0,6);
+  if(!list.length) return '';
+  return `<div class="dx-mention-pop" role="listbox" aria-label="Mention someone">${list.map((u,i)=>`<button type="button" role="option" class="${i===0?'is-first':''}" data-dx-mention-pick="${escapeAttr(u.name)}">${dxAvatar(u.name,u.id)}<span>${escapeHtml(u.name)}</span><em>${u.role==='support'?'Support':u.role==='admin'?'Admin':''}</em></button>`).join('')}</div>`;
+}
+function dxComposerHtml(parts){
+  const canBroadcast = currentUser.role==='support' && parts.threadType==='group';
+  const len = (diInputDraft||'').length;
+  return `<div class="dx-compose" data-di-thread="${escapeAttr(parts.threadId)}" data-di-thread-type="${escapeAttr(parts.threadType)}" data-di-group-owner="${escapeAttr(parts.groupOwnerId||'')}">
+    ${dxPickerHtml(parts)}
+    ${dxMentionHtml(parts)}
+    ${diReplyTo ? `<div class="dx-replying"><div><b>Replying to ${escapeHtml(diReplyTo.senderName||'')}</b><span>${escapeHtml(diReplyTo.preview||'')}</span></div><button type="button" class="dx-x-sm" id="diCancelReply" aria-label="Cancel reply">✕</button></div>` : ''}
+    ${diPendingAttachments.length ? `<div class="dx-pending">${diPendingAttachments.map((a,i)=>`<span class="dx-chip">📎 ${escapeHtml(a.name)} <em>${fmt(a.size/1024)} KB</em><button type="button" data-di-remove-attachment="${i}" aria-label="Remove ${escapeAttr(a.name)}">✕</button></span>`).join('')}</div>` : ''}
+    <div class="dx-compose-box">
+      <textarea id="diInputBox" rows="1" maxlength="3900" placeholder="${parts.threadType==='group'?`Message #${escapeAttr(dxTopicName(parts.threadId, dxTopic))} — @ to mention, / for commands`:'Write to the Administrator…'}" aria-label="Message" ${diSending?'disabled':''}>${escapeHtml(diInputDraft)}</textarea>
+      <div class="dx-compose-bar">
+        <button type="button" class="dx-tool" data-dx-picker="menu" title="Share from your books, tasks and more" aria-label="More">＋</button>
+        <label for="diFileInput" class="dx-tool" title="Attach files (up to ${DI_ATTACHMENT_MAX_FILES}, ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB each)" aria-label="Attach files">📎</label>
+        <input type="file" id="diFileInput" multiple hidden>
+        <button type="button" class="dx-tool" data-dx-picker="emoji" title="Emoji" aria-label="Emoji">☺</button>
+        ${canBroadcast ? `<label class="dx-ann-toggle${diBroadcastDraft?' is-on':''}" title="Send as a highlighted announcement to the whole group"><input type="checkbox" id="diBroadcastChk" ${diBroadcastDraft?'checked':''}> 📢 Announce</label>` : ''}
+        <span class="dx-len${len>3500?' is-warn':''}">${len>3000?`${len}/3900`:''}</span>
+        <button id="diSendBtn" class="dx-send" type="button" ${diSending?'disabled':''} aria-label="Send">${diSending?'Sending…':'Send'} <span aria-hidden="true">➤</span></button>
+      </div>
+    </div>
+  </div>`;
+}
+function dxChannelsHtml(parts){
+  const role = currentUser.role;
+  let out = '';
+  if(role==='admin'){
+    out += `<div class="dx-ch-sec">Support conversations</div>` + (diAdminThreads.length ? diAdminThreads.map(t=>{ const unread = t.lastSenderId && t.lastSenderId!==currentUser.id && (t.updatedAt||'') > diGetLastSeen(t.id); return `<button type="button" class="dx-ch${diActiveAdminThreadId===t.groupOwnerId?' is-on':''}" data-di-open-thread="${escapeAttr(t.groupOwnerId)}">${dxAvatar(t.supportName||'S', t.groupOwnerId)}<span class="dx-ch-t"><b>${escapeHtml(t.supportName||'Support account')}</b><em>${t.groupName?escapeHtml(t.groupName)+' — ':''}${escapeHtml(t.lastMessageText||'')}</em></span>${unread?'<i class="dx-dot" aria-label="Unread"></i>':''}</button>`; }).join('') : `<div class="dx-side-empty">No Support conversations yet.</div>`);
+    return out;
+  }
+  const gid = diGroupThreadId();
+  if(gid){
+    out += `<div class="dx-ch-sec">${escapeHtml(currentUser.groupName || 'My group')}<button type="button" class="dx-ch-add" data-dx-new-topic title="New topic" aria-label="New topic">＋</button></div>`;
+    out += dxTopicsFor(gid).map(t=>{ const n = dxUnread(gid, t.id); const on = parts && parts.threadType==='group' && dxTopic===t.id; return `<button type="button" class="dx-ch dx-topic${on?' is-on':''}" data-dx-topic="${escapeAttr(t.id)}"><span class="dx-ch-ic" aria-hidden="true">${t.icon}</span><span class="dx-ch-t"><b>${escapeHtml(t.name)}</b></span>${n?`<i class="dx-n">${n}</i>`:''}</button>`; }).join('');
+  }
+  if(role==='support'){
+    out += `<div class="dx-ch-sec">Administrator</div><button type="button" class="dx-ch${diTab==='admin'?' is-on':''}" data-di-tab="admin"><span class="dx-ch-ic" aria-hidden="true">🛡️</span><span class="dx-ch-t"><b>Admin support line</b><em>Private to you and the Administrator</em></span></button>`;
+  }
+  return out;
+}
+function dxActiveParts(){
+  if(!currentUser) return null;
+  if(currentUser.role==='support' && diTab!=='admin'){ const id = diGroupThreadId(); return id ? { threadId:id, threadType:'group', groupOwnerId: currentUser.id } : null; }
+  return diOpenThreadParts();
+}
 function diPanel(){
   const role = currentUser.role;
-  let threadId = null, threadType = null, groupOwnerId = null, headerTitle = 'Data Interchange', headerSub = '';
-  if(role==='admin'){
-    if(diActiveAdminThreadId){
-      threadId = diAdminThreadId(diActiveAdminThreadId);
-      threadType = 'admin'; groupOwnerId = diActiveAdminThreadId;
-      const t = diAdminThreads.find(x=>x.id===threadId);
-      headerTitle = (t && t.supportName) || 'Support account';
-      headerSub = (t && t.groupName) || '';
-    } else {
-      headerTitle = 'Support Conversations';
-    }
-  } else if(role==='support'){
-    if(diTab==='admin'){ threadId = diAdminThreadId(currentUser.id); threadType = 'admin'; groupOwnerId = currentUser.id; headerTitle = 'Admin Support'; headerSub = 'thereckoningbooks@gmail.com'; }
-    else { threadId = diGroupThreadId(); threadType = 'group'; groupOwnerId = currentUser.id; headerTitle = currentUser.groupName || 'My Group'; headerSub = 'Your team'; }
-  } else {
-    threadId = diGroupThreadId(); threadType = 'group'; groupOwnerId = currentUser.groupOwnerId || null;
-    headerTitle = currentUser.groupName || 'My Group'; headerSub = 'Your Support team';
-  }
-  const msgs = threadId ? (diMessages[threadId] || []) : [];
+  const parts = diOpen ? dxActiveParts() : null;
   const showingInbox = role==='admin' && !diActiveAdminThreadId;
-  const canBroadcast = role==='support' && threadType==='group'; // see diBroadcastDraft — Support, group thread only
+  const threadId = parts && parts.threadId;
+  let title = 'Data Interchange', sub = 'Messages, files and work — next to your books';
+  if(role==='admin' && diActiveAdminThreadId){ const t = diAdminThreads.find(x=>x.id===threadId); title = (t && t.supportName) || 'Support account'; sub = (t && t.groupName) || 'Support line'; }
+  else if(parts && parts.threadType==='admin'){ title = 'Admin support line'; sub = 'Private between you and the Administrator'; }
+  else if(parts && parts.threadType==='group'){ title = '#'+dxTopicName(threadId, dxTopic); sub = (currentUser.groupName || 'My group') + ' · ' + dxMembers(threadId).length + ' people'; }
+  const sideTabs = [['pinned','📌','Pinned'],['tasks','✅','Tasks'],['files','📁','Files'],['people','👥','People']];
+  const openTasks = threadId ? dxView(threadId).msgs.filter(m=>m.task && !m.deleted && m.taskStatus!=='done').length : 0;
+  const sideBody = !threadId ? '' : dxSidePane==='tasks' ? dxTasksHtml(threadId) : dxSidePane==='files' ? dxFilesHtml(threadId) : dxSidePane==='people' ? dxPeopleHtml(threadId) : dxPinnedHtml(threadId);
+  const compactPane = !dxExpanded && dxPane!=='chat' && threadId;
+  const noGroup = !threadId && !showingInbox;
   return `
-    <div id="diPanelEl" style="position:fixed;right:86px;bottom:86px;width:340px;max-width:calc(100vw - 44px);height:460px;max-height:calc(100vh - 130px);background:var(--surface,#fff);border:1px solid var(--border,#E1E7E3);border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;z-index:90;">
-      <div style="padding:10px 12px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;justify-content:space-between;align-items:center;gap:8px;background:${DI_COLOR};color:#fff;">
-        <div style="min-width:0;">
-          <strong style="font-size:13px;">${escapeHtml(headerTitle)}</strong>
-          ${!showingInbox && headerSub ? `<div style="font-size:10.5px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(headerSub)}</div>` : ''}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-          <span id="diNotifsToggle" title="${diDesktopNotifsEnabled()?'Desktop alerts on — click to turn off':'Turn on desktop alerts for new messages'}" style="cursor:pointer;font-size:14px;${diDesktopNotifsEnabled()?'opacity:1;':'opacity:.6;'}">🔔</span>
-          ${!showingInbox && threadId ? `<span id="diFilesToggle" title="Shared files" style="cursor:pointer;font-size:14px;${diFilesOpen?'opacity:1;':'opacity:.85;'}">📁</span>` : ''}
-          ${!showingInbox && threadId ? `<span id="diSearchToggle" title="Search this conversation" style="cursor:pointer;font-size:14px;${diSearchOpen?'opacity:1;':'opacity:.85;'}">🔍</span>` : ''}
-          <span id="diCloseBtn" style="cursor:pointer;font-size:15px;">✕</span>
-        </div>
+  <div id="diPanelEl" class="dx-panel${dxExpanded?' is-expanded':''}" role="dialog" aria-label="Data Interchange">
+    <header class="dx-top">
+      <div class="dx-top-t"><span class="dx-logo" aria-hidden="true">${diFabIconSvg()}</span><div><b>${escapeHtml(title)}</b><span>${escapeHtml(sub)}</span></div></div>
+      <div class="dx-top-acts">
+        ${threadId ? `<button type="button" id="diSearchToggle" class="${diSearchOpen?'is-on':''}" title="Search (Ctrl+F)" aria-label="Search this conversation">🔍</button>` : ''}
+        ${threadId && !dxExpanded ? `<button type="button" data-dx-pane="tasks" class="${dxPane==='tasks'?'is-on':''}" title="Tasks" aria-label="Tasks">✅${openTasks?`<i>${openTasks}</i>`:''}</button><button type="button" data-dx-pane="pinned" class="${dxPane==='pinned'?'is-on':''}" title="Pinned" aria-label="Pinned">📌</button><button type="button" id="diFilesToggle" data-dx-pane="files" class="${dxPane==='files'?'is-on':''}" title="Shared files" aria-label="Shared files">📁</button>` : ''}
+        ${threadId ? `<button type="button" id="dxExportBtn" title="Export this conversation (CSV)" aria-label="Export conversation">⭳</button>` : ''}
+        <button type="button" id="diNotifsToggle" class="${diDesktopNotifsEnabled()?'is-on':''}" title="${diDesktopNotifsEnabled()?'Desktop alerts on':'Turn on desktop alerts'}" aria-label="Desktop alerts">🔔</button>
+        <button type="button" id="dxExpandBtn" title="${dxExpanded?'Shrink to a panel':'Open full workspace'}" aria-label="${dxExpanded?'Shrink':'Expand'}">${dxExpanded?'⤡':'⤢'}</button>
+        <button type="button" id="diCloseBtn" title="Close (Esc)" aria-label="Close">✕</button>
       </div>
-      ${role==='support' ? `
-      <div style="display:flex;border-bottom:1px solid var(--border,#E1E7E3);">
-        <span data-di-tab="group" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='group'?`color:${DI_COLOR};border-bottom:2px solid ${DI_COLOR};`:'color:var(--ink-soft);'}">My Group</span>
-        <span data-di-tab="admin" style="flex:1;text-align:center;padding:7px;font-size:11.5px;font-weight:700;cursor:pointer;${diTab==='admin'?`color:${DI_COLOR};border-bottom:2px solid ${DI_COLOR};`:'color:var(--ink-soft);'}">Message Admin</span>
-      </div>` : ''}
-      ${diSearchOpen && !showingInbox && threadId ? `
-      <div style="padding:6px 10px;border-bottom:1px solid var(--border,#E1E7E3);display:flex;align-items:center;gap:6px;background:var(--surface-strong,#EEF3EF);">
-        <input id="diSearchBox" type="text" placeholder="Search messages or files…" value="${escapeAttr(diSearchQuery)}" style="flex:1;font-size:12px;padding:5px 8px;border:1px solid var(--border,#E1E7E3);border-radius:6px;">
-        <span class="muted" style="font-size:10.5px;white-space:nowrap;">${diSearchQuery ? `${diSearchMatchIds.length ? diSearchActiveIdx+1 : 0}/${diSearchMatchIds.length}` : ''}</span>
-        <span id="diSearchPrev" title="Previous match" style="cursor:pointer;font-size:12px;${diSearchMatchIds.length?'':'opacity:.35;pointer-events:none;'}">‹</span>
-        <span id="diSearchNext" title="Next match" style="cursor:pointer;font-size:12px;${diSearchMatchIds.length?'':'opacity:.35;pointer-events:none;'}">›</span>
-        <span id="diSearchClose" style="cursor:pointer;font-size:13px;">✕</span>
-      </div>` : ''}
-      ${showingInbox ? diAdminInboxHtml() : `
-      <div id="diMessagesEl" style="flex:1;overflow-y:auto;padding:10px 12px;font-size:12.5px;line-height:1.5;">
-        ${role==='admin' ? `<span id="diBackToInbox" class="linklike" style="cursor:pointer;font-size:11px;display:inline-block;margin-bottom:8px;">‹ All conversations</span>` : ''}
-        ${!threadId ? `<div class="muted" style="font-size:11.5px;">You're not part of a group yet — a Support account needs to add you first.</div>` :
-          diFilesOpen ? diFilesGalleryHtml(threadId) :
-          diLoading ? `<div class="muted" style="font-size:11.5px;">Loading…</div>` :
-          msgs.length===0 ? `<div class="muted" style="font-size:11.5px;">No messages yet — say hello, or share a file.</div>` :
-          msgs.map(m=>{
-            const isActiveMatch = diSearchOpen && diSearchQuery && diSearchMatchIds[diSearchActiveIdx]===m.id;
-            const isBroadcast = !!m.broadcast;
-            const seenList = isBroadcast ? (((diReceipts[threadId]||{})[m.id])||[]) : [];
-            return `
-            <div id="diMsg-${escapeAttr(m.id)}" style="margin-bottom:10px;display:flex;flex-direction:column;${m.senderId===currentUser.id?'align-items:flex-end;':'align-items:flex-start;'}">
-              ${m.senderId!==currentUser.id ? `<div class="muted" style="font-size:10px;margin-bottom:2px;">${escapeHtml(m.senderName||'')}${m.senderRole==='support'?' · Support':m.senderRole==='admin'?' · Admin':''}</div>` : ''}
-              <div style="max-width:88%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;${isActiveMatch?`outline:2px solid ${DI_COLOR};outline-offset:2px;`:''}${
-                isBroadcast
-                  ? 'background:#FEF3C7;color:#78350F;border:1px solid #F5C451;'
-                  : (m.senderId===currentUser.id ? `background:${DI_COLOR};color:#fff;` : 'background:var(--surface-strong,#EEF3EF);color:var(--ink,#1B2420);')
-              }">${isBroadcast ? `<div style="font-size:10px;font-weight:700;margin-bottom:3px;">📢 ANNOUNCEMENT</div>` : ''}${m.replyTo ? `<div data-di-jump-to-msg="${escapeAttr(m.replyTo.id)}" style="cursor:pointer;border-left:2px solid ${m.senderId===currentUser.id&&!isBroadcast?'rgba(255,255,255,.65)':DI_COLOR};padding:2px 6px;margin-bottom:5px;opacity:.85;font-size:11px;">
-                <div style="font-weight:700;">${escapeHtml(m.replyTo.senderName||'')}</div>
-                <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.replyTo.preview||'')}</div>
-              </div>` : ''}${m.text?diHighlightText(m.text, diSearchOpen?diSearchQuery:''):''}${diMessageAttachmentsHtml(m)}</div>
-              <div class="muted" style="font-size:9.5px;margin-top:2px;display:flex;align-items:center;gap:7px;">
-                <span>${fmtTimestamp(m.createdAt)}</span>
-                <span data-di-reply-to="${escapeAttr(m.id)}" title="Reply" style="cursor:pointer;">↩</span>
-              </div>
-              ${isBroadcast && seenList.length ? `<div class="muted" style="font-size:9.5px;margin-top:2px;">👁 Seen by ${escapeHtml(seenList.slice(0,2).map(r=>r.name||'someone').join(', '))}${seenList.length>2?` +${seenList.length-2} more`:''}</div>` : ''}
-            </div>
-          `;}).join('')}
-      </div>
-      ${diError ? `<div style="color:#D64545;font-size:11.5px;padding:0 12px 6px;">${escapeHtml(diError)}</div>` : ''}
-      ${threadId ? `
-      <div style="padding:8px;border-top:1px solid var(--border,#E1E7E3);" data-di-thread="${escapeAttr(threadId)}" data-di-thread-type="${escapeAttr(threadType)}" data-di-group-owner="${escapeAttr(groupOwnerId||'')}">
-        ${diReplyTo ? `<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:6px;background:var(--surface-strong);padding:5px 8px;border-radius:6px;border-left:3px solid ${DI_COLOR};">
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;">${escapeHtml(diReplyTo.senderName||'')}</div>
-            <div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(diReplyTo.preview||'')}</div>
-          </div>
-          <span id="diCancelReply" style="cursor:pointer;">✕</span>
-        </div>` : ''}
-        ${diPendingAttachments.length ? `<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">${diPendingAttachments.map((a,i)=>`
-          <div style="display:flex;align-items:center;gap:6px;font-size:11px;background:var(--surface-strong);padding:5px 8px;border-radius:6px;">
-            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${escapeHtml(a.name)} (${fmt(a.size/1024)} KB)</span>
-            <span data-di-remove-attachment="${i}" style="cursor:pointer;">✕</span>
-          </div>`).join('')}</div>` : ''}
-        ${canBroadcast ? `
-        <label style="display:flex;align-items:center;gap:5px;font-size:10.5px;margin-bottom:6px;cursor:pointer;color:var(--ink-soft);">
-          <input type="checkbox" id="diBroadcastChk" ${diBroadcastDraft?'checked':''} style="margin:0;"> 📢 Send as announcement (highlighted for the whole group)
-        </label>` : ''}
-        <div style="display:flex;gap:6px;align-items:center;">
-          <label for="diFileInput" title="Attach up to ${DI_ATTACHMENT_MAX_FILES} files — ${DI_ATTACHMENT_MAX_BYTES/1024|0} KB each" style="cursor:pointer;display:flex;align-items:center;padding:0 4px;font-size:17px;${diPendingAttachments.length>=DI_ATTACHMENT_MAX_FILES?'opacity:.4;pointer-events:none;':''}">📎</label>
-          <input type="file" id="diFileInput" multiple style="display:none;">
-          <input id="diInputBox" type="text" placeholder="Type a message…" value="${escapeAttr(diInputDraft)}" style="flex:1;font-size:12.5px;padding:8px 10px;border:1px solid var(--border,#E1E7E3);border-radius:8px;" ${diSending?'disabled':''}>
-          <button id="diSendBtn" class="btn small" type="button" ${diSending?'disabled':''}>Send</button>
-        </div>
-      </div>` : ''}
-      `}
+    </header>
+    ${!dxExpanded && (role==='support' || (parts && parts.threadType==='group')) ? `<nav class="dx-strip" aria-label="Channels">${(()=>{ const gid = diGroupThreadId(); let h=''; if(gid) h += dxTopicsFor(gid).map(t=>{ const n = dxUnread(gid,t.id); return `<button type="button" class="dx-strip-b${parts && parts.threadType==='group' && dxTopic===t.id?' is-on':''}" data-dx-topic="${escapeAttr(t.id)}">${t.icon==='#'?'#':'🏢 '}${escapeHtml(t.name)}${n?`<i>${n}</i>`:''}</button>`; }).join(''); if(role==='support') h += `<button type="button" class="dx-strip-b${diTab==='admin'?' is-on':''}" data-di-tab="admin">🛡️ Admin</button>`; if(gid) h += `<button type="button" class="dx-strip-b dx-strip-add" data-dx-new-topic aria-label="New topic">＋</button>`; return h; })()}</nav>` : ''}
+    ${diSearchOpen && threadId ? `<div class="dx-search"><input id="diSearchBox" type="search" placeholder="Search messages, files, cards and tasks…" value="${escapeAttr(diSearchQuery)}"><span>${diSearchQuery ? `${diSearchMatchIds.length ? diSearchActiveIdx+1 : 0} / ${diSearchMatchIds.length}` : ''}</span><button type="button" id="diSearchPrev" aria-label="Previous match" ${diSearchMatchIds.length?'':'disabled'}>‹</button><button type="button" id="diSearchNext" aria-label="Next match" ${diSearchMatchIds.length?'':'disabled'}>›</button><button type="button" id="diSearchClose" aria-label="Close search">✕</button></div>` : ''}
+    <div class="dx-grid">
+      ${dxExpanded ? `<aside class="dx-channels" aria-label="Channels">${dxChannelsHtml(parts)}</aside>` : ''}
+      <section class="dx-center">
+        ${showingInbox && !dxExpanded ? `<div id="diMessagesEl" class="dx-list">${dxChannelsHtml(parts)}</div>` :
+          showingInbox ? `<div class="dx-empty"><div class="dx-empty-ic" aria-hidden="true">🛡️</div><b>Pick a Support conversation</b><span>Every Support account's private line appears on the left.</span></div>` :
+          noGroup ? `<div class="dx-empty dx-nogroup"><div class="dx-empty-ic" aria-hidden="true">👥</div><b>Data Interchange works inside a team</b><span>Once your Support administrator adds you to a group, you can chat by company, share vouchers and ledgers, assign tasks and swap files here — all next to your books.</span><span class="dx-muted">Your messages stay inside your group. Nothing is shared outside it.</span></div>` :
+          compactPane ? `<div id="diMessagesEl" class="dx-list dx-pane">${dxPane==='tasks'?dxTasksHtml(threadId):dxPane==='files'?dxFilesHtml(threadId):dxPinnedHtml(threadId)}</div>` :
+          `${role==='admin' && !dxExpanded ? `<button type="button" id="diBackToInbox" class="dx-back">‹ All conversations</button>` : ''}
+          ${(()=>{ const v = threadId ? dxView(threadId) : null; const pins = v ? v.msgs.filter(m=>m.pinned && !m.deleted && (parts.threadType!=='group' || m.topic===dxTopic)) : []; return pins.length ? `<button type="button" class="dx-pinbar" data-di-jump-to-msg="${escapeAttr(pins[pins.length-1].id)}">📌 <b>${escapeHtml(pins[pins.length-1].senderName||'')}:</b> <span>${escapeHtml((pins[pins.length-1].text||(pins[pins.length-1].card&&pins[pins.length-1].card.title)||'pinned message').slice(0,90))}</span>${pins.length>1?`<em>+${pins.length-1}</em>`:''}</button>` : ''; })()}
+          <div id="diMessagesEl" class="dx-list" aria-live="polite">${dxMessagesHtml(parts)}</div>
+          <button type="button" id="dxJumpLatest" class="dx-jump" hidden>↓ Latest</button>
+          ${diError ? `<div class="dx-err" role="alert">${escapeHtml(diError)}</div>` : ''}
+          ${dxComposerHtml(parts)}`}
+        <div class="dx-drop" id="dxDrop" hidden><div>📎 Drop files to attach</div></div>
+      </section>
+      ${dxExpanded && threadId ? `<aside class="dx-side"><nav class="dx-side-tabs" role="tablist">${sideTabs.map(([k,i,l])=>`<button type="button" role="tab" aria-selected="${dxSidePane===k}" class="${dxSidePane===k?'is-on':''}" data-dx-side="${k}">${i} ${l}${k==='tasks'&&openTasks?` <i>${openTasks}</i>`:''}</button>`).join('')}</nav><div class="dx-side-body">${sideBody}</div></aside>` : ''}
     </div>
-  `;
+  </div>
+  ${dxExpanded ? '<div class="dx-scrim" id="dxScrim"></div>' : ''}`;
 }
+// ---- Building shared cards from the open company's books (read-only) ----
+function dxVoucherCard(v){
+  const lines = (v.entries||[]).slice(0,5).map(e=>{ const l = ledgerOf(e.ledgerId); return [ (l?l.name:'—'), e.dr ? `₹${fmt(e.dr)} Dr` : `₹${fmt(e.cr||0)} Cr` ]; });
+  return { kind:'voucher', companyId: currentCompany.id, companyName: currentCompany.name, refId: v.id, title: (()=>{ const n = dxVNo(v); return v.type==='Sales' && n ? `Sales invoice ${n}` : `${v.type} voucher`; })(), date: v.date||'', amount: voucherAmount(v), sub: v.narration||'', lines };
+}
+function dxLedgerCard(l){
+  const b = ledgerBalance(l.id);
+  const lines = [['Group', (groupOf(l.group)||{}).name || l.group || ''], ['Balance', `₹${fmt(Math.abs(b))} ${b>=0?'Dr':'Cr'}`]];
+  if(l.gstin) lines.push(['GSTIN', l.gstin]);
+  if(l.creditDays) lines.push(['Credit days', String(l.creditDays)]);
+  return { kind:'ledger', companyId: currentCompany.id, companyName: currentCompany.name, refId: l.id, title: l.name, amount: Math.abs(b), amountLabel: `₹${fmt(Math.abs(b))} ${b>=0?'Dr':'Cr'}`, lines };
+}
+function dxReportCard(period){
+  const t = new Date(), iso = d=>d.toISOString().slice(0,10);
+  let from, to = iso(t), label;
+  if(period==='month'){ from = iso(new Date(t.getFullYear(), t.getMonth(), 1)); label = 'This month'; }
+  else if(period==='lastmonth'){ const a = new Date(t.getFullYear(), t.getMonth()-1, 1), b = new Date(t.getFullYear(), t.getMonth(), 0); from = iso(a); to = iso(b); label = a.toLocaleDateString('en-IN',{month:'long',year:'numeric'}); }
+  else { const fy = fyBoundsForLabel(fyLabelForDate(to)); from = fy.start; label = 'FY '+fyLabelForDate(to)+' to date'; }
+  const p = qaPeriodTotals(d=>d>=from && d<=to);
+  const profit = (p.revenue||0) + (p.otherIncome||0) - (p.expenses||0);
+  let cash = 0; for(const l of state.ledgers){ const bk = bucketOf(l); if(bk==='cash' || bk==='bank') cash += ledgerBalance(l.id); }
+  return { kind:'snapshot', companyId: currentCompany.id, companyName: currentCompany.name, refId:'', title: `Key figures — ${label}`, date: `${from} to ${to}`, amount: profit, amountLabel: `${profit<0?'−':''}₹${fmt(Math.abs(profit))} ${profit<0?'loss':'profit'}`,
+    lines: [['Revenue', `₹${fmt(p.revenue||0)}`], ['Other income', `₹${fmt(p.otherIncome||0)}`], ['Expenses', `₹${fmt(p.expenses||0)}`], ['Net profit', `${profit<0?'−':''}₹${fmt(Math.abs(profit))}`], ['Cash & bank now', `₹${fmt(cash)}`]] };
+}
+function dxCsv(threadId, parts){
+  const v = dxView(threadId);
+  const rows = [['Date','Time','Topic','From','Role','Message','Card','Task','Task status','Attachments','Reactions','Pinned','Edited','Deleted']];
+  for(const m of v.msgs){
+    const atts = (Array.isArray(m.attachments)&&m.attachments.length ? m.attachments : (m.attachment?[m.attachment]:[])).map(a=>a.name).join('; ');
+    rows.push([ (m.createdAt||'').slice(0,10), dxTime(m.createdAt), parts.threadType==='group' ? '#'+dxTopicName(threadId, m.topic) : 'Admin line', m.senderName||'', m.senderRole||'', m.deleted?'':(m.text||''), m.card?`${m.card.title} (${m.card.companyName||''})`:'', m.task?`${m.task.title}${m.task.assigneeName?' → '+m.task.assigneeName:''}${m.task.due?' due '+m.task.due:''}`:'', m.task?(m.taskStatus||'open'):'', atts, Object.entries(m.reactions||{}).map(([e,w])=>`${e}${Object.keys(w).length}`).join(' '), m.pinned?'yes':'', m.edited?'yes':'', m.deleted?'yes':'' ]);
+  }
+  return rows.map(r=>r.map(c=>{ const s = String(c==null?'':c); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(',')).join('\n');
+}
+
 /* ---- Local, rule-based answer engine (no API, no cost, no server) ----
    Matches common accounting questions against patterns and answers straight from this company's
    ledgers/vouchers using the same computations the Reports tab uses. Not a real language model —
@@ -21930,180 +22488,270 @@ function wireKeyActivate(id){
 // Wires the Data Interchange bubble/panel declared in diWidget()/diPanel() above. Called on every
 // render (same as wireQAWidget()) — every lookup is optional-chained so it's a no-op whenever the
 // panel (or a piece of it, e.g. the compose bar when no thread is selected yet) isn't in the DOM.
+// Posts an event (react / edit / delete / pin / unpin / task status / topic) as a tiny create-only
+// message, applied by dxView(). The thread summary records it under lastEventAt so it refreshes open
+// panels without raising the unread badge or a "new message" alert.
+async function dxSendEvent(parts, ev){
+  if(!currentUser || !parts || !parts.threadId) return;
+  const now = new Date().toISOString();
+  const row = { threadId: parts.threadId, threadType: parts.threadType, groupOwnerId: parts.groupOwnerId,
+    senderId: currentUser.id, senderName: currentUser.name || currentUser.username || 'User', senderRole: currentUser.role,
+    text: '', ev, topic: parts.threadType==='group' ? dxTopic : 'general', createdAt: now };
+  try{
+    const ref = await db.collection('interchangeMessages').add(row);
+    (diMessages[parts.threadId] = diMessages[parts.threadId] || []).push({ id: (ref && ref.id) || ('local_'+Date.now()), ...row });
+    await db.collection('interchangeThreads').doc(parts.threadId).set({ id: parts.threadId, type: parts.threadType, groupOwnerId: parts.groupOwnerId, lastEventAt: now, lastEventBy: currentUser.id }, {merge:true});
+    diLastKnownEventAt[parts.threadId] = now;
+  }catch(e){
+    console.error('Data Interchange — action failed:', e);
+    toast('Could not save that change' + diErrDetail(e) + ' — check your connection and try again.');
+  }
+  diRerender();
+}
+let diLastKnownEventAt = {};
+function dxMentionsIn(text, threadId){
+  const out = [];
+  for(const u of dxMembers(threadId)){ if(u.id!==currentUser.id && (text||'').includes('@'+u.name)) out.push(u.id); }
+  return out;
+}
+async function dxOpenCard(info){
+  const c = companies.find(x=>x.id===info.c);
+  if(!c || !canAccessCompany(c)){ toast("You don't have access to that company's books."); return; }
+  if(screen!=='app' || !currentCompany || currentCompany.id!==c.id){ await enterCompanyApp(c); }
+  if(!dxExpanded) diOpen = false;
+  if(info.k==='voucher'){
+    if(state.vouchers.some(v=>v.id===info.r)){ if(openVoucherForEditing(info.r)){ modal = null; render(); } }
+    else toast('That voucher is no longer in the books — it may have been deleted.');
+  } else if(info.k==='ledger'){
+    if(state.ledgers.some(l=>l.id===info.r)){ ledgerDetailId = info.r; modal = 'ledgerDetail'; render(); }
+    else toast('That ledger is no longer in the books.');
+  } else { goToTab('reports'); render(); }
+}
+function dxRecomputeSearch(parts){
+  const q = diSearchQuery.trim().toLowerCase();
+  if(!q || !parts){ diSearchMatchIds = []; diSearchActiveIdx = -1; return; }
+  const v = dxView(parts.threadId);
+  const list = parts.threadType==='group' ? v.msgs.filter(m=>m.topic===dxTopic) : v.msgs;
+  diSearchMatchIds = list.filter(m=>{
+    if(m.deleted) return false;
+    const atts = Array.isArray(m.attachments) && m.attachments.length ? m.attachments : (m.attachment ? [m.attachment] : []);
+    const hay = [m.text, m.senderName, m.card && m.card.title, m.card && m.card.sub, m.task && m.task.title, ...atts.map(a=>a.name)].join(' ').toLowerCase();
+    return hay.includes(q);
+  }).map(m=>m.id);
+  diSearchActiveIdx = diSearchMatchIds.length ? diSearchMatchIds.length-1 : -1;
+}
+function dxLoadAll(){
+  if(!currentUser) return;
+  if(currentUser.role==='admin'){
+    diLoadAdminThreads();
+    if(diActiveAdminThreadId){ const tid = diAdminThreadId(diActiveAdminThreadId); diLoadThread(tid, 'admin', diActiveAdminThreadId).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); }); }
+    return;
+  }
+  const gid = diGroupThreadId();
+  if(gid) diLoadThread(gid, 'group', diMyGroupOwnerId()).then(()=>{ if(diTab!=='admin'){ diMarkSeen(gid); dxMarkTopicSeen(gid, dxTopic); } checkInterchangeUpdatesOnce(); });
+  if(currentUser.role==='support'){ const aid = diAdminThreadId(currentUser.id); diLoadThread(aid, 'admin', currentUser.id).then(()=>{ if(diTab==='admin') diMarkSeen(aid); checkInterchangeUpdatesOnce(); }); }
+}
+let dxStickBottom = true;
 function wireDIWidget(){
   document.getElementById('diFab')?.addEventListener('click', ()=>{
     diOpen = !diOpen;
-    if(diOpen){
-      diError = '';
-      if(currentUser.role==='admin'){
-        if(diActiveAdminThreadId){
-          const tid = diAdminThreadId(diActiveAdminThreadId);
-          diLoadThread(tid, 'admin', diActiveAdminThreadId).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
-        } else {
-          diLoadAdminThreads();
-        }
-      } else {
-        const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
-        const tType = diTab==='admin' ? 'admin' : 'group';
-        if(tid) diLoadThread(tid, tType, diMyGroupOwnerId()).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
-      }
-    }
+    if(diOpen){ diError = ''; dxPicker = null; dxLoadAll(); }
     diRerender();
+    if(diOpen) setTimeout(()=>document.getElementById('diInputBox')?.focus(), 0);
   });
   wireKeyActivate('diFab');
-  document.getElementById('diCloseBtn')?.addEventListener('click', ()=>{ diOpen = false; diRerender(); });
-  // Resets every piece of per-thread compose/search draft state -- shared by every place below that
-  // switches which thread is showing (tab switch, inbox drill-in/out), so none of it leaks across.
-  const diResetComposeAndSearch = ()=>{
-    diPendingAttachments = [];
-    diBroadcastDraft = false;
-    diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
-    diReplyTo = null;
-    diFilesOpen = false;
-  };
-  document.querySelectorAll('[data-di-tab]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      if(diTab===el.dataset.diTab) return;
-      diTab = el.dataset.diTab;
-      diResetComposeAndSearch();
-      diError = '';
-      const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
-      const tType = diTab==='admin' ? 'admin' : 'group';
-      diRerender();
-      if(tid) diLoadThread(tid, tType, diMyGroupOwnerId()).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
-    });
+  if(!diOpen) return;
+  const parts = dxActiveParts();
+  const rr = ()=> diRerender();
+  const resetCompose = ()=>{ diPendingAttachments = []; diBroadcastDraft = false; diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1; diReplyTo = null; diFilesOpen = false; dxPicker = null; dxEditing = null; dxReactFor = null; dxPane = 'chat'; };
+  document.getElementById('diCloseBtn')?.addEventListener('click', ()=>{ diOpen = false; rr(); });
+  document.getElementById('dxScrim')?.addEventListener('click', ()=>{ diOpen = false; rr(); });
+  document.getElementById('dxExpandBtn')?.addEventListener('click', ()=>{ dxExpanded = !dxExpanded; try{ localStorage.setItem('rb_dxExpanded', dxExpanded?'1':'0'); }catch(e){} dxPane = 'chat'; rr(); });
+  document.getElementById('diPanelEl')?.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ e.stopPropagation(); if(dxPicker || dxMention || dxReactFor){ dxPicker = null; dxMention = null; dxReactFor = null; rr(); } else if(dxEditing){ dxEditing = null; rr(); } else if(diSearchOpen){ diSearchOpen = false; diSearchQuery=''; diSearchMatchIds=[]; rr(); } else { diOpen = false; rr(); document.getElementById('diFab')?.focus(); } }
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='f' && parts){ e.preventDefault(); diSearchOpen = true; rr(); setTimeout(()=>document.getElementById('diSearchBox')?.focus(), 0); }
   });
-  document.querySelectorAll('[data-di-open-thread]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      diActiveAdminThreadId = el.dataset.diOpenThread;
-      diResetComposeAndSearch();
-      diError = '';
-      const tid = diAdminThreadId(diActiveAdminThreadId);
-      diRerender();
-      diLoadThread(tid, 'admin', diActiveAdminThreadId).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
-    });
-  });
-  document.getElementById('diBackToInbox')?.addEventListener('click', ()=>{
-    diActiveAdminThreadId = null;
-    diResetComposeAndSearch();
-    diError = '';
-    diRerender();
-    diLoadAdminThreads();
-  });
-  document.getElementById('diFileInput')?.addEventListener('change', async (e)=>{
-    const files = Array.from(e.target.files || []);
-    for(const f of files){ await diAttachFile(f); } // sequential -- each call reads diPendingAttachments' current length/combined size before awaiting its own file read
-    e.target.value = '';
-  });
-  document.querySelectorAll('[data-di-remove-attachment]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const idx = Number(el.dataset.diRemoveAttachment);
-      diPendingAttachments = diPendingAttachments.filter((_,i)=>i!==idx);
-      diRerender();
-    });
-  });
-  document.getElementById('diBroadcastChk')?.addEventListener('change', e=>{ diBroadcastDraft = e.target.checked; });
-  // ---- Search within a thread ----
-  document.getElementById('diSearchToggle')?.addEventListener('click', ()=>{
-    diSearchOpen = !diSearchOpen;
-    if(!diSearchOpen){ diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1; }
-    else { diFilesOpen = false; } // search and the files gallery share the message-list area -- only one shows at a time
-    diRerender();
-    if(diSearchOpen) setTimeout(()=>document.getElementById('diSearchBox')?.focus(), 0);
-  });
-  document.getElementById('diSearchClose')?.addEventListener('click', ()=>{
-    diSearchOpen = false; diSearchQuery = ''; diSearchMatchIds = []; diSearchActiveIdx = -1;
-    diRerender();
-  });
-  document.getElementById('diSearchBox')?.addEventListener('input', e=>{
-    diSearchQuery = e.target.value;
-    const open = diOpenThreadParts();
-    diRecomputeSearchMatches(open ? (diMessages[open.threadId]||[]) : []);
-    diRerender();
-    diScrollToActiveMatch();
-  });
-  document.getElementById('diSearchPrev')?.addEventListener('click', ()=>{
-    if(!diSearchMatchIds.length) return;
-    diSearchActiveIdx = (diSearchActiveIdx-1+diSearchMatchIds.length) % diSearchMatchIds.length;
-    diRerender();
-    diScrollToActiveMatch();
-  });
-  document.getElementById('diSearchNext')?.addEventListener('click', ()=>{
-    if(!diSearchMatchIds.length) return;
-    diSearchActiveIdx = (diSearchActiveIdx+1) % diSearchMatchIds.length;
-    diRerender();
-    diScrollToActiveMatch();
-  });
-  // ---- Shared files gallery ----
-  document.getElementById('diFilesToggle')?.addEventListener('click', ()=>{
-    diFilesOpen = !diFilesOpen;
-    if(diFilesOpen){ diSearchOpen = false; } // see diSearchToggle above -- mutually exclusive with search
-    diRerender();
-  });
-  // ---- Desktop notifications toggle ----
+  // ---- channels / threads ----
+  document.querySelectorAll('[data-dx-topic]').forEach(el=> el.addEventListener('click', ()=>{
+    const gid = diGroupThreadId(); if(!gid) return;
+    diDrafts[(diTab==='admin'?diAdminThreadId(currentUser.id):gid)+'|'+dxTopic] = diInputDraft;
+    dxTopic = el.dataset.dxTopic; diTab = 'group'; resetCompose(); diError = '';
+    diInputDraft = diDrafts[gid+'|'+dxTopic] || '';
+    if(!diMessages[gid]) diLoadThread(gid, 'group', diMyGroupOwnerId());
+    dxMarkTopicSeen(gid, dxTopic); diMarkSeen(gid); checkInterchangeUpdatesOnce();
+    rr(); setTimeout(()=>document.getElementById('diInputBox')?.focus(), 0);
+  }));
+  document.querySelectorAll('[data-di-tab]').forEach(el=> el.addEventListener('click', ()=>{
+    if(diTab===el.dataset.diTab) return;
+    diTab = el.dataset.diTab; resetCompose(); diError = '';
+    const tid = diTab==='admin' ? diAdminThreadId(currentUser.id) : diGroupThreadId();
+    rr();
+    if(tid) diLoadThread(tid, diTab==='admin'?'admin':'group', diMyGroupOwnerId()).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+  }));
+  document.querySelectorAll('[data-di-open-thread]').forEach(el=> el.addEventListener('click', ()=>{
+    diActiveAdminThreadId = el.dataset.diOpenThread; resetCompose(); diError = '';
+    const tid = diAdminThreadId(diActiveAdminThreadId); rr();
+    diLoadThread(tid, 'admin', diActiveAdminThreadId).then(()=>{ diMarkSeen(tid); checkInterchangeUpdatesOnce(); });
+  }));
+  document.getElementById('diBackToInbox')?.addEventListener('click', ()=>{ diActiveAdminThreadId = null; resetCompose(); diError = ''; rr(); diLoadAdminThreads(); });
+  document.querySelectorAll('[data-dx-new-topic]').forEach(el=> el.addEventListener('click', ()=>{ if(diTab==='admin'){ diTab='group'; } dxPicker = 'topic'; dxPane = 'chat'; rr(); setTimeout(()=>document.getElementById('dxTopicName')?.focus(), 0); }));
+  // ---- panes ----
+  document.querySelectorAll('[data-dx-pane]').forEach(el=> el.addEventListener('click', ()=>{ dxPane = dxPane===el.dataset.dxPane ? 'chat' : el.dataset.dxPane; diSearchOpen = false; rr(); }));
+  document.querySelectorAll('[data-dx-side]').forEach(el=> el.addEventListener('click', ()=>{ dxSidePane = el.dataset.dxSide; rr(); }));
+  document.querySelectorAll('[data-dx-task-filter]').forEach(el=> el.addEventListener('click', ()=>{ dxTaskFilter = el.dataset.dxTaskFilter; rr(); }));
+  // ---- search ----
+  document.getElementById('diSearchToggle')?.addEventListener('click', ()=>{ diSearchOpen = !diSearchOpen; dxPane = 'chat'; if(!diSearchOpen){ diSearchQuery=''; diSearchMatchIds=[]; diSearchActiveIdx=-1; } rr(); if(diSearchOpen) setTimeout(()=>document.getElementById('diSearchBox')?.focus(), 0); });
+  document.getElementById('diSearchClose')?.addEventListener('click', ()=>{ diSearchOpen = false; diSearchQuery=''; diSearchMatchIds=[]; diSearchActiveIdx=-1; rr(); });
+  document.getElementById('diSearchBox')?.addEventListener('input', e=>{ diSearchQuery = e.target.value; dxRecomputeSearch(parts); rr(); diScrollToActiveMatch(); });
+  document.getElementById('diSearchBox')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); if(diSearchMatchIds.length){ diSearchActiveIdx = (diSearchActiveIdx + (e.shiftKey?-1:1) + diSearchMatchIds.length) % diSearchMatchIds.length; rr(); diScrollToActiveMatch(); } } });
+  document.getElementById('diSearchPrev')?.addEventListener('click', ()=>{ if(!diSearchMatchIds.length) return; diSearchActiveIdx = (diSearchActiveIdx-1+diSearchMatchIds.length)%diSearchMatchIds.length; rr(); diScrollToActiveMatch(); });
+  document.getElementById('diSearchNext')?.addEventListener('click', ()=>{ if(!diSearchMatchIds.length) return; diSearchActiveIdx = (diSearchActiveIdx+1)%diSearchMatchIds.length; rr(); diScrollToActiveMatch(); });
+  // ---- notifications ----
   document.getElementById('diNotifsToggle')?.addEventListener('click', ()=>{
-    if(diDesktopNotifsEnabled()){
-      try{ localStorage.setItem(diDesktopNotifsKey(), '0'); }catch(e){}
-      diRerender();
-      return;
-    }
-    if(typeof Notification==='undefined'){ diError = 'Desktop notifications are not supported in this browser.'; diRerender(); return; }
-    if(Notification.permission==='granted'){
-      try{ localStorage.setItem(diDesktopNotifsKey(), '1'); }catch(e){}
-      diRerender();
-    } else if(Notification.permission==='denied'){
-      diError = 'Desktop notifications are blocked for this site in your browser settings.';
-      diRerender();
-    } else {
-      Notification.requestPermission().then(perm=>{
-        if(perm==='granted'){ try{ localStorage.setItem(diDesktopNotifsKey(), '1'); }catch(e){} }
-        diRerender();
-      });
-    }
+    if(diDesktopNotifsEnabled()){ try{ localStorage.setItem(diDesktopNotifsKey(), '0'); }catch(e){} rr(); return; }
+    if(typeof Notification==='undefined'){ toast('Desktop notifications are not supported in this browser.'); return; }
+    if(Notification.permission==='granted'){ try{ localStorage.setItem(diDesktopNotifsKey(), '1'); }catch(e){} rr(); }
+    else if(Notification.permission==='denied'){ toast('Desktop notifications are blocked for this site in your browser settings.'); }
+    else Notification.requestPermission().then(p=>{ if(p==='granted'){ try{ localStorage.setItem(diDesktopNotifsKey(), '1'); }catch(e){} } rr(); });
   });
-  // ---- Reply / quote ----
-  document.querySelectorAll('[data-di-reply-to]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const open = diOpenThreadParts();
-      if(!open) return;
-      const mid = el.dataset.diReplyTo;
-      const msg = (diMessages[open.threadId]||[]).find(m=>m.id===mid);
-      if(!msg) return;
-      const rawPreview = msg.text || (Array.isArray(msg.attachments) && msg.attachments.length ? '📎 '+msg.attachments.map(a=>a.name).join(', ') : (msg.attachment ? '📎 '+msg.attachment.name : ''));
-      diReplyTo = { id: msg.id, senderName: msg.senderName || '', preview: (rawPreview||'').slice(0,140) };
-      diRerender();
-      setTimeout(()=>document.getElementById('diInputBox')?.focus(), 0);
-    });
+  // ---- export ----
+  document.getElementById('dxExportBtn')?.addEventListener('click', ()=>{
+    if(!parts) return;
+    const csv = dxCsv(parts.threadId, parts);
+    const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `Data_Interchange_${(parts.threadType==='group'?(currentUser.groupName||'Group'):'Admin_line').replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    toast('Conversation exported', {type:'success'});
   });
-  document.getElementById('diCancelReply')?.addEventListener('click', ()=>{ diReplyTo = null; diRerender(); });
-  // ---- Jump to a quoted/gallery message ----
-  document.querySelectorAll('[data-di-jump-to-msg]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      const mid = el.dataset.diJumpToMsg;
-      if(diFilesOpen){ diFilesOpen = false; diRerender(); }
-      setTimeout(()=>{
-        const target = document.getElementById('diMsg-'+mid);
-        if(target){
-          target.scrollIntoView({ block: 'center' });
-          target.style.outline = `2px solid ${DI_COLOR}`;
-          target.style.outlineOffset = '2px';
-          setTimeout(()=>{ target.style.outline = ''; target.style.outlineOffset = ''; }, 1400);
-        }
-      }, diFilesOpen ? 0 : 30);
-    });
+  if(!parts) return;
+  const tid = parts.threadId;
+  // ---- messages: reply, jump, react, pin, edit, delete, tasks, cards ----
+  document.querySelectorAll('[data-di-reply-to]').forEach(el=> el.addEventListener('click', ()=>{
+    const m = dxView(tid).byId[el.dataset.diReplyTo]; if(!m) return;
+    const pv = m.text || (m.card && m.card.title) || (m.task && '✅ '+m.task.title) || ((Array.isArray(m.attachments)&&m.attachments.length)?'📎 '+m.attachments.map(a=>a.name).join(', '):'');
+    diReplyTo = { id:m.id, senderName:m.senderName||'', preview:(pv||'').slice(0,140) }; dxPane = 'chat'; rr();
+    setTimeout(()=>document.getElementById('diInputBox')?.focus(), 0);
+  }));
+  document.getElementById('diCancelReply')?.addEventListener('click', ()=>{ diReplyTo = null; rr(); });
+  document.querySelectorAll('[data-di-jump-to-msg]').forEach(el=> el.addEventListener('click', ()=>{
+    const mid = el.dataset.diJumpToMsg, m = dxView(tid).byId[mid];
+    if(m && parts.threadType==='group' && m.topic!==dxTopic){ dxTopic = m.topic; }
+    if(!dxExpanded) dxPane = 'chat';
+    dxStickBottom = false; rr();
+    setTimeout(()=>{ const t = document.getElementById('diMsg-'+mid); if(t){ t.scrollIntoView({block:'center'}); t.classList.add('is-flash'); setTimeout(()=>t.classList.remove('is-flash'), 1600); } }, 30);
+  }));
+  document.querySelectorAll('[data-dx-react-open]').forEach(el=> el.addEventListener('click', ()=>{ dxReactFor = dxReactFor===el.dataset.dxReactOpen ? null : el.dataset.dxReactOpen; dxStickBottom = false; rr(); }));
+  document.querySelectorAll('[data-dx-react]').forEach(el=> el.addEventListener('click', ()=>{ dxReactFor = null; dxStickBottom = false; dxSendEvent(parts, { type:'react', target: el.dataset.dxReact, emoji: el.dataset.dxEmoji }); }));
+  document.querySelectorAll('[data-dx-pin]').forEach(el=> el.addEventListener('click', ()=>{ const m = dxView(tid).byId[el.dataset.dxPin]; if(!m) return; dxStickBottom = false; dxSendEvent(parts, { type: m.pinned?'unpin':'pin', target: m.id }); toast(m.pinned?'Unpinned':'Pinned for everyone', {type:'success'}); }));
+  document.querySelectorAll('[data-dx-edit]').forEach(el=> el.addEventListener('click', ()=>{ const m = dxView(tid).byId[el.dataset.dxEdit]; if(!m) return; dxEditing = { id:m.id, text:m.text||'' }; dxStickBottom = false; rr(); setTimeout(()=>{ const b = document.getElementById('dxEditBox'); if(b){ b.focus(); b.setSelectionRange(b.value.length, b.value.length); } }, 0); }));
+  document.getElementById('dxEditBox')?.addEventListener('input', e=>{ if(dxEditing) dxEditing.text = e.target.value; });
+  document.getElementById('dxEditBox')?.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('dxEditSave')?.click(); } });
+  document.getElementById('dxEditCancel')?.addEventListener('click', ()=>{ dxEditing = null; rr(); });
+  document.getElementById('dxEditSave')?.addEventListener('click', ()=>{ if(!dxEditing) return; const text = dxEditing.text.trim(); const id = dxEditing.id; dxEditing = null; if(!text){ rr(); return; } dxSendEvent(parts, { type:'edit', target:id, text }); });
+  document.querySelectorAll('[data-dx-delete]').forEach(el=> el.addEventListener('click', ()=>{ if(!window.confirm('Delete this message for everyone?')) return; dxStickBottom = false; dxSendEvent(parts, { type:'delete', target: el.dataset.dxDelete }); }));
+  document.querySelectorAll('[data-dx-task-toggle]').forEach(el=> el.addEventListener('click', ()=>{ const m = dxView(tid).byId[el.dataset.dxTaskToggle]; if(!m) return; dxStickBottom = false; dxSendEvent(parts, { type:'task', target: m.id, status: m.taskStatus==='done' ? 'open' : 'done' }); }));
+  document.querySelectorAll('[data-dx-open-card]').forEach(el=> el.addEventListener('click', ()=>{ try{ dxOpenCard(JSON.parse(el.dataset.dxOpenCard)); }catch(e){} }));
+  document.querySelectorAll('[data-dx-mention-user]').forEach(el=> el.addEventListener('click', ()=>{ diInputDraft = (diInputDraft ? diInputDraft.replace(/\s*$/,' ') : '') + '@' + el.dataset.dxMentionUser + ' '; dxPane='chat'; rr(); setTimeout(()=>{ const b=document.getElementById('diInputBox'); if(b){ b.focus(); b.setSelectionRange(b.value.length,b.value.length); } }, 0); }));
+  // ---- pickers ----
+  document.querySelectorAll('[data-dx-picker]').forEach(el=> el.addEventListener('click', ()=>{ const k = el.dataset.dxPicker; if(el.disabled) return; dxPicker = (dxPicker===k && k!=='task') ? null : k; dxPickerQuery = ''; if(k==='task' && !dxExpanded) dxPane = 'chat'; rr(); setTimeout(()=>document.getElementById(k==='task'?'dxTaskTitle':k==='topic'?'dxTopicName':'dxPickSearch')?.focus(), 0); }));
+  document.querySelectorAll('[data-dx-picker-close]').forEach(el=> el.addEventListener('click', ()=>{ dxPicker = null; rr(); }));
+  document.getElementById('dxPickSearch')?.addEventListener('input', e=>{ dxPickerQuery = e.target.value; rr(); });
+  document.querySelectorAll('[data-dx-emoji-insert]').forEach(el=> el.addEventListener('click', ()=>{ const b = document.getElementById('diInputBox'); const pos = b ? b.selectionStart : diInputDraft.length; diInputDraft = diInputDraft.slice(0,pos) + el.dataset.dxEmojiInsert + diInputDraft.slice(pos); dxPicker = null; rr(); setTimeout(()=>{ const nb = document.getElementById('diInputBox'); if(nb){ nb.focus(); const p = pos + el.dataset.dxEmojiInsert.length; nb.setSelectionRange(p,p); } }, 0); }));
+  document.querySelectorAll('[data-dx-template]').forEach(el=> el.addEventListener('click', ()=>{ diInputDraft = DX_TEMPLATES[Number(el.dataset.dxTemplate)] || ''; dxPicker = null; rr(); setTimeout(()=>document.getElementById('diInputBox')?.focus(), 0); }));
+  const sendCard = (card)=>{ dxPicker = null; dxStickBottom = true; diSendMessage(parts.threadId, parts.threadType, parts.groupOwnerId, diInputDraft, diPendingAttachments, diBroadcastDraft, diReplyTo, { card, topic: parts.threadType==='group'?dxTopic:'general', topicName: parts.threadType==='group'?dxTopicName(tid, dxTopic):'', mentions: dxMentionsIn(diInputDraft, tid) }); };
+  document.querySelectorAll('[data-dx-share-voucher]').forEach(el=> el.addEventListener('click', ()=>{ const v = state.vouchers.find(x=>x.id===el.dataset.dxShareVoucher); if(v) sendCard(dxVoucherCard(v)); }));
+  document.querySelectorAll('[data-dx-share-ledger]').forEach(el=> el.addEventListener('click', ()=>{ const l = state.ledgers.find(x=>x.id===el.dataset.dxShareLedger); if(l) sendCard(dxLedgerCard(l)); }));
+  document.querySelectorAll('[data-dx-share-report]').forEach(el=> el.addEventListener('click', ()=>{ sendCard(dxReportCard(el.dataset.dxShareReport)); }));
+  document.getElementById('dxTaskTitle')?.addEventListener('input', e=>{ dxTaskDraft.title = e.target.value; });
+  document.getElementById('dxTaskWho')?.addEventListener('change', e=>{ dxTaskDraft.assigneeId = e.target.value; });
+  document.getElementById('dxTaskDue')?.addEventListener('input', e=>{ dxTaskDraft.due = e.target.value; });
+  document.getElementById('dxTaskTitle')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('dxTaskCreate')?.click(); } });
+  document.getElementById('dxTaskCreate')?.addEventListener('click', ()=>{
+    const title = (dxTaskDraft.title||'').trim(); if(!title){ toast('Write what needs doing first.'); document.getElementById('dxTaskTitle')?.focus(); return; }
+    const who = dxMembers(tid).find(u=>u.id===dxTaskDraft.assigneeId);
+    const task = { title: title.slice(0,200), assigneeId: who ? who.id : '', assigneeName: who ? who.name : '', due: dxTaskDraft.due || '' };
+    dxTaskDraft = { title:'', assigneeId:'', due:'' }; dxPicker = null; dxStickBottom = true;
+    diSendMessage(parts.threadId, parts.threadType, parts.groupOwnerId, '', [], false, null, { task, topic: parts.threadType==='group'?dxTopic:'general', topicName: parts.threadType==='group'?dxTopicName(tid, dxTopic):'', mentions: who && who.id!==currentUser.id ? [who.id] : [] });
   });
-  const diInput = document.getElementById('diInputBox');
-  diInput?.addEventListener('input', e=>{ diInputDraft = e.target.value; });
-  const diDoSend = ()=>{
-    const wrap = document.querySelector('[data-di-thread]');
-    if(!wrap) return;
-    diSendMessage(wrap.dataset.diThread, wrap.dataset.diThreadType, wrap.dataset.diGroupOwner || null, diInputDraft, diPendingAttachments, diBroadcastDraft, diReplyTo);
+  document.getElementById('dxTopicName')?.addEventListener('input', e=>{ dxNewTopic = e.target.value; });
+  document.getElementById('dxTopicName')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('dxTopicCreate')?.click(); } });
+  document.getElementById('dxTopicCreate')?.addEventListener('click', async ()=>{
+    const name = (dxNewTopic||'').trim().replace(/^#/,'').replace(/\s+/g,'-').toLowerCase().slice(0,40);
+    if(!name){ toast('Give the topic a name.'); return; }
+    const gid = diGroupThreadId(); if(!gid) return;
+    const existing = dxTopicsFor(gid).find(t=>t.name.toLowerCase()===name);
+    dxNewTopic = ''; dxPicker = null;
+    if(existing){ dxTopic = existing.id; rr(); return; }
+    const id = 't_'+name.replace(/[^a-z0-9-]/g,'').slice(0,30)+'_'+Math.random().toString(36).slice(2,6);
+    const gparts = { threadId: gid, threadType:'group', groupOwnerId: diMyGroupOwnerId() };
+    dxTopic = id; diTab = 'group';
+    await dxSendEvent(gparts, { type:'topic', topic:{ id, name } });
+    toast(`#${name} created`, {type:'success'});
+  });
+  // ---- attachments: picker, drag & drop, paste ----
+  document.getElementById('diFileInput')?.addEventListener('change', async e=>{ const files = Array.from(e.target.files||[]); for(const f of files){ await diAttachFile(f); } e.target.value = ''; rr(); });
+  document.querySelectorAll('[data-di-remove-attachment]').forEach(el=> el.addEventListener('click', ()=>{ const i = Number(el.dataset.diRemoveAttachment); diPendingAttachments = diPendingAttachments.filter((_,k)=>k!==i); rr(); }));
+  const center = document.querySelector('.dx-center'), drop = document.getElementById('dxDrop');
+  if(center && drop){
+    center.addEventListener('dragover', e=>{ if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ e.preventDefault(); drop.hidden = false; } });
+    drop.addEventListener('dragleave', ()=>{ drop.hidden = true; });
+    drop.addEventListener('drop', async e=>{ e.preventDefault(); drop.hidden = true; for(const f of Array.from(e.dataTransfer.files||[])){ await diAttachFile(f); } rr(); });
+  }
+  document.getElementById('diBroadcastChk')?.addEventListener('change', e=>{ diBroadcastDraft = e.target.checked; rr(); });
+  // ---- composer ----
+  const box = document.getElementById('diInputBox');
+  const grow = ()=>{ if(!box) return; box.style.height = 'auto'; box.style.height = Math.min(160, box.scrollHeight) + 'px'; };
+  grow();
+  box?.addEventListener('paste', async e=>{ const items = Array.from((e.clipboardData||{}).items||[]).filter(i=>i.kind==='file'); if(!items.length) return; e.preventDefault(); for(const it of items){ const f = it.getAsFile(); if(f) await diAttachFile(f); } rr(); });
+  box?.addEventListener('input', e=>{
+    diInputDraft = e.target.value; grow();
+    const pos = e.target.selectionStart, before = diInputDraft.slice(0,pos);
+    const m = before.match(/(?:^|\s)@([^\s@]{0,30})$/);
+    const prev = dxMention; dxMention = m ? { query:m[1], start: pos - m[1].length - 1 } : null;
+    if(!!prev !== !!dxMention || (prev && dxMention && prev.query!==dxMention.query)) rr();
+    const lenEl = document.querySelector('.dx-len'); if(lenEl){ const n = diInputDraft.length; lenEl.textContent = n>3000?`${n}/3900`:''; lenEl.classList.toggle('is-warn', n>3500); }
+  });
+  const pickMention = (name)=>{
+    if(!dxMention) return;
+    const end = dxMention.start + 1 + dxMention.query.length;
+    diInputDraft = diInputDraft.slice(0, dxMention.start) + '@' + name + ' ' + diInputDraft.slice(end);
+    const caret = dxMention.start + name.length + 2; dxMention = null; rr();
+    setTimeout(()=>{ const b = document.getElementById('diInputBox'); if(b){ b.focus(); b.setSelectionRange(caret, caret); } }, 0);
   };
-  document.getElementById('diSendBtn')?.addEventListener('click', diDoSend);
-  diInput?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); diDoSend(); } });
-  const diMsgs = document.getElementById('diMessagesEl');
-  if(diMsgs && !diSearchOpen && !diFilesOpen) diMsgs.scrollTop = diMsgs.scrollHeight;
+  document.querySelectorAll('[data-dx-mention-pick]').forEach(el=> el.addEventListener('mousedown', e=>{ e.preventDefault(); pickMention(el.dataset.dxMentionPick); }));
+  const doSend = ()=>{
+    const wrap = document.querySelector('[data-di-thread]'); if(!wrap) return;
+    let text = diInputDraft || '';
+    const cmd = text.trim().match(/^\/(\w+)\s*([\s\S]*)$/);
+    if(cmd){
+      const c = cmd[1].toLowerCase(), rest = cmd[2].trim();
+      if(c==='task'){ const due = (rest.match(/\bdue:(\d{4}-\d{2}-\d{2})\b/)||[])[1]||''; const who = dxMembers(tid).find(u=>rest.includes('@'+u.name)); dxTaskDraft = { title: rest.replace(/\bdue:\S+/,'').replace(who?'@'+who.name:'','').trim(), assigneeId: who?who.id:'', due }; diInputDraft = ''; dxPicker = 'task'; rr(); if(dxTaskDraft.title) document.getElementById('dxTaskCreate')?.click(); return; }
+      if(c==='share' || c==='voucher' || c==='ledger' || c==='report'){ diInputDraft = ''; dxPicker = c==='share' ? 'menu' : c; rr(); return; }
+      if(c==='announce' && currentUser.role==='support' && parts.threadType==='group'){ text = rest; diBroadcastDraft = true; }
+      if(c==='topic'){ diInputDraft = ''; dxNewTopic = rest; dxPicker = 'topic'; rr(); return; }
+      if(c==='help'){ diInputDraft = ''; rr(); toast('Commands: /task title @name due:YYYY-MM-DD · /voucher · /ledger · /report · /topic name · /announce text (Support)'); return; }
+    }
+    dxStickBottom = true;
+    diSendMessage(wrap.dataset.diThread, wrap.dataset.diThreadType, wrap.dataset.diGroupOwner || null, text, diPendingAttachments, diBroadcastDraft, diReplyTo,
+      { topic: parts.threadType==='group'?dxTopic:'general', topicName: parts.threadType==='group'?dxTopicName(tid, dxTopic):'', mentions: dxMentionsIn(text, tid) });
+  };
+  document.getElementById('diSendBtn')?.addEventListener('click', doSend);
+  box?.addEventListener('keydown', e=>{
+    if(dxMention && (e.key==='Enter' || e.key==='Tab')){ const first = document.querySelector('[data-dx-mention-pick]'); if(first){ e.preventDefault(); pickMention(first.dataset.dxMentionPick); return; } }
+    if(e.key==='Enter' && !e.shiftKey && !e.isComposing){ e.preventDefault(); doSend(); }
+    if(e.key==='ArrowUp' && !box.value){ const mine = dxView(tid).msgs.filter(m=>m.senderId===currentUser.id && m.text && !m.deleted && !m.card && (parts.threadType!=='group'||m.topic===dxTopic)); const last = mine[mine.length-1]; if(last){ e.preventDefault(); dxEditing = { id:last.id, text:last.text }; rr(); setTimeout(()=>document.getElementById('dxEditBox')?.focus(), 0); } }
+  });
+  // ---- scroll: stick to the bottom unless the person scrolled up ----
+  const list = document.getElementById('diMessagesEl'), jump = document.getElementById('dxJumpLatest');
+  if(list && !diSearchOpen && (dxPane==='chat' || dxExpanded)){
+    if(dxStickBottom) list.scrollTop = list.scrollHeight;
+    list.addEventListener('scroll', ()=>{ const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40; dxStickBottom = atBottom; if(jump) jump.hidden = atBottom; }, {passive:true});
+    jump?.addEventListener('click', ()=>{ list.scrollTop = list.scrollHeight; dxStickBottom = true; jump.hidden = true; });
+  }
+  if(parts.threadType==='group' && diMessages[tid]) dxMarkTopicSeen(tid, dxTopic);
 }
+let diDrafts = {};
 
 // Small inline-SVG icon set shared by a few chrome bits (e.g. the Dashboard's Smart Insights card).
 function cmdIcon(name){
