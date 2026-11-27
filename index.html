@@ -5177,6 +5177,177 @@ html[data-theme="dark"] .roc-av{color:#CBD5E1;}
   .main[data-view="roc"] .roc-profile .btn{min-height:40px;}
 }
 </style>
+<style id="gstcc-css">
+/* ===== GST Compliance Center (Nov 2026) ===== */
+.gstcc-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;margin:0 0 12px;}
+.gstcc-next{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+.gstcc-next::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--credit);}
+.gstcc-next.warn::before{background:var(--gold-ink);} .gstcc-next.bad::before{background:var(--debit);}
+.gstcc-eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);}
+.gstcc-next-main{display:flex;gap:16px;align-items:center;}
+.gstcc-count{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:84px;height:84px;border-radius:14px;background:var(--credit-bg);color:var(--credit);}
+.gstcc-next.warn .gstcc-count{background:color-mix(in srgb, var(--gold-ink) 12%, transparent);color:var(--gold-ink);}
+.gstcc-next.bad .gstcc-count{background:var(--debit-bg);color:var(--debit);}
+.gstcc-count b{font-size:30px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;}
+.gstcc-count span{font-size:11px;font-weight:700;margin-top:4px;}
+.gstcc-form{display:inline-block;font-weight:800;font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--surface-strong);border:1px solid var(--border);color:var(--ink);white-space:nowrap;}
+.gstcc-next-title{font-size:15px;font-weight:700;color:var(--ink);margin-top:5px;}
+.gstcc-next-due{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+.gstcc-next-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;}
+.gstcc-side{display:grid;grid-template-rows:auto 1fr;gap:10px;min-width:0;}
+.gstcc-health{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:10px 16px;}
+.gstcc-health b{display:block;font-size:13px;color:var(--ink);}
+.gstcc-health span{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.gstcc-health em{font-style:normal;font-weight:700;}
+.gstcc-ring{width:60px;height:60px;flex-shrink:0;}
+.gstcc-ring .trk{fill:none;stroke:var(--surface-strong);stroke-width:8;}
+.gstcc-ring .val{fill:none;stroke:var(--credit);stroke-width:8;stroke-linecap:round;}
+.gstcc-ring.warn .val{stroke:var(--gold-ink);} .gstcc-ring.bad .val{stroke:var(--debit);}
+.gstcc-ring text{font:800 15px Inter,system-ui,sans-serif;fill:var(--ink);}
+.gstcc-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.gstcc-kpis .stat{margin:0;text-align:left;font:inherit;color:inherit;cursor:pointer;padding:10px 12px;}
+.gstcc-kpis .stat:hover{border-color:var(--border-strong);}
+.gstcc-kpis .stat:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+.gstcc-kpis .stat .label{font-size:11px;}
+.gstcc-kpis .stat .val{font-size:20px;}
+.gstcc-kpis .val.warn{color:var(--gold-ink);}
+.gstcc-nav{position:sticky;top:0;z-index:5;display:flex;gap:6px;flex-wrap:wrap;padding:8px 0;margin:0 0 12px;background:var(--bg);}
+.gstcc-nav button{font:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--ink-soft);cursor:pointer;}
+.gstcc-nav button:hover{color:var(--ink);border-color:var(--border-strong);}
+.gstcc-nav button:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+.gstcc-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--ink-soft);background:var(--surface-strong);border:1px solid var(--border);border-radius:999px;padding:4px 10px;}
+.gstcc-chip.strong{background:var(--ink);color:var(--surface);border-color:var(--ink);font-weight:800;}
+.gstcc-chip.ok{background:var(--credit-bg);color:var(--credit);border-color:transparent;}
+.gstcc-chip.warn{background:color-mix(in srgb, var(--gold-ink) 12%, transparent);color:var(--gold-ink);border-color:transparent;}
+.gstcc-chip.bad{background:var(--debit-bg);color:var(--debit);border-color:transparent;}
+.pill.warn.gstcc-pill,.gstcc-pill.warn{background:color-mix(in srgb, var(--gold-ink) 14%, transparent);color:var(--gold-ink);}
+.gstcc-table td{vertical-align:top;}
+.gstcc-what{font-size:11.5px;color:var(--ink-soft);margin-top:2px;line-height:1.45;}
+.gstcc-rec{font-size:11.5px;color:var(--credit);margin-top:4px;}
+.gstcc-due{white-space:nowrap;}
+.gstcc-when{font-size:11px;color:var(--ink-faint);margin-top:2px;}
+.gstcc-row.st-overdue .gstcc-when,.gstcc-row.st-barred .gstcc-when{color:var(--debit);font-weight:700;}
+.gstcc-row.st-overdue .gstcc-form,.gstcc-row.st-barred .gstcc-form{background:var(--debit-bg);color:var(--debit);border-color:transparent;}
+.gstcc-row.st-optional,.gstcc-row.st-na{opacity:.78;}
+.gstcc-fee{color:var(--debit);font-weight:700;}
+.gstcc-link{all:unset;cursor:pointer;display:inline-block;margin-top:6px;font-size:11.5px;font-weight:700;color:var(--accent1);}
+.gstcc-link:hover{text-decoration:underline;}
+.gstcc-link:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;border-radius:4px;}
+.gstcc-guide{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;background:var(--surface-strong);border:1px solid var(--border);border-radius:12px;padding:10px 16px;}
+.gstcc-guide ol{margin:0;padding-left:20px;font-size:12.5px;line-height:1.65;color:var(--ink);}
+.gstcc-guide .btn{text-decoration:none;}
+.gstcc-foot{font-size:11.5px;line-height:1.55;margin:12px 0 0;max-width:120ch;}
+.gstcc-3b th{font-size:11px;}
+.gstcc-3b td,.gstcc-3b th{padding:8px 10px;}
+.gstcc-lock{font-size:10.5px;font-weight:700;color:var(--ink-soft);background:var(--surface-strong);border:1px solid var(--border);border-radius:6px;padding:1px 6px;margin-left:6px;white-space:nowrap;}
+.gstcc-3b-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.gstcc-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px;}
+.gstcc-card{border:1px solid var(--border);border-radius:14px;padding:12px 14px;background:var(--surface);}
+.gstcc-card-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;}
+.gstcc-card-h b{font-size:12.5px;color:var(--ink);}
+.gstcc-card-h span{font-size:11px;font-weight:700;white-space:nowrap;color:var(--ink-faint);}
+.gstcc-card-v{font-size:22px;font-weight:800;margin:6px 0 4px;font-variant-numeric:tabular-nums;color:var(--ink);}
+.gstcc-card.bad .gstcc-card-v{color:var(--debit);} .gstcc-card.warn .gstcc-card-v{color:var(--gold-ink);}
+.gstcc-card p{margin:0;font-size:11.5px;line-height:1.5;color:var(--ink-soft);}
+.gstcc-det{margin:0 0 10px;}
+.gstcc-det summary{cursor:pointer;font-weight:700;font-size:12.5px;color:var(--ink);margin-bottom:8px;}
+.gstcc-ims{border-top:1px solid var(--border);padding-top:12px;margin-top:6px;}
+.gstcc-ims-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;}
+.gstcc-ims-h b{font-size:13px;}
+.gstcc-ims-sum{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.gstcc-check{border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--surface);}
+.gstcc-check summary{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;font-size:12.5px;color:var(--ink);}
+.gstcc-check-n{min-width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-weight:800;font-size:12px;background:var(--credit-bg);color:var(--credit);}
+.gstcc-check.tone-warn .gstcc-check-n{background:color-mix(in srgb, var(--gold-ink) 13%, transparent);color:var(--gold-ink);}
+.gstcc-check.tone-bad .gstcc-check-n{background:var(--debit-bg);color:var(--debit);}
+.gstcc-check-b{padding:0 12px 12px;}
+.gstcc-check-b p{margin:0 0 8px;font-size:12px;line-height:1.5;color:var(--ink-soft);}
+.gstcc-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.gstcc-law{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
+.gstcc-law li{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);}
+.gstcc-law li:last-child{border-bottom:0;}
+.gstcc-law-d{font-size:12px;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+.gstcc-law-t b{font-size:13px;color:var(--ink);}
+.gstcc-law p{margin:3px 0 0;font-size:12px;line-height:1.5;color:var(--ink-soft);}
+@media (max-width:1100px){ .gstcc-hero{grid-template-columns:1fr;} .gstcc-cards{grid-template-columns:1fr;} }
+@media (max-width:720px){
+  .gstcc-kpis{grid-template-columns:1fr 1fr;}
+  .gstcc-nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+  .gstcc-nav button{white-space:nowrap;min-height:40px;}
+  .gstcc-law li{grid-template-columns:1fr;gap:2px;}
+  .main[data-view="gst"] .btn.small,.main[data-view="gst"] .filter-chip{min-height:40px;}
+}
+
+.gstcc-bulk{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:color-mix(in srgb, var(--gold-ink) 9%, var(--surface));border:1px solid color-mix(in srgb, var(--gold-ink) 25%, transparent);margin-bottom:12px;font-size:12.5px;color:var(--ink);}
+.main[data-view="gst"] .panel-head a.btn{text-decoration:none;}
+.gstcc-det summary .chip-count{display:inline-block;margin-left:6px;min-width:18px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;text-align:center;color:var(--ink);background:color-mix(in srgb, var(--ink) 10%, transparent);}
+</style>
+<style id="gstauto-css">
+/* ===== GST automation round 2 — assisted filing (Nov 2026) ===== */
+.gstcc-hint{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--credit-bg);color:var(--ink);font-size:12px;line-height:1.45;}
+.gstcc-hint b{color:var(--credit);}
+.gstcc-next .gstcc-hint{margin-top:0;}
+.gstcc-paid{background:var(--credit-bg);border-color:color-mix(in srgb, var(--credit) 30%, transparent);}
+.gstcc-fn-row > td{padding-top:0;}
+.gstcc-filenow{border:1px solid var(--border-strong);border-radius:14px;background:var(--surface);padding:14px 16px;box-shadow:0 1px 0 rgb(0 0 0 / .02);}
+.gstcc-fn-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:13.5px;}
+.gstcc-fn-head .gstcc-when{display:inline;margin-left:6px;}
+.gstcc-steps{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:0;counter-reset:gstccstep;}
+.gstcc-step{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--border);counter-increment:gstccstep;}
+.gstcc-step:first-child{border-top:0;}
+.gstcc-step-i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--surface-strong);color:var(--ink-soft);border:1px solid var(--border);}
+.gstcc-step.todo .gstcc-step-i::before{content:counter(gstccstep);}
+.gstcc-step.done .gstcc-step-i{background:var(--credit-bg);color:var(--credit);border-color:transparent;}
+.gstcc-step.warn .gstcc-step-i{background:color-mix(in srgb, var(--gold-ink) 14%, transparent);color:var(--gold-ink);border-color:transparent;}
+.gstcc-step > div > b{font-size:13px;color:var(--ink);}
+.gstcc-step-b{font-size:12.5px;line-height:1.55;color:var(--ink-soft);margin-top:4px;}
+.gstcc-step-b .btn{margin-top:6px;}
+.gstcc-step-b .gstcc-guide{margin-top:6px;}
+.gstcc-code{font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-strong);border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--ink);white-space:nowrap;}
+.gstcc-copy{all:unset;cursor:pointer;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;margin-left:4px;font-size:14px;color:var(--accent1);vertical-align:middle;}
+.gstcc-copy:hover{background:var(--surface-strong);}
+.gstcc-copy:focus-visible{outline:2px solid var(--accent1);outline-offset:1px;}
+.gstcc-figs{border-collapse:collapse;min-width:360px;max-width:560px;margin:6px 0 8px;}
+.gstcc-figs td{padding:4px 8px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--ink);}
+.gstcc-figs td.num{font-variant-numeric:tabular-nums;font-weight:700;text-align:right;}
+.gstcc-figs td:last-child{width:36px;padding:0;}
+.gstcc-fn-ack{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-top:6px;}
+.gstcc-fn-ack textarea{flex:1 1 280px;min-height:44px;font:inherit;font-size:12.5px;padding:8px 10px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);resize:vertical;}
+.gstcc-fn-ack .btn{margin-top:0;}
+.gstcc-ack{border:1px solid var(--border-strong);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--surface);display:flex;flex-direction:column;gap:8px;}
+.gstcc-ack-h{display:flex;flex-direction:column;gap:2px;}
+.gstcc-ack-h b{font-size:13px;color:var(--ink);}
+.gstcc-ack textarea{font:inherit;font-size:12.5px;padding:8px 10px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);resize:vertical;}
+.gstcc-ack-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.gstcc-ack-act label.btn{cursor:pointer;}
+.gstcc-ack-none{margin:0;font-size:12.5px;color:var(--debit);}
+.gstcc-ack select,.gstcc-ack input[type=date]{font:inherit;font-size:12.5px;padding:6px 8px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);max-width:100%;}
+.gstcc-card{display:flex;flex-direction:column;}
+.gstcc-card-btn{align-self:flex-start;margin-top:10px;}
+@media (max-width:720px){
+  .gstcc-figs{min-width:0;width:100%;}
+  .gstcc-copy{width:40px;height:40px;}
+  .gstcc-filenow{padding:12px;}
+  .gstcc-code{white-space:normal;overflow-wrap:anywhere;}
+  .main[data-view="gst"] .gstcc-ack .btn,.main[data-view="gst"] .gstcc-filenow .btn{min-height:40px;}
+}
+/* the figures table sits inside the calendar's phone card layout — keep it a real table */
+@media (max-width:760px){
+  .rb-card-table .gstcc-figs{display:table;width:100%;}
+  .rb-card-table .gstcc-figs tbody{display:table-row-group;}
+  .rb-card-table .gstcc-figs tr,.rb-card-table .gstcc-figs tr:first-child{display:table-row;background:none;border:0;border-radius:0;padding:0;margin:0;}
+  .rb-card-table .gstcc-figs td{display:table-cell;padding:4px 6px;border-bottom:1px solid var(--border);}
+  .rb-card-table .gstcc-figs td.num{text-align:right;}
+  .rb-card-table .gstcc-figs td::before{content:none;}
+  .rb-card-table tr.gstcc-fn-row{padding:0;border:0;background:none;}
+  .rb-card-table tr.gstcc-fn-row > td{padding:0;}
+}
+.gstcc-hint.compact{display:inline-flex;flex-wrap:wrap;gap:4px 10px;padding:4px 10px;margin-top:6px;border-radius:8px;font-size:11.5px;}
+.gstcc-hint.compact .gstcc-link{margin-top:0;color:var(--credit);}
+#gstccReturns .table-scroll:has(#gstccTable){max-height:none;}
+.gstcc-hint.compact{display:flex;width:fit-content;max-width:100%;}
+.gstcc-filenow a.btn{text-decoration:none;}
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -9066,6 +9237,7 @@ let state = {
   deliveryChallans: [],
   spendControl: { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } },
   secretarial: { settings:{}, filings:{}, people:[], members:[], meetings:[] },
+  gstCompliance: { returns:{}, settings:{} },
   einvoiceRegister: {},
   taxDeductions: [], // [{id, voucherId, date, kind:'TDS'|'TCS', sectionCode, sectionLabel, rate, baseAmount, taxAmount, partyLedgerId, taxLedgerId}]
   docVaultSalt: null,      // base64 random salt for the Employee Documents encryption vault (set once, on first use)
@@ -12933,6 +13105,7 @@ async function loadState(){
     state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
     state.spendControl = (data.spendControl && typeof data.spendControl==='object') ? data.spendControl : { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
     state.secretarial = rocNormalize(data.secretarial);
+    state.gstCompliance = gstccNorm(data.gstCompliance);
     state.einvoiceRegister = (data.einvoiceRegister && typeof data.einvoiceRegister==='object') ? data.einvoiceRegister : {};
     // Was missing entirely before this fix -- state.pendingVouchers never got reloaded from
     // Firestore when opening a company (it only ever held whatever was pushed into it client-side
@@ -12979,6 +13152,7 @@ async function loadState(){
     state.taxDeductions = [];
     state.spendControl = { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
     state.secretarial = rocBlank();
+    state.gstCompliance = gstccNorm(null);
     state.einvoiceRegister = {};
     state.pendingVouchers = [];
     state.docVaultSalt = null;
@@ -15010,6 +15184,7 @@ function buildCompanyBackup(){
     taxDeductions: state.taxDeductions,
     spendControl: state.spendControl,
     secretarial: state.secretarial,
+    gstCompliance: state.gstCompliance,
     einvoiceRegister: state.einvoiceRegister,
     docVaultSalt: state.docVaultSalt,
     docVaultVerifier: state.docVaultVerifier,
@@ -15258,6 +15433,7 @@ async function restoreCompanyBackup(data){
   state.taxDeductions = Array.isArray(data.taxDeductions) ? data.taxDeductions : [];
   state.spendControl = (data.spendControl && typeof data.spendControl==='object') ? data.spendControl : { claims:[], requisitions:[], pettyCash:{ ledgerId:'', imprest:0 } };
   state.secretarial = rocNormalize(data.secretarial);
+  state.gstCompliance = gstccNorm(data.gstCompliance);
   state.einvoiceRegister = (data.einvoiceRegister && typeof data.einvoiceRegister==='object') ? data.einvoiceRegister : {};
   state.docVaultSalt = data.docVaultSalt || null;
   state.docVaultVerifier = data.docVaultVerifier || null;
@@ -42233,12 +42409,12 @@ function calEventColor(severity){
   return ({overdue:'var(--debit)', dueSoon:'var(--gold)', upcoming:'var(--accent1)', pastInfo:'var(--ink-faint)'})[severity] || 'var(--ink-faint)';
 }
 function calEventIcon(type){
-  return ({invoiceDue:'💰', billDue:'🧾', recurring:'🔁', gstFiling:'🧮', tds:'🏛️', prepaid:'🗓', closeChecklist:'✅', roc:'📜'})[type] || '📌';
+  return ({invoiceDue:'💰', billDue:'🧾', recurring:'🔁', gstFiling:'🧮', tds:'🏛️', prepaid:'🗓', closeChecklist:'✅', roc:'📜', gstReturn:'🧮'})[type] || '📌';
 }
 // Human label for each event type -- used by the Agenda filter chips (round 3) and nowhere else, so
 // adding a new event type only means adding one line here, not updating multiple places.
 function calEventTypeLabel(type){
-  return ({invoiceDue:'Receivables', billDue:'Payables', recurring:'Recurring', gstFiling:'GST', tds:'TDS/TCS', prepaid:'Prepaid', closeChecklist:'Month-End Close', roc:'ROC / MCA'})[type] || type;
+  return ({invoiceDue:'Receivables', billDue:'Payables', recurring:'Recurring', gstFiling:'GST', tds:'TDS/TCS', prepaid:'Prepaid', closeChecklist:'Month-End Close', roc:'ROC / MCA', gstReturn:'GST'})[type] || type;
 }
 function calEventSeverityLabel(severity){
   return ({overdue:'Overdue', dueSoon:'Due soon', upcoming:'Upcoming', pastInfo:'Reference'})[severity] || '';
@@ -42354,6 +42530,8 @@ function calendarAllDataEvents(){
 
   // ROC / MCA due dates (AOC-4, MGT-7, DIR-3 KYC, LLP Form 8/11 …) from the ROC Compliance module.
   if(typeof rocCalendarEvents==='function') events.push(...rocCalendarEvents());
+  // GST returns and payments from the GST Compliance Center (GSTR-1, 3B, IFF, PMT-06, CMP-08, GSTR-9 …)
+  if(typeof gstccCalendarEvents==='function') events.push(...gstccCalendarEvents());
 
   return events;
 }
@@ -42363,6 +42541,7 @@ function calendarAllDataEvents(){
 // same object drifting out of sync.
 function calGstPlaceholderEvent(monthPrefix){
   if(!(currentCompany && currentCompany.gstin)) return null;
+  if(typeof gstccCalendarEvents==='function') return null;   // the GST Compliance Center supplies the real return dates
   const today = new Date().toISOString().slice(0,10);
   const dueDate = `${monthPrefix}-20`;
   const severity = dueDate<today ? 'pastInfo' : (dueDate<=addDays(today,3) ? 'dueSoon' : 'upcoming');
@@ -42484,6 +42663,7 @@ function calEventNavTarget(e){
   if(e.type==='prepaid') return 'prepaid';
   if(e.type==='closeChecklist') return 'closeChecklist';
   if(e.type==='roc') return 'roc';
+  if(e.type==='gstReturn') return 'gst';
   return '';
 }
 // The "Record Payment"/"Record Receipt" quick action (round 3) -- only the two due-date types that
@@ -49109,6 +49289,785 @@ function downloadGst2bWorkbook(){
   toast('GSTR-2B reconciliation downloaded');
 }
 
+/* ====== GST Compliance Center (Nov 2026) ======
+   Automates everything up to the portal: a return calendar worked out from the registration type and filing
+   frequency, a GSTR-3B worksheet, ITC rule checks (Rule 37 / Sec 17(5) / Sec 16(4)), an IMS action sheet from
+   GSTR-2B, e-invoice and rate checks, and a dated law-updates list. FILING STAYS MANUAL: the user uploads /
+   files on gst.gov.in and records the ARN here. Reads the books only; records live in state.gstCompliance. */
+let gstccForm = null;          // { key, filedOn, arn, note } while "Mark filed" is open
+let gstccSettingsOpen = false;
+let gstccGuide = '';           // return key whose "How to file" is open
+let gstccRetFilter = 'open';   // 'open' | 'filed' | 'all'
+let gstccCache = { key:'', list:[] };
+let gstccBulkOpen = false;   // "Already filed these?" form
+const GSTCC_PORTAL = 'https://www.gst.gov.in/';
+const GSTCC_EINV_PORTAL = 'https://einvoice1.gst.gov.in/';
+function gstccToday(){ return (typeof window!=='undefined' && window.__gstToday) || new Date().toISOString().slice(0,10); }
+function gstccNorm(s){ s = (s && typeof s==='object') ? s : {}; if(!s.returns || typeof s.returns!=='object') s.returns = {}; if(!s.settings || typeof s.settings!=='object') s.settings = {}; return s; }
+function gstccData(){ return state.gstCompliance = gstccNorm(state.gstCompliance); }
+async function saveGstCompliance(){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; }
+  gstccCache.key = '';
+  markSyncSaving();
+  try{ await db.collection('companies').doc(currentCompany.id).set({ gstCompliance: gstccData() }, {merge:true}); markSyncSaved(); return true; }
+  catch(e){ toast('Could not save GST compliance records'); markSyncError(); return false; }
+}
+function gstccIso(y,m,d){ const dt = new Date(y, m-1, d); return `${dt.getFullYear()}-${gstPad2(dt.getMonth()+1)}-${gstPad2(dt.getDate())}`; }
+function gstccDays(a,b){ return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00'))/86400000); }
+function gstccDate(d){ if(!d) return '—'; const x = new Date(d+'T00:00:00'); return isNaN(x) ? d : x.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}); }
+function gstccMoney(n){ return '₹'+fmt(Math.round(Number(n)||0)).replace(/\.00$/,''); }
+function gstccMonthLabel(mk){ return new Date(mk+'-01T00:00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'}); }
+// States whose QRMP GSTR-3B falls on the 22nd (rest: 24th) — Notification 76/2020-CT, by GSTIN state code.
+const GSTCC_QRMP_22 = new Set(['22','23','24','27','29','30','32','33','36','37','25','26','34','35','31','38']);
+function gstccStateCode(){ const g = ((currentCompany&&currentCompany.gstin)||'').trim(); if(/^\d{2}/.test(g)) return g.slice(0,2); const st = currentCompany && currentCompany.state; return (st && GST_STATE_CODES[st]) || ''; }
+function gstccSettings(){
+  const s = gstccData().settings, f = gstFilingSettings();
+  const comp = (s.regType || (currentCompany && currentCompany.gstRegType)) === 'composition';
+  const manual = ['lt1.5','1.5to5','5to10','10to20','gt20'].includes(s.aato), auto = manual ? null : gstccAutoAato(f);
+  return { regType: comp ? 'composition' : 'regular', freq: f.freq, aato: manual ? s.aato : auto.tier, aatoAuto: !manual, aatoInfo: auto, trackFrom: /^\d{4}-\d{2}$/.test(s.trackFrom||'') ? s.trackFrom : '' };
+}
+const GSTCC_AATO_LABEL = { 'lt1.5':'Up to ₹1.5 crore', '1.5to5':'₹1.5 – 5 crore', '5to10':'₹5 – 10 crore', '10to20':'₹10 – 20 crore', 'gt20':'Above ₹20 crore' };
+function gstccAatoAtLeast(tier, min){ const o = ['lt1.5','1.5to5','5to10','10to20','gt20']; return o.indexOf(tier) >= o.indexOf(min); }
+// Monthly / quarterly return late fee (GSTR-1 / GSTR-3B, Notification 19 & 20/2021-CT): ₹50 a day (₹20 for nil), capped by turnover.
+function gstccLateFeeReturn(days, nil, tier){
+  if(days<=0) return 0;
+  const cap = nil ? 500 : tier==='lt1.5' ? 2000 : tier==='1.5to5' ? 5000 : 10000;
+  return Math.min(cap, days*(nil?20:50));
+}
+// GSTR-9 late fee (Notification 07/2023-CT): ₹50 / ₹100 / ₹200 a day by turnover; capped at 0.04% / 0.04% / 0.5% of turnover.
+function gstccLateFee9(days, tier, turnover){
+  if(days<=0) return 0;
+  const small = ['lt1.5','1.5to5'].includes(tier), mid = ['5to10','10to20'].includes(tier);
+  const perDay = small ? 50 : mid ? 100 : 200, cap = (small||mid ? 0.0004 : 0.005) * Math.max(0, turnover||0);
+  return Math.round(Math.min(days*perDay, cap || days*perDay));
+}
+function gstccFirstMonth(){
+  let m = '';
+  for(const v of state.vouchers){ if(!v.date) continue; const t = gstVoucherTax(v); if(Math.abs(t.outTot)+Math.abs(t.inTot)>0.004 && (!m || v.date.slice(0,7)<m)) m = v.date.slice(0,7); }
+  return m;
+}
+function gstccFy(y){ return `${y}-${String((y+1)%100).padStart(2,'0')}`; }
+function gstccFyY(iso){ const d = new Date(iso+'T00:00:00'); return d.getMonth()>=3 ? d.getFullYear() : d.getFullYear()-1; }
+
+/* ---- the return calendar ---- */
+function gstccReturns(){
+  const today = gstccToday(), s = gstccSettings(), rec = gstccData().returns;
+  const key = [currentCompany&&currentCompany.id, currentCompany&&currentCompany.gstin, (state.vouchers||[]).length, typeof rbDataVersion!=='undefined'?rbDataVersion:0, today, JSON.stringify(gstccData()).length, JSON.stringify(s)].join('|');
+  if(gstccCache.key===key) return gstccCache.list;
+  const out = [];
+  const tm = today.slice(0,7);
+  const back12 = (()=>{ const [y,m] = tm.split('-').map(Number); const d = new Date(y, m-13, 1); return `${d.getFullYear()}-${gstPad2(d.getMonth()+1)}`; })();
+  const first = gstccFirstMonth();
+  let from = s.trackFrom || (first && first>back12 ? first : back12);
+  if(s.freq==='quarterly' && s.regType!=='composition') from = gstPeriodKeyForMonth(from,'quarterly').slice(0,7);
+  const add = o => {
+    const r = rec[o.key] || null;
+    o.rec = r;
+    if(o.optional && !r) o.status = 'optional';
+    else if(r && r.status==='filed') o.status = 'filed';
+    else if(r && r.status==='na') o.status = 'na';
+    else if(gstccDays(o.due, today) >= 365*3+1) o.status = 'barred';
+    else if(o.due < today) o.status = 'overdue';
+    else if(o.due <= addDays(today, 7)) o.status = 'soon';
+    else o.status = 'upcoming';
+    out.push(o);
+  };
+  const months = [];
+  { let [y,m] = from.split('-').map(Number); while(true){ const k = `${y}-${gstPad2(m)}`; if(k>tm) break; months.push(k); m++; if(m>12){ m=1; y++; } } }
+  const qrmp = s.freq==='quarterly';
+  const d3bq = GSTCC_QRMP_22.has(gstccStateCode()) ? 22 : 24;
+  if(s.regType==='composition'){
+    const quarters = Array.from(new Set(months.map(m=>gstPeriodKeyForMonth(m,'quarterly'))));
+    quarters.forEach(q=>{ const p = gstPeriodFromKey(q), [y,m] = p.to.split('-').map(Number);
+      add({ key:`CMP-08|${q}`, form:'CMP-08', period:p, label:p.label, due:gstccIso(y, m+1, 18), kind:'payment', what:'Statement-cum-challan to pay composition tax for the quarter.' }); });
+  } else {
+    months.forEach(mk=>{
+      const [y,m] = mk.split('-').map(Number);
+      const inQ = (m-1)%3;  // 0,1,2 within the quarter (Apr/May/Jun = 0/1/2)
+      const qKey = gstPeriodKeyForMonth(mk,'quarterly');
+      if(!qrmp){
+        const p = gstPeriodFromKey(mk);
+        add({ key:`GSTR-1|${mk}`, form:'GSTR-1', period:p, label:p.label, due:gstccIso(y, m+1, 11), kind:'return', what:'Outward supplies — upload the JSON from File GST Return.' });
+        add({ key:`GSTR-3B|${mk}`, form:'GSTR-3B', period:p, label:p.label, due:gstccIso(y, m+1, 20), kind:'return', what:'Summary return and tax payment. Table 3 fills from GSTR-1 and is locked.' });
+      } else if(inQ<2){
+        const p = gstPeriodFromKey(mk);
+        add({ key:`IFF|${mk}`, form:'IFF', period:p, label:p.label, due:gstccIso(y, m+1, 13), kind:'return', optional:true, what:'Optional — B2B invoices for the month so buyers get credit early.' });
+        add({ key:`PMT-06|${mk}`, form:'PMT-06', period:p, label:p.label, due:gstccIso(y, m+1, 25), kind:'payment', what:'Monthly tax payment under QRMP (fixed-sum or self-assessed).' });
+      } else {
+        const p = gstPeriodFromKey(qKey);
+        add({ key:`GSTR-1|${qKey}`, form:'GSTR-1', period:p, label:p.label, due:gstccIso(y, m+1, 13), kind:'return', what:'Quarterly outward supplies (QRMP).' });
+        add({ key:`GSTR-3B|${qKey}`, form:'GSTR-3B', period:p, label:p.label, due:gstccIso(y, m+1, d3bq), kind:'return', what:`Quarterly summary return — due the ${d3bq}th for your State.` });
+      }
+    });
+  }
+  // annual returns for financial years whose end falls inside the tracked window
+  const fyFirst = gstccFyY(from+'-01'), fyLast = gstccFyY(today) - 1;
+  for(let y=fyFirst; y<=fyLast; y++){
+    const fy = gstccFy(y);
+    let turnover = 0; try{ turnover = rocBooksFacts(y).turnover; }catch(e){}
+    if(s.regType==='composition'){
+      add({ key:`GSTR-4|${fy}`, form:'GSTR-4', period:{label:`FY ${fy}`}, label:`FY ${fy}`, due: y>=2026 ? gstccIso(y+2,6,30) : gstccIso(y+1,4,30), kind:'annual', what:'Annual return for composition dealers (due 30 June from FY 2026-27).' });
+    } else {
+      const over2 = gstccAatoAtLeast(s.aato,'1.5to5') && turnover>2e7 || gstccAatoAtLeast(s.aato,'5to10');
+      add({ key:`GSTR-9|${fy}`, form:'GSTR-9', period:{label:`FY ${fy}`}, label:`FY ${fy}`, due:gstccIso(y+1,12,31), kind:'annual', optional:!over2, turnover, what: over2 ? 'Annual return — required above ₹2 crore turnover.' : 'Annual return — optional up to ₹2 crore turnover.' });
+      if(gstccAatoAtLeast(s.aato,'5to10')) add({ key:`GSTR-9C|${fy}`, form:'GSTR-9C', period:{label:`FY ${fy}`}, label:`FY ${fy}`, due:gstccIso(y+1,12,31), kind:'annual', turnover, what:'Self-certified reconciliation statement — above ₹5 crore.' });
+    }
+  }
+  // fees and interest, worked out from the books for each period
+  const periodCache = {};
+  out.forEach(o=>{
+    o.late = 0; o.fee = 0; o.interest = 0;
+    const until = (o.rec && o.rec.status==='filed' && o.rec.filedOn) ? o.rec.filedOn : today;
+    o.late = Math.max(0, gstccDays(o.due, until));
+    if(!o.late || o.status==='na' || o.status==='optional') return;
+    if(o.form==='GSTR-1' || o.form==='GSTR-3B'){
+      const k = o.period.key; let d = periodCache[k];
+      if(!d){ try{ d = periodCache[k] = gstReturnData(o.period); }catch(e){ d = null; } }
+      const nil = !d || d.empty;
+      o.fee = gstccLateFeeReturn(o.late, nil, s.aato);
+      if(o.form==='GSTR-3B' && d && d.g3b) o.interest = Math.round(d.g3b.cashTotal * 0.18 * o.late / 365);
+    } else if(o.form==='GSTR-9') o.fee = gstccLateFee9(o.late, s.aato, o.turnover);
+    else if(o.form==='GSTR-4') o.fee = Math.min(o.late*50, 2000);
+  });
+  out.sort((a,b)=> a.due===b.due ? a.form.localeCompare(b.form) : (a.due<b.due?-1:1));
+  try{ gstccAttachPayHints(out, today); }catch(e){}
+  gstccCache = { key, list: out };
+  return out;
+}
+function gstccScore(list, today){
+  const fs = `${gstccFyY(today)}-04-01`;
+  const due = list.filter(o=>o.due>=fs && o.due<=today && !['optional','na'].includes(o.status));
+  if(!due.length) return { pct:100, onTime:0, total:0 };
+  const onTime = due.filter(o=>o.status==='filed' && o.rec && (!o.rec.filedOn || o.rec.filedOn<=o.due)).length;
+  return { pct: Math.round(onTime/due.length*100), onTime, total: due.length };
+}
+
+/* ---- ITC rules: Rule 37 (180 days unpaid), Sec 17(5) blocked credit, Sec 16(4) time limit ---- */
+const GSTCC_BLOCKED_RE = /\b(motor ?car|car hire|vehicle|food|beverage|canteen|catering|refreshment|staff welfare|club|membership|gym|fitness|health insurance|life insurance|medical insurance|beauty|cosmetic|gift|travel benefit|leave travel|construction|building|civil work)\b/i;
+function gstccItcChecks(){
+  const today = gstccToday(), ledgerMap = new Map(state.ledgers.map(l=>[l.id,l]));
+  const r37 = [];
+  for(const l of state.ledgers){
+    if(l.partyType==='customer' || !(l.partyType==='supplier' || l.group==='sundcr')) continue;
+    let invs = []; try{ invs = partyOutstandingInvoices(l.id); }catch(e){}
+    for(const inv of invs){
+      if(!(inv.remaining>0.5) || gstccDays(inv.date, today) <= 180) continue;
+      const v = state.vouchers.find(x=>x.id===inv.voucherId); if(!v) continue;
+      const t = gstVoucherTax(v); if(!(t.inTot>0.004) || t.outTot>0.004) continue;
+      const share = Math.min(1, inv.remaining / (inv.amount||inv.remaining));
+      r37.push({ v, party:l.name, date:inv.date, days:gstccDays(inv.date, today), unpaid:r2(inv.remaining), itc:r2(t.inTot*share) });
+    }
+  }
+  r37.sort((a,b)=>b.itc-a.itc);
+  const blocked = [];
+  for(const v of state.vouchers){
+    if(v.type!=='Purchase' && v.type!=='Journal' && v.type!=='Payment') continue;
+    const t = gstVoucherTax(v); if(!(t.inTot>0.004)) continue;
+    const heads = (v.entries||[]).filter(e=>(e.dr||0)>0 && !GST_LEDGER_IDS.has(e.ledgerId)).map(e=>ledgerMap.get(e.ledgerId)).filter(Boolean);
+    const hit = heads.find(l=>GSTCC_BLOCKED_RE.test(l.name||''));
+    if(hit) blocked.push({ v, head:hit.name, itc:r2(t.inTot), date:v.date });
+  }
+  // Sec 16(4): credit for a year must be claimed by 30 November of the next year
+  const fyY = gstccFyY(today), prevFy = fyY-1, deadline = gstccIso(prevFy+1, 11, 30);
+  let prevItc = 0;
+  for(const v of state.vouchers){ if(!v.date || gstccFyY(v.date)!==prevFy) continue; if(v.type==='Sales'||v.type==='Credit Note') continue; const t = gstVoucherTax(v); if(t.inTot>0.004 && !(t.outTot>0.004)) prevItc += t.inTot; }
+  return { r37, r37Total: r2(r37.reduce((s,x)=>s+x.itc,0)), blocked, blockedTotal: r2(blocked.reduce((s,x)=>s+x.itc,0)),
+    s164:{ fy:gstccFy(prevFy), deadline, daysLeft:gstccDays(today, deadline), itc:r2(prevItc) } };
+}
+/* ---- IMS: a suggested action for every GSTR-2B record (you take the action on the portal) ---- */
+function gstccImsRows(){
+  if(typeof gst2b==='undefined' || !gst2b) return null;
+  let rec; try{ rec = gst2bReconcile(gst2b); }catch(e){ return null; }
+  return rec.rows.filter(r=>r.d).map(r=>{
+    const d = r.d, cn = d.kind==='CN';
+    let act, why, reduce = 0;
+    if(cn){ act = 'Accept'; why = r.status==='matched' ? 'Credit note is in your books' : 'Credit note from supplier — accept and reduce ITC (or keep pending while you check)'; reduce = d.tax; }
+    else if(r.status==='matched'){ act = 'Accept'; why = 'Matches your books'; }
+    else if(r.status==='mismatch'){ act = 'Pending'; why = `Tax differs by ₹${fmt(Math.abs(r.diff))} — ask the supplier to amend, or correct your entry`; }
+    else { act = 'Pending'; why = 'Not in your books — record the purchase if it is yours, otherwise Reject'; }
+    return { d, status:r.status, act, why, reduce: r2(reduce) };
+  });
+}
+/* ---- automated checks: e-invoice, e-way bill, rates ---- */
+function gstccChecks(){
+  const today = gstccToday(), s = gstccSettings(), reg = (typeof einvRegister==='function') ? einvRegister() : {};
+  const ledgerMap = new Map(state.ledgers.map(l=>[l.id,l])), ctx = { ledgerMap };
+  const since = addDays(today, -365);
+  const einvNeeded = gstccAatoAtLeast(s.aato,'5to10'), strict30 = gstccAatoAtLeast(s.aato,'10to20');
+  const noIrn = [], late30 = [], ewb = [], oldSlab = [];
+  for(const v of state.vouchers){
+    if(!v.date) continue;
+    if(v.type==='Sales' && v.date>=since && einvNeeded){
+      const party = gstVoucherParty(v, 'dr', ledgerMap);
+      const g = ((party&&party.gstin)||'').trim().toUpperCase();
+      const b2b = isValidGSTIN(g) || (party && ['overseas','sez','deemed'].includes(party.gstCategory));
+      if(b2b && !reg[v.id]){
+        const age = gstccDays(v.date, today);
+        (strict30 && age>30 ? late30 : noIrn).push({ v, party: party?party.name:'', age, amount:r2(voucherAmount(v)) });
+      }
+    }
+    if(v.type==='Sales' && v.date>=since && voucherAmount(v)>50000){
+      const items = Array.isArray(v.items) ? v.items : (v.gst && Array.isArray(v.gst.items)) ? v.gst.items : [];
+      if(items.some(it=>it && it.itemId && it.itemId!=='__custom__')) ewb.push({ v, amount:r2(voucherAmount(v)) });
+    }
+    if((v.type==='Sales'||v.type==='Purchase') && v.date>='2025-09-22'){
+      const t = gstVoucherTax(v), tax = v.type==='Sales' ? t.outTot : t.inTot;
+      if(tax>0.004){ const rate = gstSnapRate(voucherAmount(v)-tax, tax); if(rate===12 || rate===28) oldSlab.push({ v, rate }); }
+    }
+  }
+  const itemsOld = (state.items||[]).filter(i=>Number(i.gstRate)===12 || Number(i.gstRate)===28);
+  return { einvNeeded, strict30, noIrn, late30, ewb, oldSlab, itemsOld };
+}
+/* ---- law updates (dated, with status) ---- */
+const GSTCC_LAW = [
+  { d:'2025-09-22', st:'force', t:'GST 2.0 — two main slabs', b:'Rates are now 5% and 18%, with 40% for luxury and sin goods. The 12% and 28% slabs are gone, and compensation cess ended for most goods. Items still carrying 12% or 28% need a new rate.' },
+  { d:'2025-07-01', st:'force', t:'GSTR-3B Table 3 locked', b:'From the July 2025 tax period, the tax liability that fills from GSTR-1 / GSTR-1A / IFF cannot be edited in GSTR-3B. Correct sales through GSTR-1A before filing GSTR-3B.' },
+  { d:'2025-07-01', st:'force', t:'Returns time-barred after 3 years', b:'GSTR-1, 3B, 4, 9 and others cannot be filed once three years have passed from their due date. Old pending returns should be filed now.' },
+  { d:'2025-10-01', st:'force', t:'Invoice Management System — pending and ITC reduction', b:'Accept, reject or keep pending each supplier invoice before GSTR-2B. From October 2025, credit notes can be kept pending and, on accepting one, you declare how much ITC to reduce. No action = deemed accepted.' },
+  { d:'2025-04-01', st:'force', t:'e-Invoice within 30 days (AATO ₹10 crore+)', b:'The IRP rejects invoices and notes older than 30 days for businesses with turnover of ₹10 crore or more. e-Invoicing itself applies above ₹5 crore.' },
+  { d:'2026-11-01', st:'force', t:'Post-sale discounts by credit note', b:'A discount given after the sale can reduce taxable value through a credit note without a prior agreement; the buyer must reverse the matching ITC. The 30 November credit-note deadline is unchanged.' },
+  { d:'2026-11-01', st:'force', t:'Scrap, used cooking oil and e-waste', b:'Reverse charge on buying these from unregistered sellers, and 2% GST TDS by registered buyers on contracts above ₹2.5 lakh.' },
+  { d:'2026-11-01', st:'force', t:'Faster refunds and registration changes', b:'90% provisional refund for inverted duty, quicker acknowledgement, deemed approval for change of principal place; GSTR-4 now due 30 June.' },
+  { d:'2026-12-01', st:'soon', t:'New refund form RFD-01', b:'Revised application with an added declaration on prosecution history.' },
+  { d:'2027-01-01', st:'soon', t:'e-Invoice for reverse-charge purchases', b:'e-Invoicing extends to purchases from unregistered persons under reverse charge and to imported services.' },
+  { d:'2027-04-01', st:'proposed', t:'Revised GSTR-1 / 1A / IFF and stricter 3B rules', b:'Draft forms are out for comment. Proposed: GSTR-3B corrected to match GSTR-1 and GSTR-2B, IMS on a statutory footing, and auto-suspension of non-filers.' },
+];
+
+/* ---- UI ---- */
+function gstccPill(st){
+  const m = { overdue:['neg','Overdue'], soon:['warn','Due soon'], upcoming:['neutral','Upcoming'], filed:['pos','Filed'], na:['neutral','Not applicable'], optional:['neutral','Optional'], barred:['neg','Time-barred'] };
+  const p = m[st] || ['neutral', st];
+  return `<span class="pill ${p[0]} gstcc-pill">${p[1]}</span>`;
+}
+function gstccTopHtml(){
+  if(!(currentCompany && currentCompany.gstin)) return '';
+  const today = gstccToday(), list = gstccReturns(), sc = gstccScore(list, today), itc = gstccItcChecks(), ck = gstccChecks();
+  const open = list.filter(o=>['overdue','soon','upcoming'].includes(o.status));
+  const overdue = list.filter(o=>o.status==='overdue'), barred = list.filter(o=>o.status==='barred');
+  const next = overdue[0] || open[0];
+  const d = next ? gstccDays(today, next.due) : 0, tone = !next ? 'ok' : d<0 ? 'bad' : d<=7 ? 'warn' : 'ok';
+  const fee = overdue.reduce((s,o)=>s+o.fee+o.interest,0);
+  const gf = gstActiveFilingPeriod(), rd = gstReturnData(gf.period);
+  const checks = ck.noIrn.length + ck.late30.length + ck.oldSlab.length + ck.itemsOld.length + itc.blocked.length + itc.r37.length;
+  const ring = (()=>{ const r=28, c=2*Math.PI*r, off=c*(1-sc.pct/100), t = sc.pct>=90?'ok':sc.pct>=60?'warn':'bad'; return `<svg class="gstcc-ring ${t}" viewBox="0 0 72 72" role="img" aria-label="${sc.pct}% filed on time"><circle cx="36" cy="36" r="${r}" class="trk"/><circle cx="36" cy="36" r="${r}" class="val" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 36 36)"/><text x="36" y="41" text-anchor="middle">${sc.pct}%</text></svg>`; })();
+  return `<div class="gstcc-hero" id="gstccHero">
+    <div class="gstcc-next ${tone}">
+      <div class="gstcc-eyebrow">${next ? (d<0?'Overdue return':'Next return due') : 'Returns'}</div>
+      ${next ? `<div class="gstcc-next-main"><div class="gstcc-count"><b>${Math.abs(d)}</b><span>${d<0?`day${d===-1?'':'s'} late`:d===0?'due today':`day${d===1?'':'s'} left`}</span></div>
+        <div><span class="gstcc-form">${escapeHtml(next.form)}</span><div class="gstcc-next-title">${escapeHtml(next.label)}</div><div class="gstcc-next-due">Due ${gstccDate(next.due)}${next.fee||next.interest?` · late fee ${gstccMoney(next.fee)}${next.interest?` + interest ${gstccMoney(next.interest)}`:''} so far`:''}</div></div></div>
+        <div class="gstcc-next-act"><button class="btn small" type="button" data-gstcc-file="${escapeAttr(next.key)}">Mark filed</button><button class="btn small secondary" type="button" data-gstcc-filenow="${escapeAttr(next.key)}">File now</button></div>${gstccHintHtml(next)}`
+      : `<div class="gstcc-next-title" style="margin-top:6px;">Every tracked return is filed.</div>`}
+    </div>
+    <div class="gstcc-side">
+      <div class="gstcc-health">${ring}<div><b>Filing health</b><span>${sc.total ? `${sc.onTime} of ${sc.total} due this year filed on time` : 'Nothing has fallen due yet this year'}${barred.length?` · <em class="neg">${barred.length} time-barred</em>`:''}</span></div></div>
+      <div class="gstcc-kpis">
+        <button type="button" class="stat" data-gst-jump="gstccReturns"><div class="label">Overdue returns</div><div class="val ${overdue.length?'neg':''}">${overdue.length}</div><div class="gstf-sub">${fee?`Fee + interest ≈ ${gstccMoney(fee)}`:'Nothing late'}</div></button>
+        <button type="button" class="stat" data-gst-jump="gstcc3b"><div class="label">Cash to pay · ${escapeHtml(gf.period.label.replace(' (quarter)',''))}</div><div class="val">${gstccMoney(rd.g3b ? rd.g3b.cashTotal : 0)}</div><div class="gstf-sub">After setting off ITC</div></button>
+        <button type="button" class="stat" data-gst-jump="gstccItc"><div class="label">ITC at risk</div><div class="val ${itc.r37Total+itc.blockedTotal>0?'neg':''}">${gstccMoney(itc.r37Total+itc.blockedTotal)}</div><div class="gstf-sub">Rule 37 + Sec 17(5)</div></button>
+        <button type="button" class="stat" data-gst-jump="gstccChecks"><div class="label">Checks to review</div><div class="val ${checks?'warn':''}">${checks}</div><div class="gstf-sub">e-Invoice, rates, ITC</div></button>
+      </div>
+    </div>
+  </div>
+  <nav class="gstcc-nav" aria-label="GST sections">${[['gstccReturns','Return calendar'],['gstFilingPanel','File GSTR-1'],['gstcc3b','GSTR-3B worksheet'],['gstccItc','ITC & IMS'],['gstccChecks','e-Invoice & rates'],['gstOutwardSection','Registers'],['gstccLaw','Law updates']].map(([id,l])=>`<button type="button" data-gst-jump="${id}">${l}</button>`).join('')}</nav>`;
+}
+const GSTCC_GUIDE = {
+  'GSTR-1':['In File GST Return below, pick the period and clear every "Must fix".','Download the GSTR-1 JSON.','On gst.gov.in: Returns Dashboard → GSTR-1 → Prepare Offline → Upload the JSON.','Check the summary, then File with DSC or EVC.','Record the ARN here.'],
+  'GSTR-3B':['Check the GSTR-3B worksheet below against the portal draft.','Table 3 fills from GSTR-1 and is locked — fix sales through GSTR-1A before filing.','Compare Table 4 with GSTR-2B and the ITC checks (reverse Rule 37 / 17(5) credit in 4(B)).','Pay the cash shown in the worksheet (PMT-06 challan), then offset liability.','File with DSC or EVC and record the ARN here.'],
+  'IFF':['Optional: upload B2B invoices for the first two months of the quarter so buyers see them in GSTR-2B.','Use the same JSON as GSTR-1 for that month.'],
+  'PMT-06':['Pay by the 25th: either 35% of last quarter\'s cash tax (fixed sum) or the tax worked out in the worksheet (self-assessment).','Generate the challan on gst.gov.in → Payment Services.'],
+  'GSTR-9':['Compile purchases, sales and ITC for the year from the filing workbooks.','File on gst.gov.in → Annual Return; GSTR-9C as well above ₹5 crore.'],
+  'GSTR-9C':['Reconcile audited accounts with GSTR-9 and self-certify.','File after GSTR-9.'],
+  'CMP-08':['Pay composition tax on turnover for the quarter.','File on gst.gov.in → Returns → CMP-08.'],
+  'GSTR-4':['Annual return for composition dealers.','File on gst.gov.in → Returns → GSTR-4.'],
+};
+function gstccReturnsPanel(){
+  if(!(currentCompany && currentCompany.gstin)) return '';
+  const today = gstccToday(), s = gstccSettings(), list = gstccReturns();
+  const shown = list.filter(o=> gstccRetFilter==='all' ? true : gstccRetFilter==='filed' ? o.status==='filed' : ['overdue','soon','upcoming','barred','optional'].includes(o.status));
+  const cnt = k => list.filter(o=> k==='all' ? true : k==='filed' ? o.status==='filed' : ['overdue','soon','upcoming','barred','optional'].includes(o.status)).length;
+  const f = gstccForm;
+  const rows = shown.map(o=>{
+    const d = gstccDays(today, o.due), open = gstccGuide===o.key;
+    const when = o.status==='filed' ? (o.rec && o.rec.filedOn ? `filed ${gstccDate(o.rec.filedOn)}` : 'filed') : o.status==='optional' ? '' : d<0 ? `${-d} day${d===-1?'':'s'} late` : d===0 ? 'today' : `in ${d} day${d===1?'':'s'}`;
+    const act = o.status==='filed' || o.status==='na' ? `<button class="btn small secondary" type="button" data-gstcc-undo="${escapeAttr(o.key)}">Undo</button>`
+      : `<button class="btn small" type="button" data-gstcc-file="${escapeAttr(o.key)}">${o.kind==='payment'?'Mark paid':'Mark filed'}</button>${o.optional?'':` <button class="btn small secondary" type="button" data-gstcc-na="${escapeAttr(o.key)}" title="Not required for this period">N/A</button>`}`;
+    return `<tr class="gstcc-row st-${o.status}" data-gstcc-key="${escapeAttr(o.key)}">
+      <td data-label="Return"><span class="gstcc-form">${escapeHtml(o.form)}</span></td>
+      <td data-label="Period"><b>${escapeHtml(o.label)}</b><div class="gstcc-what">${escapeHtml(o.what)}</div>${o.rec && (o.rec.arn||o.rec.note) ? `<div class="gstcc-rec">${o.rec.arn?`ARN <b>${escapeHtml(o.rec.arn)}</b>`:''}${o.rec.arn&&o.rec.note?' · ':''}${escapeHtml(o.rec.note||'')}</div>`:''}${gstccHintHtml(o,true)}${o.status!=='filed'&&o.status!=='na'?`<button type="button" class="gstcc-link" data-gstcc-filenow="${escapeAttr(o.key)}" aria-expanded="${gstccFileNowKey===o.key}">${gstccFileNowKey===o.key?'Close':'File now ›'}</button>`:''}</td>
+      <td data-label="Due" class="gstcc-due"><b>${gstccDate(o.due)}</b><div class="gstcc-when">${when}</div></td>
+      <td data-label="Status">${gstccPill(o.status)}</td>
+      <td data-label="Late fee / interest" class="num">${o.fee||o.interest ? `<span class="${o.status==='overdue'||o.status==='barred'?'gstcc-fee':''}">${gstccMoney(o.fee)}${o.interest?`<div class="gstcc-when">+ ${gstccMoney(o.interest)} interest</div>`:''}</span>` : '<span class="muted">—</span>'}</td>
+      <td data-label="">${act}</td></tr>
+      ${open ? `<tr class="gstcc-guide-row"><td colspan="6"><div class="gstcc-guide"><ol>${GSTCC_GUIDE[o.form].map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol><a class="btn small secondary" href="${GSTCC_PORTAL}" target="_blank" rel="noopener noreferrer">Open GST portal ↗</a></div></td></tr>` : ''}
+      ${gstccFileNowKey===o.key ? `<tr class="gstcc-guide-row gstcc-fn-row"><td colspan="6">${gstccFileNowHtml(o)}</td></tr>` : ''}
+      ${f && f.key===o.key ? `<tr class="gstcc-file-row"><td colspan="6"><div class="spend-form">
+        <div class="field"><label for="gstccFiledOn">${o.kind==='payment'?'Paid on':'Filed on'}</label><input type="date" id="gstccFiledOn" value="${escapeAttr(f.filedOn)}" max="${today}"></div>
+        <div class="field"><label for="gstccArn">${o.kind==='payment'?'CPIN / CIN':'ARN'}</label><input type="text" id="gstccArn" value="${escapeAttr(f.arn)}" maxlength="20" placeholder="${o.kind==='payment'?'e.g. 26113300012345':'e.g. AA3310260123456'}" style="text-transform:uppercase"></div>
+        <div class="field" style="grid-column:span 2;"><label for="gstccNote">Note</label><input type="text" id="gstccNote" value="${escapeAttr(f.note)}" placeholder="Filed by, paid from cash ledger…"></div>
+        <div class="spend-form-actions"><button class="btn secondary" type="button" id="gstccCancel">Cancel</button><button class="btn" type="button" id="gstccSave">Save</button></div>
+      </div></td></tr>` : ''}`;
+  }).join('');
+  return `<div class="panel" id="gstccReturns"><div class="panel-head"><h2>Return calendar</h2><div class="gstf-controls"><span class="gstcc-chip">${s.regType==='composition'?'Composition':'Regular'} · ${s.regType==='composition'?'quarterly CMP-08':s.freq==='quarterly'?'QRMP (quarterly)':'Monthly'} · ${escapeHtml(GSTCC_AATO_LABEL[s.aato])}${s.aatoAuto && s.aatoInfo && s.aatoInfo.source==='books' ? ' · from books' : ''}</span><button class="btn small secondary" type="button" id="gstccAckBtn">${gstccAckOpen?'Close message reader':'Record from portal message'}</button><button class="btn small secondary" type="button" id="gstccSettingsBtn">${gstccSettingsOpen?'Close settings':'⚙ Settings'}</button></div></div><div class="panel-body">
+    ${gstccSettingsOpen ? `<div class="spend-form" id="gstccSettingsForm">
+      <div class="field"><label for="gstccRegType">Registration</label><select id="gstccRegType"><option value="regular" ${s.regType==='regular'?'selected':''}>Regular taxpayer</option><option value="composition" ${s.regType==='composition'?'selected':''}>Composition scheme</option></select></div>
+      <div class="field"><label for="gstccAato">Turnover last year (AATO)</label><select id="gstccAato"><option value="" ${s.aatoAuto?'selected':''}>Work out from my books${s.aatoInfo && s.aatoInfo.source==='books' ? ` (${gstccMoney(s.aatoInfo.turnover)} in FY ${s.aatoInfo.fy})` : ''}</option>${Object.entries(GSTCC_AATO_LABEL).map(([k,l])=>`<option value="${k}" ${!s.aatoAuto&&s.aato===k?'selected':''}>${l}</option>`).join('')}</select><div class="roc-help">Sets late-fee caps, GSTR-9/9C and e-invoice rules. Pick a band if you have other GSTINs under the same PAN.</div></div>
+      <div class="field"><label for="gstccTrack">Track returns from</label><input type="month" id="gstccTrack" value="${escapeAttr(s.trackFrom)}"><div class="roc-help">Blank = your first GST voucher, up to 12 months back</div></div>
+      <div class="field"><label>Filing frequency</label><div class="roc-help" style="margin-top:8px;">Monthly or QRMP is set in File GST Return below.</div></div>
+      <div class="spend-form-actions"><button class="btn secondary" type="button" id="gstccSettingsCancel">Cancel</button><button class="btn" type="button" id="gstccSettingsSave">Save</button></div>
+    </div>` : ''}
+    ${gstccAckOpen ? gstccAckFormHtml(list) : ''}
+    ${(()=>{ const h = list.filter(o=>o.hint && !['filed','na'].includes(o.status)); if(!h.length) return '';
+      return `<div class="gstcc-bulk gstcc-paid" id="gstccPaidBanner"><span>${h.length} return${h.length===1?' looks':'s look'} filed — GST payment${h.length===1?'':'s'} for ${h.map(o=>`${escapeHtml(o.form)} ${escapeHtml(o.label)}`).join(', ')} found in your books.</span><button class="btn small" type="button" id="gstccConfirmAll">Confirm ${h.length===1?'':'all '}filed</button></div>`; })()}
+    ${(()=>{ const od = list.filter(o=>(o.status==='overdue' || o.status==='barred') && !o.hint); if(od.length<2 && !gstccBulkOpen) return '';
+      return gstccBulkOpen ? `<div class="spend-form" id="gstccBulkForm"><div class="field" style="grid-column:1/-1;"><b style="font-size:13px;">Already filed on the portal?</b><div class="roc-help" style="font-size:12px;">Mark every return and payment due on or before this date as filed (filing date left blank). You can undo any of them.</div></div>
+        <div class="field"><label for="gstccBulkUpto">Due on or before</label><input type="date" id="gstccBulkUpto" value="${escapeAttr(today)}" max="${today}"></div>
+        <div class="spend-form-actions"><button class="btn secondary" type="button" id="gstccBulkCancel">Cancel</button><button class="btn" type="button" id="gstccBulkSave">Mark ${od.length} as filed</button></div></div>`
+        : `<div class="gstcc-bulk"><span>${od.length} returns show as overdue. Filed them already?</span><button class="btn small secondary" type="button" id="gstccBulkBtn">Mark earlier returns filed</button></div>`; })()}
+    <div class="filter-chips" style="margin-bottom:10px;">${[['open','To file'],['filed','Filed'],['all','All']].map(([k,l])=>`<button type="button" class="filter-chip ${gstccRetFilter===k?'active':''}" data-gstcc-filter="${k}">${l} <span class="chip-count">${cnt(k)}</span></button>`).join('')}</div>
+    ${shown.length ? `<div class="table-scroll"><table class="rb-card-table gstcc-table" id="gstccTable"><tr><th>Return</th><th>Period</th><th>Due</th><th>Status</th><th class="num">Late fee / interest</th><th></th></tr>${rows}</table></div>` : emptyState({icon:'✅', title:'Nothing to file', text:'Every tracked return is filed or marked not applicable.'})}
+    <p class="muted gstcc-foot">Due dates, late fees, interest and checks update from your books on their own, and GST payments you record are matched to their return. Filing is done by you on gst.gov.in (OTP or DSC) — paste the portal's confirmation message and the ARN is recorded for you. Late fee: ₹50 a day (₹20 for a nil return), capped by turnover; interest at 18% a year on tax paid late in cash. Returns cannot be filed once 3 years have passed from the due date. Due-date extensions announced later are not applied automatically.</p>
+  </div></div>`;
+}
+function gstcc3bPanel(){
+  if(!(currentCompany && currentCompany.gstin)) return '';
+  const gf = gstActiveFilingPeriod(), d = gstReturnData(gf.period), g = d.g3b, itc = gstccItcChecks();
+  const money = n => '₹'+fmt(n);
+  const row = (lbl, o, locked) => `<tr><td>${lbl}${locked?' <span class="gstcc-lock" title="Fills from GSTR-1 / 1A / IFF and cannot be edited in GSTR-3B">🔒 from GSTR-1</span>':''}</td><td class="num">${money(o.txval||0)}</td><td class="num">${money(o.i||0)}</td><td class="num">${money(o.c||0)}</td><td class="num">${money(o.s||0)}</td></tr>`;
+  const per = d.period;
+  const inPer = x => x.date>=per.from && x.date<=per.to;
+  const rev37 = r2(itc.r37.reduce((s,x)=>s+x.itc,0)), rev175 = r2(itc.blocked.filter(inPer).reduce((s,x)=>s+x.itc,0));
+  const itcTot = r2(g.itc.i+g.itc.c+g.itc.s), net = r2(itcTot - rev175);
+  const late = gstccReturns().find(o=>o.form==='GSTR-3B' && o.period && o.period.key===per.key);
+  return `<div class="panel" id="gstcc3b"><div class="panel-head"><h2>GSTR-3B worksheet · ${escapeHtml(per.label)}</h2><span class="viz-sub">Worked out from your books — compare with the portal draft before you file</span></div><div class="panel-body">
+    ${d.empty ? emptyState({icon:'🧾', title:'No GST activity in this period', text:'File a nil GSTR-3B on the portal (it can be filed by SMS too).'}) : `
+    <div class="table-scroll"><table class="gstcc-3b">
+      <tr><th>Table 3.1 — outward and reverse-charge supplies</th><th class="num">Taxable value</th><th class="num">IGST</th><th class="num">CGST</th><th class="num">SGST</th></tr>
+      ${row('(a) Taxable outward supplies', g.t31a, true)}
+      ${row('(b) Zero-rated (exports, SEZ)', g.t31b, true)}
+      ${row('(c) Nil-rated and exempt', {txval:g.t31c}, true)}
+      ${row('(d) Inward supplies on reverse charge', g.t31d, false)}
+      ${row('(e) Non-GST outward supplies', {txval:g.t31e}, true)}
+      <tr><th>Table 4 — input tax credit</th><th></th><th class="num">IGST</th><th class="num">CGST</th><th class="num">SGST</th></tr>
+      <tr><td>(A) ITC available in your books (claim only what is in GSTR-2B)</td><td></td><td class="num">${money(g.itc.i)}</td><td class="num">${money(g.itc.c)}</td><td class="num">${money(g.itc.s)}</td></tr>
+      <tr><td>(B)(1) Blocked credit — Sec 17(5) heads this period</td><td></td><td class="num" colspan="3">${rev175?`<b class="neg">− ${money(rev175)}</b>`:'—'}</td></tr>
+      <tr><td>(B)(2) Rule 37 — supplier unpaid over 180 days (all periods)</td><td></td><td class="num" colspan="3">${rev37?`<b class="neg">− ${money(rev37)}</b> <span class="muted">reverse with interest</span>`:'—'}</td></tr>
+      <tr class="totals-row"><td>(C) Net ITC after blocked credit</td><td></td><td class="num" colspan="3"><b>${money(net)}</b></td></tr>
+      <tr><th>Table 6.1 — payment</th><th></th><th class="num">IGST</th><th class="num">CGST</th><th class="num">SGST</th></tr>
+      <tr><td>Tax payable</td><td></td><td class="num">${money(g.payable.i||0)}</td><td class="num">${money(g.payable.c||0)}</td><td class="num">${money(g.payable.s||0)}</td></tr>
+      <tr class="totals-row"><td>Cash to pay after ITC set-off (incl. reverse charge)</td><td></td><td class="num">${money(g.cash.i||0)}</td><td class="num">${money(g.cash.c||0)}</td><td class="num">${money(g.cash.s||0)}</td></tr>
+    </table></div>
+    <div class="gstcc-3b-foot"><span class="gstcc-chip strong">Cash payable ${money(g.cashTotal)}</span>${late && late.interest ? `<span class="gstcc-chip bad">Interest if paid today ${gstccMoney(late.interest)} (18% p.a., ${late.late} days)</span>` : ''}${rev37+rev175>0?`<span class="gstcc-chip warn">Reversals reduce credit by ${money(rev37+rev175)} — cash may rise</span>`:''}</div>
+    <p class="muted gstcc-foot">Since July 2025 the portal fills Table 3 from GSTR-1 / GSTR-1A / IFF and locks it — if a sale is wrong, correct it through GSTR-1A before filing GSTR-3B. Table 4 fills from GSTR-2B; ITC set-off follows IGST first, then CGST and SGST.</p>`}
+  </div></div>`;
+}
+function gstccItcPanel(){
+  if(!(currentCompany && currentCompany.gstin)) return '';
+  const c = gstccItcChecks(), ims = gstccImsRows();
+  const s = c.s164;
+  return `<div class="panel" id="gstccItc"><div class="panel-head"><h2>ITC & IMS</h2><span class="viz-sub">Credit rules checked automatically — act on the portal</span></div><div class="panel-body">
+    <div class="gstcc-cards">
+      <div class="gstcc-card ${c.r37.length?'bad':'ok'}"><div class="gstcc-card-h"><b>Rule 37 — unpaid over 180 days</b><span>${c.r37.length?`${c.r37.length} bill${c.r37.length===1?'':'s'}`:'Clear'}</span></div><div class="gstcc-card-v">${gstccMoney(c.r37Total)}</div><p>ITC on supplier bills not paid within 180 days must be reversed in GSTR-3B 4(B)(2) with interest, and can be claimed again once paid.</p>${c.r37.length?`<button class="btn small secondary gstcc-card-btn" type="button" data-gstcc-reverse="r37">Draft reversal entry</button>`:''}</div>
+      <div class="gstcc-card ${c.blocked.length?'warn':'ok'}"><div class="gstcc-card-h"><b>Sec 17(5) — blocked credit</b><span>${c.blocked.length?`${c.blocked.length} voucher${c.blocked.length===1?'':'s'}`:'Clear'}</span></div><div class="gstcc-card-v">${gstccMoney(c.blockedTotal)}</div><p>Credit taken on heads like motor vehicles, food, club membership, insurance or gifts is usually not allowed. Check and reverse in 4(B)(1).</p>${c.blocked.length?`<button class="btn small secondary gstcc-card-btn" type="button" data-gstcc-reverse="175">Draft reversal entry</button>`:''}</div>
+      <div class="gstcc-card ${s.daysLeft>=0 && s.daysLeft<=45?'warn':'info'}"><div class="gstcc-card-h"><b>Sec 16(4) — last date for FY ${s.fy} credit</b><span>${s.daysLeft>=0?`${s.daysLeft} days left`:'Passed'}</span></div><div class="gstcc-card-v">${gstccDate(s.deadline)}</div><p>Credit for FY ${s.fy} (${gstccMoney(s.itc)} in your books) must be claimed in a return filed by this date. Missed credit lapses.</p></div>
+    </div>
+    ${c.r37.length ? `<details class="gstcc-det" open><summary>Bills to reverse under Rule 37 <span class="chip-count">${c.r37.length}</span></summary><div class="table-scroll"><table class="rb-card-table"><tr><th>Supplier</th><th>Bill date</th><th class="num">Days</th><th class="num">Unpaid</th><th class="num">ITC to reverse</th></tr>
+      ${c.r37.slice(0,20).map(x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td data-label="Supplier">${escapeHtml(x.party)}</td><td data-label="Bill date">${gstccDate(x.date)}</td><td class="num" data-label="Days">${x.days}</td><td class="num" data-label="Unpaid">₹${fmt(x.unpaid)}</td><td class="num" data-label="ITC to reverse"><b>₹${fmt(x.itc)}</b></td></tr>`).join('')}</table></div></details>` : ''}
+    ${c.blocked.length ? `<details class="gstcc-det"><summary>Possibly blocked credit (Sec 17(5)) <span class="chip-count">${c.blocked.length}</span></summary><div class="table-scroll"><table class="rb-card-table"><tr><th>Date</th><th>Expense head</th><th class="num">ITC</th></tr>
+      ${c.blocked.slice(0,20).map(x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td data-label="Date">${gstccDate(x.date)}</td><td data-label="Head">${escapeHtml(x.head)}</td><td class="num" data-label="ITC">₹${fmt(x.itc)}</td></tr>`).join('')}</table></div></details>` : ''}
+    <div class="gstcc-ims">
+      <div class="gstcc-ims-h"><b>IMS action sheet</b>${ims ? `<button class="btn small secondary" type="button" id="gstccImsCsv">⬇ IMS sheet (CSV)</button>` : ''}</div>
+      ${ims ? `<div class="gstcc-ims-sum">${['Accept','Pending','Reject'].map(a=>`<span class="gstcc-chip ${a==='Accept'?'ok':a==='Pending'?'warn':'bad'}">${a} ${ims.filter(r=>r.act===a).length}</span>`).join('')}${ims.some(r=>r.reduce)?`<span class="gstcc-chip">ITC to reduce on credit notes ₹${fmt(ims.reduce((s,r)=>s+r.reduce,0))}</span>`:''}</div>
+        <div class="table-scroll"><table class="rb-card-table" id="gstccImsTable"><tr><th>Supplier</th><th>Document</th><th class="num">Tax</th><th>Suggested action</th><th>Why</th></tr>
+        ${ims.slice(0,30).map(r=>`<tr><td data-label="Supplier">${escapeHtml(r.d.trdnm||r.d.ctin)}</td><td data-label="Document">${escapeHtml(r.d.kind)} ${escapeHtml(r.d.num)} · ${gstccDate(r.d.date)}</td><td class="num" data-label="Tax">₹${fmt(r.d.tax)}</td><td data-label="Action"><span class="pill ${r.act==='Accept'?'pos':r.act==='Pending'?'warn gstcc-pill':'neg'}">${r.act}</span>${r.reduce?`<div class="gstcc-when">reduce ITC ₹${fmt(r.reduce)}</div>`:''}</td><td data-label="Why">${escapeHtml(r.why)}</td></tr>`).join('')}</table></div>`
+      : `<p class="muted" style="margin:0;font-size:12.5px;">Upload your GSTR-2B in the reconciliation panel below — each supplier document then gets a suggested IMS action (accept / pending / reject, and the ITC to reduce on credit notes). Take the actions on gst.gov.in → IMS before GSTR-2B is generated on the 14th; anything left untouched is deemed accepted.</p>`}
+    </div>
+  </div></div>`;
+}
+function gstccChecksPanel(){
+  if(!(currentCompany && currentCompany.gstin)) return '';
+  const c = gstccChecks(), s = gstccSettings();
+  const item = (tone, title, n, body, rows) => `<details class="gstcc-check tone-${n?tone:'ok'}" ${n?'':'data-clear'}><summary><span class="gstcc-check-n">${n||'✓'}</span><b>${title}</b></summary><div class="gstcc-check-b"><p>${body}</p>${rows||''}</div></details>`;
+  const vrows = (list, f) => list.length ? `<div class="table-scroll"><table class="rb-card-table">${list.slice(0,12).map(f).join('')}</table></div>${list.length>12?`<div class="muted" style="font-size:11.5px;">and ${list.length-12} more</div>`:''}` : '';
+  return `<div class="panel" id="gstccChecks"><div class="panel-head"><h2>e-Invoice & rate checks</h2><div class="gstf-controls">${c.einvNeeded?`<button class="btn small secondary" type="button" id="gstccIrpBtn">⬆ Upload IRP response</button><input type="file" id="gstccIrpFile" accept=".json,application/json" hidden>`:''}<a class="btn small secondary" href="${GSTCC_EINV_PORTAL}" target="_blank" rel="noopener noreferrer">e-Invoice portal ↗</a></div></div><div class="panel-body">
+    ${c.einvNeeded ? '' : `<p class="muted" style="margin:0 0 10px;font-size:12.5px;">e-Invoicing applies when turnover (AATO) is above ₹5 crore — set your turnover in the Return calendar settings. Currently: ${escapeHtml(GSTCC_AATO_LABEL[s.aato])}.</p>`}
+    ${c.strict30 ? item('bad','B2B invoices past the 30-day e-invoice limit', c.late30.length, 'With turnover of ₹10 crore or more, the IRP rejects documents older than 30 days. These invoices have no IRN and can no longer be reported — speak to your CA about the correction route.', vrows(c.late30, x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td>${gstccDate(x.v.date)}</td><td>${escapeHtml(x.party)}</td><td class="num">${x.age} days</td><td class="num">₹${fmt(x.amount)}</td></tr>`)) : ''}
+    ${c.einvNeeded ? item('warn','B2B / export invoices without an IRN', c.noIrn.length, `Generate the IRN on the e-invoice portal (use the e-Invoice JSON from the GST Summary buttons), then upload the response so the invoice prints with its QR.${c.strict30?' Report within 30 days of the invoice date.':''}`, vrows(c.noIrn, x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td>${gstccDate(x.v.date)}</td><td>${escapeHtml(x.party)}</td><td class="num">${x.age} days old</td><td class="num">₹${fmt(x.amount)}</td></tr>`)) : ''}
+    ${(()=>{ const qrmpBad = s.regType!=='composition' && s.freq==='quarterly' && gstccAatoAtLeast(s.aato,'5to10'), compBad = s.regType==='composition' && gstccAatoAtLeast(s.aato,'1.5to5');
+      return item('bad', qrmpBad ? 'Quarterly filing (QRMP) is not allowed at your turnover' : compBad ? 'Turnover is above the composition limit' : 'Filing scheme fits your turnover', (qrmpBad||compBad)?1:0,
+        qrmpBad ? 'QRMP is only for turnover up to ₹5 crore. Switch to monthly filing in File GST Return and file monthly from the next quarter.' : compBad ? 'Composition is generally limited to ₹1.5 crore turnover (₹50 lakh for services). Speak to your CA about moving to regular registration.' : `Checked against your turnover band (${escapeHtml(GSTCC_AATO_LABEL[s.aato])}${s.aatoAuto && s.aatoInfo && s.aatoInfo.source==='books' ? ', worked out from last year\'s books' : ''}).`); })()}
+    ${item('warn','Invoices that may need an e-way bill', c.ewb.length, 'Goods moving with invoice value above ₹50,000 need an e-way bill (generate it on ewaybillgst.gov.in before the goods move; documents older than 180 days are not accepted).', vrows(c.ewb, x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td>${gstccDate(x.v.date)}</td><td>${escapeHtml((x.v.narration||'').slice(0,50))}</td><td class="num">₹${fmt(x.amount)}</td></tr>`))}
+    ${item('warn','Items still on the old 12% / 28% slabs', c.itemsOld.length, 'GST 2.0 (22 Sep 2025) removed the 12% and 28% slabs — most items moved to 5% or 18%, luxury and sin goods to 40%. Update the item rate under Inventory.', c.itemsOld.length ? `<div class="gstcc-tags">${c.itemsOld.slice(0,20).map(i=>`<span class="gstcc-chip">${escapeHtml(i.name)} · ${Number(i.gstRate)}%</span>`).join('')}</div>` : '')}
+    ${item('warn','Vouchers after 22 Sep 2025 at 12% / 28%', c.oldSlab.length, 'These were charged at an old slab after GST 2.0 took effect. Check the rate — a wrong rate means a wrong GSTR-1 and possible demand.', vrows(c.oldSlab, x=>`<tr data-edit-voucher="${escapeAttr(x.v.id)}" style="cursor:pointer;"><td>${gstccDate(x.v.date)}</td><td>${escapeHtml(x.v.type)}</td><td>${escapeHtml((x.v.narration||'').slice(0,50))}</td><td class="num">${x.rate}%</td></tr>`))}
+  </div></div>`;
+}
+function gstccLawPanel(){
+  const today = gstccToday();
+  const lab = { force:['pos','In force'], soon:['warn','Coming'], proposed:['neutral','Proposed'] };
+  return `<div class="panel" id="gstccLaw"><div class="panel-head"><h2>GST law updates</h2><span class="viz-sub">What the module follows · updated Nov 2026</span></div><div class="panel-body">
+    <ol class="gstcc-law">${GSTCC_LAW.slice().sort((a,b)=>a.d<b.d?1:-1).map(x=>{ const st = x.st==='soon' && x.d<=today ? 'force' : x.st; return `<li><div class="gstcc-law-d">${gstccDate(x.d)}</div><div><div class="gstcc-law-t"><b>${escapeHtml(x.t)}</b> <span class="pill ${lab[st][0]} gstcc-pill">${lab[st][1]}</span></div><p>${escapeHtml(x.b)}</p></div></li>`; }).join('')}</ol>
+    <p class="muted gstcc-foot">Summarised from CBIC notifications and GSTN advisories as reported up to November 2026. Always confirm on cbic-gst.gov.in before acting; proposed changes need notification before they apply.</p>
+  </div></div>`;
+}
+function wireGstcc(){
+  const today = gstccToday(), rec = () => gstccData().returns;
+  const by = () => (currentUser && (currentUser.name||currentUser.email)) || '';
+  const persist = async msg => { gstccCache.key=''; render(); const ok = await saveGstCompliance(); if(ok && msg) toast(msg); };
+  const guard = () => { if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; } return true; };
+  document.querySelectorAll('[data-gstcc-file]').forEach(el=>el.addEventListener('click', ()=>{ if(!guard()) return; gstccRetFilter = 'open'; gstccFileNowKey = ''; gstccForm = { key: el.dataset.gstccFile, filedOn: today, arn:'', note:'' }; render(); const n = document.getElementById('gstccFiledOn'); if(n){ n.scrollIntoView({block:'center'}); n.focus(); } }));
+  document.getElementById('gstccCancel')?.addEventListener('click', ()=>{ gstccForm = null; render(); });
+  document.getElementById('gstccSave')?.addEventListener('click', ()=>{
+    if(!guard() || !gstccForm) return;
+    const filedOn = (document.getElementById('gstccFiledOn')||{}).value||'', arn = String((document.getElementById('gstccArn')||{}).value||'').trim().toUpperCase().replace(/\s/g,''), note = String((document.getElementById('gstccNote')||{}).value||'').trim();
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(filedOn) || filedOn>today){ toast('Enter the date it was filed (not in the future)'); return; }
+    if(arn && !/^[A-Z0-9]{10,20}$/.test(arn)){ toast('ARN / CPIN is letters and digits only'); return; }
+    rec()[gstccForm.key] = { status:'filed', filedOn, arn, note, by:by(), at:new Date().toISOString() };
+    gstccForm = null; persist('Recorded as filed');
+  });
+  document.querySelectorAll('[data-gstcc-na]').forEach(el=>el.addEventListener('click', ()=>{ if(!guard()) return; rec()[el.dataset.gstccNa] = { status:'na', by:by(), at:new Date().toISOString() }; persist('Marked not applicable'); }));
+  document.querySelectorAll('[data-gstcc-undo]').forEach(el=>el.addEventListener('click', ()=>{ if(!guard()) return; delete rec()[el.dataset.gstccUndo]; persist('Back on the calendar'); }));
+  document.querySelectorAll('[data-gstcc-filter]').forEach(el=>el.addEventListener('click', ()=>{ gstccRetFilter = el.dataset.gstccFilter; render(); }));
+  document.querySelectorAll('[data-gstcc-guide]').forEach(el=>el.addEventListener('click', ()=>{ gstccGuide = gstccGuide===el.dataset.gstccGuide ? '' : el.dataset.gstccGuide; render(); }));
+  document.querySelectorAll('[data-gstcc-guide-open]').forEach(el=>el.addEventListener('click', ()=>{ gstccGuide = el.dataset.gstccGuideOpen; gstccRetFilter = 'all'; render(); document.querySelector(`[data-gstcc-key="${CSS.escape(gstccGuide)}"]`)?.scrollIntoView({block:'center'}); }));
+  document.getElementById('gstccBulkBtn')?.addEventListener('click', ()=>{ if(!guard()) return; gstccBulkOpen = true; render(); });
+  document.getElementById('gstccBulkCancel')?.addEventListener('click', ()=>{ gstccBulkOpen = false; render(); });
+  document.getElementById('gstccBulkSave')?.addEventListener('click', ()=>{
+    if(!guard()) return;
+    const upto = (document.getElementById('gstccBulkUpto')||{}).value || today;
+    let n = 0;
+    gstccReturns().forEach(o=>{ if(o.due<=upto && ['overdue','barred','soon'].includes(o.status)){ rec()[o.key] = { status:'filed', filedOn:'', arn:'', note:'Marked filed in bulk', by:by(), at:new Date().toISOString() }; n++; } });
+    gstccBulkOpen = false; persist(`${n} return${n===1?'':'s'} marked filed`);
+  });
+  document.getElementById('gstccSettingsBtn')?.addEventListener('click', ()=>{ gstccSettingsOpen = !gstccSettingsOpen; render(); });
+  document.getElementById('gstccSettingsCancel')?.addEventListener('click', ()=>{ gstccSettingsOpen = false; render(); });
+  document.getElementById('gstccSettingsSave')?.addEventListener('click', ()=>{
+    if(!guard()) return;
+    const s = gstccData().settings;
+    s.regType = document.getElementById('gstccRegType').value; s.aato = document.getElementById('gstccAato').value;
+    const t = document.getElementById('gstccTrack').value; s.trackFrom = /^\d{4}-\d{2}$/.test(t) ? t : '';
+    gstccSettingsOpen = false; persist('GST compliance settings saved');
+  });
+  wireGstAuto();
+  document.getElementById('gstccImsCsv')?.addEventListener('click', ()=>{
+    const rows = gstccImsRows() || [];
+    const q = v => `"${String(v==null?'':v).replace(/"/g,'""')}"`;
+    const csv = [['Supplier GSTIN','Supplier','Type','Number','Date','Taxable','Tax','Suggested IMS action','ITC to reduce','Why']].concat(rows.map(r=>[r.d.ctin, r.d.trdnm, r.d.kind, r.d.num, r.d.date, r.d.txval||'', r.d.tax, r.act, r.reduce||'', r.why])).map(r=>r.map(q).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `IMS-actions-${(gst2b&&gst2b.rtnprd)||''}.csv`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  });
+}
+// Calendar feed: open GST returns (type 'gstReturn'); the old generic GSTR-3B reminder steps aside once this is on.
+function gstccCalendarEvents(){
+  if(!(currentCompany && currentCompany.gstin)) return [];
+  let list = []; try{ list = gstccReturns(); }catch(e){ return []; }
+  const today = gstccToday();
+  return list.filter(o=>['overdue','soon','upcoming'].includes(o.status)).map(o=>({ date:o.due, type:'gstReturn', severity: o.status==='overdue' ? 'overdue' : (o.due<=addDays(today,3) ? 'dueSoon' : 'upcoming'), title:`${o.form} — ${o.label}`, detail: o.what + (o.fee?` Late fee so far ₹${fmt(o.fee)}.`:'') }));
+}
+
+/* ====== GST automation, round 2 (Nov 2026) — assisted filing ======
+   Everything the app can do without the GST portal now happens on its own:
+     • turnover tier (AATO) worked out from last year's books unless the user sets it;
+     • GST payments in the books matched to the return they pay for ("Payment found — confirm filed");
+     • the portal's confirmation SMS / e-mail read for ARN, return, period and filing date;
+     • a guided "File now" panel per return: readiness checks, the GSTR-1 file, every GSTR-3B figure with a
+       copy button, the nil-return SMS, and a one-paste record of the acknowledgement;
+     • draft journal entries (Rule 37 / Sec 17(5) reversal, GSTR-3B set-off and payment) opened in Voucher
+       Entry for the user to check and save — nothing is posted without the user;
+     • IRP responses uploaded straight from the e-Invoice checks.
+   Filing itself stays on gst.gov.in (OTP / DSC by the taxpayer). Reads the books; writes only state.gstCompliance
+   (and the e-invoice register through the existing importer). */
+let gstccFileNowKey = '';      // return key whose "File now" panel is open
+let gstccAckOpen = false;      // "Record from portal message" form
+let gstccAckRows = null;       // parsed acknowledgements awaiting confirmation
+let gstccAatoMemo = { key:'', val:null };
+const GSTCC_AATO_STEPS = [[1.5e7,'lt1.5'],[5e7,'1.5to5'],[1e8,'5to10'],[2e8,'10to20']];
+function gstccAatoTier(t){ for(const [lim,k] of GSTCC_AATO_STEPS){ if(t < lim) return k; } return 'gt20'; }
+// Turnover tier from last financial year's sales in the books; falls back on the "above ₹5 crore" filing setting.
+function gstccAutoAato(f){
+  const today = gstccToday(), y = gstccFyY(today) - 1;
+  const key = [currentCompany&&currentCompany.id, (state.vouchers||[]).length, typeof rbDataVersion!=='undefined'?rbDataVersion:0, today, f&&f.above5cr].join('|');
+  if(gstccAatoMemo.key===key) return gstccAatoMemo.val;
+  let turnover = 0; try{ turnover = rocBooksFacts(y).turnover; }catch(e){}
+  const val = turnover > 0.5 ? { tier: gstccAatoTier(turnover), turnover: r2(turnover), fy: gstccFy(y), source:'books' }
+                             : { tier: (f && f.above5cr) ? '5to10' : 'lt1.5', turnover: 0, fy: gstccFy(y), source:'default' };
+  gstccAatoMemo = { key, val };
+  return val;
+}
+
+/* ---- GST payments in the books → the return they pay for ---- */
+function gstccPaymentVouchers(){
+  const out = [];
+  for(const v of state.vouchers){
+    if(!v.date) continue;
+    const t = gstVoucherTax(v); if(!(t.outTot < -0.004)) continue;          // output GST debited = liability discharged
+    const cash = r2((v.entries||[]).filter(e=>(e.cr||0)>0 && !GST_LEDGER_IDS.has(e.ledgerId)).reduce((s,e)=>s+(e.cr||0),0));
+    if(cash > 0.5) out.push({ v, date:v.date, amount:cash });
+  }
+  return out.sort((a,b)=>a.date<b.date?-1:1);
+}
+function gstccAttachPayHints(list, today){
+  const pays = gstccPaymentVouchers(); if(!pays.length) return;
+  const used = new Set(), cache = {};
+  list.filter(o=>['GSTR-3B','PMT-06','CMP-08'].includes(o.form) && o.period && o.period.to && o.period.to < today && !['filed','na'].includes(o.status))
+    .sort((a,b)=>a.due<b.due?-1:1).forEach(o=>{
+      let expected = 0;
+      if(o.form!=='CMP-08' && o.period.key){ let d = cache[o.period.key]; if(d===undefined){ try{ d = cache[o.period.key] = gstReturnData(o.period); }catch(e){ d = cache[o.period.key] = null; } } expected = d && d.g3b ? d.g3b.cashTotal : 0; }
+      const cands = pays.filter(p=>!used.has(p.v.id) && p.date > o.period.to && p.date <= addDays(o.due, 45));
+      if(!cands.length) return;
+      cands.sort((a,b)=> expected ? Math.abs(a.amount-expected)-Math.abs(b.amount-expected) : (a.date<b.date?-1:1));
+      const p = cands[0];
+      const match = expected > 0 && Math.abs(p.amount-expected) <= Math.max(10, expected*0.02);
+      if(expected > 0 && !match && Math.abs(p.amount-expected) > expected*0.5) return;   // too far off to be this return's payment
+      used.add(p.v.id);
+      o.hint = { voucherId:p.v.id, date:p.date, amount:p.amount, expected:r2(expected), match };
+    });
+}
+function gstccHintHtml(o, compact){
+  if(!o.hint || ['filed','na'].includes(o.status)) return '';
+  const h = o.hint;
+  if(compact) return `<div class="gstcc-hint compact"><span>Payment of <b>${gstccMoney(h.amount)}</b> on ${gstccDate(h.date)} found in your books</span><button class="gstcc-link" type="button" data-gstcc-confirm="${escapeAttr(o.key)}">Confirm filed</button></div>`;
+  return `<div class="gstcc-hint"><span>GST payment of <b>${gstccMoney(h.amount)}</b> on ${gstccDate(h.date)} found in your books${h.match?'':` (return shows ${gstccMoney(h.expected)})`}</span><button class="btn small" type="button" data-gstcc-confirm="${escapeAttr(o.key)}">Confirm filed</button></div>`;
+}
+
+/* ---- reading the portal's confirmation SMS / e-mail ---- */
+const GSTCC_MON = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+function gstccNormForm(s){
+  const x = String(s||'').toUpperCase().replace(/[\s-]/g,'');
+  if(/^GSTR1A$/.test(x)) return 'GSTR-1A';
+  if(/^(GSTR1|R1)$/.test(x)) return 'GSTR-1';
+  if(/^(GSTR3B|3B)$/.test(x)) return 'GSTR-3B';
+  if(x==='GSTR9C') return 'GSTR-9C'; if(x==='GSTR9') return 'GSTR-9'; if(x==='GSTR4') return 'GSTR-4';
+  if(x==='IFF') return 'IFF'; if(/^CMP0?8$/.test(x)) return 'CMP-08'; if(/^PMT0?6$/.test(x)) return 'PMT-06';
+  return '';
+}
+function gstccParseAck(text){
+  const t = String(text||'').replace(/=\r?\n/g,'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ');
+  const hits = [], seen = new Set();
+  const take = (arn, idx, end) => { arn = arn.toUpperCase(); if(seen.has(arn)) return; seen.add(arn); hits.push({ arn, idx, end }); };
+  for(const m of t.matchAll(/\bARN\b(?:\s*(?:no\.?|number))?\s*[:\-–]?\s*(?:is\s*)?([A-Z]{2}[0-9A-Z]{11,16})\b/gi)) take(m[1], m.index, m.index+m[0].length);
+  for(const m of t.matchAll(/\b(A[A-Z]\d{12,14}[A-Z0-9]?)\b/g)) take(m[1], m.index, m.index+m[0].length);
+  hits.sort((a,b)=>a.idx-b.idx);
+  return hits.map((h,i)=>{
+    const seg = t.slice(i ? hits[i-1].end : 0, i<hits.length-1 ? hits[i+1].idx : t.length);
+    const fm = seg.match(/\b(GSTR[\s-]*(?:1A|1|3B|9C|9|4)|IFF|CMP[\s-]*0?8|PMT[\s-]*0?6)\b/i) || seg.match(/\bNIL\s+(R1|3B)\b/i);
+    const form = fm ? gstccNormForm(fm[1]) : '';
+    let fp = '', fy = '';
+    const fyM = seg.match(/\b(?:FY|financial\s*year)\s*[:\-]?\s*(20\d{2})\s*[-–\/]\s*(\d{2,4})\b/i);
+    if(fyM) fy = `${fyM[1]}-${String(fyM[2]).slice(-2)}`;
+    const range = seg.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(?:-|–|to)\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s,\-']*(20\d{2})\b/i);
+    const per = seg.match(/(?:tax\s*period|return\s*period|period|month)\s*(?:of|is|:|-)?\s*(0[1-9]|1[0-2])\s*[\/\-]?\s*(20\d{2})\b/i);
+    const named = seg.match(/(?:tax\s*period|return\s*period|period|month|for)\s*(?:of|is|:|-)?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?[\s,\-']*(20\d{2})\b/i);
+    const bare = seg.match(/\b(0[1-9]|1[0-2])(20\d{2})\b/);
+    if(range) fp = gstPad2(GSTCC_MON[range[2].toLowerCase()]) + range[3];
+    else if(per) fp = per[1] + per[2];
+    else if(named) fp = gstPad2(GSTCC_MON[named[1].toLowerCase()]) + named[2];
+    else if(bare) fp = bare[1] + bare[2];
+    let filedOn = '';
+    const dates = [];
+    for(const m of seg.matchAll(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2})\b/g)) dates.push({ i:m.index, iso:`${m[3]}-${gstPad2(m[2])}-${gstPad2(m[1])}` });
+    for(const m of seg.matchAll(/\b(\d{1,2})[\s\-]+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\-,]+(20\d{2})\b/gi)) dates.push({ i:m.index, iso:`${m[3]}-${gstPad2(GSTCC_MON[m[2].toLowerCase()])}-${gstPad2(m[1])}` });
+    const okDate = d => /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d.iso);
+    const filedKw = seg.search(/\b(filed|filing|submitted|date)\b/i);
+    const good = dates.filter(okDate).sort((a,b)=>a.i-b.i);
+    const after = filedKw>=0 ? good.find(d=>d.i>filedKw) : null;
+    filedOn = (after || good[good.length-1] || {}).iso || '';
+    return { arn:h.arn, form, fp, fy, filedOn };
+  });
+}
+// The calendar row an acknowledgement belongs to (form + period), or '' when it cannot tell.
+function gstccAckMatch(a, list){
+  if(!a.form) return '';
+  const cands = list.filter(o=>o.form===a.form);
+  if(a.fy){ const o = cands.find(x=>x.label===`FY ${a.fy}`); return o ? o.key : ''; }
+  if(!a.fp) return '';
+  const mk = `${a.fp.slice(2)}-${a.fp.slice(0,2)}`;
+  const o = cands.find(x=>x.period && (x.period.quarter ? x.period.fp===a.fp : x.period.key===mk));
+  return o ? o.key : '';
+}
+function gstccAckFormHtml(list){
+  const rows = gstccAckRows;
+  const opts = sel => `<option value="">— not recorded —</option>` + list.filter(o=>o.status!=='na').map(o=>`<option value="${escapeAttr(o.key)}" ${o.key===sel?'selected':''}>${escapeHtml(o.form)} · ${escapeHtml(o.label)}${o.status==='filed'?' (already filed)':''}</option>`).join('');
+  return `<div class="gstcc-ack" id="gstccAckForm">
+    <div class="gstcc-ack-h"><b>Record from the portal's message</b><span class="roc-help">Paste the SMS or e-mail the GST portal sends after filing — the ARN, return, period and filing date are read for you.</span></div>
+    <textarea id="gstccAckText" rows="4" placeholder="e.g. GSTR-3B for tax period 102026 filed successfully. ARN AA331126012345X on 20/11/2026">${escapeHtml(gstccAckOpen && typeof gstccAckOpen==='object' ? gstccAckOpen.text||'' : '')}</textarea>
+    <div class="gstcc-ack-act"><label class="btn small secondary" for="gstccAckFile">⬆ Upload e-mail / text file</label><input type="file" id="gstccAckFile" accept=".txt,.eml,.html,.htm,.json,text/plain,message/rfc822" hidden><button class="btn small" type="button" id="gstccAckRead">Read message</button><button class="btn small secondary" type="button" id="gstccAckCancel">Close</button></div>
+    ${rows ? (rows.length ? `<div class="table-scroll"><table class="rb-card-table" id="gstccAckTable"><tr><th>ARN</th><th>Found</th><th>Filed on</th><th>Record against</th></tr>
+      ${rows.map((r,i)=>`<tr><td data-label="ARN"><b>${escapeHtml(r.arn)}</b></td><td data-label="Found">${escapeHtml(r.form||'return not named')}${r.fp?` · ${escapeHtml(r.fp.slice(0,2)+'/'+r.fp.slice(2))}`:r.fy?` · FY ${escapeHtml(r.fy)}`:''}</td><td data-label="Filed on"><input type="date" data-gstcc-ack-date="${i}" value="${escapeAttr(r.filedOn||gstccToday())}" max="${gstccToday()}"></td><td data-label="Record against"><select data-gstcc-ack-sel="${i}" aria-label="Return for ARN ${escapeAttr(r.arn)}">${opts(r.key)}</select></td></tr>`).join('')}</table></div>
+      <div class="gstcc-ack-act"><button class="btn" type="button" id="gstccAckSave">Record ${rows.filter(r=>r.key).length || ''} as filed</button></div>`
+      : `<p class="gstcc-ack-none">No ARN found in that text. Paste the whole SMS or e-mail, including the line with the ARN.</p>`) : ''}
+  </div>`;
+}
+
+/* ---- "File now": everything for one return in one place ---- */
+function gstccCopyBtn(val, label){ return `<button type="button" class="gstcc-copy" data-gstcc-copy="${escapeAttr(String(val))}" aria-label="Copy ${escapeAttr(label)}" title="Copy">⧉</button>`; }
+function gstccFig(n){ return (Math.round((Number(n)||0)*100)/100).toFixed(2); }
+function gstccFileNowHtml(o){
+  const today = gstccToday(), s = gstccSettings(), rec = gstccData().returns;
+  const home = (currentCompany && currentCompany.gstin || '').trim().toUpperCase();
+  const step = (state, title, body) => `<li class="gstcc-step ${state}"><span class="gstcc-step-i" aria-hidden="true">${state==='done'?'✓':state==='warn'?'!':''}</span><div><b>${title}</b>${body?`<div class="gstcc-step-b">${body}</div>`:''}</div></li>`;
+  let d = null; if(o.period && o.period.key && /^(GSTR-1|GSTR-3B|IFF|PMT-06)$/.test(o.form)){ try{ d = gstReturnData(o.period); }catch(e){ d = null; } }
+  const ended = !o.period || !o.period.to || o.period.to < today;
+  const fp = o.period && o.period.fp;
+  const sms = (code) => {
+    const txt = `NIL ${code} ${home} ${fp}`;
+    const blocked = o.fee > 0 || o.interest > 0;
+    return step(blocked ? 'warn' : 'todo', 'Nothing to report — nil return', blocked
+      ? `There is no GST activity in this period, but a late fee is due, so the portal will not take a nil return by SMS. File the nil return online on the portal.`
+      : `File it by SMS from the authorised signatory's registered mobile: send <code class="gstcc-code">${escapeHtml(txt)}</code>${gstccCopyBtn(txt,'nil return SMS')} to <b>14409</b>, then reply <code class="gstcc-code">CNF ${code} &lt;code&gt;</code> with the 6-digit code you receive. Not allowed if a draft is saved on the portal or an earlier return is unfiled.`);
+  };
+  const ackStep = step('todo', 'Record the filing', `Paste the confirmation SMS or e-mail — the ARN and date are read for you.
+    <div class="gstcc-fn-ack"><textarea id="gstccFnAck" rows="2" placeholder="Paste the portal's message here"></textarea><button class="btn small" type="button" id="gstccFnAckSave">Record</button><button class="btn small secondary" type="button" data-gstcc-file="${escapeAttr(o.key)}">Enter ARN by hand</button></div>`);
+  const portal = `<a class="btn small secondary" href="${GSTCC_PORTAL}" target="_blank" rel="noopener noreferrer">Open GST portal ↗</a>`;
+  let steps = '';
+  if(!ended) steps += step('warn', 'This period has not ended yet', `It can be filed from ${gstccDate(addDays(o.period.to,1))}. Keep recording vouchers until then.`);
+  if(o.form==='GSTR-1' || o.form==='IFF'){
+    if(d && d.empty && o.form==='GSTR-1') steps += sms('R1');
+    else if(d){
+      const fix = (d.issues||[]).filter(x=>x.level==='fix').length;
+      steps += step(fix ? 'warn' : 'done', fix ? `${fix} thing${fix===1?'':'s'} to fix first` : 'Checked — nothing blocks the file', fix ? `Clear the "Must fix" items in File GST Return. <button class="btn small secondary" type="button" data-gstcc-gofile="${escapeAttr(o.period.key)}">Show them</button>` : `${(d.issues||[]).length ? 'Items marked Review are worth a look before you upload.' : ''}`);
+      steps += step('todo', `Download the ${o.form==='IFF'?'IFF / GSTR-1':'GSTR-1'} file`, `<button class="btn small" type="button" data-gstcc-json="${escapeAttr(o.period.key)}" ${fix?'disabled title="Held until the Must fix items are cleared"':''}>⬇ ${escapeHtml(o.form)} file (JSON)</button>`);
+    }
+    steps += step('todo', 'Upload and file on the portal', `<div class="gstcc-guide"><ol>${(GSTCC_GUIDE[o.form]||[]).slice(o.form==='GSTR-1'?2:0, o.form==='GSTR-1'?4:9).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>${portal}</div>`);
+  } else if(o.form==='GSTR-3B' && d){
+    const g = d.g3b, itc = gstccItcChecks(), inPer = x => x.date>=o.period.from && x.date<=o.period.to;
+    const r1 = rec[`GSTR-1|${o.period.key}`];
+    steps += step(r1 && r1.status==='filed' ? 'done' : 'warn', r1 && r1.status==='filed' ? `GSTR-1 for ${escapeHtml(o.label)} is filed` : `File GSTR-1 for ${escapeHtml(o.label)} first`, r1 && r1.status==='filed' ? '' : 'Table 3 of GSTR-3B fills from GSTR-1 and is locked, so sales must be in GSTR-1 (or GSTR-1A) before you file this.');
+    if(d.empty) steps += sms('3B');
+    else {
+      const rev175 = r2(itc.blocked.filter(inPer).reduce((s,x)=>s+x.itc,0)), rev37 = itc.r37Total;
+      const rows = [
+        ['3.1(a) Taxable value', g.t31a.txval], ['3.1(a) Integrated tax', g.t31a.i], ['3.1(a) Central tax', g.t31a.c], ['3.1(a) State / UT tax', g.t31a.s],
+        ...(g.t31b.txval ? [['3.1(b) Zero-rated taxable value', g.t31b.txval], ['3.1(b) Integrated tax', g.t31b.i]] : []),
+        ...((g.t31d.i+g.t31d.c+g.t31d.s) ? [['3.1(d) Reverse charge — integrated', g.t31d.i], ['3.1(d) Reverse charge — central', g.t31d.c], ['3.1(d) Reverse charge — state', g.t31d.s]] : []),
+        ['4(A)(5) ITC — integrated', g.itc.i], ['4(A)(5) ITC — central', g.itc.c], ['4(A)(5) ITC — state / UT', g.itc.s],
+        ...(rev175 ? [['4(B)(1) Reverse — Sec 17(5)', rev175]] : []), ...(rev37 ? [['4(B)(2) Reverse — Rule 37', rev37]] : []),
+        ['6.1 Cash — integrated', g.cash.i], ['6.1 Cash — central', g.cash.c], ['6.1 Cash — state / UT', g.cash.s],
+        ...(o.interest ? [['5.1 Interest (approx.)', o.interest]] : []), ...(o.fee ? [['Late fee (portal adds it)', o.fee]] : []),
+      ];
+      const all = rows.map(([l,v])=>`${l}: ${gstccFig(v)}`).join('\n');
+      steps += step('todo', 'Enter or check these figures on the portal', `<div class="table-scroll"><table class="gstcc-figs" id="gstccFigs">${rows.map(([l,v])=>`<tr><td>${escapeHtml(l)}</td><td class="num">${gstccFig(v)}</td><td>${gstccCopyBtn(gstccFig(v), l)}</td></tr>`).join('')}</table></div><button class="btn small secondary" type="button" data-gstcc-copy="${escapeAttr(all)}">⧉ Copy all figures</button>`);
+      steps += step('todo', `Pay ${gstccMoney(g.cashTotal + (o.interest||0) + (o.fee||0))} in cash`, `Create a challan on the portal (Services → Payments → Create Challan), pay, then offset the liability and file with DSC or EVC. <button class="btn small secondary" type="button" data-gstcc-draftpay="${escapeAttr(o.period.key)}">Draft the payment entry in my books</button>`);
+    }
+    steps += step('todo', 'File on the portal', portal);
+  } else if(o.form==='PMT-06' && d){
+    steps += step('todo', `Pay ${gstccMoney(d.g3b.cashTotal)} for ${escapeHtml(o.label)}`, `Self-assessed tax for the month from your books${gstccCopyBtn(gstccFig(d.g3b.cashTotal),'amount')}. Or pay 35% of last quarter's cash tax (fixed-sum method). ${portal}`);
+  } else {
+    steps += step('todo', 'File on the portal', `<div class="gstcc-guide"><ol>${(GSTCC_GUIDE[o.form]||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>${portal}</div>`);
+  }
+  steps += ackStep;
+  return `<div class="gstcc-filenow" id="gstccFileNow">
+    <div class="gstcc-fn-head"><div><span class="gstcc-form">${escapeHtml(o.form)}</span> <b>${escapeHtml(o.label)}</b> <span class="gstcc-when">due ${gstccDate(o.due)}${o.fee||o.interest?` · late fee ${gstccMoney(o.fee)}${o.interest?` + interest ${gstccMoney(o.interest)}`:''}`:''}</span></div><button type="button" class="btn small secondary" data-gstcc-filenow-close>Close</button></div>
+    <ol class="gstcc-steps">${steps}</ol>
+  </div>`;
+}
+
+/* ---- draft entries opened in Voucher Entry (the user checks and saves) ---- */
+function gstccOpenDraft(type, narration, lines){
+  if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return; }
+  const entries = lines.filter(l=>Math.abs(l.amt)>0.004).map(l=>({ ledgerId:l.id||'', dr: l.side==='dr' ? r2(l.amt) : 0, cr: l.side==='cr' ? r2(l.amt) : 0, side:l.side }));
+  if(entries.length<2){ toast('Nothing to post'); return; }
+  vform = { type, date: new Date().toISOString().slice(0,10), narration, entries, gst:{party:'', taxableLedger:'', amount:'', rate:18, supply:'intra', items:[]} };
+  view = 'voucher'; render();
+  toast('Draft entry ready — check the lines, then Save to post it');
+}
+function gstccMainLedger(v){
+  const ls = (v.entries||[]).filter(e=>(e.dr||0)>0 && !GST_LEDGER_IDS.has(e.ledgerId)).sort((a,b)=>(b.dr||0)-(a.dr||0));
+  return ls.length ? ls[0].ledgerId : '';
+}
+function gstccDraftReversal(kind){
+  const c = gstccItcChecks();
+  const items = kind==='r37' ? c.r37 : c.blocked;
+  if(!items.length){ toast('Nothing to reverse'); return; }
+  const dr = new Map(), cr = { l_iigst:0, l_icgst:0, l_isgst:0 };
+  items.forEach(x=>{
+    const t = gstVoucherTax(x.v); if(!(t.inTot>0.004)) return;
+    const share = Math.min(1, x.itc / t.inTot);
+    cr.l_iigst += t.inp.i*share; cr.l_icgst += t.inp.c*share; cr.l_isgst += t.inp.s*share;
+    const lid = kind==='175' ? (state.ledgers.find(l=>l.name===x.head)||{}).id || gstccMainLedger(x.v) : gstccMainLedger(x.v);
+    dr.set(lid, (dr.get(lid)||0) + x.itc);
+  });
+  const narr = kind==='r37'
+    ? `ITC reversed under Rule 37 — supplier bills unpaid over 180 days: ${items.slice(0,4).map(x=>`${x.party} ${gstccDate(x.date)}`).join('; ')}${items.length>4?` and ${items.length-4} more`:''}. Re-claim once paid; interest is paid on the portal.`
+    : `ITC reversed — blocked credit under Sec 17(5): ${items.slice(0,4).map(x=>`${x.head} ${gstccDate(x.date)}`).join('; ')}${items.length>4?` and ${items.length-4} more`:''}.`;
+  gstccOpenDraft('Journal', narr, [...Array.from(dr.entries()).map(([id,amt])=>({ id, side:'dr', amt })), ...Object.entries(cr).map(([id,amt])=>({ id, side:'cr', amt }))]);
+}
+function gstccDraftPayment(periodKey){
+  const per = gstPeriodFromKey(periodKey); let d; try{ d = gstReturnData(per); }catch(e){ return; }
+  const g = d.g3b;
+  const fwd = { i:Math.max(0,r2(g.payable.i-g.t31d.i)), c:Math.max(0,r2(g.payable.c-g.t31d.c)), s:Math.max(0,r2(g.payable.s-g.t31d.s)) };
+  const due = {...fwd}, left = { i:Math.max(0,g.itc.i), c:Math.max(0,g.itc.c), s:Math.max(0,g.itc.s) }, usedFrom = { i:0, c:0, s:0 };
+  const use = (credit, head) => { const x = Math.min(due[head], left[credit]); due[head] = r2(due[head]-x); left[credit] = r2(left[credit]-x); usedFrom[credit] = r2(usedFrom[credit]+x); };
+  use('i','i'); use('i','c'); use('i','s'); use('c','c'); use('c','i'); use('s','s'); use('s','i');
+  const cash = r2(due.i+due.c+due.s);
+  const bank = (state.ledgers.find(l=>l.id==='l_bank') || state.ledgers.find(l=>l.group==='bank') || {}).id || '';
+  const rcm = g.t31d.i+g.t31d.c+g.t31d.s > 0.004;
+  gstccOpenDraft('Payment', `GSTR-3B ${per.label}: output tax set off against input credit, balance paid in cash${rcm?' (reverse-charge tax not included — it is paid in cash separately)':''}.`, [
+    { id:'l_oigst', side:'dr', amt:fwd.i }, { id:'l_ocgst', side:'dr', amt:fwd.c }, { id:'l_osgst', side:'dr', amt:fwd.s },
+    { id:'l_iigst', side:'cr', amt:usedFrom.i }, { id:'l_icgst', side:'cr', amt:usedFrom.c }, { id:'l_isgst', side:'cr', amt:usedFrom.s },
+    { id:bank, side:'cr', amt:cash },
+  ]);
+}
+function gstccCopy(text){
+  try{ window.__gstCopied = text; }catch(e){}
+  const done = () => toast('Copied');
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, ()=>{ gstccCopyFallback(text); done(); });
+  else { gstccCopyFallback(text); done(); }
+}
+function gstccCopyFallback(text){ try{ const t = document.createElement('textarea'); t.value = text; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }catch(e){} }
+
+function wireGstAuto(){
+  const today = gstccToday(), rec = () => gstccData().returns;
+  const by = () => (currentUser && (currentUser.name||currentUser.email)) || '';
+  const guard = () => { if(isReadOnlyMode()){ toast(readOnlyToastMessage()); return false; } return true; };
+  const persist = async msg => { gstccCache.key=''; render(); const ok = await saveGstCompliance(); if(ok && msg) toast(msg); };
+  const confirmHint = key => { const o = gstccReturns().find(x=>x.key===key); if(!o || !o.hint) return false;
+    rec()[key] = { status:'filed', filedOn:o.hint.date, arn:'', note:`Matched to GST payment of ${gstccMoney(o.hint.amount)} on ${gstccDate(o.hint.date)}`, voucherId:o.hint.voucherId, by:by(), at:new Date().toISOString() }; return true; };
+  document.querySelectorAll('[data-gstcc-confirm]').forEach(el=>el.addEventListener('click', ()=>{ if(!guard()) return; if(confirmHint(el.dataset.gstccConfirm)){ if(gstccFileNowKey===el.dataset.gstccConfirm) gstccFileNowKey=''; persist('Recorded as filed'); } }));
+  document.getElementById('gstccConfirmAll')?.addEventListener('click', ()=>{ if(!guard()) return; let n = 0; gstccReturns().filter(o=>o.hint && !['filed','na'].includes(o.status)).forEach(o=>{ if(confirmHint(o.key)) n++; }); persist(`${n} return${n===1?'':'s'} recorded as filed`); });
+  document.querySelectorAll('[data-gstcc-filenow]').forEach(el=>el.addEventListener('click', ()=>{ const k = el.dataset.gstccFilenow; gstccFileNowKey = gstccFileNowKey===k ? '' : k; gstccForm = null; const o = gstccReturns().find(x=>x.key===k); if(o && !['overdue','soon','upcoming','barred','optional'].includes(o.status)) gstccRetFilter='all'; render(); if(gstccFileNowKey) document.getElementById('gstccFileNow')?.scrollIntoView({block:'center'}); }));
+  document.querySelectorAll('[data-gstcc-filenow-close]').forEach(el=>el.addEventListener('click', ()=>{ gstccFileNowKey = ''; render(); }));
+  document.querySelectorAll('[data-gstcc-copy]').forEach(el=>el.addEventListener('click', ()=>gstccCopy(el.dataset.gstccCopy)));
+  document.querySelectorAll('[data-gstcc-json]').forEach(el=>el.addEventListener('click', ()=>{ gstFilingPeriodKey = el.dataset.gstccJson; render(); const b = document.getElementById('gstr1JsonBtn'); if(b && !b.disabled) b.click(); else toast('Clear the Must fix items in File GST Return first'); }));
+  document.querySelectorAll('[data-gstcc-gofile]').forEach(el=>el.addEventListener('click', ()=>{ gstFilingPeriodKey = el.dataset.gstccGofile; render(); document.getElementById('gstFilingPanel')?.scrollIntoView({block:'start'}); }));
+  document.querySelectorAll('[data-gstcc-draftpay]').forEach(el=>el.addEventListener('click', ()=>gstccDraftPayment(el.dataset.gstccDraftpay)));
+  document.querySelectorAll('[data-gstcc-reverse]').forEach(el=>el.addEventListener('click', ()=>gstccDraftReversal(el.dataset.gstccReverse)));
+  // acknowledgement inside "File now" — fixed return
+  document.getElementById('gstccFnAckSave')?.addEventListener('click', ()=>{
+    if(!guard()) return;
+    const a = gstccParseAck((document.getElementById('gstccFnAck')||{}).value||'')[0];
+    if(!a){ toast('No ARN found — paste the whole message, or enter the ARN by hand'); return; }
+    const o = gstccReturns().find(x=>x.key===gstccFileNowKey); if(!o) return;
+    const m = gstccAckMatch(a, [o]);
+    if(a.form && a.form!==o.form || (a.fp && !m && !a.fy)){ toast(`That message is for ${a.form||'another return'}${a.fp?` ${a.fp.slice(0,2)}/${a.fp.slice(2)}`:''} — use "Record from portal message" instead`); return; }
+    const filedOn = a.filedOn && a.filedOn<=today ? a.filedOn : today;
+    rec()[o.key] = { status:'filed', filedOn, arn:a.arn, note:'Read from the portal message', by:by(), at:new Date().toISOString() };
+    gstccFileNowKey = ''; persist(`${o.form} ${o.label} recorded — ARN ${a.arn}`);
+  });
+  // acknowledgement reader — any number of returns
+  document.getElementById('gstccAckBtn')?.addEventListener('click', ()=>{ if(!guard()) return; gstccAckOpen = !gstccAckOpen; gstccAckRows = null; render(); document.getElementById('gstccAckText')?.focus(); });
+  document.getElementById('gstccAckCancel')?.addEventListener('click', ()=>{ gstccAckOpen = false; gstccAckRows = null; render(); });
+  const readAck = text => { const list = gstccReturns(); gstccAckOpen = { text }; gstccAckRows = gstccParseAck(text).map(a=>({ ...a, key: gstccAckMatch(a, list) })); render(); };
+  document.getElementById('gstccAckRead')?.addEventListener('click', ()=>readAck((document.getElementById('gstccAckText')||{}).value||''));
+  document.getElementById('gstccAckFile')?.addEventListener('change', e=>{ const f = e.target.files && e.target.files[0]; if(!f) return; if(f.size>2e6){ toast('That file is too large to be a portal message'); return; } const r = new FileReader(); r.onload = ()=>readAck(String(r.result||'')); r.readAsText(f); });
+  document.querySelectorAll('[data-gstcc-ack-sel]').forEach(el=>el.addEventListener('change', ()=>{ const i = +el.dataset.gstccAckSel; if(gstccAckRows && gstccAckRows[i]) gstccAckRows[i].key = el.value; const b = document.getElementById('gstccAckSave'); if(b) b.textContent = `Record ${gstccAckRows.filter(r=>r.key).length || ''} as filed`; }));
+  document.querySelectorAll('[data-gstcc-ack-date]').forEach(el=>el.addEventListener('change', ()=>{ const i = +el.dataset.gstccAckDate; if(gstccAckRows && gstccAckRows[i]) gstccAckRows[i].filedOn = el.value; }));
+  document.getElementById('gstccAckSave')?.addEventListener('click', ()=>{
+    if(!guard() || !gstccAckRows) return;
+    const pick = gstccAckRows.filter(r=>r.key);
+    if(!pick.length){ toast('Choose the return each ARN belongs to'); return; }
+    pick.forEach(r=>{ const filedOn = /^\d{4}-\d{2}-\d{2}$/.test(r.filedOn||'') && r.filedOn<=today ? r.filedOn : today; rec()[r.key] = { status:'filed', filedOn, arn:r.arn, note:'Read from the portal message', by:by(), at:new Date().toISOString() }; });
+    gstccAckOpen = false; gstccAckRows = null; persist(`${pick.length} return${pick.length===1?'':'s'} recorded as filed`);
+  });
+  // IRP responses straight from the e-invoice checks
+  document.getElementById('gstccIrpBtn')?.addEventListener('click', ()=>{ if(!guard()) return; document.getElementById('gstccIrpFile')?.click(); });
+  document.getElementById('gstccIrpFile')?.addEventListener('change', e=>{
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = async ()=>{ let json; try{ json = JSON.parse(String(r.result||'')); }catch(err){ toast('That is not an IRP response file (JSON)'); return; }
+      const res = einvImportResponses(json); gstccCache.key = ''; render(); await saveEinvoiceRegister();
+      toast(res.matched.length ? `IRN recorded on ${res.matched.length} invoice${res.matched.length===1?'':'s'}${res.unmatched.length?` · ${res.unmatched.length} not found in your books`:''}` : 'No invoice in that file matches your books'); };
+    r.readAsText(f);
+  });
+}
+
 function viewGST(){
   const netGST = gstOutputTotal() - gstInputTotal();
   const outward = state.vouchers.filter(v=>v.type==='Sales').map(v=>({v, g:gstBreakdownForVoucher(v)})).filter(r=>r.g.totalTax>0);
@@ -49130,6 +50089,7 @@ function viewGST(){
   return `
     ${masthead('GST','Output tax, input credit, and return files for the GST portal')}
     ${plainHintGST()}
+    ${gstccTopHtml()}
 
     <div class="stmt-toolbar" id="gstStatusRow">
       ${gfd.empty ? `<span class="pill">No GST vouchers in ${escapeHtml(gf.period.label)}</span>`
@@ -49146,9 +50106,17 @@ function viewGST(){
       <div class="stat"><div class="label">GST Vouchers Recorded</div><div class="val">${state.vouchers.filter(v=>(v.type==='Sales'||v.type==='Purchase') && gstBreakdownForVoucher(v).totalTax>0).length}</div></div>
     </div>
 
+    ${gstccReturnsPanel()}
+
     ${gstFilingPanel(gfd, gf.keys)}
 
+    ${gstcc3bPanel()}
+
+    ${gstccItcPanel()}
+
     ${gst2bPanel()}
+
+    ${gstccChecksPanel()}
 
     <div class="panel">
       <div class="panel-head"><h2>GST Summary</h2>
@@ -49195,6 +50163,7 @@ function viewGST(){
     </div></div>` : ''}
     ${gstSupplySection('Outward Supplies (Sales)','gstOutwardSection',outward,gstOutLimit,'gstOutMoreBtn','No GST sales vouchers recorded yet','Apply GST to a Sales voucher to see it here.')}
     ${gstSupplySection('Inward Supplies (Purchase)','gstInwardSection',inward,gstInLimit,'gstInMoreBtn','No GST purchase vouchers recorded yet','Apply GST to a Purchase voucher to see it here.')}
+    ${gstccLawPanel()}
     <p class="muted" style="font-size:11.5px;">Note: only Sales/Purchase vouchers where GST was applied via the GST Calculator appear here. Use the Voucher tab to record a taxable sale or purchase.</p>
   `;
 }
@@ -57046,6 +58015,7 @@ function attachHandlers(){
   }
 
   if(view==='gst'){
+    wireGstcc();
     document.getElementById('gstCompareToggleBtn')?.addEventListener('click', ()=>{
       gstShowMonthCompare = !gstShowMonthCompare;
       render();
