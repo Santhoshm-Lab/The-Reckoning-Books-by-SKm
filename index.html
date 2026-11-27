@@ -5076,6 +5076,107 @@ html:not([data-theme="dark"]){ --ink-faint:#5F6B63; --debit:#BF3333; --credit:#2
 }
 @media (prefers-reduced-motion: reduce){ .ux-admin-entry,.ux-admin-tile,.ux-att-row,.ux-qa-btn,.acs-stat-chip[data-ux-admin-go]{transition:none;} .acs-stat-chip[data-ux-admin-go]:hover{transform:none;} }
 </style>
+<style id="roc2-css">
+/* ===== ROC Filings round 2 (Nov 2026) ===== */
+.roc-hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;margin:0 0 16px;align-items:stretch;}
+.roc-side{display:grid;grid-template-rows:auto 1fr;gap:10px;min-width:0;}
+.roc-health{padding:10px 16px !important;}
+.roc-next{border-radius:16px;padding:16px 18px;border:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.roc-next::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--credit);}
+.roc-next.warn::before{background:var(--gold-ink);} .roc-next.bad::before{background:var(--debit);}
+.roc-next-eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);}
+.roc-next-main{display:flex;gap:16px;align-items:center;}
+.roc-count{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:84px;height:84px;border-radius:14px;background:var(--credit-bg);color:var(--credit);}
+.roc-next.warn .roc-count{background:color-mix(in srgb, var(--gold-ink) 12%, transparent);color:var(--gold-ink);}
+.roc-next.bad .roc-count{background:var(--debit-bg);color:var(--debit);}
+.roc-count b{font-size:30px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;}
+.roc-count span{font-size:11px;font-weight:700;margin-top:4px;}
+.roc-next-txt{min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start;}
+.roc-next-title{font-size:14px;font-weight:700;color:var(--ink);line-height:1.35;}
+.roc-next-due{font-size:12px;color:var(--ink-soft);}
+.roc-next-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;}
+.roc-health{border-radius:16px;padding:14px 16px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:12px;}
+.roc-ring{width:64px;height:64px;flex-shrink:0;}
+.roc-ring .trk{fill:none;stroke:var(--surface-strong);stroke-width:8;}
+.roc-ring .val{fill:none;stroke:var(--credit);stroke-width:8;stroke-linecap:round;}
+.roc-ring.warn .val{stroke:var(--gold-ink);} .roc-ring.bad .val{stroke:var(--debit);}
+.roc-ring text{font:800 16px Inter,system-ui,sans-serif;fill:var(--ink);}
+.roc-health-l{font-size:13px;font-weight:800;color:var(--ink);}
+.roc-health-s{font-size:11.5px;color:var(--ink-soft);margin-top:3px;line-height:1.4;}
+.roc-kstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.roc-kstats .stat{margin:0;text-align:left;font:inherit;color:inherit;cursor:default;}
+.roc-kstats button.stat{cursor:pointer;}
+.roc-kstats button.stat:hover{border-color:var(--border-strong);}
+.roc-kstats button.stat:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+.roc-kstats .stat{padding:12px 14px;}
+.roc-kstats .stat .val{font-size:22px;}
+/* calendar: month headers + guide */
+.roc-month-row td{background:var(--surface-strong);padding-top:8px;padding-bottom:8px;}
+.roc-mh{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);}
+.roc-mh.bad{color:var(--debit);}
+.roc-mh-n{font-size:11px;color:var(--ink-faint);margin-left:10px;font-weight:600;}
+.roc-guide-btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:11.5px;font-weight:700;color:var(--accent1);border-radius:6px;padding:2px 0;}
+.roc-guide-btn:hover{text-decoration:underline;}
+.roc-guide-btn:focus-visible{outline:2px solid var(--accent1);outline-offset:2px;}
+.roc-row.guide-open td{border-bottom-color:transparent;}
+.roc-guide-row td{padding-top:0;}
+.roc-guide{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;padding:12px 16px;border-radius:12px;background:var(--surface-strong);border:1px solid var(--border);}
+.roc-guide h4{margin:0 0 6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);}
+.roc-guide ul{margin:0 0 4px;padding-left:18px;font-size:12.5px;line-height:1.6;color:var(--ink);}
+.roc-guide p{margin:0 0 10px;font-size:12.5px;line-height:1.5;color:var(--ink);}
+.roc-guide .btn{text-decoration:none;}
+/* tracker */
+.roc-tracker{width:100%;border-collapse:collapse;}
+.roc-tracker th,.roc-tracker td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;}
+.roc-tracker th[scope="row"]{background:none;width:150px;}
+.roc-trk-cell{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.roc-trk-d{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+.roc-trk-off{background:repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--border) 60%, transparent) 6px 7px);}
+.roc-trk-kyc{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12.5px;}
+.roc-trk-kyc em{font-style:normal;font-size:11.5px;color:var(--ink-faint);margin-left:4px;}
+/* directors as cards */
+.roc-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;}
+.roc-person{border:1px solid var(--border);border-radius:14px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px;}
+.roc-person.is-former{opacity:.75;}
+.roc-person-head{display:flex;align-items:center;gap:10px;}
+.roc-av{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:14px;background:color-mix(in srgb, #475569 14%, transparent);color:#334155;flex-shrink:0;}
+.roc-person-id{flex:1;min-width:0;}
+.roc-person-id b{display:block;font-size:13.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.roc-person-id span{display:block;font-size:12px;color:var(--ink-soft);}
+.roc-person-dl{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0;}
+.roc-person-dl div.wide{grid-column:1/-1;}
+.roc-person-dl dt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);}
+.roc-person-dl dd{margin:2px 0 0;font-size:12.5px;color:var(--ink);overflow-wrap:anywhere;}
+.roc-kyc{background:var(--surface-strong);border-radius:10px;padding:9px 10px;}
+.roc-kyc.none{font-size:12px;color:var(--ink-soft);}
+.roc-kyc-top{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--ink);}
+.roc-kyc-bar{height:6px;border-radius:999px;background:color-mix(in srgb, var(--border-strong) 55%, transparent);margin:8px 0 6px;overflow:hidden;}
+.roc-kyc-bar i{display:block;height:100%;border-radius:inherit;background:var(--credit);}
+.roc-kyc-bar.soon i{background:var(--gold-ink);} .roc-kyc-bar.overdue i{background:var(--debit);}
+.roc-kyc-sub{font-size:11.5px;color:var(--ink-soft);}
+.roc-person-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;}
+.roc-former{margin-top:14px;}
+.roc-former summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:10px;}
+/* legibility inside ROC: no text under 11px, counts readable on their chips */
+.main[data-view="roc"] .roc-mo-l,.main[data-view="roc"] .roc-mo-f,.main[data-view="roc"] .roc-help,.main[data-view="roc"] .pill,.main[data-view="roc"] .roc-chip i,.main[data-view="roc"] .stat .label,.main[data-view="roc"] .vt-count,.main[data-view="roc"] .chip-count{font-size:11px;}
+.main[data-view="roc"] .chip-count,.main[data-view="roc"] .vt-count{color:var(--ink);background:color-mix(in srgb, var(--ink) 10%, transparent);}
+.main[data-view="roc"] .filter-chip.active .chip-count,.main[data-view="roc"] .vtype-tabs button.active .vt-count{color:#fff;background:rgb(0 0 0 / .22);}
+.main[data-view="roc"] .roc-row.st-overdue .roc-form{color:#A82A2A;}
+html[data-theme="dark"] .main[data-view="roc"] .roc-row.st-overdue .roc-form{color:var(--debit);}
+.main[data-view="roc"] .pill.neg{color:#A82A2A;}
+html[data-theme="dark"] .main[data-view="roc"] .pill.neg{color:var(--debit);}
+html[data-theme="dark"] .roc-av{color:#CBD5E1;}
+@media (max-width:1100px){ .roc-hero{grid-template-columns:1fr;} }
+@media (max-width:720px){
+  .roc-hero{grid-template-columns:1fr;}
+  .roc-kstats{grid-template-columns:1fr 1fr;}
+  .roc-kstats .stat:last-child{grid-column:1/-1;}
+  .roc-guide{grid-template-columns:1fr;}
+  .main[data-view="roc"] .btn,.main[data-view="roc"] .btn.small{min-height:40px;}
+  .main[data-view="roc"] .filter-chip,.main[data-view="roc"] .vtype-tabs button,.main[data-view="roc"] .roc-guide-btn{min-height:40px;}
+  .main[data-view="roc"] .roc-profile .btn{min-height:40px;}
+}
+</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -40369,6 +40470,7 @@ function viewRoc(){
   const pendingMinutes = rocMinutesPending(sec, today).length;
   const tabs = `<div class="vtype-tabs roc-tabs" style="margin-bottom:14px;">${[
       ['calendar','Due-date calendar',open.length],
+      ['tracker','Year tracker',0],
       ['people', isCo?'Directors & KMP':'Partners', kycSoon],
       ['members', isCo?'Shareholding':'Contributions', 0],
       ['meetings', isCo?'Meetings & minutes':'Partners’ meetings', pendingMinutes]].map(([k,l,n])=>`<button type="button" data-roc-tab="${k}" class="${rocSubTab===k?'active':''}">${l}${n?`<span class="vt-count">${n}</span>`:''}</button>`).join('')}</div>`;
@@ -40376,8 +40478,9 @@ function viewRoc(){
   if(rocSubTab==='people') body = rocPeopleView(sec, ent, today, obs);
   else if(rocSubTab==='members') body = rocMembersView(sec, ent, today);
   else if(rocSubTab==='meetings') body = rocMeetingsView(sec, ent, today);
+  else if(rocSubTab==='tracker') body = rocTrackerView(sec, ent, today);
   else body = rocCalendarView(sec, ent, today, obs);
-  return `${head}${rocProfileStrip(co, sec, ent, today)}${rocSettingsOpen===true ? rocSettingsForm(co, sec, ent, today) : ''}${rocKpis(obs, today)}${tabs}<div id="rocBody">${body}</div>`;
+  return `${head}${rocProfileStrip(co, sec, ent, today)}${rocSettingsOpen===true ? rocSettingsForm(co, sec, ent, today) : ''}${rocHero(obs, today)}${tabs}<div id="rocBody">${body}</div>`;
 }
 function rocEntityPicker(ent){
   const co = currentCompany || {};
@@ -40421,19 +40524,128 @@ function rocSettingsForm(co, sec, ent, today){
     <div class="spend-form-actions"><button class="btn secondary" type="button" id="rocSettingsCancel">Cancel</button><button class="btn" type="button" id="rocSettingsSave">Save settings</button></div>
   </div>`;
 }
-function rocKpis(obs, today){
+/* ---- ROC Filings, round 2 (Nov 2026): next-deadline hero + compliance health, month-grouped calendar with
+   a "how to file" guide per form, a 3-year tracker, director cards with a KYC cycle bar, share-with-CA. ---- */
+let rocGuideKey = '';   // which calendar row has its "How to file" guide open
+const ROC_MCA_URL = 'https://www.mca.gov.in/';
+const ROC_GUIDE = {
+  'AGM':{ who:'Chairperson (minutes); notice sent by the Board', docs:['Notice to members — at least 21 clear days before','Audited financial statements','Board\'s report and auditor\'s report','Attendance register and proxies'], tip:'Record the date here once held — AOC-4 and MGT-7 count from it.' },
+  'AOC-4':{ who:'A director with DSC; certified by a practising CA/CS/CMA', docs:['Audited balance sheet and profit & loss','Board\'s report with annexures','Auditor\'s report','Date of the AGM that adopted the accounts'], tip:'Companies in the XBRL class file AOC-4 XBRL instead.' },
+  'MGT-7':{ who:'A director with DSC; certified by a practising CS', docs:['Shareholding pattern as on 31 March','Directors and KMP — appointments and cessations','Board and general meetings held in the year','Remuneration of directors and KMP'], tip:'Attach the list of shareholders if not given in the form.' },
+  'MGT-7A':{ who:'A director with DSC (and the company secretary, if any)', docs:['Shareholding as on 31 March','Directors and KMP details','Meetings held during the year'], tip:'Abridged return for small companies and OPCs.' },
+  'ADT-1':{ who:'A director with DSC', docs:['Auditor\'s written consent and eligibility certificate','Resolution appointing / re-appointing the auditor','Appointment letter'], tip:'Due within 15 days of the AGM.' },
+  'DPT-3':{ who:'A director with DSC', docs:['Loans and money received as on 31 March, by lender','Auditor\'s certificate if the company holds deposits'], tip:'Loan figures come from your Secured / Unsecured Loans ledgers.' },
+  'MSME-1':{ who:'A director or the company secretary with DSC', docs:['Each micro / small supplier with amount unpaid over 45 days','Reason for the delay'], tip:'Mark suppliers as MSME on their ledger so the app can flag them.' },
+  'PAS-6':{ who:'A director with DSC', docs:['Reconciliation of share capital audit report by a CA/CS'], tip:'Half-yearly, for unlisted public companies.' },
+  'INC-20A':{ who:'A director with DSC; certified by a practising professional', docs:['Bank statement showing subscribers\' share money','Registered office verification (if not already filed)'], tip:'Business cannot start or borrow until this is filed.' },
+  'DIR-3 KYC':{ who:'The director, with their own DSC', docs:['PAN and Aadhaar','Personal mobile and email (OTP on both)','Address proof'], tip:'Once every three financial years; ₹5,000 if late. Update within 30 days if mobile, email or address changes.' },
+  'DIR-12':{ who:'A director with DSC', docs:['DIR-2 consent of the new director','Board / members\' resolution','Resignation letter, for a cessation'], tip:'Within 30 days of the appointment or cessation.' },
+  'MGT-14':{ who:'A director with DSC', docs:['Certified copy of the resolution','Explanatory statement and notice of the meeting'], tip:'Within 30 days of the resolution.' },
+  'Form 11':{ who:'A designated partner with DSC; certified by a professional if contribution > ₹50 lakh or turnover > ₹5 crore', docs:['Partners and designated partners as on 31 March','Contribution received by the LLP'], tip:'Due 30 May.' },
+  'Form 8':{ who:'Designated partners with DSC; certified by a practising CA/CS/CMA', docs:['Statement of assets and liabilities as on 31 March','Statement of income and expenditure','Solvency declaration'], tip:'Due 30 October.' },
+  'Board meeting':{ who:'Called by the Board', docs:['Notice with agenda — at least 7 days before','Draft minutes circulated within 15 days','Minutes signed within 30 days'], tip:'Record it under Meetings & minutes so the next date moves on.' },
+};
+function rocMoneyShort(n){ return rocMoney(n); }
+// Compliance health for the current financial year: due dates passed this year that were met on time.
+function rocHealth(obs, today){
+  const fs = rocIso(rocFyY(today),4,1);
+  const due = obs.filter(o=>!o.computed && o.status!=='na' && o.due>=fs && o.due<=today);
+  if(!due.length) return { pct:100, onTime:0, total:0 };
+  const onTime = due.filter(o=>o.status==='filed' && o.rec && (!o.rec.filedOn || o.rec.filedOn<=o.due)).length;
+  return { pct: Math.round(onTime/due.length*100), onTime, total: due.length };
+}
+function rocRing(pct){
+  const r = 30, c = 2*Math.PI*r, off = c*(1-pct/100), tone = pct>=90 ? 'ok' : pct>=60 ? 'warn' : 'bad';
+  return `<svg class="roc-ring ${tone}" viewBox="0 0 76 76" role="img" aria-label="${pct}% on time"><circle cx="38" cy="38" r="${r}" class="trk"/><circle cx="38" cy="38" r="${r}" class="val" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 38 38)"/><text x="38" y="43" text-anchor="middle">${pct}%</text></svg>`;
+}
+function rocHero(obs, today){
   const overdue = obs.filter(o=>o.status==='overdue'), soon = obs.filter(o=>o.status==='soon');
+  const within30 = obs.filter(o=>['soon','upcoming'].includes(o.status) && o.due<=addDays(today,30));
   const fee = overdue.reduce((s,o)=>s+rocLateFee(o,today).amt,0);
-  const next = obs.find(o=>o.status==='soon' || o.status==='upcoming');
   const curY = rocFyY(today), fs = rocIso(curY,4,1);
   const filed = obs.filter(o=>o.status==='filed' && o.kind!=='meeting' && o.rec && o.rec.filedOn>=fs).length;
-  return `<div class="grid gstf-tiles roc-kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px;">
-    <div class="stat roc-k ${overdue.length?'bad':''}" data-roc-kpi="overdue"><div class="label">Overdue</div><div class="val">${overdue.length}</div><div class="gstf-sub">${fee ? `Est. late fee ${rocMoney(fee)} and rising` : overdue.length ? 'Additional fee applies' : 'Nothing late'}</div></div>
-    <div class="stat roc-k ${soon.length?'warn':''}" data-roc-kpi="soon"><div class="label">Due in 15 days</div><div class="val">${soon.length}</div><div class="gstf-sub">${soon[0] ? `${escapeHtml(soon[0].form)} by ${rocDate(soon[0].due)}` : 'Clear for two weeks'}</div></div>
-    <div class="stat roc-k"><div class="label">Next deadline</div><div class="val roc-next">${next ? escapeHtml(next.form) : '—'}</div><div class="gstf-sub">${next ? `${rocDate(next.due)} · ${rocWhen(next,today)}` : 'Nothing scheduled'}</div></div>
-    <div class="stat roc-k"><div class="label">Filed in FY ${rocFy(curY)}</div><div class="val">${filed}</div><div class="gstf-sub">With SRN recorded: ${obs.filter(o=>o.status==='filed' && o.rec && o.rec.srn && o.rec.filedOn>=fs).length}</div></div>
+  const next = overdue[0] || obs.find(o=>o.status==='soon' || o.status==='upcoming');
+  const h = rocHealth(obs, today);
+  const d = next ? rocDays(today, next.due) : 0;
+  const tone = !next ? 'ok' : d<0 ? 'bad' : d<=15 ? 'warn' : 'ok';
+  return `<div class="roc-hero">
+    <div class="roc-next ${tone}">
+      ${next ? `<div class="roc-next-eyebrow">${d<0?'Most overdue':'Next deadline'}</div>
+      <div class="roc-next-main"><div class="roc-count"><b>${Math.abs(d)}</b><span>${d<0?`day${d===-1?'':'s'} late`:d===0?'due today':`day${d===1?'':'s'} left`}</span></div>
+        <div class="roc-next-txt"><span class="roc-form">${escapeHtml(next.form)}</span><div class="roc-next-title">${escapeHtml(next.title)}</div><div class="roc-next-due">Due ${rocDate(next.due)}${rocLateFee(next,today).text?` · late fee so far ${rocLateFee(next,today).text}`:''}</div></div></div>
+      <div class="roc-next-act">${next.computed ? `<button class="btn small" type="button" data-roc-new-meeting="board">Record meeting</button>` : `<button class="btn small" type="button" data-roc-hero-file="${escapeAttr(next.key)}">${next.form==='AGM'?'Record AGM':'Mark filed'}</button>`}<button class="btn small secondary" type="button" data-roc-hero-guide="${escapeAttr(next.key)}">How to file</button></div>`
+      : `<div class="roc-next-eyebrow">Next deadline</div><div class="roc-next-title" style="margin-top:6px;">Nothing due — every tracked filing is done.</div>`}
+    </div>
+    <div class="roc-side">
+    <div class="roc-health">
+      ${rocRing(h.pct)}
+      <div><div class="roc-health-l">Compliance health</div><div class="roc-health-s">${h.total ? `${h.onTime} of ${h.total} due so far in FY ${rocFy(curY)} filed on time` : `Nothing has fallen due yet in FY ${rocFy(curY)}`}</div></div>
+    </div>
+    <div class="roc-kstats">
+      <button type="button" class="stat roc-k ${overdue.length?'bad':''}" data-roc-kpi="overdue"><div class="label">Overdue</div><div class="val">${overdue.length}</div><div class="gstf-sub">${fee ? `Est. late fee ${rocMoney(fee)} and rising` : overdue.length ? 'Additional fee applies' : 'Nothing late'}</div></button>
+      <button type="button" class="stat roc-k ${soon.length?'warn':''}" data-roc-kpi="soon"><div class="label">Due in 15 days</div><div class="val">${soon.length}</div><div class="gstf-sub">${within30.length} in the next 30 days</div></button>
+      <div class="stat roc-k"><div class="label">Filed in FY ${rocFy(curY)}</div><div class="val">${filed}</div><div class="gstf-sub">With SRN: ${obs.filter(o=>o.status==='filed' && o.rec && o.rec.srn && o.rec.filedOn>=fs).length}</div></div>
+    </div>
+    </div>
   </div>`;
 }
+function rocGuideHtml(o){
+  const g = ROC_GUIDE[o.form] || ROC_GUIDE[o.form.replace(/A$/,'')] || null;
+  if(!g) return '';
+  return `<div class="roc-guide" role="region" aria-label="How to file ${escapeAttr(o.form)}">
+    <div class="roc-guide-col"><h4>You'll need</h4><ul>${g.docs.map(d=>`<li>${escapeHtml(d)}</li>`).join('')}</ul></div>
+    <div class="roc-guide-col"><h4>Who signs</h4><p>${escapeHtml(g.who)}</p><h4>Good to know</h4><p>${escapeHtml(g.tip)}</p>
+      ${o.kind==='meeting' ? '' : `<a class="btn small secondary" href="${ROC_MCA_URL}" target="_blank" rel="noopener noreferrer">Open MCA portal ↗</a>`}</div>
+  </div>`;
+}
+// Three accounts years side by side — what was filed, when, and what is still open.
+function rocTrackerView(sec, ent, today){
+  const curY = rocFyY(today), st = sec.settings || {}, trackY = Number(st.trackFromFY) || (curY-1);
+  const years = [curY-2, curY-1, curY];
+  const wide = rocObligations({ co: currentCompany, sec: Object.assign({}, sec, { settings: Object.assign({}, st, { trackFromFY: Math.min(trackY, curY-2) }) }), today, books:true });
+  const isCo = rocIsCompany(ent);
+  const forms = isCo ? ['AGM','AOC-4','MGT-7','ADT-1','DPT-3','MSME-1','PAS-6'] : ['Form 11','Form 8'];
+  const label = f => f==='MGT-7' ? 'MGT-7 / 7A' : f;
+  const match = (o, f) => f==='MGT-7' ? /^MGT-7/.test(o.form) : o.form===f;
+  const rows = forms.map(f=>{
+    const any = wide.some(o=>match(o,f) && o.kind!=='kyc');
+    if(!any && !['AGM','AOC-4','MGT-7','Form 11','Form 8'].includes(f)) return '';
+    return `<tr><th scope="row"><span class="roc-form">${label(f)}</span></th>${years.map(y=>{
+      const items = wide.filter(o=>match(o,f) && o.fy===rocFy(y));
+      if(y < trackY) return `<td class="roc-trk-off"><span class="muted">Not tracked</span></td>`;
+      if(!items.length) return `<td><span class="muted">—</span></td>`;
+      return `<td>${items.map(o=>`<div class="roc-trk-cell">${rocPill(o.status,o)}<span class="roc-trk-d">${o.status==='filed' && o.rec && o.rec.filedOn ? rocDate(o.rec.filedOn) : `due ${rocDate(o.due)}`}</span></div>`).join('')}</td>`;
+    }).join('')}</tr>`;
+  }).join('');
+  const kycPeople = rocBoard(sec, today).filter(p=>p.din);
+  return `<div class="panel"><div class="panel-head"><h2>Year tracker</h2><span class="viz-sub">Accounts years ${rocFy(years[0])} to ${rocFy(years[2])}</span></div><div class="panel-body">
+    <div class="table-scroll"><table class="roc-tracker" id="rocTracker"><tr><th>Form</th>${years.map(y=>`<th>FY ${rocFy(y)}${y===curY?' <span class="muted">(current)</span>':''}</th>`).join('')}</tr>${rows}
+      ${kycPeople.length ? `<tr><th scope="row"><span class="roc-form">DIR-3 KYC</span></th><td colspan="3"><div class="roc-trk-kyc">${kycPeople.map(p=>{ const k = wide.find(o=>o.kind==='kyc' && o.personId===p.id); return `<span>${escapeHtml(p.name)} ${k?rocPill(k.status,k):''} <em>${k?`due ${rocDate(k.due)}`:''}</em></span>`; }).join('')}</div></td></tr>` : ''}
+    </table></div>
+    ${years[0] < trackY ? `<p class="muted roc-foot">Earlier years are outside your tracking start (FY ${rocFy(trackY)}). <button type="button" class="roc-guide-btn" data-roc-track-from="${years[0]}">Track from FY ${rocFy(years[0])}</button></p>` : ''}
+  </div></div>`;
+}
+// Plain-text summary of what is open, to paste into WhatsApp or an email to the CA / CS.
+function rocShareText(obs, today){
+  const co = currentCompany || {};
+  const open = obs.filter(o=>['overdue','soon','upcoming'].includes(o.status) && o.due<=addDays(today,120));
+  const lines = open.map(o=>`• ${o.form} — ${String(o.title).replace(/^[^—]+—\s*/,'')} — due ${rocDate(o.due)}${o.status==='overdue'?` (OVERDUE, ${rocDays(o.due,today)} days)`:''}`);
+  return `ROC compliance — ${co.name||''}${co.cin?` (CIN ${String(co.cin).toUpperCase()})`:''}\nAs on ${rocDate(today)}\n\n${lines.length?lines.join('\n'):'Nothing open in the next four months.'}\n\nPlease confirm what you need from us.`;
+}
+function wireRoc2(){
+  const obs = rocObligationsNow();
+  document.querySelectorAll('[data-roc-guide]').forEach(el=>el.addEventListener('click', ()=>{ rocGuideKey = rocGuideKey===el.dataset.rocGuide ? '' : el.dataset.rocGuide; render(); }));
+  document.querySelectorAll('[data-roc-hero-guide]').forEach(el=>el.addEventListener('click', ()=>{ rocSubTab='calendar'; rocFilter='all'; rocMonth=''; rocGuideKey = el.dataset.rocHeroGuide; render(); document.querySelector(`tr[data-roc-key="${CSS.escape(rocGuideKey)}"]`)?.scrollIntoView({block:'center'}); }));
+  document.querySelectorAll('[data-roc-hero-file]').forEach(el=>el.addEventListener('click', ()=>{ if(!rocGuard()) return; rocSubTab='calendar'; rocFilter='all'; rocMonth=''; rocForm = { kind:'file', key: el.dataset.rocHeroFile, filedOn: rocToday(), srn:'', note:'' }; render(); const n = document.getElementById('rocFileOn'); if(n){ n.scrollIntoView({block:'center'}); n.focus(); } }));
+  document.querySelectorAll('[data-roc-track-from]').forEach(el=>el.addEventListener('click', async ()=>{ if(!rocGuard()) return; rocData().settings.trackFromFY = Number(el.dataset.rocTrackFrom); rocObsCache.key=''; render(); await saveSecretarial(); }));
+  document.getElementById('rocShareBtn')?.addEventListener('click', async ()=>{
+    const text = rocShareText(obs, rocToday());
+    let ok = false; try{ await navigator.clipboard.writeText(text); ok = true; }catch(e){}
+    window.__rocShared = text;
+    toast(ok ? 'Copied — paste it into WhatsApp or an email to your CA' : 'Select and copy the list from the box', {type: ok?'success':'info'});
+  });
+}
+
 function rocStrip(obs, today){
   const y = Number(today.slice(0,4)), m = Number(today.slice(5,7));
   const cells = [];
@@ -40454,8 +40666,15 @@ function rocCalendarView(sec, ent, today, obs){
   let list = obs.filter(o=> rocFilter==='open' ? ['overdue','soon','upcoming'].includes(o.status) : rocFilter==='all' ? true : o.status===rocFilter);
   if(rocMonth) list = obs.filter(o=>o.due.slice(0,7)===rocMonth);
   const f = rocForm && rocForm.kind==='file' ? rocForm : null;
-  const rows = list.map(o=>{
-    const fee = rocLateFee(o, today), isAgm = o.form==='AGM';
+  let lastMonth = '', rows = '';
+  list.forEach(o=>{
+    const m = o.status==='overdue' ? 'overdue' : o.due.slice(0,7);
+    if(m!==lastMonth){
+      lastMonth = m;
+      const n = list.filter(x=> m==='overdue' ? x.status==='overdue' : (x.status!=='overdue' && x.due.slice(0,7)===m)).length;
+      rows += `<tr class="roc-month-row"><td colspan="6">${m==='overdue' ? `<span class="roc-mh bad">Overdue</span>` : `<span class="roc-mh">${new Date(m+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'})}</span>`}<span class="roc-mh-n">${n} item${n===1?'':'s'}</span></td></tr>`;
+    }
+    const fee = rocLateFee(o, today), isAgm = o.form==='AGM', open = rocGuideKey===o.key;
     const act = o.computed ? `<button class="btn small secondary" type="button" data-roc-new-meeting="board">Record meeting</button>`
       : o.status==='filed' || o.status==='na' ? `<button class="btn small secondary" type="button" data-roc-undo="${escapeAttr(o.key)}">Undo</button>`
       : `<button class="btn small" type="button" data-roc-file="${escapeAttr(o.key)}">${isAgm?'AGM held':'Mark filed'}</button> <button class="btn small secondary" type="button" data-roc-na="${escapeAttr(o.key)}" title="Doesn’t apply to this company">N/A</button>`;
@@ -40465,15 +40684,16 @@ function rocCalendarView(sec, ent, today, obs){
         <div class="field" style="grid-column:span 2;"><label for="rocFileNote">Note</label><input type="text" id="rocFileNote" value="${escapeAttr(f.note)}" placeholder="${isAgm?'Venue, auditor re-appointed…':'Fee paid, filed by…'}"></div>
         <div class="spend-form-actions"><button class="btn secondary" type="button" id="rocFileCancel">Cancel</button><button class="btn" type="button" id="rocFileSave">Save</button></div>
       </div></td></tr>` : '';
-    return `<tr class="roc-row st-${o.status}" data-roc-key="${escapeAttr(o.key)}">
+    rows += `<tr class="roc-row st-${o.status}${open?' guide-open':''}" data-roc-key="${escapeAttr(o.key)}">
       <td data-label="Form"><span class="roc-form">${escapeHtml(o.form)}</span></td>
-      <td data-label="What"><div class="roc-title">${escapeHtml(o.title)}</div><div class="roc-what">${o.what||''}</div>${o.rec && (o.rec.srn||o.rec.note) ? `<div class="roc-rec">${o.rec.srn?`SRN <b>${escapeHtml(o.rec.srn)}</b>`:''}${o.rec.srn&&o.rec.note?' · ':''}${escapeHtml(o.rec.note||'')}</div>`:''}</td>
+      <td data-label="What"><div class="roc-title">${escapeHtml(o.title)}</div><div class="roc-what">${o.what||''}</div>${o.rec && (o.rec.srn||o.rec.note) ? `<div class="roc-rec">${o.rec.srn?`SRN <b>${escapeHtml(o.rec.srn)}</b>`:''}${o.rec.srn&&o.rec.note?' · ':''}${escapeHtml(o.rec.note||'')}</div>`:''}
+        ${ROC_GUIDE[o.form]||ROC_GUIDE[o.form.replace(/A$/,'')] ? `<button type="button" class="roc-guide-btn" data-roc-guide="${escapeAttr(o.key)}" aria-expanded="${open}">${open?'Hide':'How to file'} <span aria-hidden="true">${open?'▴':'▾'}</span></button>` : ''}</td>
       <td data-label="Due" class="roc-due"><b>${rocDate(o.due)}</b><div class="roc-when">${rocWhen(o,today)}</div></td>
       <td data-label="Status">${rocPill(o.status,o)}</td>
       <td data-label="Late fee" class="num">${fee.text ? `<span class="${o.status==='overdue'?'roc-fee':''}">${fee.text}</span>` : '<span class="muted">—</span>'}</td>
-      <td data-label="">${act}</td></tr>${formRow}`;
-  }).join('');
-  return `<div class="panel"><div class="panel-head"><h2>Due-date calendar</h2><div class="gstf-controls"><button class="btn small secondary" type="button" id="rocIcsBtn" title="Add these dates to Google Calendar or Outlook">⬇ Calendar file (.ics)</button><button class="btn small secondary" type="button" id="rocCsvBtn">⬇ CSV</button></div></div><div class="panel-body">
+      <td data-label="">${act}</td></tr>${open ? `<tr class="roc-guide-row"><td colspan="6">${rocGuideHtml(o)}</td></tr>` : ''}${formRow}`;
+  });
+  return `<div class="panel"><div class="panel-head"><h2>Due-date calendar</h2><div class="gstf-controls"><button class="btn small secondary" type="button" id="rocShareBtn" title="Copy the open list to send to your CA or CS">Share with CA</button><button class="btn small secondary" type="button" id="rocIcsBtn" title="Add these dates to Google Calendar or Outlook">⬇ Calendar file (.ics)</button><button class="btn small secondary" type="button" id="rocCsvBtn">⬇ CSV</button></div></div><div class="panel-body">
     ${rocStrip(obs, today)}
     <div class="filter-chips" style="margin:12px 0 10px;">${rocMonth ? `<button type="button" class="filter-chip active" data-roc-month="">${new Date(rocMonth+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long',year:'numeric'})} ✕</button>` : [['open','Open'],['overdue','Overdue'],['soon','Due in 15 days'],['filed','Filed'],['na','Not applicable'],['all','All']].map(([k,l])=>`<button type="button" class="filter-chip ${rocFilter===k?'active':''}" data-roc-filter="${k}">${l} <span class="chip-count">${counts(k)}</span></button>`).join('')}</div>
     ${list.length ? `<div class="table-scroll"><table class="rb-card-table roc-table" id="rocCalTable"><tr><th>Form</th><th>What it is</th><th>Due</th><th>Status</th><th class="num">Late fee</th><th></th></tr>${rows}</table></div>`
@@ -40489,12 +40709,28 @@ function rocPeopleView(sec, ent, today, obs){
   const kycDue = board.filter(p=>{ const k = rocKycFor(obs,p.id); return k && (k.status==='overdue' || k.due<=addDays(today,90)); }).length;
   const f = rocForm && rocForm.kind==='person' ? rocForm : null;
   const checks = [
-    [board.length>=min, `${board.length} ${isCo?'director':'designated partner'}${board.length===1?'':'s'} on record — minimum ${min}${isCo?'':' designated partners'}`],
+    [board.length>=min, `${board.length} ${isCo?'director':'designated partner'}${board.length===1?'':'s'} on record — minimum ${min}`],
     [noDin===0, noDin ? `${noDin} without a ${isCo?'DIN':'DPIN'}` : `Every ${isCo?'director has a DIN':'designated partner has a DPIN'}`],
     [kycDue===0, kycDue ? `${kycDue} DIR-3 KYC due within 90 days` : 'No DIR-3 KYC due in the next 90 days'],
   ];
-  const people = (sec.people||[]).slice().sort((a,b)=> (!!a.ceased - !!b.ceased) || String(a.name).localeCompare(String(b.name)));
-  return `<div class="panel"><div class="panel-head"><h2>${isCo?'Directors & key managerial personnel':'Partners'}</h2><button class="btn small" type="button" id="rocAddPerson">+ Add ${isCo?'director':'partner'}</button></div><div class="panel-body">
+  const all = (sec.people||[]).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const current = all.filter(p=>!(p.ceased && p.ceased<=today)), former = all.filter(p=>p.ceased && p.ceased<=today);
+  const card = p => {
+    const k = rocKycFor(obs,p.id), gone = p.ceased && p.ceased<=today;
+    const ini = String(p.name||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    let bar = '';
+    if(k){
+      const start = p.kycFiledOn || addDays(k.due, -365*3), span = Math.max(1, rocDays(start, k.due)), used = Math.min(100, Math.max(0, rocDays(start, today)/span*100));
+      bar = `<div class="roc-kyc"><div class="roc-kyc-top"><span>DIR-3 KYC</span>${rocPill(k.status,k)}</div><div class="roc-kyc-bar ${k.status}"><i style="width:${used.toFixed(0)}%"></i></div><div class="roc-kyc-sub">Due ${rocDate(k.due)} · ${p.kycFiledOn?`last filed ${rocDate(p.kycFiledOn)}`:'last date not recorded'}</div></div>`;
+    }
+    return `<article class="roc-person ${gone?'is-former':''}">
+      <div class="roc-person-head"><span class="roc-av" aria-hidden="true">${escapeHtml(ini)}</span><div class="roc-person-id"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.designation||'Director')}</span></div>${gone ? `<span class="pill neutral">Ceased ${rocDate(p.ceased)}</span>` : `<span class="pill pos">In office</span>`}</div>
+      <dl class="roc-person-dl"><div><dt>${isCo?'DIN':'DPIN'}</dt><dd class="roc-mono">${p.din?escapeHtml(p.din):'—'}</dd></div><div><dt>Appointed</dt><dd>${rocDate(p.appointed)}</dd></div>${p.email||p.mobile?`<div class="wide"><dt>Contact</dt><dd>${escapeHtml([p.email,p.mobile].filter(Boolean).join(' · '))}</dd></div>`:''}</dl>
+      ${bar || `<div class="roc-kyc none">${rocIsDirectorRole(p.designation||'Director') ? 'Add the DIN to track DIR-3 KYC' : 'Key managerial personnel — no DIR-3 KYC'}</div>`}
+      <div class="roc-person-act">${k && !gone && (k.status==='overdue' || !p.kycFiledOn || k.due<=addDays(today,90)) ? `<button class="btn small" type="button" data-roc-kyc-today="${p.id}" title="Record DIR-3 KYC filed today">KYC filed today</button>` : ''}<button class="btn small secondary" type="button" data-roc-edit-person="${p.id}">Edit</button></div>
+    </article>`;
+  };
+  return `<div class="panel"><div class="panel-head"><h2>${isCo?'Directors & key managerial personnel':'Partners'}</h2><button class="btn small" id="rocAddPerson" type="button">+ Add ${isCo?'director':'partner'}</button></div><div class="panel-body">
     <div class="roc-checks">${checks.map(([ok,t])=>`<span class="roc-check ${ok?'ok':'bad'}">${ok?'✓':'!'} ${t}</span>`).join('')}</div>
     ${f ? `<div class="spend-form" id="rocPersonForm">
       <div class="field"><label for="rocPName">Full name</label><input type="text" id="rocPName" value="${escapeAttr(f.name)}" placeholder="As on PAN"></div>
@@ -40508,17 +40744,10 @@ function rocPeopleView(sec, ent, today, obs){
       <div class="field" style="grid-column:1/-1;"><div class="roc-err" id="rocPErr" role="alert">${escapeHtml(f.err||'')}</div></div>
       <div class="spend-form-actions"><button class="btn secondary" type="button" id="rocCancel">Cancel</button><button class="btn" type="button" id="rocPersonSave">${f.id?'Save changes':'Add to register'}</button></div>
     </div>` : ''}
-    ${people.length ? `<div class="table-scroll"><table class="rb-card-table" id="rocPeopleTable"><tr><th>Name</th><th>Designation</th><th>${isCo?'DIN':'DPIN'}</th><th>Appointed</th><th>DIR-3 KYC</th><th>Status</th><th></th></tr>
-      ${people.map(p=>{ const k = rocKycFor(obs,p.id), gone = p.ceased && p.ceased<=today; return `<tr class="${gone?'roc-ceased':''}">
-        <td data-label="Name"><b>${escapeHtml(p.name)}</b>${p.email||p.mobile?`<div class="roc-what">${escapeHtml([p.email,p.mobile].filter(Boolean).join(' · '))}</div>`:''}</td>
-        <td data-label="Designation">${escapeHtml(p.designation||'Director')}</td>
-        <td data-label="${isCo?'DIN':'DPIN'}" class="roc-mono">${p.din?escapeHtml(p.din):'<span class="muted">—</span>'}</td>
-        <td data-label="Appointed">${rocDate(p.appointed)}</td>
-        <td data-label="DIR-3 KYC">${k ? `${rocPill(k.status,k)}<div class="roc-when">due ${rocDate(k.due)}${p.kycFiledOn?` · last ${rocDate(p.kycFiledOn)}`:' · last date not recorded'}</div>` : '<span class="muted">Not needed</span>'}</td>
-        <td data-label="Status">${gone ? `<span class="pill neutral">Ceased ${rocDate(p.ceased)}</span>` : '<span class="pill pos">In office</span>'}</td>
-        <td data-label="">${k && !gone && (k.status==='overdue' || !p.kycFiledOn || k.due<=addDays(today,90)) ? `<button class="btn small secondary" type="button" data-roc-kyc-today="${p.id}" title="Record DIR-3 KYC filed today">KYC filed</button> ` : ''}<button class="btn small secondary" type="button" data-roc-edit-person="${p.id}">Edit</button></td></tr>`; }).join('')}
-    </table></div>` : emptyState({icon:'👤', title:`No ${isCo?'directors':'partners'} on record`, text:`Add each ${isCo?'director with their DIN':'partner with their DPIN'} and the date of their last DIR-3 KYC — the calendar then tracks every KYC and DIR-12 date for you.`})}
-    <p class="muted roc-foot">DIR-3 KYC moved to once every three financial years in 2026 (₹5,000 if late); a change of mobile, email or address needs an update within 30 days. Appointments and cessations within the last six months add a ${isCo?'DIR-12':'Form 4'} reminder. PAN and Aadhaar are not stored here.</p>
+    ${all.length ? `<div class="roc-people" id="rocPeopleGrid">${current.map(card).join('')}</div>
+      ${former.length ? `<details class="roc-former"><summary>Former ${isCo?'directors & KMP':'partners'} (${former.length})</summary><div class="roc-people">${former.map(card).join('')}</div></details>` : ''}`
+      : emptyState({icon:'👤', title:`No ${isCo?'directors':'partners'} on record`, text:`Add each ${isCo?'director with their DIN':'partner with their DPIN'} and the date of their last DIR-3 KYC — the calendar then tracks every KYC and DIR-12 date for you.`})}
+    <p class="muted roc-foot">DIR-3 KYC moved to once every three financial years in 2026 (₹5,000 if late); the bar shows how much of the current cycle has gone. A change of mobile, email or address needs an update within 30 days. PAN and Aadhaar are not stored here.</p>
   </div></div>`;
 }
 function rocMembersView(sec, ent, today){
@@ -53320,7 +53549,7 @@ function attachHandlers(){
     });
   }
 
-  if(view==='roc') wireRoc();
+  if(view==='roc'){ wireRoc(); wireRoc2(); }
 
   if(view==='spend'){
     const sd = spendData();
