@@ -5451,6 +5451,7 @@ label.dx-btn-sm{cursor:pointer;display:inline-flex;align-items:center;}
 :root[data-theme="dark"] .dx-btn-sm.is-good{color:#052E16;}
 :root[data-theme="dark"] .dx-btn-sm.is-primary,:root[data-theme="dark"] .dx-panel .dx-send{color:#0B1220;}
 </style>
+<style id="gx-own-css">.gx-empty.is-start{background:var(--surface-strong);color:var(--ink-soft);font-weight:600;line-height:1.45;border:1px dashed var(--border);}</style>
 </head>
 <body>
 <div class="app" id="app">
@@ -29941,8 +29942,12 @@ function gxHeroHtml(){
 function gxAsideHtml(){
   if(!currentUser) return '';
   const all = visibleCompanies();
-  const att = gxAttentionItems(all);
-  const feed = all.length ? gatewayRecentActivityItems(all, 6) : [];
+  // The shared demo company (SKm Group of Companies) is sample data every account can open — keep it out of
+  // this person's own Needs attention, Quick actions and Recent activity. A "Try Demo" session has only the
+  // demo, so there it stays.
+  const own = isDemoUser ? all : all.filter(c=>!isSharedDemoId(c.id));
+  const att = gxAttentionItems(own);
+  const feed = own.length ? gatewayRecentActivityItems(own, 6) : [];
   const qa = (id, icon, label, sub) => `<button type="button" class="gx-qa" id="${id}"><span class="gx-qa-ic" aria-hidden="true">${icon}</span><span><b>${label}</b><em>${sub}</em></span></button>`;
   const canCreate = !isDemoUser && !isTeamAccessOnlyUser();
   return `
@@ -29950,19 +29955,24 @@ function gxAsideHtml(){
       ${uxAdminGatewayCard()}
       <section class="gx-panel gx-attn">
         <header><h2>Needs attention</h2>${att.length?`<span class="gx-count">${att.length}</span>`:''}</header>
-        ${att.length ? `<ul>${att.slice(0,6).map(a=>`<li><button type="button" class="gx-attn-item tone-${a.tone}" data-gx-open="${a.c.id}"><span class="gx-attn-ic" aria-hidden="true">${a.icon}</span><span><b>${escapeHtml(a.text)}</b><em>${escapeHtml(a.c.name)}</em></span><span class="gx-go" aria-hidden="true">›</span></button></li>`).join('')}</ul>${att.length>6?`<div class="gx-more">+${att.length-6} more — see Accountant Dashboard</div>`:''}` : `<div class="gx-empty"><span aria-hidden="true">✓</span> All caught up across your companies</div>`}
+        ${att.length ? `<ul>${att.slice(0,6).map(a=>`<li><button type="button" class="gx-attn-item tone-${a.tone}" data-gx-open="${a.c.id}"><span class="gx-attn-ic" aria-hidden="true">${a.icon}</span><span><b>${escapeHtml(a.text)}</b><em>${escapeHtml(a.c.name)}</em></span><span class="gx-go" aria-hidden="true">›</span></button></li>`).join('')}</ul>${att.length>6?`<div class="gx-more">+${att.length-6} more — see Accountant Dashboard</div>`:''}` : own.length ? `<div class="gx-empty"><span aria-hidden="true">✓</span> All caught up across your companies</div>` : `<div class="gx-empty is-start">Create your first company — overdue invoices, GST and ROC due dates and approvals in it will show here.</div>`}
       </section>
       <section class="gx-panel">
         <header><h2>Quick actions</h2></header>
         <div class="gx-qa-grid">
           ${canCreate ? qa('gxCreateCoBtn','＋','New company','6 quick steps') : ''}
           ${!isDemoUser ? qa('openAccountantDashBtn','📊','Accountant dashboard','Which books need you') : ''}
-          ${!isDemoUser && all.length>1 ? qa('openConsolidationBtn','🧮','Consolidation','Group P&amp;L and BS') : ''}
-          ${!isDemoUser && all.length>1 ? qa('openComparisonBtn','⚖️','Compare','2–3 companies side by side') : ''}
+          ${!isDemoUser && own.length>1 ? qa('openConsolidationBtn','🧮','Consolidation','Group P&amp;L and BS') : ''}
+          ${!isDemoUser && own.length>1 ? qa('openComparisonBtn','⚖️','Compare','2–3 companies side by side') : ''}
           ${`<button type="button" class="gx-qa" id="openWhatsNewBtn"><span class="gx-qa-ic" aria-hidden="true">✨</span><span><b>What's new</b><em>Latest features</em></span>${whatsNewUnseenCount()>0?`<span class="gx-badge">${whatsNewUnseenCount()}</span>`:''}</button>`}
           ${!isDemoUser ? qa('openInviteEarnBtn','🎁','Invite &amp; earn','Share your link') : ''}
         </div>
       </section>
+      ${!feed.length && own.length ? `
+      <section class="gx-panel">
+        <header><h2>Recent activity</h2></header>
+        <div class="gx-empty is-start">No entries yet — vouchers you post in your companies will appear here.</div>
+      </section>` : ''}
       ${feed.length ? `
       <section class="gx-panel">
         <header><h2>Recent activity</h2></header>
